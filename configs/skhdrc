@@ -1,4 +1,6 @@
-# skhd: hyper-key bindings for yabai
+# skhd: hotkey daemon that drives yabai via `yabai -m` commands.
+# Window-tiling configuration (layout, gaps, rules) lives in ~/.yabairc.
+# This file is just the keybindings.
 #
 # Karabiner emits:
 #   Caps Lock        -> Ctrl+Opt+Cmd+Shift (Hyper)

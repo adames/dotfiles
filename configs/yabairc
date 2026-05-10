@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
-# yabai: BSP tiling for macOS
+# yabai: BSP tiling for macOS.
+# Sourced by yabai itself on startup (`yabai --start-service` reads this).
+# Hotkeys live in ~/.skhdrc — yabai itself doesn't bind keys.
 
 yabai -m config layout                      bsp
 yabai -m config window_placement            second_child

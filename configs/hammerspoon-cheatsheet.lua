@@ -6,7 +6,7 @@ local M = {}
 
 local sections = {
   {
-    title = "macOS · Window Manager (Hyper → skhd → yabai)",
+    title = "macOS · Window Manager (yabai, driven by skhd)",
     rows  = {
       { "Hyper + H / J / K / L",         "Focus window  left / down / up / right" },
       { "Hyper + Shift + H / J / K / L", "Swap window   left / down / up / right" },
@@ -123,7 +123,8 @@ local function render_html()
     end
     parts[#parts+1] = '</table></div>'
   end
-  parts[#parts+1] = '</div><div class="hint">~/.hammerspoon/cheatsheet.lua</div></body></html>'
+  local stamp = os.date('%Y-%m-%d %H:%M')
+  parts[#parts+1] = '</div><div class="hint">Source: ~/.hammerspoon/cheatsheet.lua · Refreshed: ' .. stamp .. '</div></body></html>'
   return table.concat(parts)
 end
 
