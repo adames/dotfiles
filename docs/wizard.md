@@ -28,12 +28,16 @@ For each gate the wizard:
 2. **Opens the System Settings pane** via the
    `x-apple.systempreferences:com.apple.preference.security?Privacy_…`
    URL scheme.
-3. **Shows a blocking AppleScript dialog** with `Open Pane Again` and
-   `Skip this step` buttons, and a 2-second `giving up after` timeout so
-   the outer poll loop can re-probe.
-4. **Auto-dismisses** when the probe goes green, and advances.
-5. **Times out** at 120 ticks (~2 minutes) and offers Skip if the user
-   walked away.
+3. **Shows a blocking AppleScript dialog** with two buttons:
+   - `Skip — already granted` (default; for cases where the wizard's
+     probe is broken but you've confirmed the grant in Settings)
+   - `Open Pane Again` (re-opens the System Settings pane if you
+     navigated away)
+   The dialog has a 30-second `giving up after` timeout, so it re-renders
+   roughly twice a minute as the outer poll loop re-probes the gate.
+4. **Auto-advances** the moment the probe goes green — usually within a
+   few seconds of you toggling the switch ON.
+5. **Total budget**: 8 dialog rounds (~4 minutes per gate) before timing out.
 
 After all gates: a final dialog asks whether to log out *now* to apply the
 `com.apple.spaces spans-displays` change. The default button is "Later" —

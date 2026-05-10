@@ -62,13 +62,32 @@ mac_skhd_status() {
 }
 
 # ---- Hammerspoon ------------------------------------------------------------
-# Returns 0 if Hammerspoon is running AND has Accessibility, non-zero otherwise.
-# Uses hs.accessibilityState(false) which doesn't prompt the user.
+# Returns 0 if Hammerspoon is running AND has Accessibility. Multiple probes
+# in order — any positive signal wins:
+#   1. hs.accessibilityState() via AppleScript (needs hs.allowAppleScript(true)
+#      in init.lua, which we ship; but a stale running HS may not have it yet)
+#   2. TCC.db read for org.hammerspoon.Hammerspoon (needs Terminal FDA)
+#   3. Behavioral: registered hotkeys imply Accessibility (only works if
+#      AppleScript bridge is up — otherwise we couldn't ask)
+# If all three fail but HS is running, the wizard's manual "Skip — already
+# granted" path lets the user advance.
 mac_hammerspoon_accessibility_ok() {
   pgrep -x Hammerspoon >/dev/null 2>&1 || return 1
-  local result
-  result=$(osascript -e 'tell application "Hammerspoon" to execute lua code "return tostring(hs.accessibilityState(false))"' 2>/dev/null)
-  [[ "$result" == "true" ]]
+
+  # 1. authoritative
+  local r
+  r=$(osascript -e 'tell application "Hammerspoon" to execute lua code "return tostring(hs.accessibilityState(false))"' 2>/dev/null)
+  [[ "$r" == "true" ]] && return 0
+
+  # 2. TCC.db (silently no-ops without FDA)
+  [[ "$(_tcc_auth kTCCServiceAccessibility 'org.hammerspoon.Hammerspoon' 2>/dev/null)" == "2" ]] && return 0
+
+  # 3. behavioral: hotkey registration count
+  local n
+  n=$(osascript -e 'tell application "Hammerspoon" to execute lua code "return tostring(#hs.hotkey.getHotkeys())"' 2>/dev/null)
+  [[ "$n" =~ ^[1-9][0-9]*$ ]] && return 0
+
+  return 1
 }
 
 # ---- TCC.db read helper -----------------------------------------------------

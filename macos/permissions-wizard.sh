@@ -49,18 +49,19 @@ mac_yabai_status_ok() { mac_yabai_status; [[ $? -eq 0 ]]; }
 mac_skhd_status_ok()  { mac_skhd_status;  [[ $? -eq 0 ]]; }
 
 # ---- AppleScript dialog -----------------------------------------------------
-# Shows a blocking modal with a 2-second timeout, so the outer poll loop can
-# tick again and re-render with updated probe state. Returns the button text
-# the user clicked, or empty on timeout.
+# Shows a blocking modal with a 30-second timeout, so the outer poll loop
+# re-renders the dialog about every half-minute (calm, not spammy). The
+# background "Skip — already granted" button is for cases where the wizard's
+# probe is broken but the user has confirmed the grant in Settings.
 ws_dialog() {
   local title="$1" body="$2"
   osascript <<EOF 2>/dev/null || true
 try
   set theResult to display dialog "$body" \
     with title "$title" \
-    buttons {"Skip this step", "Open Pane Again"} \
-    default button "Open Pane Again" \
-    giving up after 2
+    buttons {"Skip — already granted", "Open Pane Again"} \
+    default button "Skip — already granted" \
+    giving up after 30
   if gave up of theResult then
     return ""
   else
@@ -95,12 +96,17 @@ wizard_step() {
   wlog "step $name START"
   mac_open_privacy_pane "$pane"
 
-  local budget=120  # 2-second ticks × 60 = 120s budget total
+  # Up to 8 dialog rounds (30s each = ~4 min total budget). The wizard
+  # auto-advances the moment the probe goes green — the dialog is just a
+  # visible cue while waiting.
+  local budget=8
   local body="Step $idx of $total
 
 Enable $label.
 
-System Settings has been opened to the right pane. Toggle the entry ON; this dialog will dismiss automatically when granted."
+System Settings has been opened to the right pane. Toggle the entry ON and the wizard will detect it within ~30 seconds.
+
+If you've already granted it but the wizard isn't picking it up, click \"Skip — already granted\"."
 
   while (( budget > 0 )); do
     if "$probe"; then
@@ -112,16 +118,16 @@ System Settings has been opened to the right pane. Toggle the entry ON; this dia
     local button
     button=$(ws_dialog "Hyper Bootstrap Wizard" "$body")
     case "$button" in
-      "Skip this step")
-        warn "[$idx/$total] $label — skipped"
-        wlog "step $name SKIPPED"
+      "Skip — already granted")
+        warn "[$idx/$total] $label — skipped (user-confirmed)"
+        wlog "step $name SKIPPED-USER"
         return 1
         ;;
       "Open Pane Again")
         mac_open_privacy_pane "$pane"
         ;;
       "")
-        # timeout — loop and re-probe
+        # 30s timeout elapsed without click — re-probe and loop
         :
         ;;
     esac
@@ -141,7 +147,17 @@ phase_register_apps() {
   have skhd  && skhd  --start-service >/dev/null 2>&1 || true
   [[ -d /Applications/Hammerspoon.app        ]] && open -ga Hammerspoon       2>/dev/null || true
   [[ -d /Applications/Karabiner-Elements.app ]] && open -ga Karabiner-Elements 2>/dev/null || true
-  sleep 1
+
+  # If Hammerspoon was already running with a stale init.lua (e.g. fresh
+  # bootstrap that just deployed our new init.lua), the pathwatcher inside
+  # the OLD init.lua should reload — but the AppleScript bridge probe races
+  # against that reload. Force a reload here and give it 3 seconds to settle
+  # before the wizard probes.
+  if pgrep -x Hammerspoon >/dev/null 2>&1; then
+    osascript -e 'tell application "Hammerspoon" to execute lua code "hs.reload()"' \
+      >/dev/null 2>&1 || true
+  fi
+  sleep 3
 }
 
 phase_grant_permissions() {
