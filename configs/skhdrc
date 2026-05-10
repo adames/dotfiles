@@ -1,0 +1,36 @@
+# skhd: hyper-key bindings for yabai
+#
+# Karabiner emits:
+#   Caps Lock        -> Ctrl+Opt+Cmd+Shift (Hyper)
+#   Caps Lock+Shift  -> Ctrl+Opt+Cmd       (Meh; Shift consumed)
+#
+# So: Hyper+key      = "cmd + alt + ctrl + shift - <key>" (focus)
+#     Hyper+Shift+key = "cmd + alt + ctrl - <key>"        (swap)
+
+# --- focus ---------------------------------------------------------------
+cmd + alt + ctrl + shift - h : yabai -m window --focus west
+cmd + alt + ctrl + shift - j : yabai -m window --focus south
+cmd + alt + ctrl + shift - k : yabai -m window --focus north
+cmd + alt + ctrl + shift - l : yabai -m window --focus east
+
+# --- swap (Hyper+Shift) --------------------------------------------------
+cmd + alt + ctrl - h : yabai -m window --swap west
+cmd + alt + ctrl - j : yabai -m window --swap south
+cmd + alt + ctrl - k : yabai -m window --swap north
+cmd + alt + ctrl - l : yabai -m window --swap east
+
+# --- layout / float ------------------------------------------------------
+cmd + alt + ctrl + shift - return : yabai -m window --toggle zoom-fullscreen
+cmd + alt + ctrl + shift - f      : yabai -m window --toggle float --grid 4:4:1:1:2:2
+cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
+cmd + alt + ctrl + shift - e      : yabai -m space  --balance
+
+# --- spaces (Hyper+1..5) -------------------------------------------------
+cmd + alt + ctrl + shift - 1 : yabai -m space --focus 1
+cmd + alt + ctrl + shift - 2 : yabai -m space --focus 2
+cmd + alt + ctrl + shift - 3 : yabai -m space --focus 3
+cmd + alt + ctrl + shift - 4 : yabai -m space --focus 4
+cmd + alt + ctrl + shift - 5 : yabai -m space --focus 5
+
+# Hyper+T (new tab) and Hyper+N (new window) are handled by Hammerspoon
+# so they retarget the terminal app even when it isn't frontmost.
