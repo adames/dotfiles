@@ -160,7 +160,7 @@ bootstrap_macos() {
   # killed mid-sudo) the .app never lands. Detect and offer to re-run.
   if [[ ! -d /Applications/Karabiner-Elements.app ]]; then
     local pkg
-    pkg=$(find /opt/homebrew/Caskroom/karabiner-elements -name "*.pkg" 2>/dev/null | head -1)
+    pkg=$(find "$(brew --prefix 2>/dev/null)/Caskroom/karabiner-elements" -name "*.pkg" 2>/dev/null | head -1)
     if [[ -n "$pkg" ]]; then
       warn "Karabiner cask staged but .app missing — installer never ran"
       if has_tty; then
