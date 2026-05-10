@@ -8,14 +8,22 @@
 -- Allow AppleScript control so the bootstrap can issue `hs.reload()` remotely.
 hs.allowAppleScript(true)
 
--- Quiet startup: suppress the Console window that Hammerspoon shows by
--- default on reload. We surface everything we care about via Hyper+0 and
--- ~/Desktop/Hyper-Keys.html — the Console is just noise during bootstrap.
+-- Quiet startup: keep the Console window closed. Hammerspoon's AppKit
+-- layer restores it from saved state after init.lua finishes, and window
+-- filters miss re-opens of an already-existing window — so we use a tiny
+-- polling timer. Cost: one PID-equivalent check every 500ms; negligible.
+-- To debug, comment out _consolePoller:start() and use the Hammerspoon
+-- menu-bar icon → "Open Console".
 hs.openConsoleOnDockClick = false
-pcall(function()
-  local consoleWin = hs.console.hswindow()
-  if consoleWin then consoleWin:close() end
-end)
+local function closeConsole()
+  pcall(function()
+    local w = hs.console.hswindow()
+    if w then w:close() end
+  end)
+end
+closeConsole()
+local _consolePoller = hs.timer.new(0.5, closeConsole)
+_consolePoller:start()
 
 local hyper = { "ctrl", "alt", "cmd", "shift" }
 

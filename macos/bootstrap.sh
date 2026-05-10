@@ -88,6 +88,14 @@ mac_set_defaults() {
   else
     warn "iTerm2 prefs not found — skipping (launch iTerm2 once, then re-run)"
   fi
+
+  # Hammerspoon: prevent AppKit from restoring the Console window on every
+  # reload. Wipe the saved frame; init.lua's close-console hook handles the
+  # current process. defaults read returns 0 if Hammerspoon prefs exist.
+  if defaults read org.hammerspoon.Hammerspoon >/dev/null 2>&1; then
+    log "wiping saved Hammerspoon Console window frame"
+    defaults delete org.hammerspoon.Hammerspoon "NSWindow Frame console" 2>/dev/null || true
+  fi
 }
 
 mac_cache_sudo() {
