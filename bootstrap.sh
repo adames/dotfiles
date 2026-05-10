@@ -278,14 +278,60 @@ bootstrap_macos() {
   pgrep -x "Hammerspoon" >/dev/null 2>&1 && log "Hammerspoon: running" || warn "Hammerspoon: not running (launch it manually once)"
   (( need_relogin )) && warn "** log out and log back in to apply spans-displays change **"
 
+  # Compute conditional flags for the next-steps banner.
+  local kb_missing=0 hs_running=0
+  [[ ! -d /Applications/Karabiner-Elements.app ]] && kb_missing=1
+  pgrep -x "Hammerspoon" >/dev/null 2>&1 && hs_running=1
+
   cat <<'EOF'
 
->>> Verify:
-    - karabiner: open "Karabiner-EventViewer", press Caps Lock, see ^⌥⌘⇧
-    - yabai:     yabai -m query --windows | jq '.[].app'
-    - skhd:      pgrep -af skhd
-    - tmux:      tmux show -gv prefix    # should print 'C-a'
-    - nvim:      :verbose nmap <Space>h  # should map to <C-w>h
+================================================================
+                        NEXT STEPS
+   These are CRITICAL to reach a working state. The bootstrap
+   cannot do them for you because macOS gates them behind UI.
+================================================================
+
+  1. Grant Accessibility (System Settings → Privacy & Security →
+     Accessibility) to:  yabai, skhd, Hammerspoon, Karabiner-Elements,
+     Karabiner-DriverKit-VirtualHIDDevice
+     and Input Monitoring to: Karabiner-Elements,
+     Karabiner-DriverKit-VirtualHIDDevice
+
+  2. Launch the apps once so they register login agents:
+EOF
+
+  if (( kb_missing )); then
+    echo "        brew reinstall --cask karabiner-elements   # not yet installed"
+    echo "        open -a Karabiner-Elements"
+  else
+    echo "        open -a Karabiner-Elements"
+  fi
+  if (( ! hs_running )); then
+    echo "        open -a Hammerspoon"
+  else
+    echo "        # Hammerspoon already running — nothing to do"
+  fi
+
+  cat <<'EOF'
+
+  3. Log OUT and log back IN. The 'spans-displays' change is only
+     re-read by yabai on a fresh login. After login:
+        yabai --restart-service
+        yabai -m query --windows | jq '.[].app'
+
+  4. Verify the rest of the stack:
+        - Karabiner: open "Karabiner-EventViewer.app", press Caps Lock,
+                     expect modifiers column to show: ⌃⌥⌘⇧
+        - tmux:      tmux show -gv prefix         # → 'C-a'
+        - nvim:      nvim --headless +'echo execute("nmap <Space>h")' +qa
+        - cheatsheet: press Caps+0 (or Caps+/), or open
+                      ~/Desktop/Hyper-Keys.html in any browser
+
+  Re-run safely:
+        ~/dotfiles/bootstrap.sh                          # idempotent
+        BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh   # no-TTY runs
+
+================================================================
 EOF
 }
 
