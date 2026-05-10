@@ -130,6 +130,15 @@ bootstrap_macos() {
     warn "no TTY detected — cask installs (Karabiner, Hammerspoon, Rectangle)"
     warn "and Accessibility prompts will be skipped. Re-run from a real terminal"
     warn "to install GUI apps, or set BOOTSTRAP_SKIP_CASKS=1 to silence this."
+  else
+    # Cache sudo credential up front + keep it alive in the background, so the
+    # cask installs don't pause to re-prompt mid-script. One password at the
+    # start, none later.
+    log "caching sudo credential (one prompt for the whole run)"
+    sudo -v
+    ( while true; do sudo -n true; sleep 50; kill -0 "$$" 2>/dev/null || exit; done ) &
+    local sudo_keepalive_pid=$!
+    trap 'kill '"$sudo_keepalive_pid"' 2>/dev/null' EXIT
   fi
 
   # ---- Homebrew + tools --------------------------------------------------
