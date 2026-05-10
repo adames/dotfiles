@@ -8,6 +8,15 @@
 -- Allow AppleScript control so the bootstrap can issue `hs.reload()` remotely.
 hs.allowAppleScript(true)
 
+-- Quiet startup: suppress the Console window that Hammerspoon shows by
+-- default on reload. We surface everything we care about via Hyper+0 and
+-- ~/Desktop/Hyper-Keys.html — the Console is just noise during bootstrap.
+hs.openConsoleOnDockClick = false
+pcall(function()
+  local consoleWin = hs.console.hswindow()
+  if consoleWin then consoleWin:close() end
+end)
+
 local hyper = { "ctrl", "alt", "cmd", "shift" }
 
 -- Order of preference for "the terminal".
