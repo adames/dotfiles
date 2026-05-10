@@ -28,7 +28,7 @@ already in place.
 | Caps Lock → Hyper / Esc | Karabiner-Elements | `configs/karabiner.json` |
 | Window tiling (BSP) | yabai | `configs/yabairc` |
 | Global hotkeys (Hyper+hjkl, Hyper+Shift+hjkl, Hyper+1..5, …) | skhd | `configs/skhdrc` |
-| Hyper+T / Hyper+N (terminal), Hyper+arrows (snap), Hyper+/ Hyper+0 (cheatsheet) | Hammerspoon | `configs/hammerspoon-init.lua`, `configs/hammerspoon-cheatsheet.lua` |
+| Hyper+T / Hyper+N (terminal), Hyper+arrows (snap), Hyper+0 (cheatsheet) | Hammerspoon | `configs/hammerspoon-init.lua`, `configs/hammerspoon-cheatsheet.lua` |
 | `C-a` prefix, vim pane nav | tmux | `configs/tmux.conf` |
 | `<Space>` leader, `<leader>h/j/k/l/e/g/t` | Neovim (drop-in, no init.lua mutation) | `configs/nvim-keymaps.lua` |
 | `Esc+` Option-as-Meta | iTerm2 defaults | (set by bootstrap) |
@@ -48,7 +48,7 @@ already in place.
 
 ## Hyper key reference
 
-After logging back in, **Hyper+/** or **Hyper+0** opens an HTML overlay
+After logging back in, **Hyper+0** opens an HTML overlay
 listing every binding. A static copy is regenerated each Hammerspoon load at
 `~/Desktop/Hyper-Keys.html`.
 

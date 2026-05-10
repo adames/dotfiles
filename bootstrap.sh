@@ -333,7 +333,7 @@ EOF
                      expect modifiers column to show: ⌃⌥⌘⇧
         - tmux:      tmux show -gv prefix         # → 'C-a'
         - nvim:      nvim --headless +'echo execute("nmap <Space>h")' +qa
-        - cheatsheet: press Caps+0 (or Caps+/), or open
+        - cheatsheet: press Caps+0 or open
                       ~/Desktop/Hyper-Keys.html in any browser
 
   Re-run safely:

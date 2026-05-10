@@ -60,14 +60,13 @@ hs.hotkey.bind(hyper, "right", snap({ x = 0.5,  y = 0, w = 0.5, h = 1 }))
 hs.hotkey.bind(hyper, "up",    snap({ x = 0,    y = 0, w = 1,   h = 1 }))   -- maximize
 hs.hotkey.bind(hyper, "down",  snap({ x = 0.25, y = 0.25, w = 0.5, h = 0.5 })) -- center
 
--- Cheatsheet — multiple bindings so it's reachable even if one keystroke is
--- intercepted by an app's Cmd+? Help handler. Static HTML mirror is also
--- written to ~/Desktop/Hyper-Keys.html on every Hammerspoon load.
+-- Cheatsheet on Hyper+0 (Caps+0). The "/" bindings were dropped because
+-- many apps catch Cmd+? for their Help menu before Hammerspoon's hotkey
+-- fires. A static HTML mirror is also written to ~/Desktop/Hyper-Keys.html
+-- on every Hammerspoon load.
 local meh        = { "ctrl", "alt", "cmd" }
 local cheatsheet = require("cheatsheet")
-hs.hotkey.bind(hyper, "/", function() cheatsheet.toggle() end)  -- Caps + /
-hs.hotkey.bind(meh,   "/", function() cheatsheet.toggle() end)  -- Caps+Shift + /
-hs.hotkey.bind(hyper, "0", function() cheatsheet.toggle() end)  -- Caps + 0  (no app conflicts)
+hs.hotkey.bind(hyper, "0", function() cheatsheet.toggle() end)  -- Caps + 0
 hs.hotkey.bind(meh,   "0", function() cheatsheet.toggle() end)  -- Caps+Shift + 0
 
 -- Auto-reload config on save

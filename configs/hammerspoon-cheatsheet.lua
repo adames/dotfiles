@@ -1,5 +1,5 @@
 -- ~/.hammerspoon/cheatsheet.lua
--- Toggle an overlay listing every Hyper-scheme keybinding. Bound to Hyper+/.
+-- Toggle an overlay listing every Hyper-scheme keybinding. Bound to Hyper+0.
 -- Edit the `sections` table to add/remove entries.
 
 local M = {}
@@ -26,8 +26,8 @@ local sections = {
       { "Hyper + T",           "New terminal tab" },
       { "Hyper + N",           "New terminal window" },
       { "Hyper + ← / → / ↑ / ↓", "SIP-safe snap: half-left / half-right / max / centre" },
-      { "Hyper + /  or  Hyper + 0", "Show / hide this cheatsheet" },
-      { "double-click ~/Desktop/Hyper-Keys.html", "Static reference, regenerated each Hammerspoon load" },
+      { "Hyper + 0",            "Show / hide this cheatsheet" },
+      { "~/Desktop/Hyper-Keys.html", "Static reference, regenerated each Hammerspoon load" },
     },
   },
   {
@@ -113,7 +113,7 @@ local function render_html()
   local parts = {}
   parts[#parts+1] = '<!doctype html><html><head><meta charset="utf-8"><style>' .. css .. '</style></head><body>'
   parts[#parts+1] = '<h1>Hyper Key Cheatsheet <span class="pill">Caps Lock = ⌃⌥⌘⇧</span></h1>'
-  parts[#parts+1] = '<p class="sub">Toggle with <kbd>Hyper</kbd> + <kbd>/</kbd> · Dismiss with <kbd>Esc</kbd></p>'
+  parts[#parts+1] = '<p class="sub">Toggle with <kbd>Hyper</kbd> + <kbd>0</kbd> · Dismiss with <kbd>Esc</kbd></p>'
   parts[#parts+1] = '<div class="grid">'
   for _, sec in ipairs(sections) do
     parts[#parts+1] = '<div class="section"><h2>' .. sec.title .. '</h2><table>'
