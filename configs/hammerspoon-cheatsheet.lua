@@ -23,7 +23,7 @@ local sections = {
   {
     title = "macOS · Caps Lock semantics + Hammerspoon",
     rows  = {
-      { "Caps Lock (tap)",         "Emits F13 — used as the tmux prefix" },
+      { "Caps Lock (tap)",         "Escape — exit vim/zsh-vim insert mode" },
       { "Caps Lock (held)",        "Hyper = ⌃⌥⌘⇧" },
       { "Caps Lock + Shift",       "Meh   = ⌃⌥⌘   (used for `swap` actions)" },
       { "Hyper + T",               "New terminal tab" },
@@ -34,12 +34,12 @@ local sections = {
     },
   },
   {
-    title = "tmux · prefix = F13 (Caps tap)",
+    title = "tmux · prefix = Ctrl+a  ·  pane nav = Option+hjkl",
     rows  = {
-      { "Caps-tap  h / j / k / l", "Select pane  left / down / up / right" },
-      { "Caps-tap  |   /  -",      "Split pane horizontal / vertical" },
-      { "Caps-tap  r",             "Reload ~/.tmux.conf" },
-      { "Caps-tap  Caps-tap",      "Send literal F13 to inner program" },
+      { "Option + h / j / k / l", "Select pane  left / down / up / right  (no prefix!)" },
+      { "Ctrl-a  |   /  -",       "Split pane right / below (opens in current dir)" },
+      { "Ctrl-a  r",              "Reload ~/.tmux.conf" },
+      { "Ctrl-a  Ctrl-a",         "Send literal Ctrl-a to the inner program" },
     },
   },
   {

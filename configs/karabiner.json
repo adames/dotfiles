@@ -47,7 +47,7 @@
                   }
                 ],
                 "to_if_alone": [
-                  { "key_code": "f13" }
+                  { "key_code": "escape" }
                 ]
               }
             ]
