@@ -1,135 +1,173 @@
 -- ~/.hammerspoon/cheatsheet.lua
--- Toggle a semi-transparent fullscreen overlay listing every Hyper-scheme
--- keybinding. Bound to Hyper+0 (hold Caps + 0). Click-through: keystrokes
--- pass to the underlying app, so you can keep typing while the cheatsheet
--- is on screen. Toggle off with another Hyper+0.
--- Edit the `sections` table to add/remove entries.
+-- Full-screen overlay of every Hyper-scheme keybinding.
+-- Hyper+0 (Caps hold + 0) to toggle.  The background is fully invisible;
+-- only frosted-glass cards float over the live desktop.
+-- Edit `sections` to add or remove entries.
 
 local M = {}
 
+-- `color` is the accent line drawn across the top of each card.
+-- Order: most-referenced content scans left-to-right, top-to-bottom.
 local sections = {
   {
-    title = "macOS · Window Manager (yabai, driven by skhd)",
+    color = "#60a5fa",                             -- blue   (OS windows)
+    title = "Windows · yabai + skhd",
     rows  = {
-      { "Hyper + H / J / K / L",         "Focus window  left / down / up / right" },
-      { "Hyper + Shift + H / J / K / L", "Swap window   left / down / up / right" },
-      { "Hyper + Return",                "Toggle zoom-fullscreen" },
-      { "Hyper + F",                     "Toggle float (window stays where it is, becomes unmanaged)" },
-      { "Hyper + R",                     "Rotate space 90°" },
-      { "Hyper + E",                     "Balance space (equal splits)" },
-      { "Hyper + 1 … 5",                 "Jump to Space 1 … 5" },
+      { "Hyper + H/J/K/L",     "Focus window  ←  ↓  ↑  →" },
+      { "Meh + H/J/K/L",       "Swap window   ←  ↓  ↑  →" },
+      { "Hyper + Return",       "Zoom fullscreen" },
+      { "Hyper + F",            "Float / unfloat" },
+      { "Hyper + R",            "Rotate space 90°" },
+      { "Hyper + E",            "Balance  (equal splits)" },
+      { "Hyper + 1 … 5",        "Jump to Space" },
     },
   },
   {
-    title = "macOS · Caps Lock semantics + Hammerspoon",
+    color = "#fb923c",                             -- orange  (editor)
+    title = "Neovim · leader ␣",
     rows  = {
-      { "Caps Lock (tap)",         "Escape — exit vim/zsh-vim insert mode" },
-      { "Caps Lock (held)",        "Hyper = ⌃⌥⌘⇧" },
-      { "Caps Lock + Shift",       "Meh   = ⌃⌥⌘   (used for `swap` actions)" },
-      { "Hyper + T",               "New terminal tab" },
-      { "Hyper + N",               "New terminal window" },
-      { "Hyper + ← / → / ↑ / ↓",   "SIP-safe snap: half-left / half-right / max / centre" },
-      { "Hyper + 0",               "Toggle this cheatsheet" },
-      { "~/Desktop/Hyper-Keys.html","Static reference, regenerated each Hammerspoon load" },
+      { "⟨spc⟩ h / j / k / l",  "Navigate splits" },
+      { "⟨spc⟩ e",              "File explorer  (:Explore)" },
+      { "⟨spc⟩ g",              "Git status" },
+      { "⟨spc⟩ t",              "Run nearest test" },
+      { "⟨spc⟩ ff / fg / fb",   "Find files / grep / buffers" },
+      { "⟨spc⟩ ca / rn",        "Code action / rename  (LSP)" },
+      { "gd / K",                "Go to definition / hover" },
     },
   },
   {
-    title = "tmux · prefix = Ctrl+a  ·  pane nav = Option+hjkl",
+    color = "#34d399",                             -- emerald  (terminal)
+    title = "tmux · prefix Ctrl-a",
     rows  = {
-      { "Option + h / j / k / l", "Select pane  left / down / up / right  (no prefix!)" },
-      { "Ctrl-a  |   /  -",       "Split pane right / below (opens in current dir)" },
-      { "Ctrl-a  r",              "Reload ~/.tmux.conf" },
-      { "Ctrl-a  Ctrl-a",         "Send literal Ctrl-a to the inner program" },
+      { "Option + H/J/K/L",    "Select pane  (no prefix needed)" },
+      { "Ctrl-a  |",           "Split right" },
+      { "Ctrl-a  -",           "Split below" },
+      { "Ctrl-a  r",           "Reload config" },
+      { "Ctrl-a  Ctrl-a",      "Send Ctrl-a to program" },
     },
   },
   {
-    title = "Neovim · leader = ␣ (Space)",
+    color = "#a78bfa",                             -- violet   (the key)
+    title = "Caps Lock",
     rows  = {
-      { "<leader> h / j / k / l", "Move between window splits" },
-      { "<leader> e",             "File explorer  (:Explore)" },
-      { "<leader> g",             "Git status     (fugitive / gitsigns)" },
-      { "<leader> t",             "Run nearest test (vim-test / neotest)" },
-      { "<leader> ff / fg / fb",  "Find files / grep / buffers (fzf-lua)" },
-      { "<leader> ca / rn",       "LSP code-action / rename" },
-      { "gd / K",                 "LSP go-to-def / hover docs" },
+      { "Tap",                 "Escape  (vim / zsh-vim normal mode)" },
+      { "Hold",                "Hyper  ⌃⌥⌘⇧" },
+      { "Hold + Shift",        "Meh  ⌃⌥⌘  (yabai swap actions)" },
+      { "Hyper + T / N",       "New terminal tab / window" },
+      { "Hyper + ← → ↑ ↓",    "Snap  ½-left · ½-right · max · centre" },
+      { "Hyper + 0",           "Toggle this cheatsheet" },
     },
   },
 }
 
 local function render_html()
-  -- Background is semi-transparent so the windows underneath stay legible.
-  -- Tune the alpha here; 0.78 reads well on dark terminals.
   local css = [[
-    :root {
-      --bg: rgba(13, 17, 23, 0.78);
-      --panel: rgba(22, 27, 34, 0.92);
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --accent: #79c0ff;
-      --kbd-bg: rgba(33, 38, 45, 0.95);
-      --kbd-border: #444c56;
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0; padding: 36px 48px;
-      font: 13.5px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui;
-      background: var(--bg); color: var(--text);
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: transparent;
+      font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui;
+      color: #dde4ee;
       -webkit-font-smoothing: antialiased;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
-    h1 {
-      margin: 0 0 18px; font-size: 22px; font-weight: 600;
-      display: flex; align-items: center; gap: 8px;
+
+    /* Centre the grid on screen — body itself is invisible */
+    .outer {
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 48px 64px;
     }
-    h1 .pill {
-      font-size: 11px; padding: 2px 8px; border-radius: 999px;
-      background: #1f6feb55; color: var(--accent); font-weight: 500;
-    }
+
     .grid {
-      display: grid; gap: 18px;
-      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+      max-width: min(980px, 88vw);
     }
-    .section {
-      background: var(--panel); border: 1px solid var(--border);
-      border-radius: 10px; padding: 16px 20px;
-      backdrop-filter: blur(2px);
+
+    /* Frosted-glass card — the only visible element */
+    .card {
+      background: rgba(8, 10, 15, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 12px;
+      padding: 16px 20px 18px;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      position: relative;
+      overflow: hidden;
     }
-    .section h2 {
-      margin: 0 0 12px; font-size: 13px; font-weight: 600;
-      color: var(--accent); letter-spacing: 0.2px;
+
+    /* Coloured accent line at the top of each card */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
     }
+
+    .card-title {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 13px;
+    }
+
     table { width: 100%; border-collapse: collapse; }
-    td { padding: 6px 0; vertical-align: top; }
-    td.k { white-space: nowrap; padding-right: 16px; width: 1%; }
-    td.d { color: var(--muted); }
+    td    { padding: 5px 0; vertical-align: middle; }
+    tr + tr td { border-top: 1px solid rgba(255, 255, 255, 0.045); }
+    td.k  { white-space: nowrap; padding-right: 16px; width: 1%; }
+    td.d  { font-size: 12px; color: rgba(221, 228, 238, 0.58); }
+
     kbd {
-      display: inline-block; padding: 1px 7px; font-size: 11.5px;
-      font-family: "SF Mono", ui-monospace, Menlo, monospace;
-      background: var(--kbd-bg); border: 1px solid var(--kbd-border);
-      border-radius: 4px; line-height: 1.5; color: var(--text);
+      display: inline-block;
+      padding: 1px 6px;
+      font: 11px "SF Mono", ui-monospace, Menlo, monospace;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      line-height: 1.65;
+      color: #dde4ee;
     }
-    .hint {
-      position: fixed; bottom: 14px; right: 20px;
-      color: var(--muted); font-size: 11px;
+
+    /* Ghost footer — just enough to know how to close */
+    .footer {
+      font-size: 10.5px;
+      color: rgba(255, 255, 255, 0.18);
+      letter-spacing: 0.04em;
     }
   ]]
 
   local parts = {}
-  parts[#parts+1] = '<!doctype html><html><head><meta charset="utf-8"><style>' .. css .. '</style></head><body>'
-  parts[#parts+1] = '<h1>Hyper Key Cheatsheet <span class="pill">Caps Lock — tap = F13 (tmux) · hold = Hyper ⌃⌥⌘⇧</span></h1>'
-  parts[#parts+1] = '<div class="grid">'
+  parts[#parts+1] = '<!doctype html><html><head><meta charset="utf-8"><style>'
+    .. css .. '</style></head><body><div class="outer"><div class="grid">'
+
   for _, sec in ipairs(sections) do
-    parts[#parts+1] = '<div class="section"><h2>' .. sec.title .. '</h2><table>'
+    parts[#parts+1] = string.format(
+      '<div class="card" style="--accent:%s"><div class="card-title">%s</div><table>',
+      sec.color, sec.title
+    )
     for _, row in ipairs(sec.rows) do
-      parts[#parts+1] = ('<tr><td class="k"><kbd>%s</kbd></td><td class="d">%s</td></tr>')
-        :format(row[1], row[2])
+      parts[#parts+1] = string.format(
+        '<tr><td class="k"><kbd>%s</kbd></td><td class="d">%s</td></tr>',
+        row[1], row[2]
+      )
     end
     parts[#parts+1] = '</table></div>'
   end
-  local stamp = os.date('%Y-%m-%d %H:%M')
-  parts[#parts+1] = '</div><div class="hint">Source: ~/.hammerspoon/cheatsheet.lua · Refreshed: ' .. stamp .. '</div></body></html>'
+
+  parts[#parts+1] = string.format(
+    '</div><div class="footer">Hyper+0 to close  ·  %s</div></div></body></html>',
+    os.date('%H:%M')
+  )
   return table.concat(parts)
 end
 
@@ -141,27 +179,22 @@ function M.toggle()
     return
   end
 
-  -- Cover the full active screen (including menu bar / dock area).
   local screen = hs.screen.mainScreen():fullFrame()
-  local rect = hs.geometry.rect(screen.x, screen.y, screen.w, screen.h)
+  local rect   = hs.geometry.rect(screen.x, screen.y, screen.w, screen.h)
 
-  local prefs = { developerExtrasEnabled = false }
-  M.view = hs.webview.new(rect, prefs)
-    :windowStyle({ "borderless", "nonactivating" })  -- no chrome, no focus steal
+  M.view = hs.webview.new(rect, { developerExtrasEnabled = false })
+    :windowStyle({ "borderless", "nonactivating" })
     :level(hs.drawing.windowLevels.modalPanel)
-    :transparent(true)                                -- honor body's rgba bg
+    :transparent(true)
     :allowTextEntry(false)
     :shadow(false)
     :html(render_html())
     :show()
 
-  -- Don't capture keyboard events — let keystrokes pass through to whatever
-  -- the user was using. Toggling off is via Hyper+0 (the global hotkey).
   pcall(function() M.view:passthroughKeyboardEvents(true) end)
 end
 
--- Dump a static copy of the cheatsheet to the Desktop. Idempotent: rewritten
--- each Hammerspoon load, so the file always reflects the current sections.
+-- Write a static copy to the Desktop each Hammerspoon load.
 function M.dump_to_desktop()
   local path = os.getenv("HOME") .. "/Desktop/Hyper-Keys.html"
   local f, err = io.open(path, "w")
@@ -173,7 +206,6 @@ function M.dump_to_desktop()
   f:close()
 end
 
--- Render at load time so the desktop file is always fresh.
 M.dump_to_desktop()
 
 return M
