@@ -34,10 +34,14 @@ mac_install_packages() {
 
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
     log "installing GUI casks (will sudo-prompt for each .pkg)"
-    brew install --cask karabiner-elements hammerspoon rectangle 2>&1 | \
+    # ghostty   — primary terminal (fast, GPU-accelerated, macOS-native)
+    # raycast   — Spotlight replacement (smarter, free for personal use)
+    # rectangle — SIP-safe window-snap fallback
+    brew install --cask karabiner-elements hammerspoon rectangle ghostty raycast 2>&1 | \
       sed 's/^/    cask: /' || true
   else
-    warn "skipping cask installs — run later: brew install --cask karabiner-elements hammerspoon rectangle"
+    warn "skipping cask installs — run later:"
+    warn "  brew install --cask karabiner-elements hammerspoon rectangle ghostty raycast"
   fi
 
   # Cask sanity: brew records a cask as "installed" once the artifact is
@@ -65,6 +69,7 @@ mac_deploy_configs() {
   install_file "$CONFIGS_DIR/hammerspoon-init.lua"        "$HOME/.hammerspoon/init.lua"
   install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua"  "$HOME/.hammerspoon/cheatsheet.lua"
   install_file "$CONFIGS_DIR/tmux.conf"                   "$HOME/.tmux.conf"
+  install_file "$CONFIGS_DIR/ghostty-config"              "$HOME/.config/ghostty/config"
 
   ensure_dir "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua" \

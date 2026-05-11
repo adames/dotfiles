@@ -27,33 +27,41 @@ _consolePoller:start()
 
 local hyper = { "ctrl", "alt", "cmd", "shift" }
 
--- Order of preference for "the terminal".
-local terminals = { "iTerm2", "Alacritty", "kitty", "WezTerm", "Ghostty", "Terminal" }
+-- Terminal targeting for Hyper+T / Hyper+N.
+--
+-- Order of preference for installed-but-not-running case. The first one that
+-- successfully launches wins. If the user is *already in* a terminal,
+-- we short-circuit and just send Cmd+T (or Cmd+N) without re-targeting.
+local PREFERRED_TERMINALS = { "Ghostty", "iTerm", "Terminal", "Alacritty", "kitty", "WezTerm" }
+local KNOWN_TERMINAL = {
+  Ghostty = true, iTerm = true, iTerm2 = true, Terminal = true,
+  Alacritty = true, kitty = true, WezTerm = true,
+}
 
-local function findTerminal()
-  for _, name in ipairs(terminals) do
-    local app = hs.application.find(name)
-    if app then return app end
-  end
-  return nil
-end
-
-local function sendCmd(key)
+local function sendTerminalCmd(key)
   return function()
-    local app = findTerminal()
-    if app then
-      app:activate()
-      hs.timer.doAfter(0.05, function()
-        hs.eventtap.keyStroke({ "cmd" }, key, 0)
-      end)
-    else
-      hs.alert.show("No terminal app found")
+    -- Fast path: already in a terminal, just send the keystroke.
+    local front = hs.application.frontmostApplication()
+    if front and KNOWN_TERMINAL[front:name()] then
+      hs.eventtap.keyStroke({ "cmd" }, key, 0)
+      return
     end
+    -- Else launch/focus the first available preferred terminal.
+    -- launchOrFocus returns true if the app exists (running or not), false otherwise.
+    for _, name in ipairs(PREFERRED_TERMINALS) do
+      if hs.application.launchOrFocus(name) then
+        hs.timer.doAfter(0.3, function()
+          hs.eventtap.keyStroke({ "cmd" }, key, 0)
+        end)
+        return
+      end
+    end
+    hs.alert.show("No terminal app found (tried: " .. table.concat(PREFERRED_TERMINALS, ", ") .. ")")
   end
 end
 
-hs.hotkey.bind(hyper, "t", sendCmd("t"))   -- new tab
-hs.hotkey.bind(hyper, "n", sendCmd("n"))   -- new window
+hs.hotkey.bind(hyper, "t", sendTerminalCmd("t"))   -- new tab
+hs.hotkey.bind(hyper, "n", sendTerminalCmd("n"))   -- new window
 
 -- Optional: SIP-safe Hyper+arrow snapping (works without yabai).
 -- These are no-ops when yabai is running and managing tiling, but provide a

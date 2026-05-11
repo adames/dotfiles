@@ -1,0 +1,18 @@
+# ~/.config/ghostty/config
+# Ghostty terminal config. Installed by adames/dotfiles bootstrap.
+# Source of truth: configs/ghostty-config in this repo.
+#
+# Reference: https://ghostty.org/docs/config/reference
+
+# Treat the left Option key as Meta/Alt. Without this, Option+letter inserts
+# a special character instead of producing the Alt-modifier the way Vim/tmux
+# expect. Equivalent to iTerm2's "Left Option Key Sends = Esc+".
+macos-option-as-alt = left
+
+# Reasonable defaults — adjust to taste.
+font-size = 13
+mouse-hide-while-typing = true
+
+# A little breathing room around the text.
+window-padding-x = 8
+window-padding-y = 8
