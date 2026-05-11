@@ -19,7 +19,27 @@ main() {
 
   log "installing system packages"
   sudo apt update && sudo apt upgrade -y
-  sudo apt install -y git curl zsh build-essential direnv tmux htop neovim jq
+  sudo apt install -y \
+    git curl zsh build-essential direnv tmux htop neovim jq \
+    ripgrep fd-find git-delta zoxide
+
+  # fd is named fdfind on Debian/Ubuntu. Symlink so scripts/configs that say
+  # `fd` work uniformly across macOS and Linux. ~/.local/bin is on PATH.
+  if have fdfind && ! have fd; then
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
+  fi
+
+  # gh — GitHub's CLI repo (skip if already configured)
+  if ! have gh; then
+    log "adding GitHub CLI apt repo"
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+    sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+    sudo apt update && sudo apt install -y gh
+  fi
 
   log "installing chezmoi + applying dotfiles ($DOTFILES_REPO)"
   if ! have chezmoi; then
@@ -65,6 +85,13 @@ main() {
   install_file "$CONFIGS_DIR/tmux.conf"        "$HOME/.tmux.conf"
   ensure_dir "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua" "$HOME/.config/nvim/after/plugin/keymaps.lua"
+
+  # Shell-layer additions: ripgrep config + tmux sessionizer.
+  # zshrc and gitconfig are intentionally NOT installed here — chezmoi already
+  # manages those on Linux. Sync configs/zshrc and configs/gitconfig into your
+  # chezmoi source dir manually if you want them tracked there.
+  install_file "$CONFIGS_DIR/ripgreprc"        "$HOME/.ripgreprc"
+  install_file "$CONFIGS_DIR/tmux-sessionizer" "$HOME/.local/bin/tmux-sessionizer" 755
 
   log "setting default shell to zsh"
   if [[ "$SHELL" != "$(command -v zsh)" ]]; then

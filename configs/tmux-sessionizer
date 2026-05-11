@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# tmux-sessionizer — fzf-pick a project dir, then switch-or-create a tmux
+# session named after it. Bind in tmux.conf:  bind f run-shell "tmux-sessionizer"
+#
+# Edit ROOTS below to match where your code lives. Each entry is a (root, depth)
+# pair: root is searched up to depth levels deep for directories.
+
+set -euo pipefail
+
+# (root_dir, max_depth). Only existing roots are searched.
+ROOTS=(
+  "$HOME/Dev:2"
+  "$HOME/IdeaProjects:1"
+  "$HOME/WebstormProjects:1"
+  "$HOME/dotfiles:0"
+  "$HOME/.config:1"
+)
+
+# If a path was passed in, use it directly; otherwise fzf-pick.
+if [[ $# -ge 1 ]]; then
+  selected="$1"
+else
+  candidates=()
+  for entry in "${ROOTS[@]}"; do
+    root="${entry%:*}"
+    depth="${entry##*:}"
+    [[ -d "$root" ]] || continue
+    if [[ "$depth" == "0" ]]; then
+      candidates+=("$root")
+    else
+      while IFS= read -r d; do candidates+=("$d"); done < <(
+        find "$root" -mindepth 1 -maxdepth "$depth" -type d \
+          ! -path '*/node_modules/*' ! -path '*/.git/*' ! -path '*/.venv/*' \
+          2>/dev/null
+      )
+    fi
+  done
+  [[ ${#candidates[@]} -eq 0 ]] && exit 0
+  selected=$(printf '%s\n' "${candidates[@]}" | fzf --reverse --height=40%) || exit 0
+fi
+
+[[ -z "$selected" ]] && exit 0
+[[ -d "$selected" ]] || { echo "not a directory: $selected" >&2; exit 1; }
+
+name=$(basename "$selected" | tr '. ' '__')
+
+# If we're not inside tmux and no server is running, just attach with new session.
+if ! tmux has-session -t="$name" 2>/dev/null; then
+  tmux new-session -ds "$name" -c "$selected"
+fi
+
+if [[ -z "${TMUX:-}" ]]; then
+  exec tmux attach -t "$name"
+else
+  exec tmux switch-client -t "$name"
+fi

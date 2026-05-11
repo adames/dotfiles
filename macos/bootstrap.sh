@@ -26,7 +26,10 @@ mac_install_packages() {
   fi
 
   log "installing CLI tools"
-  brew install --quiet git zsh tmux neovim direnv jq starship fzf >/dev/null
+  brew install --quiet \
+    git zsh tmux neovim direnv jq starship fzf \
+    ripgrep fd git-delta zoxide gh \
+    zsh-autosuggestions zsh-syntax-highlighting >/dev/null
 
   log "installing yabai + skhd (formulae)"
   brew install --quiet koekeishiya/formulae/yabai >/dev/null || true
@@ -70,6 +73,23 @@ mac_deploy_configs() {
   install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua"  "$HOME/.hammerspoon/cheatsheet.lua"
   install_file "$CONFIGS_DIR/tmux.conf"                   "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/ghostty-config"              "$HOME/.config/ghostty/config"
+
+  # Shell + git + ripgrep + sessionizer (added in shell-layer refactor)
+  install_file "$CONFIGS_DIR/zshrc"                       "$HOME/.zshrc"
+  install_file "$CONFIGS_DIR/gitconfig"                   "$HOME/.gitconfig"
+  install_file "$CONFIGS_DIR/ripgreprc"                   "$HOME/.ripgreprc"
+  install_file "$CONFIGS_DIR/tmux-sessionizer"            "$HOME/.local/bin/tmux-sessionizer" 755
+
+  # gitconfig is split: structural settings tracked, user info in ~/.gitconfig.local.
+  # Create a stub if missing so [include] doesn't fail silently on a fresh box.
+  if [[ ! -f "$HOME/.gitconfig.local" ]]; then
+    log "creating ~/.gitconfig.local stub (fill in user.email / user.name)"
+    cat > "$HOME/.gitconfig.local" <<'EOF'
+[user]
+	email = you@example.com
+	name = Your Name
+EOF
+  fi
 
   ensure_dir "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua" \
