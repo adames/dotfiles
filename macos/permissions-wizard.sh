@@ -177,9 +177,9 @@ phase_grant_permissions() {
       >/dev/null 2>&1 || true
     log "karabiner_grabber kicked"
   fi
-  # Karabiner console_user_server, separately
-  if launchctl list 2>/dev/null | grep -q "org.pqrs.service.karabiner_console_user_server"; then
-    launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.karabiner_console_user_server" \
+  # Karabiner console_user_server (note: label has ".agent." not ".service.")
+  if launchctl list 2>/dev/null | grep -q "org.pqrs.service.agent.karabiner_console_user_server"; then
+    launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.agent.karabiner_console_user_server" \
       >/dev/null 2>&1 || true
     log "karabiner_console_user_server kicked"
   fi

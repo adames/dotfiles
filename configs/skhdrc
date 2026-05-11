@@ -23,7 +23,7 @@ cmd + alt + ctrl - l : yabai -m window --swap east
 
 # --- layout / float ------------------------------------------------------
 cmd + alt + ctrl + shift - return : yabai -m window --toggle zoom-fullscreen
-cmd + alt + ctrl + shift - f      : yabai -m window --toggle float --grid 4:4:1:1:2:2
+cmd + alt + ctrl + shift - f      : yabai -m window --toggle float
 cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 

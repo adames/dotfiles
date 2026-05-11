@@ -1,5 +1,8 @@
 -- ~/.hammerspoon/cheatsheet.lua
--- Toggle an overlay listing every Hyper-scheme keybinding. Bound to Hyper+0.
+-- Toggle a semi-transparent fullscreen overlay listing every Hyper-scheme
+-- keybinding. Bound to Hyper+0 (hold Caps + 0). Click-through: keystrokes
+-- pass to the underlying app, so you can keep typing while the cheatsheet
+-- is on screen. Toggle off with another Hyper+0.
 -- Edit the `sections` table to add/remove entries.
 
 local M = {}
@@ -11,32 +14,32 @@ local sections = {
       { "Hyper + H / J / K / L",         "Focus window  left / down / up / right" },
       { "Hyper + Shift + H / J / K / L", "Swap window   left / down / up / right" },
       { "Hyper + Return",                "Toggle zoom-fullscreen" },
-      { "Hyper + F",                     "Toggle float (centred 50% × 50%)" },
+      { "Hyper + F",                     "Toggle float (window stays where it is, becomes unmanaged)" },
       { "Hyper + R",                     "Rotate space 90°" },
       { "Hyper + E",                     "Balance space (equal splits)" },
       { "Hyper + 1 … 5",                 "Jump to Space 1 … 5" },
     },
   },
   {
-    title = "macOS · Hammerspoon",
+    title = "macOS · Caps Lock semantics + Hammerspoon",
     rows  = {
-      { "Caps Lock (tap)",     "Escape  (Karabiner)" },
-      { "Caps Lock (held)",    "Hyper = ⌃⌥⌘⇧" },
-      { "Caps Lock + Shift",   "Meh   = ⌃⌥⌘   (used for `swap` actions)" },
-      { "Hyper + T",           "New terminal tab" },
-      { "Hyper + N",           "New terminal window" },
-      { "Hyper + ← / → / ↑ / ↓", "SIP-safe snap: half-left / half-right / max / centre" },
-      { "Hyper + 0",            "Show / hide this cheatsheet" },
-      { "~/Desktop/Hyper-Keys.html", "Static reference, regenerated each Hammerspoon load" },
+      { "Caps Lock (tap)",         "Emits F13 — used as the tmux prefix" },
+      { "Caps Lock (held)",        "Hyper = ⌃⌥⌘⇧" },
+      { "Caps Lock + Shift",       "Meh   = ⌃⌥⌘   (used for `swap` actions)" },
+      { "Hyper + T",               "New terminal tab" },
+      { "Hyper + N",               "New terminal window" },
+      { "Hyper + ← / → / ↑ / ↓",   "SIP-safe snap: half-left / half-right / max / centre" },
+      { "Hyper + 0",               "Toggle this cheatsheet" },
+      { "~/Desktop/Hyper-Keys.html","Static reference, regenerated each Hammerspoon load" },
     },
   },
   {
-    title = "tmux · prefix = Ctrl-A",
+    title = "tmux · prefix = F13 (Caps tap)",
     rows  = {
-      { "C-a  h / j / k / l", "Select pane  left / down / up / right" },
-      { "C-a  |   /  -",      "Split pane horizontal / vertical" },
-      { "C-a  r",             "Reload ~/.tmux.conf" },
-      { "C-a  C-a",           "Send literal C-a to inner program" },
+      { "Caps-tap  h / j / k / l", "Select pane  left / down / up / right" },
+      { "Caps-tap  |   /  -",      "Split pane horizontal / vertical" },
+      { "Caps-tap  r",             "Reload ~/.tmux.conf" },
+      { "Caps-tap  Caps-tap",      "Send literal F13 to inner program" },
     },
   },
   {
@@ -54,66 +57,68 @@ local sections = {
 }
 
 local function render_html()
+  -- Background is semi-transparent so the windows underneath stay legible.
+  -- Tune the alpha here; 0.78 reads well on dark terminals.
   local css = [[
     :root {
-      --bg: #0d1117;
-      --panel: #161b22;
+      --bg: rgba(13, 17, 23, 0.78);
+      --panel: rgba(22, 27, 34, 0.92);
       --border: #30363d;
       --text: #e6edf3;
       --muted: #8b949e;
       --accent: #79c0ff;
-      --kbd-bg: #21262d;
+      --kbd-bg: rgba(33, 38, 45, 0.95);
       --kbd-border: #444c56;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body {
-      margin: 0; padding: 28px 32px;
+      margin: 0; padding: 36px 48px;
       font: 13.5px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui;
       background: var(--bg); color: var(--text);
       -webkit-font-smoothing: antialiased;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
     h1 {
-      margin: 0 0 4px; font-size: 20px; font-weight: 600;
+      margin: 0 0 18px; font-size: 22px; font-weight: 600;
       display: flex; align-items: center; gap: 8px;
     }
     h1 .pill {
       font-size: 11px; padding: 2px 8px; border-radius: 999px;
-      background: #1f6feb33; color: var(--accent); font-weight: 500;
+      background: #1f6feb55; color: var(--accent); font-weight: 500;
     }
-    .sub { color: var(--muted); margin: 0 0 22px; font-size: 12px; }
     .grid {
-      display: grid; gap: 16px;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      display: grid; gap: 18px;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
     }
     .section {
       background: var(--panel); border: 1px solid var(--border);
-      border-radius: 8px; padding: 14px 16px;
+      border-radius: 10px; padding: 16px 20px;
+      backdrop-filter: blur(2px);
     }
     .section h2 {
-      margin: 0 0 10px; font-size: 13px; font-weight: 600;
+      margin: 0 0 12px; font-size: 13px; font-weight: 600;
       color: var(--accent); letter-spacing: 0.2px;
     }
     table { width: 100%; border-collapse: collapse; }
-    td { padding: 5px 0; vertical-align: top; }
-    td.k { white-space: nowrap; padding-right: 14px; width: 1%; }
+    td { padding: 6px 0; vertical-align: top; }
+    td.k { white-space: nowrap; padding-right: 16px; width: 1%; }
     td.d { color: var(--muted); }
     kbd {
-      display: inline-block; padding: 1px 6px; font-size: 11.5px;
+      display: inline-block; padding: 1px 7px; font-size: 11.5px;
       font-family: "SF Mono", ui-monospace, Menlo, monospace;
       background: var(--kbd-bg); border: 1px solid var(--kbd-border);
       border-radius: 4px; line-height: 1.5; color: var(--text);
     }
     .hint {
-      position: fixed; bottom: 12px; right: 16px;
+      position: fixed; bottom: 14px; right: 20px;
       color: var(--muted); font-size: 11px;
     }
   ]]
 
   local parts = {}
   parts[#parts+1] = '<!doctype html><html><head><meta charset="utf-8"><style>' .. css .. '</style></head><body>'
-  parts[#parts+1] = '<h1>Hyper Key Cheatsheet <span class="pill">Caps Lock = ⌃⌥⌘⇧</span></h1>'
-  parts[#parts+1] = '<p class="sub">Toggle with <kbd>Hyper</kbd> + <kbd>0</kbd> · Dismiss with <kbd>Esc</kbd></p>'
+  parts[#parts+1] = '<h1>Hyper Key Cheatsheet <span class="pill">Caps Lock — tap = F13 (tmux) · hold = Hyper ⌃⌥⌘⇧</span></h1>'
   parts[#parts+1] = '<div class="grid">'
   for _, sec in ipairs(sections) do
     parts[#parts+1] = '<div class="section"><h2>' .. sec.title .. '</h2><table>'
@@ -133,41 +138,30 @@ function M.toggle()
   if M.view then
     M.view:delete()
     M.view = nil
-    if M.escTap then M.escTap:stop(); M.escTap = nil end
     return
   end
 
-  local screen = hs.screen.mainScreen():frame()
-  local w, h = math.min(960, screen.w - 80), math.min(640, screen.h - 80)
-  local rect = hs.geometry.rect(
-    screen.x + (screen.w - w) / 2,
-    screen.y + (screen.h - h) / 2,
-    w, h
-  )
+  -- Cover the full active screen (including menu bar / dock area).
+  local screen = hs.screen.mainScreen():fullFrame()
+  local rect = hs.geometry.rect(screen.x, screen.y, screen.w, screen.h)
 
   local prefs = { developerExtrasEnabled = false }
   M.view = hs.webview.new(rect, prefs)
-    :windowStyle({ "titled", "closable", "nonactivating" })
-    :windowTitle("Hyper Key Cheatsheet")
+    :windowStyle({ "borderless", "nonactivating" })  -- no chrome, no focus steal
     :level(hs.drawing.windowLevels.modalPanel)
+    :transparent(true)                                -- honor body's rgba bg
     :allowTextEntry(false)
-    :shadow(true)
+    :shadow(false)
     :html(render_html())
     :show()
 
-  -- Dismiss on Escape regardless of focus.
-  M.escTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
-    if e:getKeyCode() == hs.keycodes.map.escape then
-      M.toggle()
-      return true
-    end
-    return false
-  end):start()
+  -- Don't capture keyboard events — let keystrokes pass through to whatever
+  -- the user was using. Toggling off is via Hyper+0 (the global hotkey).
+  pcall(function() M.view:passthroughKeyboardEvents(true) end)
 end
 
--- Dump a static copy of the cheatsheet to the Desktop, so a non-key-savvy user
--- can open it without remembering any binding. Idempotent: rewritten each time
--- Hammerspoon loads, so the file always reflects the current `sections` table.
+-- Dump a static copy of the cheatsheet to the Desktop. Idempotent: rewritten
+-- each Hammerspoon load, so the file always reflects the current sections.
 function M.dump_to_desktop()
   local path = os.getenv("HOME") .. "/Desktop/Hyper-Keys.html"
   local f, err = io.open(path, "w")
