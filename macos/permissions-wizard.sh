@@ -251,8 +251,7 @@ AS
                        BOOTSTRAP COMPLETE
 ================================================================
 
-  Cheatsheet:   press Caps+0 (Hammerspoon overlay), or open
-                ~/Desktop/Hyper-Keys.html in any browser.
+  Cheatsheet:   press Caps+0 (Hammerspoon overlay).
 
   Re-run wizard:
         ~/dotfiles/macos/permissions-wizard.sh

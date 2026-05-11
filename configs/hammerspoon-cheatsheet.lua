@@ -343,17 +343,4 @@ function M.toggle()
   pcall(function() M.view:passthroughKeyboardEvents(true) end)
 end
 
-function M.dump_to_desktop()
-  local path = os.getenv("HOME") .. "/Desktop/Hyper-Keys.html"
-  local f, err = io.open(path, "w")
-  if not f then
-    print("cheatsheet: could not write " .. path .. ": " .. tostring(err))
-    return
-  end
-  f:write(render_html())
-  f:close()
-end
-
-M.dump_to_desktop()
-
 return M

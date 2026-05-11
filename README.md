@@ -24,8 +24,7 @@ cheatsheet, tmux pane navigation, and Neovim leader bindings — consistently.
         │           ┌──────┴──────┐    pass through)
         ▼           ▼             ▼
       yabai     Terminal      Cheatsheet
-   (BSP tiler)  Cmd+T/N    ~/Desktop/Hyper-Keys.html
-                            Hyper+0 overlay
+   (BSP tiler)  Cmd+T/N      Hyper+0 overlay
 ```
 
 Full architecture details: **[`docs/architecture.md`](docs/architecture.md)**.
@@ -63,7 +62,7 @@ You'll be prompted for sudo **once** at the start. The macOS bootstrap then:
 | `Hyper+H/J/K/L` focus, `Hyper+Shift+…` swap, `Hyper+1..5` spaces | skhd | [`configs/skhdrc`](configs/skhdrc) |
 | `Hyper+T` / `Hyper+N` terminal tab/window | Hammerspoon | [`configs/hammerspoon-init.lua`](configs/hammerspoon-init.lua) |
 | `Hyper+←/→/↑/↓` SIP-safe window snaps | Hammerspoon | same |
-| `Hyper+0` cheatsheet overlay + `~/Desktop/Hyper-Keys.html` | Hammerspoon | [`configs/hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
+| `Hyper+0` cheatsheet overlay | Hammerspoon | [`configs/hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
 | `C-a` prefix, vim-style pane nav | tmux | [`configs/tmux.conf`](configs/tmux.conf) |
 | `<Space>` leader + `h/j/k/l/e/g/t` | Neovim (drop-in) | [`configs/nvim-keymaps.lua`](configs/nvim-keymaps.lua) |
 | `Esc+` Option-as-Meta | iTerm2 defaults | (set by bootstrap) |
@@ -102,9 +101,8 @@ nvim --headless +'echo execute("nmap <Space>h")' +qa
 #   modifier column should show ⌃⌥⌘⇧
 ```
 
-For the cheatsheet, press **`Hyper + 0`** (Caps + 0) or just open
-`~/Desktop/Hyper-Keys.html` in any browser. The desktop file is regenerated
-on every Hammerspoon load.
+For the cheatsheet, press **`Hyper + 0`** (Caps + 0). It's a Hammerspoon
+overlay rendered live; nothing is written to disk.
 
 ## Re-running
 
@@ -113,7 +111,6 @@ on every Hammerspoon load.
 ~/dotfiles/macos/permissions-wizard.sh           # re-run wizard only
 ~/dotfiles/macos/permissions-wizard.sh --step accessibility-yabai
 ~/dotfiles/macos/permissions-wizard.sh --list    # show step names
-~/dotfiles/macos/cheatsheet-deploy.sh            # regenerate desktop HTML
 BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh   # for no-TTY / headless runs
 ```
 
@@ -141,8 +138,7 @@ BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh   # for no-TTY / headless runs
 │   └── macos-tcc.sh         # TCC.db reads + per-app permission probes
 ├── macos/
 │   ├── bootstrap.sh         # brew + casks + configs + defaults + wizard
-│   ├── permissions-wizard.sh # proactive permission chain (--step <name>)
-│   └── cheatsheet-deploy.sh # regenerate ~/Desktop/Hyper-Keys.html
+│   └── permissions-wizard.sh # proactive permission chain (--step <name>)
 ├── ubuntu/
 │   └── bootstrap.sh         # apt + chezmoi + mise + Docker + Claude CLI
 ├── configs/                  # source of truth for all installed configs

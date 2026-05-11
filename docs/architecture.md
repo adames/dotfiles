@@ -18,7 +18,7 @@ graph LR
 
   Hyper --> Hammerspoon
   Hammerspoon -->|cmd+T/N| Terminal
-  Hammerspoon -->|hs.webview| Cheatsheet[~/Desktop/Hyper-Keys.html]
+  Hammerspoon -->|hs.webview Hyper+0| Cheatsheet[Cheatsheet overlay]
 
   yabai --> Windows[(macOS Windows)]
   Hammerspoon --> Windows
@@ -99,8 +99,7 @@ without both grants, so a live PID is strong behavioral evidence.
 │   └── macos-tcc.sh         # TCC.db reads + per-app permission probes
 ├── macos/
 │   ├── bootstrap.sh         # brew + casks + configs + defaults + wizard call
-│   ├── permissions-wizard.sh # proactive permission chaining (--step <name>)
-│   └── cheatsheet-deploy.sh # regenerate ~/Desktop/Hyper-Keys.html
+│   └── permissions-wizard.sh # proactive permission chaining (--step <name>)
 ├── ubuntu/
 │   └── bootstrap.sh         # apt + chezmoi + mise + Docker + Claude CLI
 ├── configs/                  # source-of-truth dotfiles (text + Lua + JSON)

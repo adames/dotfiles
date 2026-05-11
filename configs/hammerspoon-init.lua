@@ -87,8 +87,7 @@ hs.hotkey.bind(hyper, "down",  snap({ x = 0.25, y = 0.25, w = 0.5, h = 0.5 })) -
 
 -- Cheatsheet on Hyper+0 (Caps+0). The "/" bindings were dropped because
 -- many apps catch Cmd+? for their Help menu before Hammerspoon's hotkey
--- fires. A static HTML mirror is also written to ~/Desktop/Hyper-Keys.html
--- on every Hammerspoon load.
+-- fires.
 local meh        = { "ctrl", "alt", "cmd" }
 local cheatsheet = require("cheatsheet")
 hs.hotkey.bind(hyper, "0", function() cheatsheet.toggle() end)  -- Caps + 0
