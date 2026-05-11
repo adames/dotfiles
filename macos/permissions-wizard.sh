@@ -88,11 +88,12 @@ wizard_step() {
 
   # Fast path: already granted.
   if "$probe"; then
-    log "[$idx/$total] $label — already granted ✓"
+    ok "[$idx/$total] $label — already granted"
     wlog "step $name already green"
     return 0
   fi
 
+  step "[$idx/$total] $label — opening Settings pane"
   wlog "step $name START"
   mac_open_privacy_pane "$pane"
 
@@ -110,7 +111,7 @@ If you've already granted it but the wizard isn't picking it up, click \"Skip �
 
   while (( budget > 0 )); do
     if "$probe"; then
-      log "[$idx/$total] $label — granted ✓"
+      ok "[$idx/$total] $label — granted"
       osascript -e 'tell application "System Events" to display notification "Granted ✓" with title "Hyper Bootstrap"' >/dev/null 2>&1 || true
       wlog "step $name GRANTED"
       return 0
@@ -140,7 +141,8 @@ If you've already granted it but the wizard isn't picking it up, click \"Skip �
 
 # ---- phases -----------------------------------------------------------------
 phase_register_apps() {
-  log "registering apps in TCC lists (launch attempts, no prompts yet)"
+  section "Wizard phase 1/3 · register apps in TCC"
+  step "launching apps so they appear in System Settings (no prompts yet)"
   # Launching/attempting these causes macOS to add them to the relevant TCC
   # panes with toggles OFF, so the user just flips ON later — no dragging.
   have yabai && yabai --start-service >/dev/null 2>&1 || true
@@ -161,6 +163,7 @@ phase_register_apps() {
 }
 
 phase_grant_permissions() {
+  section "Wizard phase 2/3 · grant TCC permissions"
   local total=${#GATES[@]}
   local idx=0 skipped=()
   for gate in "${GATES[@]}"; do
@@ -175,45 +178,44 @@ phase_grant_permissions() {
   if launchctl list 2>/dev/null | grep -q "org.pqrs.service.daemon.karabiner_grabber"; then
     launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.daemon.karabiner_grabber" \
       >/dev/null 2>&1 || true
-    log "karabiner_grabber kicked"
+    ok "karabiner_grabber kicked"
   fi
   # Karabiner console_user_server (note: label has ".agent." not ".service.")
   if launchctl list 2>/dev/null | grep -q "org.pqrs.service.agent.karabiner_console_user_server"; then
     launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.agent.karabiner_console_user_server" \
       >/dev/null 2>&1 || true
-    log "karabiner_console_user_server kicked"
+    ok "karabiner_console_user_server kicked"
   fi
 
   # Hammerspoon reload if running
   if pgrep -x Hammerspoon >/dev/null 2>&1; then
     osascript -e 'tell application "Hammerspoon" to execute lua code "hs.reload()"' \
       >/dev/null 2>&1 || true
-    log "Hammerspoon reloaded"
+    ok "Hammerspoon reloaded"
   fi
 
   if (( ${#skipped[@]} > 0 )); then
     warn "skipped gates: ${skipped[*]}"
-    warn "re-run a single gate with:  ~/dotfiles/macos/permissions-wizard.sh --step <name>"
+    info "re-run a single gate: ~/dotfiles/macos/permissions-wizard.sh --step <name>"
   fi
 }
 
 phase_finalize() {
-  echo ""
-  log "===== wizard summary ====="
+  section "Wizard phase 3/3 · summary"
   local total=${#GATES[@]} green=0 skipped=()
   for gate in "${GATES[@]}"; do
     local name=${gate%%|*}; rest=${gate#*|}
     local label=${rest%%|*}; rest=${rest#*|}
     local probe=${rest#*|}
     if "$probe"; then
-      log "  ✓ $label"
+      ok "$label"
       green=$((green + 1))
     else
-      warn "  ✗ $label (skipped or not granted)"
+      warn "$label (skipped or not granted)"
       skipped+=("$name")
     fi
   done
-  log "  $green / $total gates granted"
+  printf '\n  %s/%s gates granted\n' "$green" "$total"
 
   # spans-displays logout gate
   if [[ "${HYPER_BOOTSTRAP_NEED_RELOGIN:-}" == "1" ]] \
@@ -235,33 +237,28 @@ return button returned of the result
 AS
 )
       if [[ "$choice" == "Log out now" ]]; then
-        log "logging out — see you on the other side"
+        step "logging out — see you on the other side"
         osascript -e 'tell application "System Events" to log out' || warn "log out canceled"
       else
-        warn "remember: log out / log in to enable yabai's spans-displays change"
+        warn "remember to log out / log in to apply spans-displays"
       fi
     else
       warn "log out / log in required to apply spans-displays change"
     fi
   fi
 
-  cat <<EOF
-
-================================================================
-                       BOOTSTRAP COMPLETE
-================================================================
-
-  Cheatsheet:   press Caps+0 (Hammerspoon overlay).
-
+  banner "Bootstrap complete" "press Caps + 0 for the overlay cheatsheet"
+  cat <<'EOF'
   Re-run wizard:
-        ~/dotfiles/macos/permissions-wizard.sh
-        ~/dotfiles/macos/permissions-wizard.sh --step <name>
+    ~/dotfiles/macos/permissions-wizard.sh           # full
+    ~/dotfiles/macos/permissions-wizard.sh --list    # step names
+    ~/dotfiles/macos/permissions-wizard.sh --step <name>
 
-  Verify the rest of the stack:
-        tmux show -gv prefix                              # → C-a
-        yabai -m query --windows | jq '.[].app'           # after login
-        nvim --headless +'echo execute("nmap <Space>h")' +qa
-================================================================
+  Verify the stack:
+    tmux show -gv prefix                             # → C-Space
+    yabai -m query --windows | jq '.[].app'          # after login
+    nvim +'lua print(#vim.lsp.get_clients())' +qa    # 0 outside any LSP buffer
+
 EOF
 }
 
