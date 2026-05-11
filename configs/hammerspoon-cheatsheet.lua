@@ -1,61 +1,59 @@
 -- ~/.hammerspoon/cheatsheet.lua
--- Full-screen overlay of every Hyper-scheme keybinding.
--- Hyper+0 (Caps hold + 0) to toggle.  The background is fully invisible;
--- only frosted-glass cards float over the live desktop.
--- Edit `sections` to add or remove entries.
+-- Full-screen overlay of keybindings for this machine's setup.
+-- Hyper+0 (Caps hold + 0) to toggle.  Background is fully invisible;
+-- only three frosted-glass cards float over the live desktop.
+-- Edit `sections` to add or remove entries — no logic to break.
 
 local M = {}
 
--- `color` is the accent line drawn across the top of each card.
--- Order: most-referenced content scans left-to-right, top-to-bottom.
+-- Three sections map to the three layers of the workspace:
+--   OS windows → terminal multiplexer → editor
+-- `color` = accent line at the top of the card.
+-- `sub`   = ghost subtitle under the section title (explains the modifier).
 local sections = {
   {
-    color = "#60a5fa",                             -- blue   (OS windows)
-    title = "Windows · yabai + skhd",
+    color = "#60a5fa",
+    title = "Windows",
+    sub   = "Hyper = Caps hold  ·  Meh = Caps+Shift  ·  yabai + skhd",
     rows  = {
-      { "Hyper + H/J/K/L",     "Focus window  ←  ↓  ↑  →" },
-      { "Meh + H/J/K/L",       "Swap window   ←  ↓  ↑  →" },
-      { "Hyper + Return",       "Zoom fullscreen" },
-      { "Hyper + F",            "Float / unfloat" },
-      { "Hyper + R",            "Rotate space 90°" },
-      { "Hyper + E",            "Balance  (equal splits)" },
-      { "Hyper + 1 … 5",        "Jump to Space" },
-    },
-  },
-  {
-    color = "#fb923c",                             -- orange  (editor)
-    title = "Neovim · leader ␣",
-    rows  = {
-      { "⟨spc⟩ h / j / k / l",  "Navigate splits" },
-      { "⟨spc⟩ e",              "File explorer  (:Explore)" },
-      { "⟨spc⟩ g",              "Git status" },
-      { "⟨spc⟩ t",              "Run nearest test" },
-      { "⟨spc⟩ ff / fg / fb",   "Find files / grep / buffers" },
-      { "⟨spc⟩ ca / rn",        "Code action / rename  (LSP)" },
-      { "gd / K",                "Go to definition / hover" },
-    },
-  },
-  {
-    color = "#34d399",                             -- emerald  (terminal)
-    title = "tmux · prefix Ctrl-a",
-    rows  = {
-      { "Option + H/J/K/L",    "Select pane  (no prefix needed)" },
-      { "Ctrl-a  |",           "Split right" },
-      { "Ctrl-a  -",           "Split below" },
-      { "Ctrl-a  r",           "Reload config" },
-      { "Ctrl-a  Ctrl-a",      "Send Ctrl-a to program" },
-    },
-  },
-  {
-    color = "#a78bfa",                             -- violet   (the key)
-    title = "Caps Lock",
-    rows  = {
-      { "Tap",                 "Escape  (vim / zsh-vim normal mode)" },
-      { "Hold",                "Hyper  ⌃⌥⌘⇧" },
-      { "Hold + Shift",        "Meh  ⌃⌥⌘  (yabai swap actions)" },
+      { "Hyper + H/J/K/L",    "Focus window  ←  ↓  ↑  →" },
+      { "Meh + H/J/K/L",      "Swap window   ←  ↓  ↑  →" },
+      { "Hyper + ← → ↑ ↓",   "Snap  ½-left · ½-right · max · centre" },
+      { "Hyper + Return",      "Zoom fullscreen" },
+      { "Hyper + F",           "Float / unfloat" },
+      { "Hyper + E / R",       "Balance space / rotate 90°" },
+      { "Hyper + 1 … 5",       "Jump to Space" },
       { "Hyper + T / N",       "New terminal tab / window" },
-      { "Hyper + ← → ↑ ↓",    "Snap  ½-left · ½-right · max · centre" },
-      { "Hyper + 0",           "Toggle this cheatsheet" },
+    },
+  },
+  {
+    color = "#34d399",
+    title = "Terminal",
+    sub   = "Option = no-prefix tmux  ·  Ctrl-a = prefix (SSH fallback)",
+    rows  = {
+      { "Option + H/J/K/L",   "Select pane  ←  ↓  ↑  →" },
+      { "Option + V",          "Split right  (vertical divider)" },
+      { "Option + S",          "Split below" },
+      { "Option + R",          "Reload config" },
+      { "Ctrl-a  [",           "Scroll / copy mode  (q to exit)" },
+      { "Ctrl-a  Z",           "Zoom pane  (toggle)" },
+      { "Ctrl-a  D",           "Detach session" },
+      { "Ctrl-a  Ctrl-a",      "Send Ctrl-a to the inner program" },
+    },
+  },
+  {
+    color = "#fb923c",
+    title = "Editor",
+    sub   = "Caps tap = Escape  ·  ⟨spc⟩ = Space leader  ·  Neovim",
+    rows  = {
+      { "⟨spc⟩ h/j/k/l",      "Navigate splits" },
+      { "⟨spc⟩ ff / fg / fb", "Find files / live grep / buffers" },
+      { "⟨spc⟩ ca / rn",      "Code action / rename  (LSP)" },
+      { "gd / gr / K",         "Definition / references / hover" },
+      { "⟨spc⟩ e / g / t",    "Explorer / git / test" },
+      { "Ctrl-o / Ctrl-i",     "Jump back / forward in jump list" },
+      { "* / #",               "Search word under cursor  fwd / bwd" },
+      { "ci⟨x⟩ / ca⟨x⟩",     "Change inside / around text object" },
     },
   },
 }
@@ -72,7 +70,6 @@ local function render_html()
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Centre the grid on screen — body itself is invisible */
     .outer {
       width: 100%; height: 100%;
       display: flex;
@@ -80,23 +77,24 @@ local function render_html()
       align-items: center;
       justify-content: center;
       gap: 10px;
-      padding: 48px 64px;
+      padding: 52px 56px;
     }
 
+    /* Three equal columns — one per workspace layer */
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
       width: 100%;
-      max-width: min(980px, 88vw);
+      max-width: min(1180px, 92vw);
     }
 
-    /* Frosted-glass card — the only visible element */
+    /* Frosted-glass card — the only visible element on screen */
     .card {
       background: rgba(8, 10, 15, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.07);
       border-radius: 12px;
-      padding: 16px 20px 18px;
+      padding: 18px 22px 20px;
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       position: relative;
@@ -113,24 +111,32 @@ local function render_html()
     }
 
     .card-title {
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.07em;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--accent);
-      margin-bottom: 13px;
+      margin-bottom: 4px;
+    }
+
+    /* Ghost subtitle: explains the modifier key for this card */
+    .card-sub {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.28);
+      letter-spacing: 0.02em;
+      margin-bottom: 14px;
     }
 
     table { width: 100%; border-collapse: collapse; }
     td    { padding: 5px 0; vertical-align: middle; }
     tr + tr td { border-top: 1px solid rgba(255, 255, 255, 0.045); }
     td.k  { white-space: nowrap; padding-right: 16px; width: 1%; }
-    td.d  { font-size: 12px; color: rgba(221, 228, 238, 0.58); }
+    td.d  { font-size: 11.5px; color: rgba(221, 228, 238, 0.58); }
 
     kbd {
       display: inline-block;
       padding: 1px 6px;
-      font: 11px "SF Mono", ui-monospace, Menlo, monospace;
+      font: 10.5px "SF Mono", ui-monospace, Menlo, monospace;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 4px;
@@ -138,11 +144,11 @@ local function render_html()
       color: #dde4ee;
     }
 
-    /* Ghost footer — just enough to know how to close */
+    /* Ghost footer */
     .footer {
-      font-size: 10.5px;
-      color: rgba(255, 255, 255, 0.18);
-      letter-spacing: 0.04em;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.16);
+      letter-spacing: 0.05em;
     }
   ]]
 
@@ -152,8 +158,11 @@ local function render_html()
 
   for _, sec in ipairs(sections) do
     parts[#parts+1] = string.format(
-      '<div class="card" style="--accent:%s"><div class="card-title">%s</div><table>',
-      sec.color, sec.title
+      '<div class="card" style="--accent:%s">'
+        .. '<div class="card-title">%s</div>'
+        .. '<div class="card-sub">%s</div>'
+        .. '<table>',
+      sec.color, sec.title, sec.sub
     )
     for _, row in ipairs(sec.rows) do
       parts[#parts+1] = string.format(
@@ -165,7 +174,7 @@ local function render_html()
   end
 
   parts[#parts+1] = string.format(
-    '</div><div class="footer">Hyper+0 to close  ·  %s</div></div></body></html>',
+    '</div><div class="footer">HYPER + 0 TO CLOSE  ·  %s</div></div></body></html>',
     os.date('%H:%M')
   )
   return table.concat(parts)
@@ -194,7 +203,7 @@ function M.toggle()
   pcall(function() M.view:passthroughKeyboardEvents(true) end)
 end
 
--- Write a static copy to the Desktop each Hammerspoon load.
+-- Write a static copy to the Desktop on every Hammerspoon load.
 function M.dump_to_desktop()
   local path = os.getenv("HOME") .. "/Desktop/Hyper-Keys.html"
   local f, err = io.open(path, "w")
