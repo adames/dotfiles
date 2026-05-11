@@ -6,54 +6,50 @@
 
 local M = {}
 
--- Three sections = three workspace layers: OS → terminal → editor.
--- `color` = accent line at the top of the card.
--- `sub`   = ghost subtitle under the title (tools / context).
--- Key names use what's physically pressed, not internal modifier names.
 local sections = {
   {
     color = "#60a5fa",
     title = "Windows",
     sub   = "yabai  ·  skhd  ·  Hammerspoon",
     rows  = {
-      { "Caps Lock + H/J/K/L",          "Focus window  ←  ↓  ↑  →" },
-      { "Caps Lock + Shift + H/J/K/L",  "Swap window   ←  ↓  ↑  →" },
-      { "Caps Lock + ← → ↑ ↓",         "Snap  ½-left · ½-right · max · centre" },
-      { "Caps Lock + Return",            "Zoom fullscreen" },
-      { "Caps Lock + F",                 "Float / unfloat" },
-      { "Caps Lock + E / R",             "Balance space / rotate 90°" },
-      { "Caps Lock + 1 … 5",            "Jump to Space" },
-      { "Caps Lock + T / N",            "New terminal tab / window" },
+      { "caps lock + hjkl",          "focus window  ←  ↓  ↑  →" },
+      { "caps lock + shift + hjkl",  "swap window   ←  ↓  ↑  →" },
+      { "caps lock + ← → ↑ ↓",      "snap  ½-left · ½-right · max · centre" },
+      { "caps lock + return",         "zoom fullscreen" },
+      { "caps lock + f",              "float / unfloat" },
+      { "caps lock + e / r",          "balance space / rotate 90°" },
+      { "caps lock + 1…5",           "jump to space" },
+      { "caps lock + t / n",          "new terminal tab / window" },
     },
   },
   {
     color = "#34d399",
     title = "Terminal",
-    sub   = "tmux  ·  Option = no-prefix  ·  Ctrl-a = prefix (SSH fallback)",
+    sub   = "tmux  ·  option = no-prefix  ·  ctrl-a = prefix (ssh fallback)",
     rows  = {
-      { "Option + H/J/K/L",  "Select pane  ←  ↓  ↑  →" },
-      { "Option + V",         "Split right" },
-      { "Option + S",         "Split below" },
-      { "Option + Z",         "Zoom pane  (toggle)" },
-      { "Option + D",         "Detach session" },
-      { "Option + R",         "Reload config" },
-      { "Ctrl-a  [",          "Scroll / copy mode  (Q to exit)" },
-      { "Ctrl-a  Ctrl-a",     "Send Ctrl-a to program" },
+      { "option + hjkl",   "select pane  ←  ↓  ↑  →" },
+      { "option + v",       "split right" },
+      { "option + s",       "split below" },
+      { "option + z",       "zoom pane  (toggle)" },
+      { "option + d",       "detach session" },
+      { "option + r",       "reload config" },
+      { "ctrl-a  [",        "scroll / copy mode  (q to exit)" },
+      { "ctrl-a  ctrl-a",   "send ctrl-a to program" },
     },
   },
   {
     color = "#fb923c",
     title = "Editor",
-    sub   = "Neovim  ·  Caps Lock tap = Escape  ·  Space = leader",
+    sub   = "neovim  ·  caps lock tap = escape  ·  space = leader",
     rows  = {
-      { "Space + H/J/K/L",    "Navigate splits" },
-      { "Space + FF/FG/FB",   "Find files / live grep / buffers" },
-      { "Space + CA / RN",    "Code action / rename  (LSP)" },
-      { "GD / GR / K",        "Definition / references / hover" },
-      { "Space + E / G / T",  "Explorer / git / test" },
-      { "Ctrl-O / Ctrl-I",    "Jump back / forward in jump list" },
-      { "* / #",              "Search word under cursor  fwd / bwd" },
-      { "CI⟨x⟩ / CA⟨x⟩",     "Change inside / around text object" },
+      { "space + hjkl",      "navigate splits" },
+      { "space + ff/fg/fb",  "find files / live grep / buffers" },
+      { "space + ca / rn",   "code action / rename  (lsp)" },
+      { "gd / gr / k",       "definition / references / hover" },
+      { "space + e / g / t", "explorer / git / test" },
+      { "ctrl-o / ctrl-i",   "jump back / forward in jump list" },
+      { "* / #",             "search word under cursor  fwd / bwd" },
+      { "ci⟨x⟩ / ca⟨x⟩",    "change inside / around text object" },
     },
   },
 }
@@ -77,7 +73,7 @@ local function render_html()
       align-items: center;
       justify-content: center;
       gap: 12px;
-      padding: 52px 56px;
+      padding: 52px 48px;
     }
 
     .grid {
@@ -85,14 +81,14 @@ local function render_html()
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       width: 100%;
-      max-width: min(1240px, 92vw);
+      max-width: min(1300px, 96vw);
     }
 
     .card {
       background: rgba(8, 10, 15, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.07);
       border-radius: 12px;
-      padding: 20px 24px 22px;
+      padding: 20px 22px 22px;
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       position: relative;
@@ -124,15 +120,17 @@ local function render_html()
     }
 
     table { width: 100%; border-collapse: collapse; }
-    td    { padding: 6px 0; vertical-align: middle; }
+    td    { padding: 6px 0; vertical-align: top; }
     tr + tr td { border-top: 1px solid rgba(255, 255, 255, 0.045); }
-    td.k  { white-space: nowrap; padding-right: 16px; width: 1%; }
+    td.k  { white-space: nowrap; padding-right: 14px; width: 1%; }
     td.d  { font-size: 13px; color: rgba(221, 228, 238, 0.58); }
 
+    /* nowrap on kbd itself prevents the chip from breaking mid-label */
     kbd {
       display: inline-block;
+      white-space: nowrap;
       padding: 2px 7px;
-      font: 12px "SF Mono", ui-monospace, Menlo, monospace;
+      font: 11.5px "SF Mono", ui-monospace, Menlo, monospace;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 5px;
