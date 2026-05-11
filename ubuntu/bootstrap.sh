@@ -81,10 +81,12 @@ main() {
     bash /tmp/claude-install.sh
   fi
 
-  # Drop tmux + nvim keymaps from this repo's configs/.
-  install_file "$CONFIGS_DIR/tmux.conf"        "$HOME/.tmux.conf"
+  # Drop tmux + nvim configs from this repo's configs/.
+  install_file "$CONFIGS_DIR/tmux.conf"          "$HOME/.tmux.conf"
   ensure_dir "$HOME/.config/nvim/after/plugin"
-  install_file "$CONFIGS_DIR/nvim-keymaps.lua" "$HOME/.config/nvim/after/plugin/keymaps.lua"
+  install_file "$CONFIGS_DIR/nvim-init.lua"      "$HOME/.config/nvim/init.lua"
+  install_file "$CONFIGS_DIR/nvim-lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
+  install_file "$CONFIGS_DIR/nvim-keymaps.lua"   "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
   # Shell-layer additions: ripgrep config + tmux sessionizer.
   # zshrc and gitconfig are intentionally NOT installed here — chezmoi already

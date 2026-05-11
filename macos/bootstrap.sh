@@ -91,7 +91,11 @@ mac_deploy_configs() {
 EOF
   fi
 
+  # Neovim: full init.lua + pinned plugin versions. lazy.nvim self-installs
+  # on first nvim launch; mason-tool-installer pulls debugpy etc. afterwards.
   ensure_dir "$HOME/.config/nvim/after/plugin"
+  install_file "$CONFIGS_DIR/nvim-init.lua"      "$HOME/.config/nvim/init.lua"
+  install_file "$CONFIGS_DIR/nvim-lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua" \
                "$HOME/.config/nvim/after/plugin/keymaps.lua"
 }
