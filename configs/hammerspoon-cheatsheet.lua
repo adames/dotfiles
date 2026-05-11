@@ -1,59 +1,59 @@
 -- ~/.hammerspoon/cheatsheet.lua
 -- Full-screen overlay of keybindings for this machine's setup.
--- Hyper+0 (Caps hold + 0) to toggle.  Background is fully invisible;
+-- Caps Lock + 0 (held) to toggle.  Background is fully invisible;
 -- only three frosted-glass cards float over the live desktop.
 -- Edit `sections` to add or remove entries — no logic to break.
 
 local M = {}
 
--- Three sections map to the three layers of the workspace:
---   OS windows → terminal multiplexer → editor
+-- Three sections = three workspace layers: OS → terminal → editor.
 -- `color` = accent line at the top of the card.
--- `sub`   = ghost subtitle under the section title (explains the modifier).
+-- `sub`   = ghost subtitle under the title (tools / context).
+-- Key names use what's physically pressed, not internal modifier names.
 local sections = {
   {
     color = "#60a5fa",
     title = "Windows",
-    sub   = "Hyper = Caps hold  ·  Meh = Caps+Shift  ·  yabai + skhd",
+    sub   = "yabai  ·  skhd  ·  Hammerspoon",
     rows  = {
-      { "Hyper + H/J/K/L",    "Focus window  ←  ↓  ↑  →" },
-      { "Meh + H/J/K/L",      "Swap window   ←  ↓  ↑  →" },
-      { "Hyper + ← → ↑ ↓",   "Snap  ½-left · ½-right · max · centre" },
-      { "Hyper + Return",      "Zoom fullscreen" },
-      { "Hyper + F",           "Float / unfloat" },
-      { "Hyper + E / R",       "Balance space / rotate 90°" },
-      { "Hyper + 1 … 5",       "Jump to Space" },
-      { "Hyper + T / N",       "New terminal tab / window" },
+      { "Caps Lock + H/J/K/L",          "Focus window  ←  ↓  ↑  →" },
+      { "Caps Lock + Shift + H/J/K/L",  "Swap window   ←  ↓  ↑  →" },
+      { "Caps Lock + ← → ↑ ↓",         "Snap  ½-left · ½-right · max · centre" },
+      { "Caps Lock + Return",            "Zoom fullscreen" },
+      { "Caps Lock + F",                 "Float / unfloat" },
+      { "Caps Lock + E / R",             "Balance space / rotate 90°" },
+      { "Caps Lock + 1 … 5",            "Jump to Space" },
+      { "Caps Lock + T / N",            "New terminal tab / window" },
     },
   },
   {
     color = "#34d399",
     title = "Terminal",
-    sub   = "Option = no-prefix tmux  ·  Ctrl-a = prefix (SSH fallback)",
+    sub   = "tmux  ·  Option = no-prefix  ·  Ctrl-a = prefix (SSH fallback)",
     rows  = {
-      { "Option + H/J/K/L",   "Select pane  ←  ↓  ↑  →" },
-      { "Option + V",          "Split right  (vertical divider)" },
-      { "Option + S",          "Split below" },
-      { "Option + R",          "Reload config" },
-      { "Ctrl-a  [",           "Scroll / copy mode  (q to exit)" },
-      { "Ctrl-a  Z",           "Zoom pane  (toggle)" },
-      { "Ctrl-a  D",           "Detach session" },
-      { "Ctrl-a  Ctrl-a",      "Send Ctrl-a to the inner program" },
+      { "Option + H/J/K/L",  "Select pane  ←  ↓  ↑  →" },
+      { "Option + V",         "Split right" },
+      { "Option + S",         "Split below" },
+      { "Option + Z",         "Zoom pane  (toggle)" },
+      { "Option + D",         "Detach session" },
+      { "Option + R",         "Reload config" },
+      { "Ctrl-a  [",          "Scroll / copy mode  (Q to exit)" },
+      { "Ctrl-a  Ctrl-a",     "Send Ctrl-a to program" },
     },
   },
   {
     color = "#fb923c",
     title = "Editor",
-    sub   = "Caps tap = Escape  ·  ⟨spc⟩ = Space leader  ·  Neovim",
+    sub   = "Neovim  ·  Caps Lock tap = Escape  ·  Space = leader",
     rows  = {
-      { "⟨spc⟩ h/j/k/l",      "Navigate splits" },
-      { "⟨spc⟩ ff / fg / fb", "Find files / live grep / buffers" },
-      { "⟨spc⟩ ca / rn",      "Code action / rename  (LSP)" },
-      { "gd / gr / K",         "Definition / references / hover" },
-      { "⟨spc⟩ e / g / t",    "Explorer / git / test" },
-      { "Ctrl-o / Ctrl-i",     "Jump back / forward in jump list" },
-      { "* / #",               "Search word under cursor  fwd / bwd" },
-      { "ci⟨x⟩ / ca⟨x⟩",     "Change inside / around text object" },
+      { "Space + H/J/K/L",    "Navigate splits" },
+      { "Space + FF/FG/FB",   "Find files / live grep / buffers" },
+      { "Space + CA / RN",    "Code action / rename  (LSP)" },
+      { "GD / GR / K",        "Definition / references / hover" },
+      { "Space + E / G / T",  "Explorer / git / test" },
+      { "Ctrl-O / Ctrl-I",    "Jump back / forward in jump list" },
+      { "* / #",              "Search word under cursor  fwd / bwd" },
+      { "CI⟨x⟩ / CA⟨x⟩",     "Change inside / around text object" },
     },
   },
 }
@@ -65,7 +65,7 @@ local function render_html()
     html, body {
       width: 100%; height: 100%;
       background: transparent;
-      font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui;
+      font: 15px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui;
       color: #dde4ee;
       -webkit-font-smoothing: antialiased;
     }
@@ -76,32 +76,29 @@ local function render_html()
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 12px;
       padding: 52px 56px;
     }
 
-    /* Three equal columns — one per workspace layer */
     .grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
+      gap: 16px;
       width: 100%;
-      max-width: min(1180px, 92vw);
+      max-width: min(1240px, 92vw);
     }
 
-    /* Frosted-glass card — the only visible element on screen */
     .card {
       background: rgba(8, 10, 15, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.07);
       border-radius: 12px;
-      padding: 18px 22px 20px;
+      padding: 20px 24px 22px;
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       position: relative;
       overflow: hidden;
     }
 
-    /* Coloured accent line at the top of each card */
     .card::before {
       content: '';
       position: absolute;
@@ -111,7 +108,7 @@ local function render_html()
     }
 
     .card-title {
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -119,34 +116,32 @@ local function render_html()
       margin-bottom: 4px;
     }
 
-    /* Ghost subtitle: explains the modifier key for this card */
     .card-sub {
-      font-size: 10px;
+      font-size: 11.5px;
       color: rgba(255, 255, 255, 0.28);
-      letter-spacing: 0.02em;
-      margin-bottom: 14px;
+      letter-spacing: 0.01em;
+      margin-bottom: 16px;
     }
 
     table { width: 100%; border-collapse: collapse; }
-    td    { padding: 5px 0; vertical-align: middle; }
+    td    { padding: 6px 0; vertical-align: middle; }
     tr + tr td { border-top: 1px solid rgba(255, 255, 255, 0.045); }
     td.k  { white-space: nowrap; padding-right: 16px; width: 1%; }
-    td.d  { font-size: 11.5px; color: rgba(221, 228, 238, 0.58); }
+    td.d  { font-size: 13px; color: rgba(221, 228, 238, 0.58); }
 
     kbd {
       display: inline-block;
-      padding: 1px 6px;
-      font: 10.5px "SF Mono", ui-monospace, Menlo, monospace;
+      padding: 2px 7px;
+      font: 12px "SF Mono", ui-monospace, Menlo, monospace;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 4px;
-      line-height: 1.65;
+      border-radius: 5px;
+      line-height: 1.6;
       color: #dde4ee;
     }
 
-    /* Ghost footer */
     .footer {
-      font-size: 10px;
+      font-size: 11px;
       color: rgba(255, 255, 255, 0.16);
       letter-spacing: 0.05em;
     }
@@ -174,13 +169,12 @@ local function render_html()
   end
 
   parts[#parts+1] = string.format(
-    '</div><div class="footer">HYPER + 0 TO CLOSE  ·  %s</div></div></body></html>',
+    '</div><div class="footer">CAPS LOCK + 0 TO CLOSE  ·  %s</div></div></body></html>',
     os.date('%H:%M')
   )
   return table.concat(parts)
 end
 
--- Toggle: pressing the binding again closes the overlay.
 function M.toggle()
   if M.view then
     M.view:delete()
@@ -203,7 +197,6 @@ function M.toggle()
   pcall(function() M.view:passthroughKeyboardEvents(true) end)
 end
 
--- Write a static copy to the Desktop on every Hammerspoon load.
 function M.dump_to_desktop()
   local path = os.getenv("HOME") .. "/Desktop/Hyper-Keys.html"
   local f, err = io.open(path, "w")
