@@ -31,10 +31,16 @@ source "$CONFIG_DIR/colors.sh"
 # Windows can also cover the strip; yabai's external_bar in ~/.yabairc
 # reserves the top 26px so tiled windows never do, leaving the strip
 # always-exposed under normal usage.
+#
+# y_offset=7 vertically centers the 26px bar within the y=0..40 band
+# (top of screen → top of yabai window snap line, which is macOS menu
+# bar reserve 32 + top_padding 8). padding_left starts at 8 and is
+# rewritten by the recenter call below so pills sit centered between
+# the screen's top-left corner and the camera notch.
 sketchybar --bar \
   height=26 \
   position=top \
-  y_offset=0 \
+  y_offset=7 \
   padding_left=8 \
   padding_right=8 \
   color="$BAR_COLOR" \
@@ -58,10 +64,12 @@ sketchybar --default \
   icon.padding_left=10 \
   icon.padding_right=10
 
-##### space items (dynamic) ##################################################
-# Pill count derives from spaces.json, so `workspace add` / `workspace
+##### space items (dynamic, capped at 10 visible) ############################
+# Pill count derives from spaces.json so `workspace add` / `workspace
 # remove` survive a `--reload`. Falls back to 10 if jq or the config
-# file is missing — workspaces still render; just the count is fixed.
+# file is missing. Hard cap at 10 visible — even if the user has more
+# workspaces, the dock displays at most 10 (matches the skhd hotkey
+# range of Caps+1..0).
 # Registered as one custom event so all pills repaint atomically.
 sketchybar --add event workspace_changed
 
@@ -70,8 +78,10 @@ SLOT_COUNT=10
 if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
   SLOT_COUNT=$(jq '.spaces | keys | length' "$WS_CONFIG" 2>/dev/null || echo 10)
 fi
+VISIBLE=$SLOT_COUNT
+(( VISIBLE > 10 )) && VISIBLE=10
 
-for (( sid=1; sid<=SLOT_COUNT; sid++ )); do
+for (( sid=1; sid<=VISIBLE; sid++ )); do
   sketchybar --add item "space.$sid" left \
              --set "space.$sid" \
                 script="$PLUGIN_DIR/space.sh" \
@@ -79,6 +89,7 @@ for (( sid=1; sid<=SLOT_COUNT; sid++ )); do
              --subscribe "space.$sid" workspace_changed
 done
 
-##### init paint #############################################################
+##### init paint + recenter ##################################################
 sketchybar --update
 sketchybar --trigger workspace_changed
+[[ -x "$PLUGIN_DIR/recenter.sh" ]] && "$PLUGIN_DIR/recenter.sh"
