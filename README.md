@@ -86,7 +86,7 @@ Caps tap                      → Esc
 
 # Hyper — navigate
 Caps + hjkl                   → focus window
-Caps + 1…5                    → focus space
+Caps + 1…8                    → focus space (1–4 display 1; 5–8 display 2)
 Caps + return / f / e / r     → fullscreen / float / balance / rotate
 Caps + t / n                  → new terminal tab / window
 Caps + b / c                  → Brave (browser) / Claude
@@ -94,7 +94,7 @@ Caps + 0                      → toggle cheatsheet
 
 # Meh — modify
 Caps + Shift + hjkl           → swap window
-Caps + Shift + 1…5            → send window to space N (and follow)
+Caps + Shift + 1…8            → send window to space N (and follow)
 Caps + Shift + ←→↑↓           → manual snap for floats / non-yabai windows
 
 # Terminal
@@ -115,11 +115,13 @@ C-Space  f                    → fzf project sessionizer
 
 ## One-time space setup
 
-`Caps + 1…5` and `Caps + Shift + 1…5` need **5 BSP spaces per display.**
+`Caps + 1…8` and `Caps + Shift + 1…8` work against **4 BSP spaces per
+display.** A laptop alone has 4 spaces (1–4); attaching a monitor brings
+the total to 8 (5–8 on the secondary).
 [`yabai-ensure-spaces.sh`](configs/yabai-ensure-spaces.sh) is called at
 yabai startup and rebound to the `display_added` signal in
 [`yabairc`](configs/yabairc), so attaching a monitor mid-session also
-tops the new display up to 5 spaces without re-login. Installing the SA
+tops the new display up to 4 spaces without re-login. Installing the SA
 is a one-time multi-reboot dance because macOS gates it behind SIP.
 Procedure:
 

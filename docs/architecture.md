@@ -56,8 +56,8 @@ The two layers carry a consistent semantic split:
 
 | Layer | Role | Examples |
 |---|---|---|
-| **Hyper** | navigate / read-only | focus window (`hjkl`), focus space (`1..5`), new terminal (`t`/`n`), launch app (`b`/`g`/`s`/`c`), cheatsheet (`0`) |
-| **Meh**   | modify / destructive | swap window (`hjkl`), send-to-space (`1..5`), manual snap (`arrows`) |
+| **Hyper** | navigate / read-only | focus window (`hjkl`), focus space (`1..8`), focus display (`tab`), new terminal (`t`), launch app (`b`/`c`), cheatsheet (`0`) |
+| **Meh**   | modify / destructive | swap window (`hjkl`), send-to-space (`1..8`), focus prev display (`tab`), manual snap (`arrows`) |
 
 This is why the SIP-safe arrow snaps live on **Meh+arrows** rather than
 Hyper+arrows — snapping is "manually move this window," which belongs in

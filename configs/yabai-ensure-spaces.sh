@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ensure every connected display has at least N (default 5) BSP spaces.
+# Ensure every connected display has at least N (default 4) BSP spaces.
 # Called by ~/.yabairc at startup AND by the `display_added` signal, so
 # attaching a monitor mid-session also gets its space count topped up to N
 # without re-login.
@@ -11,7 +11,7 @@
 
 set -e
 
-N="${1:-5}"
+N="${1:-4}"
 
 # Save original focused display; the loop moves focus per-display because
 # `yabai -m space --create` operates on the currently focused display.

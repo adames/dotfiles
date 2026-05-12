@@ -26,14 +26,13 @@ local meh   = { "ctrl", "alt", "cmd" }
 local PREFERRED_TERMINALS = { "Ghostty", "Terminal" }
 local KNOWN_TERMINAL = { Ghostty = true, Terminal = true }
 
--- Both Hyper+T and Hyper+N invoke "New Window". Native AppKit tabs break
--- yabai's BSP layout (each tab is an extra NSWindow yabai tiles into the
--- same space), so we funnel every "give me a new terminal" gesture into a
--- new top-level window. tmux handles in-window splits. The two keybinds
--- are preserved as muscle-memory aliases.
+-- Hyper+T → new Ghostty terminal window via the "File → New Window" menu.
+-- Native AppKit tabs break yabai's BSP layout (each tab is an extra NSWindow
+-- yabai tiles into the same space), so the "give me a new terminal" gesture
+-- always creates a top-level window — yabai then tiles it. tmux handles
+-- in-window splits (C-Space + v/s). Hyper+N is intentionally unbound.
 local MENU_PATHS = {
   t = { { "File", "New Window" }, { "Shell", "New Window" } },
-  n = { { "File", "New Window" }, { "Shell", "New Window" } },
 }
 
 local function invokeMenu(app, key)
@@ -68,13 +67,13 @@ local function sendTerminalCmd(key)
 end
 
 hs.hotkey.bind(hyper, "t", sendTerminalCmd("t"))
-hs.hotkey.bind(hyper, "n", sendTerminalCmd("n"))
+-- Hyper+N: intentionally unbound. Reserved for future use.
 
 -- Absolute window snaps for floating / yabai-unmanaged windows (Ghostty,
 -- System Settings, etc.). Bound on Meh, not Hyper, to keep the layer split
 -- coherent:
---   Hyper  = navigate  (Caps + hjkl yabai focus, Caps + 1..5 space focus, …)
---   Meh    = modify    (Caps+Shift + hjkl yabai swap, Caps+Shift + 1..5 send-
+--   Hyper  = navigate  (Caps + hjkl yabai focus, Caps + 1..8 space focus, …)
+--   Meh    = modify    (Caps+Shift + hjkl yabai swap, Caps+Shift + 1..8 send-
 --                       to-space, Caps+Shift + arrows manual snap)
 -- Bare arrows on the Hyper layer are intentionally unbound — pass through.
 local function snap(f)

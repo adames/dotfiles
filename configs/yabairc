@@ -32,12 +32,13 @@ yabai -m rule --add app="^Finder$" title="^(Copy|Move|Info)" manage=off
 # a phantom tab-window. tmux handles in-window splits (C-Space + v/s).
 yabai -m signal --remove ghostty_tab_dance 2>/dev/null   # remove old approach if present
 
-# Spaces: ensure every connected display has at least 5 BSP spaces so
-# Caps+1..5 / Caps+Shift+1..5 always have somewhere to land. Logic lives in
-# a helper so the display_added signal can reuse it — attach a monitor
-# mid-session and yabai tops the new display up to 5 spaces without a
-# relogin. Requires the yabai scripting addition (macos/yabai-sa-install.sh).
-"$HOME/.config/yabai/ensure-spaces.sh" 5
+# Spaces: ensure every connected display has at least 4 BSP spaces. Maps to
+# the skhdrc digit-row bindings: 1..4 on display 1, 5..8 on display 2 (when
+# attached). Logic lives in a helper so the display_added signal can reuse
+# it — attach a monitor mid-session and yabai tops the new display up to 4
+# spaces without a relogin. Requires the yabai scripting addition (see
+# macos/yabai-sa-install.sh).
+"$HOME/.config/yabai/ensure-spaces.sh" 4
 
 # Re-run the helper whenever a display is added (monitor plugged in or
 # spaces wake from sleep). Labeled so reloads of this file don't pile up
@@ -46,6 +47,6 @@ yabai -m signal --remove ensure_spaces_on_display_add 2>/dev/null || true
 yabai -m signal --add \
   event=display_added \
   label=ensure_spaces_on_display_add \
-  action="\"$HOME/.config/yabai/ensure-spaces.sh\" 5"
+  action="\"$HOME/.config/yabai/ensure-spaces.sh\" 4"
 
 echo "yabai configuration loaded"
