@@ -44,6 +44,10 @@ phase_packages() {
   brew install --quiet koekeishiya/formulae/skhd  >/dev/null || true
   ok "yabai + skhd"
 
+  step "installing JankyBorders (FelixKratz tap) — neon window borders"
+  brew install --quiet FelixKratz/formulae/borders >/dev/null || true
+  ok "borders"
+
   # orbstack replaces docker-desktop — leaner, native Apple Silicon, faster
   # cold start. If docker-desktop is installed, see the migration note in
   # README.md → "Switching from Docker Desktop".
@@ -101,7 +105,18 @@ phase_configs() {
   install_file "$CONFIGS_DIR/starship.toml"              "$HOME/.config/starship.toml"
   install_file "$CONFIGS_DIR/gitconfig"                  "$HOME/.gitconfig"
   install_file "$CONFIGS_DIR/ripgreprc"                  "$HOME/.ripgreprc"
+  install_file "$CONFIGS_DIR/starship.toml"              "$HOME/.config/starship.toml"
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
+
+  # Workspace identity layer (10-slot system; details in configs/workspace/)
+  install_file "$DOTFILES_DIR/lib/colors.sh"              "$HOME/.config/workspace/lib/colors.sh"
+  install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
+  install_file "$CONFIGS_DIR/workspace/on-space-changed.sh" "$HOME/.config/workspace/on-space-changed.sh" 755
+  install_file "$CONFIGS_DIR/workspace/reconcile-displays.sh" "$HOME/.config/workspace/reconcile-displays.sh" 755
+  install_file "$CONFIGS_DIR/workspace/laptop-uuid-init.sh" "$HOME/.config/workspace/laptop-uuid-init.sh" 755
+  install_file "$CONFIGS_DIR/workspace/rename.sh"         "$HOME/.config/workspace/rename.sh" 755
+  install_file "$CONFIGS_DIR/borders/bordersrc"           "$HOME/.config/borders/bordersrc" 755
+  bash "$CONFIGS_DIR/workspace/install.sh"
 
   # Editor — lazy.nvim self-installs on first nvim launch
   install_file "$CONFIGS_DIR/nvim-init.lua"              "$HOME/.config/nvim/init.lua"

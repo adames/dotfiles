@@ -1,4 +1,4 @@
--- Caps + 0 overlay. Edit `sections`; no logic to break.
+-- Caps + / overlay. Edit `sections`; no logic to break.
 -- Use ⟨x⟩ (unicode) for placeholders so HTML doesn't swallow them.
 
 local M = {}
@@ -17,15 +17,36 @@ local sections = {
       { "caps + f",                   "float / unfloat window" },
       { "caps + e",                   "balance space" },
       { "caps + r",                   "rotate space 90°" },
-      { "caps + 1…8",                 "focus space N  (1–4 display 1; 5–8 display 2 when attached)" },
-      { "caps + shift + 1…8",         "send window to space N (and follow)" },
+      { "caps + 1…9, 0",              "focus slot N  (10 slots: core/forge/codex/lex/scope/uplink/signal/ledger/craft/void)" },
+      { "caps + shift + 1…9, 0",      "send window to slot N (and follow)" },
       { "caps + tab",                 "focus next display" },
       { "caps + shift + tab",         "focus prev display" },
       { "caps + shift + ← →",         "snap ½-left / ½-right  (manual, for floats)" },
       { "caps + shift + ↑ ↓",         "maximise / centre 50%  (manual, for floats)" },
       { "caps + t",                   "new yabai-tiled Ghostty window  (tmux for in-window splits)" },
-      { "caps + 0",                   "toggle this cheatsheet" },
+      { "caps + /",                   "toggle this cheatsheet" },
+      { "—",                          "slot 1 (core) is locked to the laptop screen; slots 2–10 live on the external monitor when attached" },
       { "—",                          "⚠ avoid macOS green-button fullscreen — use caps+return so yabai keeps managing the window" },
+    },
+  },
+  -- ── Workspace identity (10 slots · color carries meaning) ────────────────
+  -- Source of truth: configs/workspace/spaces.default.json. Renames live in
+  -- ~/.config/workspace/spaces.json (color + icon stay tied to the slot).
+  {
+    color = "#cba6f7",
+    title = "Workspaces · 10 Slots",
+    sub   = "color = identity · name = renameable · slot 1 locked to laptop",
+    rows  = {
+      { "caps + 1   core",   "always-on command center  (laptop)" },
+      { "caps + 2   forge",  "primary TypeScript project work" },
+      { "caps + 3   codex",  "learning · Python · LeetCode · scratch" },
+      { "caps + 4   lex",    "writing · docs · notes · journals" },
+      { "caps + 5   scope",  "browser · research · www" },
+      { "caps + 6   uplink", "SSH · VPS · remote shells" },
+      { "caps + 7   signal", "comms · chat · mail" },
+      { "caps + 8   ledger", "admin · freelance · billing" },
+      { "caps + 9   craft",  "creative · music · design · gaming" },
+      { "caps + 0   void",   "scratch · throwaway · overflow" },
     },
   },
   -- ── App launchers ─────────────────────────────────────────────────────────
@@ -357,7 +378,7 @@ local function render_html()
   end
 
   parts[#parts+1] = string.format(
-    '</div><div class="footer">CAPS LOCK + 0 TO CLOSE  ·  %s</div></div></body></html>',
+    '</div><div class="footer">CAPS LOCK + / TO CLOSE  ·  %s</div></div></body></html>',
     os.date('%H:%M')
   )
   return table.concat(parts)

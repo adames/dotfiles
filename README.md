@@ -28,7 +28,7 @@ Keyboard-first dev environment. Three rules:
         │           ┌──────┴──────┐    pass through)
         ▼           ▼             ▼
       yabai     Terminal      Cheatsheet
-   (BSP tiler)  Cmd+T/N      Hyper+0 overlay
+   (BSP tiler)  Cmd+T/N      Hyper+/ overlay
         │
         ▼
   ┌──────────────────────────────────────────────────────────┐
@@ -62,8 +62,10 @@ Ghostty doesn't break zsh's line editor.
 |---|---|---|
 | Caps → Hyper / Meh / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
+| Neon window borders (per-workspace colour) | JankyBorders | [`borders/bordersrc`](configs/borders/bordersrc) |
 | Hyper hotkeys → yabai | skhd | [`skhdrc`](configs/skhdrc) |
-| Hyper+T/N terminal, Meh+arrow snaps, Hyper+0 cheatsheet | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) · [`hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
+| Hyper+T/N terminal, Meh+arrow snaps, Hyper+/ cheatsheet | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) · [`hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
+| 10-slot workspace identity (color + icon + name → tmux + prompt + borders) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
 | Hyper app launchers (Brave, Claude) | Karabiner shell_command | [`karabiner.json`](configs/karabiner.json) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
@@ -79,22 +81,22 @@ Ghostty doesn't break zsh's line editor.
 
 ## Daily-driver keymap
 
-Full reference is `Hyper+0`. Layer split: **Hyper = navigate, Meh (Caps+Shift) = modify.**
+Full reference is `Hyper+/`. Layer split: **Hyper = navigate, Meh (Caps+Shift) = modify.**
 
 ```
 Caps tap                      → Esc
 
 # Hyper — navigate
 Caps + hjkl                   → focus window
-Caps + 1…8                    → focus space (1–4 display 1; 5–8 display 2)
+Caps + 1…9, 0                 → focus slot 1..10 (core/forge/codex/lex/scope/uplink/signal/ledger/craft/void)
 Caps + return / f / e / r     → fullscreen / float / balance / rotate
 Caps + t / n                  → new terminal tab / window
 Caps + b / c                  → Brave (browser) / Claude
-Caps + 0                      → toggle cheatsheet
+Caps + /                      → toggle cheatsheet
 
 # Meh — modify
 Caps + Shift + hjkl           → swap window
-Caps + Shift + 1…8            → send window to space N (and follow)
+Caps + Shift + 1…9, 0         → send window to slot N (and follow)
 Caps + Shift + ←→↑↓           → manual snap for floats / non-yabai windows
 
 # Terminal
@@ -113,17 +115,54 @@ C-Space  f                    → fzf project sessionizer
 <leader>tn / tf / ts          → test nearest / file / summary
 ```
 
-## One-time space setup
+## Workspace identity (10 slots)
 
-`Caps + 1…8` and `Caps + Shift + 1…8` work against **4 BSP spaces per
-display.** A laptop alone has 4 spaces (1–4); attaching a monitor brings
-the total to 8 (5–8 on the secondary).
+`Caps + 1…9, 0` focus a slot. There are **10 slots total** with stable
+identities — color, icon, and default name — defined in
+[`configs/workspace/spaces.default.json`](configs/workspace/spaces.default.json):
+
+| # | Slot | Color (Catppuccin) | Purpose |
+|---|---|---|---|
+| 1 | **core**    `Caps+1` |  mauve    | Always-on command center · primary terminal |
+| 2 | **forge**   `Caps+2` |  peach    | Primary TypeScript project work |
+| 3 | **codex**   `Caps+3` |  yellow   | Learning · Python · LeetCode · scratch |
+| 4 | **lex**     `Caps+4` |  green    | Writing · docs · notes · journals |
+| 5 | **scope**   `Caps+5` |  teal     | Browser · research · www |
+| 6 | **uplink**  `Caps+6` |  sky      | SSH · VPS · remote shells |
+| 7 | **signal**  `Caps+7` |  sapphire | Comms · chat · mail |
+| 8 | **ledger**  `Caps+8` |  blue     | Admin · freelance · billing |
+| 9 | **craft**   `Caps+9` |  lavender | Creative · music · design · gaming |
+| 10 | **void**   `Caps+0` |  overlay0 | Scratch · throwaway · overflow |
+
+Identity surfaces:
+
+- **Window borders** — focused window gets the slot's neon colour via
+  [JankyBorders](https://github.com/FelixKratz/JankyBorders).
+- **Tmux statusline** — left chip shows icon + name in slot colour.
+- **Starship prompt** — leftmost segment is the workspace chip.
+- **Hammerspoon overlay** — brief OSD on space switch.
+
+Slot **name is renameable** (run [`workspace/rename.sh`](configs/workspace/rename.sh)
+or edit `~/.config/workspace/spaces.json`); the **color and icon are
+fixed to the slot** so muscle-memory ("orange means slot 2") survives a
+rename. Slot identity stable across display moves: the system addresses
+spaces by yabai label (`core`, `forge`, …), not by volatile index.
+
+**Display lock**: when a monitor is attached, slot 1 (`core`) stays on
+the laptop screen and slots 2..10 migrate to the external. Single-display
+mode keeps everything on the laptop. The reconciliation logic lives in
+[`workspace/reconcile-displays.sh`](configs/workspace/reconcile-displays.sh)
+and runs on `display_added`/`removed`/`changed`. **One-time setup**:
+plug only the laptop in and run `~/.config/workspace/laptop-uuid-init.sh`
+to capture the built-in panel's UUID — the reconciler uses it to identify
+the laptop across plug/unplug events. The first bootstrap run does this
+automatically if exactly one display is attached.
+
 [`yabai-ensure-spaces.sh`](configs/yabai-ensure-spaces.sh) is called at
 yabai startup and rebound to the `display_added` signal in
-[`yabairc`](configs/yabairc), so attaching a monitor mid-session also
-tops the new display up to 4 spaces without re-login. Installing the SA
-is a one-time multi-reboot dance because macOS gates it behind SIP.
-Procedure:
+[`yabairc`](configs/yabairc); it ensures exactly 10 spaces total and
+applies the slot labels. Installing the SA is a one-time multi-reboot
+dance because macOS gates it behind SIP. Procedure:
 
 1. **Disable SIP from Recovery** (this is the part you have to do by hand):
    ```
@@ -229,7 +268,7 @@ nvim --headless -c 'edit /tmp/x.py' -c 'sleep 3' \
      -c 'lua print(#vim.lsp.get_clients({bufnr=0}))' -c qall   # → 2
 ```
 
-Cheatsheet: `Caps + 0` (live overlay; nothing on disk).
+Cheatsheet: `Caps + /` (live overlay; nothing on disk).
 
 ## Re-running
 
@@ -260,7 +299,10 @@ Tmux: `prefix + r`.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | "Karabiner installed but `.app` missing" | `installer -pkg` was interrupted; bootstrap re-runs the staged installer when TTY is present, or `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
-| `Caps + 0` cheatsheet doesn't appear | Hammerspoon not running / no Accessibility — `pgrep -x Hammerspoon` then re-run wizard |
+| `Caps + /` cheatsheet doesn't appear | Hammerspoon not running / no Accessibility — `pgrep -x Hammerspoon` then re-run wizard |
+| Window borders missing | `borders` not installed or daemon dead — `brew install FelixKratz/formulae/borders` then `~/.config/borders/bordersrc &` |
+| Workspace chip missing from prompt / tmux | yabai signal didn't fire yet — `~/.config/workspace/on-space-changed.sh` to prime; check `~/.cache/workspace/current.env` populated |
+| Slot 1 lands on the monitor instead of the laptop | UUID capture missed or wrong — `~/.config/workspace/laptop-uuid-init.sh --force` with only the built-in panel attached |
 | Neovim plugins missing | First-launch install in progress; open `nvim`, wait or `:Lazy sync` then `:MasonToolsInstall` |
 | `pyright` doesn't attach to `*.py` | `:Mason` → `i` to install, or `:MasonToolsInstall` |
 | SSH'ing into a fresh Ubuntu VPS from Ghostty: double characters, backspace inserts space | `TERM=xterm-ghostty` not in remote's terminfo. **From a local terminal:** `infocmp -x xterm-ghostty \| ssh user@host -- tic -x -`. Or run `~/dotfiles/bootstrap.sh` on the VPS once — phase 1 installs the entry to `~/.terminfo`. Extracting from Ghostty's bundle locally: `TERMINFO_DIRS=/Applications/Ghostty.app/Contents/Resources/terminfo infocmp -x xterm-ghostty` |
@@ -272,6 +314,7 @@ Tmux: `prefix + r`.
 ├── bootstrap.sh                  # OS dispatcher
 ├── lib/
 │   ├── common.sh                 # logging + install_file helpers
+│   ├── colors.sh                 # workspace palette + icons (single source of truth)
 │   └── macos-tcc.sh              # TCC probes for the gated wizard
 ├── macos/
 │   ├── bootstrap.sh              # 5 phases (sudo / pkgs / configs / defaults / wizard)
@@ -281,14 +324,24 @@ Tmux: `prefix + r`.
 ├── docs/{architecture,wizard}.md
 └── configs/
     ├── karabiner.{json,md}       # Caps remap + JSON explainer
-    ├── yabairc                   # BSP tiling
-    ├── yabai-ensure-spaces.sh    # idempotent N-spaces-per-display helper
-    ├── skhdrc                    # Hyper bindings → yabai
+    ├── yabairc                   # BSP tiling + workspace + display signals
+    ├── yabai-ensure-spaces.sh    # ensures 10 BSP spaces total + applies labels
+    ├── skhdrc                    # Hyper bindings → yabai (1..9, 0 + Hyper+/)
     ├── hammerspoon-{init,cheatsheet}.lua
+    ├── workspace/                # 10-slot identity layer
+    │   ├── spaces.default.json   #  · slot → name/color/icon defaults
+    │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + borders)
+    │   ├── reconcile-displays.sh #  · slot 1 → laptop, 2..10 → monitor
+    │   ├── laptop-uuid-init.sh   #  · captures built-in display UUID
+    │   ├── rename.sh             #  · osascript-prompted slot rename
+    │   └── install.sh            #  · seeds + migrates + restarts daemons
+    ├── borders/bordersrc         # JankyBorders launch script + defaults
+    ├── starship.toml             # prompt + workspace chip
     ├── ghostty-config
     ├── xterm-ghostty.terminfo    # compiled into ~/.terminfo on Ubuntu boxes
     ├── tmux.conf · tmux-sessionizer
     ├── zshrc · gitconfig · ripgreprc
+    ├── jetbrains-purge.sh        # gated, dry-run-by-default IDE rip-out
     └── nvim-{init.lua,lazy-lock.json,keymaps.lua}
 ```
 
