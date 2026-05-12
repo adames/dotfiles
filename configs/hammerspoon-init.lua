@@ -96,6 +96,12 @@ local cheatsheet = require("cheatsheet")
 hs.hotkey.bind(hyper, "/", function() cheatsheet.toggle() end)
 hs.hotkey.bind(meh,   "/", function() cheatsheet.toggle() end)
 
+-- Hide the SketchyBar workspace strip while the cursor is over the
+-- macOS auto-hidden menu bar's reveal zone. Pairs with sketchybarrc's
+-- topmost=off and macOS's _HIHideMenuBar=1: cursor at top → menu bar
+-- visible (strip hidden); cursor elsewhere → strip visible.
+require("sketchybar-autohide")
+
 -- hs CLI shim. The workspace OSD module is gone — SketchyBar's pill strip
 -- (configs/sketchybar/) is the persistent workspace indicator, fired by
 -- the yabai signal chain through configs/workspace/on-space-changed.sh.
