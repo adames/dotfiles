@@ -1,16 +1,16 @@
 # dotfiles
 
-A complete keyboard-first dev environment, built around three rules:
+Keyboard-first dev environment. Three rules:
 
 1. **Caps Lock is the centre.** Tap = `Esc`, hold = `Hyper` (⌃⌥⌘⇧),
-   hold + Shift = `Meh` (⌃⌥⌘). Karabiner does the remap once, then
-   every layer below — yabai, tmux, Neovim — uses it consistently.
-2. **One bootstrap, two platforms.** `~/dotfiles/bootstrap.sh` detects
-   macOS or Ubuntu and dispatches. Re-running is a no-op.
-3. **Edit `configs/`, never the deployed copy.** The bootstrap is the
-   source-of-truth deployer; nothing under `configs/` is generated.
+   hold + Shift = `Meh` (⌃⌥⌘). Karabiner remaps once; every layer
+   below — yabai, tmux, Neovim — uses the same modifier-sets-scope model.
+2. **One bootstrap, two platforms.** `bootstrap.sh` detects macOS or
+   Ubuntu and dispatches. Idempotent.
+3. **Edit `configs/`, never the deployed copy.** Bootstrap is the
+   deployer; nothing under `configs/` is generated.
 
-## Architecture, in one diagram
+## Architecture
 
 ```
                        Caps Lock
@@ -34,14 +34,13 @@ A complete keyboard-first dev environment, built around three rules:
   ┌──────────────────────────────────────────────────────────┐
   │ inside the terminal: Ghostty → tmux → zsh → Neovim       │
   │   tmux prefix = C-Space     leader = Space               │
-  │   shell: fzf · zoxide · starship · direnv · zsh-vi-mode  │
+  │   shell: fzf · zoxide · starship · direnv · vi-mode      │
   │   nvim:  pyright + ruff + dap-python + neotest           │
   └──────────────────────────────────────────────────────────┘
 ```
 
-Full architecture details in **[`docs/architecture.md`](docs/architecture.md)**.
-Permission wizard reference in **[`docs/wizard.md`](docs/wizard.md)**.
-Karabiner JSON explained in **[`configs/karabiner.md`](configs/karabiner.md)**.
+Details: [`docs/architecture.md`](docs/architecture.md). Permission flow:
+[`docs/wizard.md`](docs/wizard.md). Karabiner JSON: [`configs/karabiner.md`](configs/karabiner.md).
 
 ## Quick start
 
@@ -50,44 +49,32 @@ git clone "${DOTFILES_REPO:-git@github.com:adames/dotfiles.git}" ~/dotfiles
 ~/dotfiles/bootstrap.sh
 ```
 
-Auto-detects macOS or Ubuntu and dispatches. One sudo prompt up front.
-
-The macOS bootstrap runs five phases:
-
-1. **sudo** — caches credential for the whole run
-2. **packages** — Homebrew formulae (CLI + yabai + skhd) and GUI casks
-3. **configs** — copies from `configs/` to canonical locations
-4. **defaults** — `spans-displays`, iTerm Option-as-Meta, etc.
-5. **wizard** — chains you through the seven TCC permission grants
-
-The Ubuntu bootstrap runs six phases (system → dotfiles → shell → runtimes
-→ configs → default shell). No yabai/Karabiner — the macOS layer is
-desktop-specific. The shell + nvim stack is identical to the Mac.
+macOS bootstrap is five phases (sudo / packages / configs / defaults /
+wizard). Ubuntu is six (system / dotfiles / shell / runtimes / configs /
+default-shell). The Ubuntu side skips yabai/Karabiner and leaves
+zshrc/gitconfig to chezmoi.
 
 ## What you get
 
 | Layer | Tool | Source |
 |---|---|---|
-| Caps Lock → Hyper / Meh / Esc | Karabiner-Elements | [`configs/karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
-| Window tiling (BSP, gaps, rules) | yabai | [`configs/yabairc`](configs/yabairc) |
-| `Hyper+H/J/K/L` focus, `+Shift` swap, `Hyper+1..5` spaces | skhd | [`configs/skhdrc`](configs/skhdrc) |
-| `Hyper+T` / `Hyper+N` terminal tab/window | Hammerspoon | [`configs/hammerspoon-init.lua`](configs/hammerspoon-init.lua) |
-| `Hyper+←/→/↑/↓` SIP-safe window snaps | Hammerspoon | same |
-| `Hyper+0` cheatsheet overlay | Hammerspoon | [`configs/hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
-| Ghostty terminal config (Option = Meta) | Ghostty | [`configs/ghostty-config`](configs/ghostty-config) |
-| `C-Space` prefix, vim-style pane nav, `prefix+f` sessionizer | tmux | [`configs/tmux.conf`](configs/tmux.conf) + [`configs/tmux-sessionizer`](configs/tmux-sessionizer) |
-| zsh + vi-mode + starship + direnv + autosuggestions + syntax-highlighting | zsh | [`configs/zshrc`](configs/zshrc) |
-| `Ctrl-R` history, `Ctrl-T` files, `Alt-C` cd  (fd-backed) | fzf | wired in `zshrc` |
-| `z foo` jump-to-frecent dir | zoxide | wired in `zshrc` |
-| `rg` ripgrep with sensible globs | ripgrep + `~/.ripgreprc` | [`configs/ripgreprc`](configs/ripgreprc) |
-| Side-by-side syntax-highlighted git diffs | git-delta | [`configs/gitconfig`](configs/gitconfig) |
-| Neovim 0.12+ with Lazy + 13 hand-picked plugins | nvim | [`configs/nvim-init.lua`](configs/nvim-init.lua) |
-| Python: Pyright + Ruff (LSP) · debugpy (DAP) · pytest (neotest) | Mason-managed | same |
-| `<Space>` leader, `<leader>d*` debug, `<leader>t*` test, `<leader>f*` find | nvim keymaps | same |
+| Caps → Hyper / Meh / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
+| Window tiling | yabai | [`yabairc`](configs/yabairc) |
+| Hyper hotkeys → yabai | skhd | [`skhdrc`](configs/skhdrc) |
+| Hyper+T/N terminal, Hyper+arrow snaps, Hyper+0 cheatsheet | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) · [`hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
+| Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
+| `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
+| zsh: vi-mode · starship · direnv · autosuggestions · syntax-highlighting | zsh | [`zshrc`](configs/zshrc) |
+| `Ctrl-R/T`, `Alt-C` (fd-backed) | fzf | wired in `zshrc` |
+| `z foo` jump to frecent dir | zoxide | wired in `zshrc` |
+| `rg` with sensible globs | ripgrep | [`ripgreprc`](configs/ripgreprc) |
+| Side-by-side syntax-highlighted git diffs | git-delta | [`gitconfig`](configs/gitconfig) |
+| Neovim 0.12+ · Lazy + 13 plugins | nvim | [`nvim-init.lua`](configs/nvim-init.lua) |
+| Python: Pyright + Ruff (LSP) · debugpy (DAP) · pytest (neotest) | Mason | same |
 
-## Daily-driver keymap surface
+## Daily-driver keymap
 
-The complete reference is the live `Hyper+0` overlay. Quick mental map:
+Full reference is `Hyper+0`. Mental map:
 
 ```
 Caps tap                      → Esc
@@ -95,7 +82,7 @@ Caps + hjkl                   → focus / swap window
 Caps + 1…5                    → switch space
 Caps + return / f / e / r     → fullscreen / float / balance / rotate
 Caps + t / n                  → new terminal tab / window
-Caps + 0                      → toggle this cheatsheet
+Caps + 0                      → toggle cheatsheet
 
 C-Space  hjkl / v / s / z     → tmux pane nav / split / zoom
 C-Space  f                    → fzf project sessionizer
@@ -106,141 +93,97 @@ C-Space  f                    → fzf project sessionizer
 <leader>tn / tf / ts          → test nearest / file / summary
 ```
 
-## The seven permission gates the wizard chains through
+## Permission grants
 
-These are macOS TCC (Transparency, Consent, Control) grants — every one
-requires a click in System Settings; no script can grant them silently
-without a paid Apple Developer ID. The wizard makes the click sequence
-trivial: it opens each pane, prompts via native dialog, and auto-advances
-when it detects the grant.
+The macOS bootstrap hands off to `permissions-wizard.sh` which walks
+three System Settings panes. No paid Apple Developer ID, no signed
+profiles — just open pane, flip toggles, ↵.
 
-1. Accessibility → yabai
-2. Accessibility → skhd
-3. Accessibility → Hammerspoon
-4. Accessibility → Karabiner-Elements
-5. Input Monitoring → Karabiner-Elements
-6. Input Monitoring → Karabiner-DriverKit-VirtualHIDDevice
-7. System Extension approval → Karabiner-DriverKit
+1. **Accessibility** — yabai, skhd, Hammerspoon, Karabiner-Elements
+2. **Input Monitoring** — Karabiner-Elements, Karabiner-DriverKit-VirtualHIDDevice
+3. **System Extensions** — approve Karabiner-DriverKit-VirtualHIDDevice
 
-The wizard's trick: it **launches each app first**, so the entries appear
-in the TCC list with toggles OFF. You just flip them — no dragging
-binaries through Finder's `+` dialog.
-
-See [`docs/wizard.md`](docs/wizard.md) for re-run instructions and per-step
-troubleshooting.
+The wizard launches each app first so the entries appear in the panes
+with toggles OFF — no dragging binaries through Finder's `+` dialog.
+See [`docs/wizard.md`](docs/wizard.md).
 
 ## Verification
 
 ```sh
-# Window/keyboard layer
+# Window/keyboard
 yabai -m query --windows | jq '.[].app'           # tiler is live
 launchctl list | grep com.koekeishiya.skhd        # skhd PID > 0
 
 # Terminal + shell
 tmux show -gv prefix                              # → C-Space
-zsh -ic 'bindkey | grep "fzf-history-widget"'     # Ctrl-R bound to fzf
-zsh -ic 'type z' | head -1                        # z is a function (zoxide)
+zsh -ic 'bindkey | grep fzf-history-widget' | head -1
+zsh -ic 'type z' | head -1                        # zoxide function
 
-# Editor — open any .py file and check LSPs attached
+# Editor — open any .py and check 2 LSPs attached
 nvim --headless -c 'edit /tmp/x.py' -c 'sleep 3' \
      -c 'lua print(#vim.lsp.get_clients({bufnr=0}))' -c qall   # → 2
-
-# Karabiner: open Karabiner-EventViewer.app, press Caps Lock
-#   modifier column should show ⌃⌥⌘⇧
 ```
 
-For the cheatsheet, press **`Caps + 0`** — the Hammerspoon overlay
-renders live (no file written).
+Cheatsheet: `Caps + 0` (live overlay; nothing on disk).
 
 ## Re-running
 
 ```sh
-~/dotfiles/bootstrap.sh                          # idempotent; cmp-skips no-ops
-~/dotfiles/macos/permissions-wizard.sh           # wizard only
-~/dotfiles/macos/permissions-wizard.sh --list    # show step names
-~/dotfiles/macos/permissions-wizard.sh --step accessibility-yabai
+~/dotfiles/bootstrap.sh                          # idempotent
+~/dotfiles/macos/permissions-wizard.sh           # wizard alone
 BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh   # no-TTY / headless
 NO_COLOR=1 ~/dotfiles/bootstrap.sh               # plain output
 ```
 
 ## Editing
 
-The bootstrap is the deployer; `configs/` is the source of truth. The
-workflow:
-
 ```sh
-$EDITOR ~/dotfiles/configs/zshrc       # edit
-~/dotfiles/bootstrap.sh                # re-deploy
+$EDITOR ~/dotfiles/configs/zshrc
+~/dotfiles/bootstrap.sh
 ```
 
-`install_file` does byte-comparison and skips no-ops, so re-running is
-cheap. First-time deploys back up any pre-existing file to `*.bak`.
+`install_file` byte-compares; re-running is cheap. First-time deploys
+back up any pre-existing file to `*.bak`.
 
-For Hammerspoon Lua files, the watcher in `hammerspoon-init.lua` reloads
-automatically on any `.lua` save under `~/.hammerspoon/`. For tmux:
-`tmux source-file ~/.tmux.conf` (or `prefix + r`).
+Hammerspoon Lua reloads automatically on `.lua` save (pathwatcher).
+Tmux: `prefix + r`.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Bootstrap hangs on cask install | Running via a non-TTY shell (CI, ssh -T) | Run from a real terminal, or set `BOOTSTRAP_SKIP_CASKS=1` |
-| `Warning: No services available to control with brew services` | Newer yabai/skhd dropped brew-services | The bootstrap uses `--start-service` already — safe to ignore |
-| "Karabiner installed but `.app` missing" | brew staged the cask but `installer -pkg` never ran | Bootstrap detects this and re-runs the staged installer when TTY present; or `brew reinstall --cask karabiner-elements` |
-| yabai logs `'display has separate spaces' is disabled` | The default was set but only re-read on fresh login | Log out and log back in |
-| `Caps + 0` cheatsheet doesn't appear | Hammerspoon not running or Accessibility not granted | `pgrep -x Hammerspoon` → if empty, `open -a Hammerspoon` and re-run wizard |
-| Wizard says "Karabiner accessibility: no" but Karabiner works | Terminal lacks Full Disk Access for the TCC.db read | Behavioral fallback (Karabiner-Core-Service-rev2 alive) handles it; if still mis-detected, grant Terminal FDA |
-| yabai/skhd abort with "accessibility access" | Permissions never granted, or recently revoked | Re-run the wizard |
-| `spans-displays` setting won't stick | You haven't logged out | The wizard's final dialog offers a one-click logout |
-| Neovim plugins missing | First-launch install in progress | Open `nvim`, wait ~30s for Lazy + Mason, or run `:Lazy sync` then `:MasonToolsInstall` |
-| `pyright` doesn't attach to `*.py` | Mason hasn't installed it yet | In nvim: `:Mason` → `i` to install, or `:MasonToolsInstall` |
+| Symptom | Fix |
+|---|---|
+| Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
+| "Karabiner installed but `.app` missing" | `installer -pkg` was interrupted; bootstrap re-runs the staged installer when TTY is present, or `brew reinstall --cask karabiner-elements` |
+| yabai logs `'display has separate spaces' is disabled` | Log out and back in |
+| `Caps + 0` cheatsheet doesn't appear | Hammerspoon not running / no Accessibility — `pgrep -x Hammerspoon` then re-run wizard |
+| Neovim plugins missing | First-launch install in progress; open `nvim`, wait or `:Lazy sync` then `:MasonToolsInstall` |
+| `pyright` doesn't attach to `*.py` | `:Mason` → `i` to install, or `:MasonToolsInstall` |
 
 ## Repository layout
 
 ```
 ~/dotfiles/
-├── bootstrap.sh                      # OS dispatcher (~25 lines)
-├── README.md
-├── lib/
-│   ├── common.sh                     # logging + install_file + helpers
-│   └── macos-tcc.sh                  # TCC.db reads + permission probes
+├── bootstrap.sh                  # OS dispatcher
+├── lib/common.sh                 # logging + install_file helpers
 ├── macos/
-│   ├── bootstrap.sh                  # 5-phase: sudo/pkg/configs/defaults/wizard
-│   └── permissions-wizard.sh         # 3-phase TCC chaining (--step <name>)
-├── ubuntu/
-│   └── bootstrap.sh                  # 6-phase Ubuntu/minerva bootstrap
-├── docs/
-│   ├── architecture.md               # layer diagram + Hyper/Meh details
-│   └── wizard.md                     # permission wizard reference
-└── configs/                          # source-of-truth dotfiles
-    ├── karabiner.json                # ← explained in karabiner.md
-    ├── karabiner.md
-    ├── yabairc                       # window tiling (BSP, gaps, rules)
-    ├── skhdrc                        # Hyper hotkeys → yabai
-    ├── hammerspoon-init.lua          # Hyper+T/N terminal targeting
-    ├── hammerspoon-cheatsheet.lua    # Hyper+0 overlay (8-card layout)
-    ├── ghostty-config                # terminal: Option-as-Meta
-    ├── tmux.conf                     # prefix=C-Space, vim-style nav
-    ├── tmux-sessionizer              # fzf project picker → tmux session
-    ├── zshrc                         # vi-mode, fzf, zoxide, starship, direnv
-    ├── gitconfig                     # delta pager + structural; user → ~/.gitconfig.local
-    ├── ripgreprc                     # smart-case, hidden, sensible globs
-    ├── nvim-init.lua                 # Lazy + LSP + DAP + neotest + treesitter
-    ├── nvim-lazy-lock.json           # plugin version pin (reproducibility)
-    └── nvim-keymaps.lua              # leader=Space (drop-in slot)
+│   ├── bootstrap.sh              # 5 phases
+│   └── permissions-wizard.sh     # opens 3 TCC panes, ↵ to advance
+├── ubuntu/bootstrap.sh           # 6 phases
+├── docs/{architecture,wizard}.md
+└── configs/
+    ├── karabiner.{json,md}       # Caps remap + JSON explainer
+    ├── yabairc · skhdrc          # tiling + Hyper bindings
+    ├── hammerspoon-{init,cheatsheet}.lua
+    ├── ghostty-config
+    ├── tmux.conf · tmux-sessionizer
+    ├── zshrc · gitconfig · ripgreprc
+    └── nvim-{init.lua,lazy-lock.json,keymaps.lua}
 ```
 
 ## Design principles
 
-- **Layered, not bundled.** Each layer is replaceable without touching
-  the others. Swap Ghostty for iTerm, Catppuccin for Tokyo Night,
-  zsh-syntax-highlighting for fast-syntax-highlighting — none of it
-  requires touching the other layers.
-- **Idempotent.** Every bootstrap step uses byte-comparison or "is X
-  installed?" checks. Re-running is the supported way to apply edits.
-- **Drift-resistant.** What's in `configs/` is what gets deployed. The
-  full Neovim `init.lua` and `lazy-lock.json` are tracked, so the editor
-  is reproducible across machines.
-- **No paid Apple Developer ID required.** Skips signed `.mobileconfig`
-  PPPC profiles entirely; the wizard chains the user through System
-  Settings instead.
+- **Layered, not bundled.** Swap any one tool without touching the others.
+- **Idempotent.** Re-running bootstrap is the supported way to apply edits.
+- **Drift-resistant.** What's in `configs/` is what gets deployed; nvim
+  `init.lua` and `lazy-lock.json` are tracked, so the editor is reproducible.
+- **No paid Apple Developer ID.** Wizard chains through System Settings.

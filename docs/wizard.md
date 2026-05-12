@@ -1,102 +1,58 @@
 # Permission Wizard
 
-`~/dotfiles/macos/permissions-wizard.sh` is the proactive permission flow.
-It probes every TCC gate the Hyper-key stack needs, opens the right System
-Settings pane, and auto-advances when each grant is detected.
+`macos/permissions-wizard.sh` walks the three System Settings panes the
+Hyper-key stack needs. No probing, no polling — opens a pane, lists the
+toggles, waits for ↵. Three panes, ~5 minutes.
 
-## What it does
+## Flow
 
-Seven gates, in order:
+1. **Register apps in TCC lists.** `yabai/skhd --start-service`,
+   `open -ga Hammerspoon/Karabiner-Elements`. Once an app has been
+   launched, it appears in the relevant TCC pane with its toggle OFF.
+   You just flip it — no dragging through Finder's `+` dialog.
 
-1. **Accessibility / yabai**
-2. **Accessibility / skhd**
-3. **Accessibility / Hammerspoon**
-4. **Accessibility / Karabiner-Elements**
-5. **Input Monitoring / Karabiner-Elements**
-6. **Input Monitoring / Karabiner-DriverKit-VirtualHIDDevice**
-7. **System Extension approval / Karabiner-DriverKit**
+2. **Three panes:**
 
-Before any prompt, the wizard launches each app once (`yabai/skhd
---start-service`, `open -a Hammerspoon`, `open -a Karabiner-Elements`).
-This causes macOS to **add them to the relevant TCC lists with toggles
-OFF** — so the user just has to flip a toggle ON, never drag a binary
-through Finder's `+` dialog. That's the single biggest UX win.
+   | Pane | Toggle ON |
+   |---|---|
+   | Accessibility | yabai · skhd · Hammerspoon · Karabiner-Elements |
+   | Input Monitoring | Karabiner-Elements · Karabiner-DriverKit-VirtualHIDDevice |
+   | System Extensions | approve Karabiner-DriverKit-VirtualHIDDevice (banner near top) |
 
-For each gate the wizard:
+3. **Kick services.** `karabiner_grabber` and `karabiner_console_user_server`
+   re-launched so Karabiner picks up the new grants; Hammerspoon reloaded.
 
-1. **Probes first.** If already granted, prints `✓` and skips.
-2. **Opens the System Settings pane** via the
-   `x-apple.systempreferences:com.apple.preference.security?Privacy_…`
-   URL scheme.
-3. **Shows a blocking AppleScript dialog** with two buttons:
-   - `Skip — already granted` (default; for cases where the wizard's
-     probe is broken but you've confirmed the grant in Settings)
-   - `Open Pane Again` (re-opens the System Settings pane if you
-     navigated away)
-   The dialog has a 30-second `giving up after` timeout, so it re-renders
-   roughly twice a minute as the outer poll loop re-probes the gate.
-4. **Auto-advances** the moment the probe goes green — usually within a
-   few seconds of you toggling the switch ON.
-5. **Total budget**: 8 dialog rounds (~4 minutes per gate) before timing out.
+4. **Logout offer.** If `com.apple.spaces spans-displays` is set but yabai
+   isn't running, prompts to log out (yabai re-reads the value on fresh
+   login only).
 
-After all gates: a final dialog asks whether to log out *now* to apply the
-`com.apple.spaces spans-displays` change. The default button is "Later" —
-the user has to actively choose "Log out now" to trigger it (and macOS
-still asks them to confirm once more).
-
-## How to run it
-
-### Full wizard
+## Run
 
 ```sh
-~/dotfiles/macos/permissions-wizard.sh
+~/dotfiles/macos/permissions-wizard.sh   # full walk-through (idempotent)
 ```
 
-Idempotent — re-running picks up any newly-revoked grants and re-prompts
-just for those.
-
-### Single step
+There's no `--step` option: if you only need to fix one pane, open it
+directly:
 
 ```sh
-~/dotfiles/macos/permissions-wizard.sh --step accessibility-hammerspoon
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_SystemServices"
 ```
 
-Available step names (also: `--list`):
+## What this does NOT do
 
-| Step name | What it grants |
-|---|---|
-| `accessibility-yabai` | Accessibility for yabai |
-| `accessibility-skhd` | Accessibility for skhd |
-| `accessibility-hammerspoon` | Accessibility for Hammerspoon |
-| `accessibility-karabiner` | Accessibility for Karabiner-Elements |
-| `input-monitoring-karabiner` | Input Monitoring for Karabiner-Elements |
-| `input-monitoring-driverkit` | Input Monitoring for Karabiner-DriverKit |
-| `system-extension-driverkit` | System Extension approval for Karabiner-DriverKit |
+- Doesn't write to TCC.db (Apple invalidates direct writes).
+- Doesn't install signed `.mobileconfig` profiles (paid Developer ID required).
+- Doesn't synthesise clicks in System Settings (UI is hardened).
+- Doesn't reboot — the logout offer is the closest it comes.
 
 ## Troubleshooting
 
-| Symptom | Probable cause | Fix |
-|---|---|---|
-| "Karabiner accessibility: no" but Karabiner works | Terminal lacks Full Disk Access, so the TCC.db read fails | Either grant Terminal FDA, or rely on the behavioral fallback (Karabiner-Core-Service-rev2 has live PID) — wizard does this automatically |
-| Dialog doesn't dismiss after I flip the toggle | Probe is wrong for this macOS version | Click "Open Pane Again" — wizard re-probes. If still stuck, click "Skip this step" and file an issue |
-| Wizard prompts for a permission already granted | App was removed and re-added to TCC list; old entry stale | Click the toggle off and on; the new entry should grant. Or run `tccutil reset Accessibility` and re-run wizard |
-| Karabiner-DriverKit never goes green | System extension blocked at OS level | Open System Settings → Privacy & Security, scroll to the bottom — there's a banner asking to approve the extension. Click "Allow" |
-| `osascript` errors about "not authorized" | Accessibility prompts not yet granted to whatever script-runner is hosting this shell | Standard catch-22; grant Accessibility to your terminal app once, then re-run |
-| `display has separate spaces is disabled` after running wizard | `spans-displays` was set but you haven't logged out yet | Log out and log back in. yabai re-reads the value on fresh login |
-
-## What the wizard does NOT do
-
-- Doesn't write to TCC.db. Apple invalidates direct writes; only reads are safe.
-- Doesn't install signed `.mobileconfig` profiles. That would require a paid
-  Apple Developer ID. PPPC payloads from unsigned profiles are ignored by
-  macOS on non-MDM machines.
-- Doesn't synthesize clicks in System Settings. The app's UI is hardened
-  against synthetic events.
-- Doesn't reboot. The final logout prompt is the closest it comes — and
-  even that defaults to "Later."
-
-## Logs
-
-Every wizard run appends to `~/.local/state/hyper-bootstrap/wizard.log`
-(append-only, never read by the wizard, never gates anything). Useful for
-debugging "why did the wizard re-prompt for X?" after the fact.
+| Symptom | Fix |
+|---|---|
+| Toggle exists but is greyed out | Some macOS versions require unlocking the pane (click the lock at the bottom). |
+| Karabiner-DriverKit System Extension never goes green | Open Privacy & Security and scroll for the "Allow" banner near the top. |
+| `osascript: not authorized` errors | The terminal hosting the script needs Accessibility once. Grant it, re-run. |
+| `display has separate spaces is disabled` after running wizard | `spans-displays` was set but you haven't logged out yet. |
