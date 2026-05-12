@@ -8,3 +8,12 @@ font-size = 13
 mouse-hide-while-typing = true
 window-padding-x = 8
 window-padding-y = 8
+
+# Force Cmd+T (and Cmd+N) to open a new top-level window rather than a
+# macOS native tab. Native tabs each spawn a long-lived NSWindow that yabai
+# treats as a separate tile-able window — every Cmd+T halved the active
+# pane. Funnelling everything through new_window means yabai sees one
+# window per terminal and the BSP layout stays sane. Use tmux for in-window
+# splits (C-Space + v/s).
+keybind = cmd+t=new_window
+keybind = cmd+n=new_window

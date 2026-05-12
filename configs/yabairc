@@ -26,12 +26,11 @@ yabai -m rule --add app="^Karabiner-Elements$"  manage=off
 yabai -m rule --add app="^Hammerspoon$"         manage=off
 yabai -m rule --add app="^Finder$" title="^(Copy|Move|Info)" manage=off
 
-# Ghostty: don't manage. AppKit native tabs each create a long-lived NSWindow
-# that yabai gives its own BSP slot, halving the visible window on every Cmd+T.
-# yabai has no concept of AppKit tab groups, so the float-on-create dance
-# doesn't undo the split. Keep one big Ghostty window, use tmux for splits.
+# Ghostty: yabai-managed. The old "halve-on-Cmd+T" bug is fixed at the
+# source — Ghostty's config rebinds cmd+t and cmd+n to new_window so each
+# new terminal arrives as a top-level NSWindow yabai expects, rather than
+# a phantom tab-window. tmux handles in-window splits (C-Space + v/s).
 yabai -m signal --remove ghostty_tab_dance 2>/dev/null   # remove old approach if present
-yabai -m rule --add app="^[Gg]hostty$" manage=off
 
 # Spaces: ensure every connected display has at least 5 BSP spaces so
 # Caps+1..5 / Caps+Shift+1..5 always have somewhere to land. Logic lives in

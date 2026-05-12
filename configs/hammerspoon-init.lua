@@ -26,8 +26,13 @@ local meh   = { "ctrl", "alt", "cmd" }
 local PREFERRED_TERMINALS = { "Ghostty", "Terminal" }
 local KNOWN_TERMINAL = { Ghostty = true, Terminal = true }
 
+-- Both Hyper+T and Hyper+N invoke "New Window". Native AppKit tabs break
+-- yabai's BSP layout (each tab is an extra NSWindow yabai tiles into the
+-- same space), so we funnel every "give me a new terminal" gesture into a
+-- new top-level window. tmux handles in-window splits. The two keybinds
+-- are preserved as muscle-memory aliases.
 local MENU_PATHS = {
-  t = { { "File", "New Tab"    }, { "Shell", "New Tab"    } },
+  t = { { "File", "New Window" }, { "Shell", "New Window" } },
   n = { { "File", "New Window" }, { "Shell", "New Window" } },
 }
 
