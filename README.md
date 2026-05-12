@@ -197,6 +197,50 @@ Don't use macOS green-button (⛶) fullscreen on apps you want yabai to
 manage — it creates a native fullscreen space yabai cannot touch. Use
 `Caps + Return` for yabai-managed zoom instead.
 
+### Customizing workspaces — the `workspace` CLI
+
+`~/.local/bin/workspace` wraps every spaces.json mutation with an atomic
+write and a re-fire of the cascade (tmux / starship / borders /
+sketchybar / hammerspoon all repaint within ~50ms):
+
+```
+workspace status                  # all slots with color swatches
+workspace name 3 lab              # rename slot 3
+workspace color 3 "#ffaabb"       # recolor slot 3
+workspace icon 3 ""              # set slot 3 icon (PUA glyphs preserved)
+workspace theme tokyonight        # apply a 10-color palette
+workspace theme catppuccin-mocha --with-icons   # restore defaults including icons
+workspace swap 1 3                # exchange two slots' identity tuples
+workspace reorder 2 1 3 4 5 6 7 8 9 10
+workspace add  lab "#ffaabb" ""  # append a new slot (count → 11)
+workspace remove 11               # delete slot 11
+workspace edit                    # open spaces.json in $EDITOR
+workspace doctor                  # validate schema
+workspace verify                  # run end-to-end test harness
+```
+
+**Per-machine, not committed.** `~/.config/workspace/spaces.json` and
+any custom themes in `~/.config/workspace/themes/` live in `$HOME`; they
+survive bootstrap re-runs and are never written back to the repo.
+
+**Themes** live at `~/.config/workspace/themes/<name>.json`. Drop a JSON
+file matching `{"name": "...", "colors": [...10 hex strings]}` (optionally
+with an `icons[]` array) and it's auto-discovered by `workspace themes`.
+Canonical palettes shipped by bootstrap: `catppuccin-mocha` (default),
+`catppuccin-frappe`, `gruvbox-dark`, `tokyonight`, `rose-pine`.
+
+**Slot count is flexible.** The CLI derives the current count from
+`spaces.json` rather than hardcoding 10. `workspace add` and `workspace
+remove` are first-class operations. Hotkeys remain bound to slots 1..10
+in `~/.skhdrc`; slots beyond 10 are reachable via yabai's own CLI or by
+adding skhd bindings yourself.
+
+**Extension point.** Each mutation invokes
+`~/.config/workspace/hooks/post-mutate.sh` if it exists, with args
+`(subcommand, slot_indices...)`. Use it to drive a status bar, send a
+notification, log changes, etc. The stub is created on first bootstrap
+and left untouched on subsequent runs.
+
 ## Switching from Docker Desktop to OrbStack
 
 `bootstrap.sh` installs `orbstack` (cask). To complete the swap on a

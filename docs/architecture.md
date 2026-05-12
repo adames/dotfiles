@@ -132,6 +132,53 @@ pinned via `lazy-lock.json` so machines stay in lockstep.
 The wizard opens each pane and waits for ↵. Three panes, ~5 minutes total.
 See [`wizard.md`](wizard.md).
 
+## Workspace identity cascade
+
+The 10-slot (extensible) workspace identity is a single piece of state
+(`~/.config/workspace/spaces.json`) read by five subsystems. Mutations
+go through one of two entry points (the `workspace` CLI or
+`workspace/rename.sh` for the AppleScript flow) and fan out via the
+cascade.
+
+```mermaid
+graph LR
+  CLI[workspace CLI] -->|atomic write| JSON[(spaces.json)]
+  Rename[rename.sh AppleScript] --> CLI
+  JSON --> Hook[post-mutate.sh hook]
+  JSON --> Cascade[on-space-changed.sh]
+  yabai[yabai space_changed signal] --> Cascade
+  Cascade --> EnvFile[(~/.cache/workspace/current.env)]
+  Cascade --> TmuxEnv[tmux global env]
+  Cascade --> Borders[JankyBorders]
+  Cascade --> Sketchybar[SketchyBar]
+  Cascade --> HS[Hammerspoon overlay]
+  EnvFile --> Starship
+  EnvFile --> Zsh[zsh precmd]
+```
+
+- **Source of truth**: `spaces.json` is per-machine, in `$HOME`, never
+  committed. Bootstrap seeds it from `spaces.default.json` only when
+  missing; user edits survive `bootstrap.sh` re-runs.
+- **The CLI** (`~/.local/bin/workspace`) is the public mutation API.
+  Subcommands cover name/color/icon/theme/add/remove/swap/reorder/edit/
+  reset/doctor. Every mutation is atomic (mktemp + jq + mv) and fires
+  the cascade. Slot count is derived dynamically; the system tolerates
+  any count ≥ 1 even though skhd hotkeys only bind 1..10.
+- **`on-space-changed.sh`** is the cascade entry point — called by the
+  yabai `space_changed` signal *and* by every CLI mutation. It writes
+  `current.env` atomically, pushes env into tmux, repaints borders,
+  triggers sketchybar, and shows the HS overlay. Silent-on-absence per
+  subsystem so Ubuntu and partial setups Just Work.
+- **`hooks/post-mutate.sh`** is a user-owned extension point. Empty by
+  default (gitconfig.local-style stub); receives `(subcommand,
+  slot_indices...)` after every successful mutation. Use it to
+  dynamically add/remove sketchybar pills, log changes, etc.
+- **`lib/colors.sh`** owns the slot↔yabai-label mapping (core, forge,
+  …). Labels are immutable so reconcile-displays.sh can address spaces
+  by name across plug/unplug events. The CLI never touches labels —
+  reorder permutes the (name, color, icon) tuples on top of stable
+  label-anchored slots.
+
 ## File map
 
 ```
@@ -144,6 +191,14 @@ See [`wizard.md`](wizard.md).
 ├── ubuntu/bootstrap.sh           # 6 phases
 ├── docs/                         # this file + wizard.md
 └── configs/                      # source-of-truth dotfiles
+    └── workspace/
+        ├── cli/workspace              # CLI binary (→ ~/.local/bin/)
+        ├── cli/test-cascade.sh        # `workspace verify` harness
+        ├── themes/*.json              # canonical palettes
+        ├── spaces.default.json        # seed
+        ├── on-space-changed.sh        # cascade
+        ├── rename.sh                  # AppleScript wrapper
+        └── install.sh                 # workspace-system bootstrapper
 ```
 
 `install_file` byte-compares src vs dst and skips no-ops, so editing
