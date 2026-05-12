@@ -18,7 +18,12 @@ graph LR
 
   Hyper --> Hammerspoon
   Hammerspoon -->|cmd+T/N| Terminal
-  Hammerspoon -->|hs.webview Hyper+0| Cheatsheet[Cheatsheet overlay]
+  Hammerspoon -->|hs.webview Hyper+/| Cheatsheet[Cheatsheet overlay]
+
+  yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
+  WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
+  WorkspaceHandler -->|active_color=| Borders[JankyBorders]
+  WorkspaceHandler -->|set-environment| tmux
 
   yabai --> Windows[(macOS Windows)]
   Hammerspoon --> Windows
@@ -73,8 +78,9 @@ floating or unmanaged windows like Ghostty and System Settings).
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
 | Hyper window hotkeys | skhd | `skhdrc` |
-| Hyper+T/N + Hyper+arrows + Hyper+0 | Hammerspoon | `hammerspoon-init.lua` |
+| Hyper+T/N + Meh+arrows + Hyper+/ | Hammerspoon | `hammerspoon-init.lua` |
 | Cheatsheet overlay | Hammerspoon | `hammerspoon-cheatsheet.lua` |
+| Workspace pill strip (persistent 10-slot indicator) | SketchyBar | `sketchybar/sketchybarrc` · `sketchybar/plugins/space.sh` |
 | Terminal app config | Ghostty | `ghostty-config` |
 | Pane nav, sessionizer | tmux | `tmux.conf` + `tmux-sessionizer` |
 | Shell layer | zsh | `zshrc` |
@@ -89,7 +95,27 @@ floating or unmanaged windows like Ghostty and System Settings).
   but no API for "send Cmd+T to whatever terminal app is open."
 - **Hammerspoon** is Lua-scripted automation. We use it for things that
   need logic: targeting the user's terminal app, the SIP-safe arrow snaps
-  (no-ops when yabai is up), and the Hyper+0 cheatsheet overlay.
+  (no-ops when yabai is up), and the Hyper+/ cheatsheet overlay.
+
+## Workspace identity cascade
+
+When yabai fires `space_changed`, [`workspace/on-space-changed.sh`](../configs/workspace/on-space-changed.sh)
+fans the signal out to every consumer of the 10-slot identity:
+
+1. Writes `~/.cache/workspace/current.env` atomically (zsh precmd reads it).
+2. Pushes `MACOS_SPACE_*` into the tmux global env (statusline reads it).
+3. Repaints the JankyBorders active colour for the focused window.
+4. Fires `sketchybar --trigger workspace_changed` — the 10 pill items
+   subscribe to that custom event and call
+   [`sketchybar/plugins/space.sh`](../configs/sketchybar/plugins/space.sh)
+   in parallel. The plugin reads the env-cache for the active slot and
+   jq-reads `spaces.json` for its own slot's name/color/icon.
+
+Single source of truth for slot metadata: `~/.config/workspace/spaces.json`.
+Edit it (or run `~/.config/workspace/rename.sh`) and the next space switch
+repaints all surfaces. The persistent pill strip means the question "which
+slot am I on?" is always one glance away, replacing the old Hammerspoon
+flash-OSD which was invisible most of the time.
 
 ## In-terminal layers
 
