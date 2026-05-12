@@ -35,16 +35,19 @@ phase_packages() {
   step "installing CLI formulae"
   brew install --quiet \
     git zsh tmux neovim direnv jq starship fzf \
-    ripgrep fd git-delta zoxide gh \
+    ripgrep fd git-delta zoxide gh lazygit \
     zsh-autosuggestions zsh-syntax-highlighting >/dev/null
-  ok "shell + dev tools (rg, fd, delta, zoxide, gh, …)"
+  ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, …)"
 
   step "installing yabai + skhd (koekeishiya tap)"
   brew install --quiet koekeishiya/formulae/yabai >/dev/null || true
   brew install --quiet koekeishiya/formulae/skhd  >/dev/null || true
   ok "yabai + skhd"
 
-  local casks="karabiner-elements hammerspoon ghostty raycast"
+  # orbstack replaces docker-desktop — leaner, native Apple Silicon, faster
+  # cold start. If docker-desktop is installed, see the migration note in
+  # README.md → "Switching from Docker Desktop".
+  local casks="karabiner-elements hammerspoon ghostty raycast orbstack"
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
     step "installing GUI casks"
     info "$casks"
@@ -77,6 +80,7 @@ phase_configs() {
   install_file "$CONFIGS_DIR/karabiner.json"             "$HOME/.config/karabiner/karabiner.json"
   install_file "$CONFIGS_DIR/skhdrc"                     "$HOME/.skhdrc"
   install_file "$CONFIGS_DIR/yabairc"                    "$HOME/.yabairc"             755
+  install_file "$CONFIGS_DIR/yabai-ensure-spaces.sh"     "$HOME/.config/yabai/ensure-spaces.sh" 755
   install_file "$CONFIGS_DIR/hammerspoon-init.lua"       "$HOME/.hammerspoon/init.lua"
   install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua" "$HOME/.hammerspoon/cheatsheet.lua"
 

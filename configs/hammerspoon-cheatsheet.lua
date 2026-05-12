@@ -24,6 +24,7 @@ local sections = {
       { "caps + t",                   "new terminal tab" },
       { "caps + n",                   "new terminal window" },
       { "caps + 0",                   "toggle this cheatsheet" },
+      { "—",                          "⚠ avoid macOS green-button fullscreen — use caps+return so yabai keeps managing the window" },
     },
   },
   -- ── App launchers ─────────────────────────────────────────────────────────
@@ -32,9 +33,7 @@ local sections = {
     title = "Launch",
     sub   = "Karabiner shell_command → open -a",
     rows  = {
-      { "caps + b",   "Brave Browser" },
-      { "caps + g",   "Google Chrome" },
-      { "caps + s",   "Safari" },
+      { "caps + b",   "Brave (browser)" },
       { "caps + c",   "Claude" },
     },
   },
@@ -134,14 +133,15 @@ local sections = {
       { ":bn  :bp  :bd",          "buffer: next / prev / delete (cmdline)" },
     },
   },
-  -- ── Neovim git (gitsigns) ─────────────────────────────────────────────────
+  -- ── Neovim git (gitsigns + lazygit) ───────────────────────────────────────
   {
     color = "#fb7185",
     title = "Neovim · Git",
-    sub   = "gitsigns + fzf-lua git_status",
+    sub   = "gitsigns · fzf-lua git_status · lazygit.nvim",
     rows  = {
       { "] c   [ c",              "next / prev hunk" },
       { "⟨leader⟩ gs",             "git status (fzf picker)" },
+      { "⟨leader⟩ gG",             "LazyGit (floating TUI — full git surface)" },
       { "⟨leader⟩ gh",             "stage hunk" },
       { "⟨leader⟩ gp",             "preview hunk" },
       { "⟨leader⟩ gr",             "reset hunk" },
@@ -204,6 +204,7 @@ local sections = {
       { "gh pr checkout ⟨n⟩",     "check out PR by number" },
       { "gh pr view --web",      "open PR in browser" },
       { "gh run watch",          "tail latest workflow run" },
+      { "lazygit",               "full-screen TUI for git (faster than gh for staging / branching)" },
     },
   },
 }

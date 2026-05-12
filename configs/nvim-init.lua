@@ -189,6 +189,17 @@ require("lazy").setup({
     end,
   },
 
+  -- LazyGit in a floating window. CLI dep: `brew install lazygit`.
+  -- <leader>gG (capital) so it doesn't clash with <leader>gd/gp/gr/gb/gh.
+  {
+    "kdheepak/lazygit.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    cmd          = { "LazyGit", "LazyGitConfig", "LazyGitCurrentFile" },
+    keys         = {
+      { "<leader>gG", "<cmd>LazyGit<cr>", desc = "LazyGit" },
+    },
+  },
+
   {
     "folke/which-key.nvim",
     event = "VeryLazy",

@@ -62,7 +62,7 @@ zshrc/gitconfig to chezmoi.
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
 | Hyper hotkeys → yabai | skhd | [`skhdrc`](configs/skhdrc) |
 | Hyper+T/N terminal, Meh+arrow snaps, Hyper+0 cheatsheet | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) · [`hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
-| Hyper app launchers (Brave/Chrome/Safari/Claude) | Karabiner shell_command | [`karabiner.json`](configs/karabiner.json) |
+| Hyper app launchers (Brave, Claude) | Karabiner shell_command | [`karabiner.json`](configs/karabiner.json) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
 | zsh: vi-mode · starship · direnv · autosuggestions · syntax-highlighting | zsh | [`zshrc`](configs/zshrc) |
@@ -70,8 +70,10 @@ zshrc/gitconfig to chezmoi.
 | `z foo` jump to frecent dir | zoxide | wired in `zshrc` |
 | `rg` with sensible globs | ripgrep | [`ripgreprc`](configs/ripgreprc) |
 | Side-by-side syntax-highlighted git diffs | git-delta | [`gitconfig`](configs/gitconfig) |
-| Neovim 0.12+ · Lazy + 15 plugins (incl. harpoon, oil) | nvim | [`nvim-init.lua`](configs/nvim-init.lua) |
+| Neovim 0.12+ · Lazy + 16 plugins (incl. harpoon, oil, lazygit) | nvim | [`nvim-init.lua`](configs/nvim-init.lua) |
 | Python: Pyright + Ruff (LSP) · debugpy (DAP) · pytest (neotest) | Mason | same |
+| Git TUI (`lazygit` CLI · `<leader>gG` in nvim) | lazygit | brew formula |
+| Docker / Compose / Kubernetes (~1s cold start, native Apple Silicon) | OrbStack | brew cask · replaces Docker Desktop |
 
 ## Daily-driver keymap
 
@@ -85,7 +87,7 @@ Caps + hjkl                   → focus window
 Caps + 1…5                    → focus space
 Caps + return / f / e / r     → fullscreen / float / balance / rotate
 Caps + t / n                  → new terminal tab / window
-Caps + b / g / s / c          → Brave / Chrome / Safari / Claude
+Caps + b / c                  → Brave (browser) / Claude
 Caps + 0                      → toggle cheatsheet
 
 # Meh — modify
@@ -108,6 +110,75 @@ C-Space  f                    → fzf project sessionizer
 <leader>db / dc / do / di     → DAP breakpoint / continue / over / into
 <leader>tn / tf / ts          → test nearest / file / summary
 ```
+
+## One-time space setup
+
+`Caps + 1…5` and `Caps + Shift + 1…5` need **5 BSP spaces per display.**
+[`yabai-ensure-spaces.sh`](configs/yabai-ensure-spaces.sh) is called at
+yabai startup and rebound to the `display_added` signal in
+[`yabairc`](configs/yabairc), so attaching a monitor mid-session also
+tops the new display up to 5 spaces without re-login. Installing the SA
+is a one-time multi-reboot dance because macOS gates it behind SIP.
+Procedure:
+
+1. **Disable SIP from Recovery** (this is the part you have to do by hand):
+   ```
+   sudo shutdown -h now
+   # hold power button → "Loading startup options"
+   # Options → Continue → admin login
+   # menu bar: Utilities → Terminal
+   csrutil disable
+   # 'y' → admin password → reboot
+   ```
+2. **Apple Silicon only — set the arm64e boot-arg, then reboot once more.**
+   yabai is arm64, Dock.app is arm64e; cross-ABI mach injection needs
+   this flag or `--load-sa` silently fails inside Dock:
+   ```
+   sudo nvram boot-args="-arm64e_preview_abi"
+   sudo reboot
+   ```
+3. **Install the SA + sudoers entry**:
+   ```
+   ~/dotfiles/macos/yabai-sa-install.sh
+   ```
+   The script verifies SIP + boot-args, runs `sudo yabai --load-sa`
+   (yabai 7.x: one command installs + loads the SA into Dock.app),
+   writes a hash-pinned `/etc/sudoers.d/yabai` so subsequent `--load-sa`
+   calls at login are passwordless, restarts yabai, and tests `--create`
+   actually works.
+4. **Re-run after yabai upgrades** — `brew upgrade yabai` changes the
+   binary hash; re-run `yabai-sa-install.sh` to refresh the sudoers entry,
+   otherwise the SA silently stops auto-loading.
+
+Don't use macOS green-button (⛶) fullscreen on apps you want yabai to
+manage — it creates a native fullscreen space yabai cannot touch. Use
+`Caps + Return` for yabai-managed zoom instead.
+
+## Switching from Docker Desktop to OrbStack
+
+`bootstrap.sh` installs `orbstack` (cask). To complete the swap on a
+machine that already has Docker Desktop:
+
+```sh
+# 1. Quit Docker Desktop if it's running.
+osascript -e 'quit app "Docker"'
+
+# 2. Open OrbStack — on first launch it offers to "Take over docker / docker-compose / kubectl".
+#    Click yes; it rewrites /usr/local/bin/docker and friends.
+open -a OrbStack
+
+# 3. Verify the docker CLI now points at OrbStack.
+docker context ls                                # → expect 'orbstack' as current
+docker ps                                        # → talks to OrbStack daemon
+
+# 4. Uninstall Docker Desktop once you're confident.
+brew uninstall --cask docker-desktop
+rm -rf ~/Library/Containers/com.docker.docker ~/Library/Application\ Support/Docker\ Desktop
+```
+
+OrbStack is a drop-in `docker` / `docker-compose` replacement with
+native Apple Silicon performance and ~1-second cold start vs Docker
+Desktop's ~30s. Use it the same way.
 
 ## Permission grants
 

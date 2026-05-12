@@ -79,10 +79,13 @@ shell. Currently bound:
 
 | Key | App |
 |---|---|
-| `b` | Brave Browser |
+| `b` | Brave Browser (designated browser slot) |
 | `c` | Claude |
-| `g` | Google Chrome |
-| `s` | Safari |
+
+Only one browser gets a launcher slot, by design — Brave is the daily
+driver, Chrome / Safari open via the dock or Spotlight on the rare
+occasion they're needed. `Caps + g` and `Caps + s` are intentionally
+unbound and available for future use.
 
 `Caps + v` is intentionally unbound — reserved for a clipboard-manager
 binding (Maccy, Raycast clipboard, etc.) if one is ever installed.
