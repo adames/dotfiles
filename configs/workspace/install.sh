@@ -167,6 +167,13 @@ if ! command -v borders >/dev/null 2>&1; then
   warn "borders not installed — neon window borders disabled. Install: brew tap FelixKratz/formulae && brew install borders"
 fi
 
+# SketchyBar drives the workspace-pill strip. Optional like borders —
+# system stays usable without it (on-space-changed.sh is silent on
+# absence), but the persistent indicator is gone until installed.
+if ! command -v sketchybar >/dev/null 2>&1; then
+  warn "sketchybar not installed — workspace pills disabled. Install: brew tap FelixKratz/formulae && brew install sketchybar"
+fi
+
 # tmux ≥ 3.2 required for #{E:VAR} interpolation in statusline.
 if command -v tmux >/dev/null 2>&1; then
   v=$(tmux -V | awk '{print $2}' | sed 's/[^0-9.].*//')
@@ -200,6 +207,14 @@ if pgrep -x borders >/dev/null 2>&1; then
 fi
 if command -v borders >/dev/null 2>&1 && [[ -x "$HOME/.config/borders/bordersrc" ]]; then
   ( "$HOME/.config/borders/bordersrc" >/dev/null 2>&1 & ) || true
+fi
+
+# Start (or restart) sketchybar via its brew service so the workspace
+# pills appear. brew services restart is idempotent — replaces the
+# running instance cleanly with the (re-read) sketchybarrc.
+if command -v sketchybar >/dev/null 2>&1; then
+  step "(re)starting sketchybar service"
+  brew services restart sketchybar >/dev/null 2>&1 || warn "sketchybar restart failed"
 fi
 
 # Prime current.env so the very first new shell already has metadata.

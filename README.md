@@ -63,9 +63,10 @@ Ghostty doesn't break zsh's line editor.
 | Caps → Hyper / Meh / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
 | Neon window borders (per-workspace colour) | JankyBorders | [`borders/bordersrc`](configs/borders/bordersrc) |
+| Persistent workspace pill strip (always-visible 10-slot indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
 | Hyper hotkeys → yabai | skhd | [`skhdrc`](configs/skhdrc) |
 | Hyper+T/N terminal, Meh+arrow snaps, Hyper+/ cheatsheet | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) · [`hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
-| 10-slot workspace identity (color + icon + name → tmux + prompt + borders) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
+| 10-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
 | Hyper app launchers (Brave, Claude) | Karabiner shell_command | [`karabiner.json`](configs/karabiner.json) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
@@ -140,7 +141,13 @@ Identity surfaces:
   [JankyBorders](https://github.com/FelixKratz/JankyBorders).
 - **Tmux statusline** — left chip shows icon + name in slot colour.
 - **Starship prompt** — leftmost segment is the workspace chip.
-- **Hammerspoon overlay** — brief OSD on space switch.
+- **SketchyBar pill strip** — persistent row of 10 catppuccin pills at
+  the bottom of the screen; the active slot is filled, the others show
+  number + tech-category nerd-font glyph in the slot's colour. Single
+  source of truth is `~/.config/workspace/spaces.json` (same file that
+  drives tmux/starship/borders); the pills repaint via a custom event
+  fired from [`workspace/on-space-changed.sh`](configs/workspace/on-space-changed.sh).
+  Config: [`sketchybar/`](configs/sketchybar/).
 
 Slot **name is renameable** (run [`workspace/rename.sh`](configs/workspace/rename.sh)
 or edit `~/.config/workspace/spaces.json`); the **color and icon are
@@ -389,6 +396,8 @@ Tmux: `prefix + r`.
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
 | `Caps + /` cheatsheet doesn't appear | Hammerspoon not running / no Accessibility — `pgrep -x Hammerspoon` then re-run wizard |
 | Window borders missing | `borders` not installed or daemon dead — `brew install FelixKratz/formulae/borders` then `~/.config/borders/bordersrc &` |
+| Workspace pills missing from menu/bottom bar | `sketchybar` not installed or service dead — `brew install FelixKratz/formulae/sketchybar` then `brew services restart sketchybar`. Pills painted but blank glyphs → wrong font family in `sketchybarrc` (must be `"JetBrainsMono NF"` with the space) |
+| Workspace pill doesn't update on space switch | `on-space-changed.sh` ran but sketchybar trigger silent — `sketchybar --trigger workspace_changed` to repaint; if that does nothing, `brew services restart sketchybar` |
 | Workspace chip missing from prompt / tmux | yabai signal didn't fire yet — `~/.config/workspace/on-space-changed.sh` to prime; check `~/.cache/workspace/current.env` populated |
 | Slot 1 lands on the monitor instead of the laptop | UUID capture missed or wrong — `~/.config/workspace/laptop-uuid-init.sh --force` with only the built-in panel attached |
 | Neovim plugins missing | First-launch install in progress; open `nvim`, wait or `:Lazy sync` then `:MasonToolsInstall` |
@@ -418,12 +427,17 @@ Tmux: `prefix + r`.
     ├── hammerspoon-{init,cheatsheet}.lua
     ├── workspace/                # 10-slot identity layer
     │   ├── spaces.default.json   #  · slot → name/color/icon defaults
-    │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + borders)
+    │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + borders + sketchybar)
     │   ├── reconcile-displays.sh #  · slot 1 → laptop, 2..10 → monitor
     │   ├── laptop-uuid-init.sh   #  · captures built-in display UUID
     │   ├── rename.sh             #  · osascript-prompted slot rename
     │   └── install.sh            #  · seeds + migrates + restarts daemons
     ├── borders/bordersrc         # JankyBorders launch script + defaults
+    ├── sketchybar/               # persistent workspace pill strip
+    │   ├── sketchybarrc          #  · bar geometry + 10 space items + workspace_changed event
+    │   ├── colors.sh             #  · catppuccin AARRGGBB constants
+    │   ├── plugins/space.sh      #  · per-pill repaint (reads current.env + spaces.json)
+    │   └── bootstrap.sh          #  · idempotent installer (brew + service start)
     ├── starship.toml             # prompt + workspace chip
     ├── ghostty-config
     ├── xterm-ghostty.terminfo    # compiled into ~/.terminfo on Ubuntu boxes
