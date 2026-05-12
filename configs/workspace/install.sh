@@ -50,20 +50,66 @@ elif command -v jq >/dev/null 2>&1; then
       .version = ($seed[0].version // 2)
       | .spaces = (($seed[0].spaces) * (.spaces // {}))
     ' "$target" > "$tmp" && mv -f "$tmp" "$target"
-    # Post-condition: migration must produce 10 slots — anything else is
-    # a bug in the seed or the merge. Refuse to leave a corrupt config.
+    # Post-condition: migration must produce at least the seed's 10 slots
+    # (extras from `workspace add` are fine). Anything less is a bug in
+    # the merge — refuse to leave a corrupt config.
     final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
-    if [[ "$final" != "10" ]]; then
-      err "migration produced $final slots (expected 10) — leaving original at ${target}.broken"
+    if (( final < 10 )); then
+      err "migration produced $final slots (expected ≥ 10) — leaving original at ${target}.broken"
       mv "$target" "${target}.broken" 2>/dev/null
       exit 1
     fi
-    ok "migrated to 10 slots (existing renames preserved)"
+    ok "migrated to $final slots (existing renames preserved)"
   else
-    ok "preserving existing ${target/#$HOME/~} (renames intact)"
+    final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
+    if [[ "$final" != "10" ]]; then
+      info "existing ${target/#$HOME/~} has $final slots (not the canonical 10) — preserving as-is"
+    else
+      ok "preserving existing ${target/#$HOME/~} (renames intact)"
+    fi
   fi
 else
   ok "preserving existing ${target/#$HOME/~} (jq not available; no migration)"
+fi
+
+# ── 2.5 · canonical themes registry ──────────────────────────────────────
+# Refresh canonical themes shipped from the repo (byte-compare; no-op if
+# already up to date). User-added themes with different basenames are
+# never touched — `install_file` only writes the specific destination.
+themes_src_dir="$SELF_DIR/../themes"
+if [[ -d "$themes_src_dir" ]] && command -v jq >/dev/null 2>&1; then
+  mkdir -p "$HOME/.config/workspace/themes"
+  for theme_src in "$themes_src_dir"/*.json; do
+    [[ -f "$theme_src" ]] || continue
+    install_file "$theme_src" "$HOME/.config/workspace/themes/$(basename "$theme_src")"
+  done
+fi
+
+# ── 2.6 · post-mutate hook stub (gitconfig.local-style: never clobber) ───
+# The CLI invokes this hook after every successful mutation. Empty by
+# default; users (or other programs) populate it to integrate with
+# sketchybar pill management, notifications, logging, etc.
+mkdir -p "$HOME/.config/workspace/hooks"
+hook="$HOME/.config/workspace/hooks/post-mutate.sh"
+if [[ ! -f "$hook" ]]; then
+  cat > "$hook" <<'EOF'
+#!/usr/bin/env bash
+# Called after every successful `workspace` mutation.
+#   $1     = subcommand (name|color|icon|add|remove|swap|reorder|theme|edit|reset)
+#   $2..$N = slot indices touched (varies per subcommand)
+#
+# Empty stub. Populate to integrate with downstream consumers, e.g.:
+#
+#   case "$1" in
+#     add)    sketchybar --add item "space.$2" left ;;
+#     remove) sketchybar --remove "space.$2" ;;
+#   esac
+#
+# Hook is invoked in the background; failures here never abort the CLI.
+exit 0
+EOF
+  chmod 755 "$hook"
+  ok "created ~/.config/workspace/hooks/post-mutate.sh stub"
 fi
 
 # ── 3 · laptop UUID capture (single-display only, idempotent) ────────────
