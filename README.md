@@ -50,9 +50,10 @@ git clone "${DOTFILES_REPO:-git@github.com:adames/dotfiles.git}" ~/dotfiles
 ```
 
 macOS bootstrap is five phases (sudo / packages / configs / defaults /
-wizard). Ubuntu is six (system / dotfiles / shell / runtimes / configs /
-default-shell). The Ubuntu side skips yabai/Karabiner and leaves
-zshrc/gitconfig to chezmoi.
+wizard). Ubuntu is seven (terminfo / system / dotfiles / shell / runtimes
+/ configs / default-shell). The Ubuntu side skips yabai/Karabiner, leaves
+zshrc/gitconfig to chezmoi, and ships an `xterm-ghostty` terminfo entry
+so SSH'ing in from Ghostty doesn't break zsh's line editor.
 
 ## What you get
 
@@ -259,6 +260,7 @@ Tmux: `prefix + r`.
 | `Caps + 0` cheatsheet doesn't appear | Hammerspoon not running / no Accessibility — `pgrep -x Hammerspoon` then re-run wizard |
 | Neovim plugins missing | First-launch install in progress; open `nvim`, wait or `:Lazy sync` then `:MasonToolsInstall` |
 | `pyright` doesn't attach to `*.py` | `:Mason` → `i` to install, or `:MasonToolsInstall` |
+| SSH'ing into a fresh Ubuntu VPS from Ghostty: double characters, backspace inserts space | `TERM=xterm-ghostty` not in remote's terminfo. **From a local terminal:** `infocmp -x xterm-ghostty \| ssh user@host -- tic -x -`. Or run `~/dotfiles/bootstrap.sh` on the VPS once — phase 1 installs the entry to `~/.terminfo`. Extracting from Ghostty's bundle locally: `TERMINFO_DIRS=/Applications/Ghostty.app/Contents/Resources/terminfo infocmp -x xterm-ghostty` |
 
 ## Repository layout
 

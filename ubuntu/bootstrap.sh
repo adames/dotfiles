@@ -7,9 +7,33 @@ set -euo pipefail
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 . "$DOTFILES_DIR/lib/common.sh"
 
+# ─── phase 1 · terminfo (idempotent, runs first) ────────────────────────────
+# When SSH'ing in from Ghostty, TERM=xterm-ghostty is forwarded. Ubuntu's
+# default terminfo database doesn't ship that entry, so zsh's line editor
+# falls back to a stub — typing duplicates characters, backspace inserts
+# spaces, the REPL is unusable. Compile the bundled source to ~/.terminfo
+# so any user-level shell finds it. Runs first so the heavier apt/git work
+# below isn't done through a broken REPL on the first-ever bootstrap from
+# a Ghostty SSH session.
+phase_terminfo() {
+  section "Phase 1/7 · terminfo (xterm-ghostty)"
+  if ! have tic; then
+    step "installing ncurses-bin (provides tic)"
+    sudo apt update -qq && sudo apt install -y ncurses-bin >/dev/null
+  fi
+  if [[ -f "$HOME/.terminfo/x/xterm-ghostty" ]]; then
+    ok "xterm-ghostty already in ~/.terminfo — skipping"
+  else
+    step "compiling configs/xterm-ghostty.terminfo → ~/.terminfo"
+    tic -x -o "$HOME/.terminfo" "$CONFIGS_DIR/xterm-ghostty.terminfo" 2>&1 \
+      | sed 's/^/    /' || warn "tic returned non-zero — entry may still be usable"
+    ok "xterm-ghostty installed (reconnect SSH or 'exec zsh' to pick up)"
+  fi
+}
+
 # ─── phase 1 · system packages ──────────────────────────────────────────────
 phase_system() {
-  section "Phase 1/6 · system packages"
+  section "Phase 2/7 · system packages"
   step "apt update + upgrade"
   sudo apt update && sudo apt upgrade -y >/dev/null
   ok "system up to date"
@@ -41,7 +65,7 @@ phase_system() {
 
 # ─── phase 2 · chezmoi-managed dotfiles ─────────────────────────────────────
 phase_dotfiles() {
-  section "Phase 2/6 · dotfiles (chezmoi)"
+  section "Phase 3/7 · dotfiles (chezmoi)"
   if ! have chezmoi; then
     step "installing chezmoi"
     curl -fsLS https://get.chezmoi.io | bash -s -- -b "$HOME/.local/bin"
@@ -58,7 +82,7 @@ phase_dotfiles() {
 
 # ─── phase 3 · shell layer ──────────────────────────────────────────────────
 phase_shell() {
-  section "Phase 3/6 · shell layer"
+  section "Phase 4/7 · shell layer"
   if ! have starship; then
     step "installing Starship"
     curl -sS https://starship.rs/install.sh | sh -s -- --yes >/dev/null
@@ -82,7 +106,7 @@ phase_shell() {
 
 # ─── phase 4 · runtimes ─────────────────────────────────────────────────────
 phase_runtimes() {
-  section "Phase 4/6 · runtimes"
+  section "Phase 5/7 · runtimes"
   if ! have mise && [[ ! -x "$HOME/.local/bin/mise" ]]; then
     step "installing mise"
     curl -fsSL https://mise.run | sh >/dev/null
@@ -108,7 +132,7 @@ phase_runtimes() {
 
 # ─── phase 5 · configs ──────────────────────────────────────────────────────
 phase_configs() {
-  section "Phase 5/6 · configs"
+  section "Phase 6/7 · configs"
   install_file "$CONFIGS_DIR/tmux.conf"           "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/ripgreprc"           "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
@@ -124,7 +148,7 @@ phase_configs() {
 
 # ─── phase 6 · default shell ────────────────────────────────────────────────
 phase_default_shell() {
-  section "Phase 6/6 · default shell"
+  section "Phase 7/7 · default shell"
   if [[ "$SHELL" != "$(command -v zsh)" ]]; then
     step "setting login shell to zsh"
     sudo chsh -s "$(command -v zsh)" "$USER" || warn "chsh failed; run manually"
@@ -139,6 +163,7 @@ main() {
   banner "Hyper-key dotfiles bootstrap" "Ubuntu · minerva dev env"
   export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 
+  phase_terminfo
   phase_system
   phase_dotfiles
   phase_shell
