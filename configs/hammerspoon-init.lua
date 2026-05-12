@@ -93,6 +93,12 @@ local cheatsheet = require("cheatsheet")
 hs.hotkey.bind(hyper, "0", function() cheatsheet.toggle() end)
 hs.hotkey.bind(meh,   "0", function() cheatsheet.toggle() end)
 
+-- Workspace OSD + rename. yabai signals call `hs -c "Workspace.show(N,D)"`,
+-- so install the CLI shim and load the module on _G.
+require("hs.ipc")
+if not hs.ipc.cliStatus() then hs.ipc.cliInstall() end
+require("workspace")
+
 -- Auto-reload on .lua save.
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", function(files)
   for _, f in ipairs(files) do

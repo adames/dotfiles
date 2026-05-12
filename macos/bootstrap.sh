@@ -83,11 +83,22 @@ phase_configs() {
   install_file "$CONFIGS_DIR/yabai-ensure-spaces.sh"     "$HOME/.config/yabai/ensure-spaces.sh" 755
   install_file "$CONFIGS_DIR/hammerspoon-init.lua"       "$HOME/.hammerspoon/init.lua"
   install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua" "$HOME/.hammerspoon/cheatsheet.lua"
+  install_file "$CONFIGS_DIR/hammerspoon-workspace.lua"  "$HOME/.hammerspoon/workspace.lua"
+
+  # Workspace-awareness layer: yabai signal handler + rename flow +
+  # interactive Hammerspoon overlay. spaces.json is NOT install_file'd
+  # because that would clobber the user's renames; workspace/install.sh
+  # below seeds it only when missing.
+  install_file "$CONFIGS_DIR/workspace/on-space-changed.sh" "$HOME/.config/workspace/on-space-changed.sh" 755
+  install_file "$CONFIGS_DIR/workspace/rename.sh"           "$HOME/.config/workspace/rename.sh"           755
+  install_file "$CONFIGS_DIR/workspace/install.sh"          "$HOME/.config/workspace/install.sh"          755
+  install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
 
   # Terminal + shell
   install_file "$CONFIGS_DIR/ghostty-config"             "$HOME/.config/ghostty/config"
   install_file "$CONFIGS_DIR/tmux.conf"                  "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/zshrc"                      "$HOME/.zshrc"
+  install_file "$CONFIGS_DIR/starship.toml"              "$HOME/.config/starship.toml"
   install_file "$CONFIGS_DIR/gitconfig"                  "$HOME/.gitconfig"
   install_file "$CONFIGS_DIR/ripgreprc"                  "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
@@ -107,6 +118,11 @@ phase_configs() {
 EOF
     ok "created ~/.gitconfig.local stub — edit user.email / user.name"
   fi
+
+  # Workspace runtime: seeds spaces.json if missing, primes current.env,
+  # nudges running daemons. Safe to re-run; preserves user renames.
+  step "configuring workspace-awareness layer"
+  "$HOME/.config/workspace/install.sh"
 }
 
 # ─── phase 4 · macOS defaults ───────────────────────────────────────────────
