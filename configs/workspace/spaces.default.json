@@ -1,15 +1,17 @@
 {
-  "version": 1,
+  "version": 2,
   "palette": "catppuccin-mocha",
   "_doc_icon": "Icons use nerd-font private-use glyphs (nf-fa-* set). Requires JetBrains Mono NF or any nerd font — installed via: brew install --cask font-jetbrains-mono-nerd-font",
   "spaces": {
-    "1": { "name": "term",  "color": "#a6e3a1", "icon": "" },
-    "2": { "name": "code",  "color": "#89b4fa", "icon": "" },
-    "3": { "name": "web",   "color": "#f9e2af", "icon": "" },
-    "4": { "name": "chat",  "color": "#cba6f7", "icon": "" },
-    "5": { "name": "media", "color": "#f38ba8", "icon": "" },
-    "6": { "name": "ws6",   "color": "#94e2d5", "icon": "" },
-    "7": { "name": "ws7",   "color": "#fab387", "icon": "" },
-    "8": { "name": "ws8",   "color": "#74c7ec", "icon": "" }
+    "1":  { "name": "core",   "color": "#cba6f7", "icon": "" },
+    "2":  { "name": "forge",  "color": "#fab387", "icon": "" },
+    "3":  { "name": "codex",  "color": "#f9e2af", "icon": "" },
+    "4":  { "name": "lex",    "color": "#a6e3a1", "icon": "" },
+    "5":  { "name": "scope",  "color": "#94e2d5", "icon": "" },
+    "6":  { "name": "uplink", "color": "#89dceb", "icon": "󰒋" },
+    "7":  { "name": "signal", "color": "#74c7ec", "icon": "" },
+    "8":  { "name": "ledger", "color": "#89b4fa", "icon": "" },
+    "9":  { "name": "craft",  "color": "#b4befe", "icon": "" },
+    "10": { "name": "void",   "color": "#6c7086", "icon": "󰧞" }
   }
 }
