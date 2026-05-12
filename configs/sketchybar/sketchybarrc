@@ -60,9 +60,9 @@ sketchybar --default \
   background.height=22 \
   background.padding_left=8 \
   background.padding_right=8 \
-  icon.font="JetBrainsMono NF:Bold:14.0" \
-  icon.padding_left=10 \
-  icon.padding_right=10
+  icon.font="JetBrainsMono NF:Bold:12.0" \
+  icon.padding_left=8 \
+  icon.padding_right=8
 
 ##### space items (dynamic, capped at 10 visible) ############################
 # Pill count derives from spaces.json so `workspace add` / `workspace
