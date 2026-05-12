@@ -3,8 +3,11 @@
 -- about to reveal itself. Removes the visual bleed at the 2px boundary
 -- where the menu bar sits above sketchybar but doesn't fully cover it.
 --
--- Single eventtap on mouseMoved + the three drag types. Cheap: each
--- callback is one compare + (only on threshold cross) one subprocess.
+-- 100ms polling timer rather than an eventtap. hs.mouse.absolutePosition
+-- is a direct CGEventGet call (no Accessibility/Input-Monitoring
+-- permission required, no event-delivery surprises after reload). Lag
+-- ceiling is 100ms, which is below the macOS menu bar's own ~250ms
+-- reveal animation — imperceptible.
 
 local M = {}
 
@@ -31,16 +34,8 @@ local function set_shown(s)
   hs.execute(SKETCHYBAR .. " --bar drawing=" .. (s and "on" or "off"))
 end
 
-M.tap = hs.eventtap.new({
-  hs.eventtap.event.types.mouseMoved,
-  hs.eventtap.event.types.leftMouseDragged,
-  hs.eventtap.event.types.rightMouseDragged,
-  hs.eventtap.event.types.otherMouseDragged,
-}, function(event)
-  set_shown(event:location().y >= TRIGGER_Y)
-  return false   -- pass-through; we observe, not consume
+M.timer = hs.timer.doEvery(0.1, function()
+  set_shown(hs.mouse.absolutePosition().y >= TRIGGER_Y)
 end)
-
-M.tap:start()
 
 return M
