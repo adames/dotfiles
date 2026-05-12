@@ -182,13 +182,27 @@ Desktop's ~30s. Use it the same way.
 
 ## Permission grants
 
-The macOS bootstrap hands off to `permissions-wizard.sh` which walks
-three System Settings panes. No paid Apple Developer ID, no signed
-profiles — just open pane, flip toggles, ↵.
+The macOS bootstrap hands off to `permissions-wizard.sh`, which **probes
+each TCC bit first** (via [`lib/macos-tcc.sh`](lib/macos-tcc.sh)) and
+only opens System Settings panes that have missing toggles. On a
+re-bootstrap of a working machine, the wizard finishes in ~2 seconds
+without ever popping a window. Probes don't require Full Disk Access —
+they use `launchctl` liveness, `systemextensionsctl list`, and
+Hammerspoon's `hs.accessibilityState()` over the AppleScript bridge.
+
+Three gates:
 
 1. **Accessibility** — yabai, skhd, Hammerspoon, Karabiner-Elements
 2. **Input Monitoring** — Karabiner-Elements, Karabiner-DriverKit-VirtualHIDDevice
 3. **System Extensions** — approve Karabiner-DriverKit-VirtualHIDDevice
+
+If a probe disagrees with reality (false negative → pane opens but
+nothing to toggle; false positive → pane skipped when grant is missing),
+run with `--force` to bypass probes and walk every pane:
+
+```sh
+~/dotfiles/macos/permissions-wizard.sh --force
+```
 
 The wizard launches each app first so the entries appear in the panes
 with toggles OFF — no dragging binaries through Finder's `+` dialog.
