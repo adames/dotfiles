@@ -196,31 +196,48 @@ graph LR
 
 ## SketchyBar coexistence with the macOS menu bar
 
-Four layers cooperate so the pill strip shares space with the system
-menu bar without replacing it:
+Layers cooperate so the pill strip shares space with the system menu
+bar without replacing it, and so each display gets its own per-monitor
+pill set:
 
 | Layer | Setting | Effect |
 |---|---|---|
-| macOS | `_HIHideMenuBar=1` | Menu bar hides by default; reveals when cursor at top |
+| macOS | `_HIHideMenuBar=1` | Menu bar hides by default; reveals when cursor at top of its display |
 | SketchyBar | `topmost=off`, `y_offset=7` | Strip draws behind the menu bar; vertically centered in the y=0..40 band |
-| yabai | `external_bar all:26:0` | BSP-tiled windows never enter the top 26px, so the strip is always exposed under normal tiling |
-| Hammerspoon | [`sketchybar-autohide.lua`](../configs/hammerspoon-sketchybar-autohide.lua) | 100ms timer toggles `--bar y_offset` between 7 and -100 based on cursor y, with hysteresis: hide at `y<2`, re-show at `y >= screen.frame.y` |
+| SketchyBar items | `display=<N>` per pill | Each pill is visible only on its owning yabai display |
+| yabai | `external_bar all:26:0` | BSP-tiled windows never enter the top 26px on any display |
+| Hammerspoon | [`sketchybar-autohide.lua`](../configs/hammerspoon-sketchybar-autohide.lua) | 100ms timer toggles each pill's per-item `y_offset` based on the cursor's display-relative y; PER-DISPLAY (only the strip on the cursor's current display hides) |
 
-The result: cursor at the very top → strip slides off-screen, menu bar
-slides in. Cursor moves down past the menu bar's drawn region → menu
-bar slides out, strip slides back. The two effectively "tag out" at
-the same boundary.
+The result: cursor at the very top of display N → display N's pills
+slide off-screen, the macOS menu bar on display N reveals. Cursor
+elsewhere → that display's strip stays put. Other displays are
+unaffected.
 
-**Horizontal centering.** [`sketchybar/plugins/recenter.sh`](../configs/sketchybar/plugins/recenter.sh)
-rewrites `--bar padding_left` so the strip stays centered between the
-corner and the notch as pills are added/removed. Called from
-sketchybarrc at startup and from the post-mutate hook on add/remove.
-Math: `padding = (screen_width/2 − NOTCH_WIDTH − pills_width) / 2`,
-with `NOTCH_WIDTH=400` reserving a half-notch buffer on the right.
+**Per-display pill assignment.**
+[`plugins/per-display-pills.sh`](../configs/sketchybar/plugins/per-display-pills.sh)
+queries `yabai -m query --spaces` and sets `display=<idx>` on each
+pill (`space.N`), then adds missing pills / removes orphans so the
+sketchybar item set tracks yabai exactly. Re-fires from the yabai
+signals (`display_added`, `display_removed`, `display_changed`,
+`space_changed`) and from the workspace CLI's post-mutate hook on
+`add` / `remove`.
 
-**Visible-pill cap.** Both sketchybarrc and the post-mutate hook
-refuse to create `space.11+`. The dock shows at most 10 pills even
-when `workspace count > 10`, mirroring the `Caps+1..0` hotkey range.
+**Notch detection + visible cap.**
+[`plugins/notch-detect.sh`](../configs/sketchybar/plugins/notch-detect.sh)
+checks `sysctl hw.model` against the known list of notched Apple
+laptops (MacBookPro18,*, Mac14-20,*). On a notched laptop's built-in
+display, visible pills are capped at 10 (`drawing=off` on overflow)
+to match the camera-nodule geometry and the `Caps+1..0` hotkey range.
+Non-notched displays (externals, MBAir / 13" Pro built-in) show all
+assigned pills with no cap.
+
+**Per-display horizontal centering.**
+[`plugins/recenter.sh`](../configs/sketchybar/plugins/recenter.sh)
+walks yabai's displays and writes a centering `padding_left` to the
+first pill on each. Subsequent pills on the display pack with
+zero padding. Math:
+- Notched laptop: `padding = ((display.w − NOTCH_WIDTH)/2 − n*PILL_W) / 2` with `NOTCH_WIDTH=400` (notch + half-notch buffer)
+- Non-notched: `padding = (display.w − n*PILL_W) / 2`
 
 ## File map
 
@@ -243,12 +260,14 @@ when `workspace count > 10`, mirroring the `Caps+1..0` hotkey range.
     │   ├── rename.sh                  # AppleScript wrapper
     │   └── install.sh                 # workspace-system bootstrapper
     ├── sketchybar/
-    │   ├── sketchybarrc               # bar geometry + pill loop
-    │   ├── colors.sh                  # palette constants
-    │   ├── plugins/space.sh           # per-pill repaint
-    │   ├── plugins/recenter.sh        # horizontal centering math
-    │   └── bootstrap.sh               # brew services start
-    └── hammerspoon-sketchybar-autohide.lua   # cursor-y auto-hide
+    │   ├── sketchybarrc                       # bar geometry + pill loop (yabai-driven)
+    │   ├── colors.sh                          # palette constants
+    │   ├── plugins/space.sh                   # per-pill repaint
+    │   ├── plugins/per-display-pills.sh       # yabai-to-pill display assignment
+    │   ├── plugins/recenter.sh                # per-display horizontal centering
+    │   ├── plugins/notch-detect.sh            # model-id → notched? (yes/no)
+    │   └── bootstrap.sh                       # brew services start
+    └── hammerspoon-sketchybar-autohide.lua    # per-display cursor-y auto-hide
 ```
 
 `install_file` byte-compares src vs dst and skips no-ops, so editing
