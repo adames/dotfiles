@@ -88,10 +88,13 @@ hs.hotkey.bind(meh, "right", snap({ x = 0.5,  y = 0,    w = 0.5, h = 1   }))
 hs.hotkey.bind(meh, "up",    snap({ x = 0,    y = 0,    w = 1,   h = 1   }))
 hs.hotkey.bind(meh, "down",  snap({ x = 0.25, y = 0.25, w = 0.5, h = 0.5 }))
 
--- Cheatsheet overlay. Dropped Cmd+? bindings — apps eat them for Help menu.
+-- Cheatsheet overlay. Bound on Hyper+/ — the universal "show shortcuts"
+-- gesture. Moved here from Hyper+0 once slot 10 ("void") took the digit.
+-- Backups (if `/` ever conflicts): Hyper+', Hyper+grave. Apps eat
+-- Cmd+? for the Help menu, so we never use that.
 local cheatsheet = require("cheatsheet")
-hs.hotkey.bind(hyper, "0", function() cheatsheet.toggle() end)
-hs.hotkey.bind(meh,   "0", function() cheatsheet.toggle() end)
+hs.hotkey.bind(hyper, "/", function() cheatsheet.toggle() end)
+hs.hotkey.bind(meh,   "/", function() cheatsheet.toggle() end)
 
 -- Workspace OSD + rename. yabai signals call `hs -c "Workspace.show(N,D)"`,
 -- so install the CLI shim and load the module on _G.

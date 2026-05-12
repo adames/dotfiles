@@ -7,13 +7,13 @@
 
 set -euo pipefail
 
-# (root_dir, max_depth). Only existing roots are searched.
+# (root_dir, max_depth). Only existing roots are searched. Trimmed to
+# Dev + dotfiles after JetBrains rip-out — IdeaProjects and
+# WebstormProjects directories are gone, and ~/.config is rarely worth
+# its own session (just edit configs/ in dotfiles).
 ROOTS=(
   "$HOME/Dev:2"
-  "$HOME/IdeaProjects:1"
-  "$HOME/WebstormProjects:1"
   "$HOME/dotfiles:0"
-  "$HOME/.config:1"
 )
 
 # If a path was passed in, use it directly; otherwise fzf-pick.

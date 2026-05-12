@@ -6,50 +6,91 @@
 # copies. This script handles the parts that are NOT plain file copies:
 #   1. ensure runtime directories exist
 #   2. seed ~/.config/workspace/spaces.json ONLY if missing (preserves
-#      user renames across bootstrap re-runs)
-#   3. assert dependencies + minimum tmux version
-#   4. nudge running yabai / Hammerspoon to pick up new signals + module
+#      user renames across bootstrap re-runs); MIGRATE existing v1 (1..8)
+#      configs by appending slots 9 & 10 from the new defaults
+#   3. capture laptop display UUID on a clean single-display run
+#   4. assert dependencies + minimum tmux version + JankyBorders presence
+#   5. nudge running yabai / Hammerspoon / skhd to pick up new signals
 
 set -u
 
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Colors only when this is run standalone; sourcing common.sh from
-# bootstrap would shadow these — bootstrap already prints its own banners.
-if [[ -z "${C_RESET:-}" ]]; then
-  if [[ -t 1 ]]; then
-    C_RESET=$'\033[0m'; C_DIM=$'\033[2m'; C_GREEN=$'\033[32m'
-    C_YELLOW=$'\033[33m'; C_RED=$'\033[31m'; C_BLUE=$'\033[34m'
-  else
-    C_RESET=''; C_DIM=''; C_GREEN=''; C_YELLOW=''; C_RED=''; C_BLUE=''
-  fi
-  step() { printf '%s•%s %s\n' "$C_BLUE"  "$C_RESET" "$*"; }
-  ok()   { printf '%s✓%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
-  warn() { printf '%s!%s %s\n' "$C_YELLOW" "$C_RESET" "$*" >&2; }
-  err()  { printf '%s✗%s %s\n' "$C_RED"   "$C_RESET" "$*" >&2; }
-fi
+# Re-sourcing common.sh from bootstrap is harmless (idempotent), so just
+# always source it — single set of helpers, no conditional branching.
+. "$DOTFILES_DIR/lib/common.sh"
 
 # ── 1 · runtime dirs ─────────────────────────────────────────────────────
 mkdir -p "$HOME/.config/workspace" "$HOME/.cache/workspace"
 
-# ── 2 · seed spaces.json if missing ──────────────────────────────────────
+# ── 2 · seed / migrate spaces.json ───────────────────────────────────────
 target="$HOME/.config/workspace/spaces.json"
 seed="$SELF_DIR/spaces.default.json"
+
 if [[ ! -f "$target" ]]; then
   install -m 644 "$seed" "$target"
   ok "seeded ${target/#$HOME/~}"
+elif command -v jq >/dev/null 2>&1; then
+  # Migration: existing config from the 8-slot era is missing keys "9"
+  # and "10". Add them (with default name/colour/icon from the seed)
+  # without touching any user renames on slots 1..8.
+  missing_slots=$(
+    jq -r --slurpfile seed "$seed" '
+      ($seed[0].spaces | keys_unsorted) - (.spaces | keys_unsorted)
+      | .[]
+    ' "$target" 2>/dev/null
+  )
+  if [[ -n "$missing_slots" ]]; then
+    step "migrating ${target/#$HOME/~} — appending missing slots: $(echo "$missing_slots" | tr '\n' ' ')"
+    tmp=$(mktemp) || exit 1
+    # Right-bias merge: seed supplies any missing slot, user-edited keys
+    # win on slots present in both. `*` deep-merges objects in jq.
+    jq --slurpfile seed "$seed" '
+      .version = ($seed[0].version // 2)
+      | .spaces = (($seed[0].spaces) * (.spaces // {}))
+    ' "$target" > "$tmp" && mv -f "$tmp" "$target"
+    # Post-condition: migration must produce 10 slots — anything else is
+    # a bug in the seed or the merge. Refuse to leave a corrupt config.
+    final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
+    if [[ "$final" != "10" ]]; then
+      err "migration produced $final slots (expected 10) — leaving original at ${target}.broken"
+      mv "$target" "${target}.broken" 2>/dev/null
+      exit 1
+    fi
+    ok "migrated to 10 slots (existing renames preserved)"
+  else
+    ok "preserving existing ${target/#$HOME/~} (renames intact)"
+  fi
 else
-  ok "preserving existing ${target/#$HOME/~} (renames intact)"
+  ok "preserving existing ${target/#$HOME/~} (jq not available; no migration)"
 fi
 
-# ── 3 · dependency assertions ────────────────────────────────────────────
+# ── 3 · laptop UUID capture (single-display only, idempotent) ────────────
+uuid_file="$HOME/.config/workspace/laptop.uuid"
+if [[ ! -s "$uuid_file" ]] && command -v yabai >/dev/null 2>&1; then
+  display_count=$(yabai -m query --displays 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+  if [[ "$display_count" -eq 1 ]]; then
+    "$SELF_DIR/laptop-uuid-init.sh" >/dev/null && \
+      ok "captured laptop display UUID"
+  else
+    warn "skip laptop UUID capture: ${display_count} displays attached — run laptop-uuid-init.sh manually with only the built-in panel connected, OR write the UUID by hand to ${uuid_file/#$HOME/~}"
+  fi
+fi
+
+# ── 4 · dependency assertions ────────────────────────────────────────────
 missing=()
 for bin in jq yabai hs tmux; do
   command -v "$bin" >/dev/null 2>&1 || missing+=("$bin")
 done
 if (( ${#missing[@]} )); then
   warn "missing: ${missing[*]} — install via brew or run macos/bootstrap.sh"
+fi
+
+# JankyBorders is a separate brew tap — don't fail without it (some
+# users may opt out), just warn so the missing border layer is obvious.
+if ! command -v borders >/dev/null 2>&1; then
+  warn "borders not installed — neon window borders disabled. Install: brew tap FelixKratz/formulae && brew install borders"
 fi
 
 # tmux ≥ 3.2 required for #{E:VAR} interpolation in statusline.
@@ -61,20 +102,30 @@ if command -v tmux >/dev/null 2>&1; then
   fi
 fi
 
-# ── 4 · poke running daemons (optional, best-effort) ─────────────────────
+# ── 5 · poke running daemons (optional, best-effort) ─────────────────────
 if pgrep -x yabai >/dev/null 2>&1; then
-  step "reloading yabai (registering space_changed signal)"
+  step "reloading yabai (registering new signals)"
   yabai --restart-service >/dev/null 2>&1 || warn "yabai --restart-service failed"
 fi
 
 if pgrep -x Hammerspoon >/dev/null 2>&1 && command -v hs >/dev/null 2>&1; then
-  step "reloading Hammerspoon (loading workspace module)"
+  step "reloading Hammerspoon"
   hs -c "hs.reload()" >/dev/null 2>&1 || warn "Hammerspoon reload failed"
 fi
 
 if pgrep -x skhd >/dev/null 2>&1; then
-  step "reloading skhd (picking up Hyper+R binding)"
+  step "reloading skhd (picking up new bindings)"
   skhd --reload >/dev/null 2>&1 || warn "skhd --reload failed"
+fi
+
+# Restart borders so it picks up bordersrc on next launch.
+if pgrep -x borders >/dev/null 2>&1; then
+  step "restarting borders daemon"
+  pkill -x borders 2>/dev/null || true
+  sleep 0.2
+fi
+if command -v borders >/dev/null 2>&1 && [[ -x "$HOME/.config/borders/bordersrc" ]]; then
+  ( "$HOME/.config/borders/bordersrc" >/dev/null 2>&1 & ) || true
 fi
 
 # Prime current.env so the very first new shell already has metadata.
