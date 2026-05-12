@@ -18,12 +18,13 @@ PLUGIN_DIR="$CONFIG_DIR/plugins"
 source "$CONFIG_DIR/colors.sh"
 
 ##### bar ####################################################################
-# Bottom-of-screen, full-width strip. topmost=on so tiled windows don't
-# occlude. Items are added with --add item ... center, so they cluster in
-# the horizontal middle. No notch to worry about at the bottom.
+# Top-of-screen, full-width. On notched MacBooks, items anchored `left`
+# land in the left-of-notch region (between the screen corner and the
+# camera) — sketchybar handles the notch-aware geometry automatically.
+# topmost=on so the strip stays visible across yabai-tiled windows.
 sketchybar --bar \
   height=26 \
-  position=bottom \
+  position=top \
   y_offset=0 \
   padding_left=8 \
   padding_right=8 \
@@ -62,7 +63,7 @@ if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
 fi
 
 for (( sid=1; sid<=SLOT_COUNT; sid++ )); do
-  sketchybar --add item "space.$sid" center \
+  sketchybar --add item "space.$sid" left \
              --set "space.$sid" \
                 script="$PLUGIN_DIR/space.sh" \
                 click_script="yabai -m space --focus $sid" \
