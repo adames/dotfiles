@@ -141,38 +141,53 @@ Identity surfaces:
   [JankyBorders](https://github.com/FelixKratz/JankyBorders).
 - **Tmux statusline** — left chip shows icon + name in slot colour.
 - **Starship prompt** — leftmost segment is the workspace chip.
-- **SketchyBar pill strip** — persistent row of up to 10 catppuccin
-  pills in the top-left of the screen, between the corner and the
-  notch. The active slot is filled; others show number + nerd-font
-  glyph in the slot's colour. Single source of truth is
-  `~/.config/workspace/spaces.json` (same file that drives
-  tmux/starship/borders); pills repaint via a custom event fired from
+- **SketchyBar pill strip** — persistent row of catppuccin pills at
+  the top of each display, showing ONLY the workspaces yabai assigns
+  to that display. The active slot is filled; others show number +
+  nerd-font glyph in the slot's colour. Pill metadata source of truth
+  is `~/.config/workspace/spaces.json` (drives tmux/starship/borders
+  too); per-display assignment is driven by `yabai -m query --spaces`
+  via [`sketchybar/plugins/per-display-pills.sh`](configs/sketchybar/plugins/per-display-pills.sh)
+  and pills repaint via a custom event fired from
   [`workspace/on-space-changed.sh`](configs/workspace/on-space-changed.sh).
   Config: [`sketchybar/`](configs/sketchybar/).
 
+**Per-display rendering.** Each pill's `display=<idx>` mask is set by
+[`per-display-pills.sh`](configs/sketchybar/plugins/per-display-pills.sh)
+based on yabai's space-to-display mapping. Plug in a monitor → yabai
+assigns it new spaces → the display gets its own pill set. Plug out →
+pills migrate with their spaces back to the laptop. Re-fires on yabai
+`display_added` / `display_removed` / `display_changed` / `space_changed`,
+and from the post-mutate hook on `workspace add` / `remove`.
+
 **Bar / menu-bar coexistence.** macOS auto-hide menu bar is on
-(`NSGlobalDomain._HIHideMenuBar=1`). When the cursor leaves the very
-top edge the strip is visible and clickable. When the cursor crosses
-back up, the strip slides off-screen and the macOS menu bar reveals
-in the same space — driven by a 100ms Hammerspoon timer in
+(`NSGlobalDomain._HIHideMenuBar=1`). When the cursor leaves the top
+edge of a display, that display's pill strip is visible and clickable;
+when the cursor crosses back up, the strip slides off-screen and the
+macOS menu bar reveals in the same space. Driven by a 100ms
+Hammerspoon timer in
 [`hammerspoon-sketchybar-autohide.lua`](configs/hammerspoon-sketchybar-autohide.lua)
-that toggles `--bar y_offset` with hysteresis (hide at `y<2`, re-show
-at `y >= screen.frame.y`, i.e. just below the menu-bar reserve).
+that toggles each pill's `y_offset` based on cursor.y RELATIVE to
+its current display (hide at `rel_y < 2`, re-show at
+`rel_y >= screen.frame.y - screen.fullFrame.y`). Per-display — moving
+the cursor between monitors only hides the side you're approaching.
 yabai's [`external_bar all:26:0`](configs/yabairc) reserves the top
-26px so BSP-tiled windows never encroach.
+26px on every display so BSP-tiled windows never encroach.
 
 **Slot identity.** Color is **positional** — slot N keeps its colour
 across `swap` / `move` / `rotate` / `reverse` / `reorder` ("orange
 always means slot 2"). Name and icon are what move when you
 reorder. Use `workspace color N #HEX` to change a slot's colour
-directly. Slot identity is also stable across display moves: the
-system addresses spaces by yabai label (`core`, `forge`, …), not by
-volatile index.
+directly.
 
-**Visible-pill cap.** Even though `workspace add` lets you grow the
-slot count past 10, the dock displays at most 10 pills (matches the
-`Caps+1..0` hotkey range). Slots beyond 10 still exist and are
-reachable via the `workspace` / yabai CLI.
+**Visible-pill cap (notch-aware).** Notched MacBook Pros cap visible
+pills at 10 on the built-in display (matches the `Caps+1..0` hotkey
+range and the geometric constraint of the camera notch). Non-notched
+displays (externals, MBAir / 13" Pro built-in) show all assigned
+pills, centered between the left and right edges. Notch detection
+uses [`plugins/notch-detect.sh`](configs/sketchybar/plugins/notch-detect.sh)
+(model identifier match against MacBookPro18,*, Mac14-20,*); override
+with `WS_LAPTOP_HAS_NOTCH=yes|no` in the environment.
 
 **Display lock**: when a monitor is attached, slot 1 (`core`) stays on
 the laptop screen and slots 2..10 migrate to the external. Single-display

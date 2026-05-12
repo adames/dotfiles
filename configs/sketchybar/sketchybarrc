@@ -64,32 +64,41 @@ sketchybar --default \
   icon.padding_left=8 \
   icon.padding_right=8
 
-##### space items (dynamic, capped at 10 visible) ############################
-# Pill count derives from spaces.json so `workspace add` / `workspace
-# remove` survive a `--reload`. Falls back to 10 if jq or the config
-# file is missing. Hard cap at 10 visible — even if the user has more
-# workspaces, the dock displays at most 10 (matches the skhd hotkey
-# range of Caps+1..0).
-# Registered as one custom event so all pills repaint atomically.
+##### space items (per-display, yabai-driven) ################################
+# Yabai is the source of truth for "what spaces exist and which display
+# owns each one". We register the custom event here and add one pill per
+# yabai space (no global cap; per-display-pills.sh applies the 10-pill
+# notch-cap downstream).
+# Falls back to spaces.json count if yabai isn't reachable (fresh boot
+# before yabai is up, or running headless).
 sketchybar --add event workspace_changed
 
-WS_CONFIG="$HOME/.config/workspace/spaces.json"
-SLOT_COUNT=10
-if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
-  SLOT_COUNT=$(jq '.spaces | keys | length' "$WS_CONFIG" 2>/dev/null || echo 10)
+space_indices=""
+if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
+  space_indices=$(yabai -m query --spaces 2>/dev/null \
+    | command jq -r '.[].index' 2>/dev/null \
+    | tr '\n' ' ')
 fi
-VISIBLE=$SLOT_COUNT
-(( VISIBLE > 10 )) && VISIBLE=10
+if [[ -z "${space_indices// }" ]]; then
+  WS_CONFIG="$HOME/.config/workspace/spaces.json"
+  if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
+    space_indices=$(seq 1 "$(jq '.spaces | keys | length' "$WS_CONFIG" 2>/dev/null || echo 10)" | tr '\n' ' ')
+  else
+    space_indices="1 2 3 4 5 6 7 8 9 10"
+  fi
+fi
 
-for (( sid=1; sid<=VISIBLE; sid++ )); do
+for sid in $space_indices; do
   sketchybar --add item "space.$sid" left \
              --set "space.$sid" \
                 script="$PLUGIN_DIR/space.sh" \
                 click_script="yabai -m space --focus $sid" \
+                padding_left=0 \
+                padding_right=0 \
              --subscribe "space.$sid" workspace_changed
 done
 
-##### init paint + recenter ##################################################
+##### init paint + per-display assignment + recenter #########################
 sketchybar --update
 sketchybar --trigger workspace_changed
-[[ -x "$PLUGIN_DIR/recenter.sh" ]] && "$PLUGIN_DIR/recenter.sh"
+[[ -x "$PLUGIN_DIR/per-display-pills.sh" ]] && "$PLUGIN_DIR/per-display-pills.sh"
