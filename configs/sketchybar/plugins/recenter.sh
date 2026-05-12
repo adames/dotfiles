@@ -22,17 +22,15 @@ fi
 (( count > 10 )) && count=10
 (( count < 1 ))  && count=1
 
-# Empirically, each pill renders at ~55px wide with the default
-# JetBrainsMono NF Bold 14pt + icon padding 10+10 + item padding 8+8.
-# The active pill is ~16px wider due to background.padding; we ignore
-# that since exactly one pill is active at any time (averaging out
-# gives ~57). Tunable if your font changes.
-PILL_AVG_WIDTH=55
+# Each pill renders at ~48px wide with JetBrainsMono NF Bold 12pt +
+# icon padding 8+8 + item padding 8+8. Tunable if your font changes.
+PILL_AVG_WIDTH=48
 
-# Half-width of the camera notch. The notch is ~184px on a 14" MBP and
-# ~200px on a 16". Pads on both sides; a slightly generous 220 keeps
-# pills safely clear of the notch edge.
-NOTCH_WIDTH=220
+# Effective notch width used as the right-side exclusion zone. The real
+# camera notch is ~184–200px wide depending on model; we double that to
+# 400 so pills sit half-a-notch-width away from the actual edge (per
+# the design ask: "padded half the size of the camera").
+NOTCH_WIDTH=400
 
 # Screen width via osascript — cheap and dependency-free. Falls back to
 # 1512 (default MBP 14") if the query fails.
