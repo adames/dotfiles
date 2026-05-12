@@ -103,11 +103,29 @@ _fire_cascade() {
   fi
 }
 
-# _write <jq-program> [jq-args...]  — atomic mktemp + jq + validate + mv.
+# Canonical ordering filter run after every mutation. Sorts .spaces
+# keys numerically (so 10 comes after 9, not after 1) and writes each
+# slot's (name, color, icon) fields in that order — matching the
+# hand-authored shape in spaces.default.json. Any extra user-added
+# fields on a slot are appended after, untouched. Keeps git diffs of
+# saved layouts clean.
+_NORMALIZE='
+  .spaces as $s
+  | .spaces = (
+      reduce ($s | keys | map(tonumber) | sort | map(tostring))[] as $k ({};
+        .[$k] = (
+          ($s[$k] | {name, color, icon} | with_entries(select(.value != null)))
+          + ($s[$k] | del(.name, .color, .icon))
+        )
+      )
+    )
+'
+
+# _write <jq-program> [jq-args...]  — atomic mktemp + jq + normalize + validate + mv.
 _write() {
   local prog="$1"; shift
   local tmp; tmp=$(mktemp) || { err "mktemp failed"; exit 1; }
-  if ! jq "$@" "$prog" "$WS_CONFIG" > "$tmp" 2>/dev/null; then
+  if ! jq "$@" "$prog" "$WS_CONFIG" | jq "$_NORMALIZE" > "$tmp" 2>/dev/null; then
     rm -f "$tmp"
     err "jq transformation failed"
     exit 1
