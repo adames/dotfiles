@@ -21,7 +21,16 @@ source "$CONFIG_DIR/colors.sh"
 # Top-of-screen, full-width. On notched MacBooks, items anchored `left`
 # land in the left-of-notch region (between the screen corner and the
 # camera) — sketchybar handles the notch-aware geometry automatically.
-# topmost=on so the strip stays visible across yabai-tiled windows.
+#
+# topmost=off so the macOS menu bar (when revealed by hovering at the
+# top) draws OVER our strip. Combined with macOS "Automatically hide
+# and show the menu bar" = on, this gives:
+#   • cursor away from top → menu bar hidden, sketchybar visible + clickable
+#   • cursor at top → menu bar slides in, occludes sketchybar in that
+#     region, system menu items take clicks
+# Windows can also cover the strip; yabai's external_bar in ~/.yabairc
+# reserves the top 26px so tiled windows never do, leaving the strip
+# always-exposed under normal usage.
 sketchybar --bar \
   height=26 \
   position=top \
@@ -29,7 +38,7 @@ sketchybar --bar \
   padding_left=8 \
   padding_right=8 \
   color="$BAR_COLOR" \
-  topmost=on
+  topmost=off
 
 ##### defaults ###############################################################
 # Icon-only pills (label.drawing=off). Font family is "JetBrainsMono NF"
