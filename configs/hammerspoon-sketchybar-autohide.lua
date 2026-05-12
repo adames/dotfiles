@@ -26,12 +26,18 @@ end
 local SKETCHYBAR = find_sketchybar()
 if not SKETCHYBAR then return M end   -- sketchybar not installed; module is a no-op
 
-local shown = true   -- assumes the rc's default of drawing=on
+local shown = true   -- assumes the rc's default of y_offset=0
+
+-- Hide by pushing the bar above the screen rather than `--bar drawing=off`.
+-- The drawing flag suppresses repaints but doesn't immediately clear
+-- pixels already on screen, so the strip stayed visible until the next
+-- repaint event. Moving it off-screen is unambiguous and instant.
+local HIDDEN_OFFSET = -100
 
 local function set_shown(s)
   if s == shown then return end
   shown = s
-  hs.execute(SKETCHYBAR .. " --bar drawing=" .. (s and "on" or "off"))
+  hs.execute(SKETCHYBAR .. " --bar y_offset=" .. (s and "0" or tostring(HIDDEN_OFFSET)))
 end
 
 M.timer = hs.timer.doEvery(0.1, function()
