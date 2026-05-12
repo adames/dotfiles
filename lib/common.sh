@@ -40,21 +40,13 @@ log()  { step "$@"; }   # back-compat alias
 have()    { command -v "$1" >/dev/null 2>&1; }
 has_tty() { [[ -t 0 && -t 1 ]]; }
 
-# Backup once: dst exists, isn't a symlink, no prior .bak, and dst differs from src.
-backup() {
-  local dst="$1" src="${2:-}"
-  [[ -e "$dst" && ! -L "$dst" && ! -e "$dst.bak" ]] || return 0
-  [[ -n "$src" && -f "$src" ]] && cmp -s "$src" "$dst" && return 0
-  cp -p "$dst" "$dst.bak"
-  info "backed up $dst → $dst.bak"
-}
-
 # install_file <src> <dst> [mode]  — byte-compare; no-op if identical.
+# No backup of an existing dst: source-of-truth is configs/ under git, history
+# lives in the repo, not in *.bak clutter scattered across home directories.
 install_file() {
   local src="$1" dst="$2" mode="${3:-644}"
   [[ -f "$src" ]] || { warn "skip $dst (source missing: $src)"; return 0; }
   mkdir -p "$(dirname "$dst")"
-  backup "$dst" "$src"
   [[ -f "$dst" ]] && cmp -s "$src" "$dst" && return 0
   install -m "$mode" "$src" "$dst"
   ok "installed ${dst/#$HOME/~}"

@@ -245,8 +245,8 @@ $EDITOR ~/dotfiles/configs/zshrc
 ~/dotfiles/bootstrap.sh
 ```
 
-`install_file` byte-compares; re-running is cheap. First-time deploys
-back up any pre-existing file to `*.bak`.
+`install_file` byte-compares; re-running is cheap. No `.bak` is written
+— git history is the source of truth for what was there before.
 
 Hammerspoon Lua reloads automatically on `.lua` save (pathwatcher).
 Tmux: `prefix + r`.
