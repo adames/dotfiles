@@ -108,6 +108,11 @@ phase_configs() {
   install_file "$CONFIGS_DIR/starship.toml"              "$HOME/.config/starship.toml"
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
 
+  # Workspace CLI: per-machine mutation tool for spaces.json. Slot-count
+  # agnostic; works on Ubuntu too (cascade is silent-on-absence).
+  install_file "$CONFIGS_DIR/workspace/cli/workspace"       "$HOME/.local/bin/workspace"                       755
+  install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
+
   # Workspace identity layer (10-slot system; details in configs/workspace/)
   install_file "$DOTFILES_DIR/lib/colors.sh"              "$HOME/.config/workspace/lib/colors.sh"
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
