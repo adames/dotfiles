@@ -1,0 +1,16 @@
+# Minimal starship config: keep all the defaults but prepend a workspace
+# badge driven by $MACOS_SPACE_NAME / $MACOS_SPACE_COLOR (set by the
+# workspace system's zsh precmd hook from ~/.cache/workspace/current.env).
+
+format = "$custom$all"
+
+[custom.workspace]
+description = "macOS workspace badge from ~/.cache/workspace/current.env"
+when = '[ -n "$MACOS_SPACE_NAME" ]'
+command = '''
+icon="${MACOS_SPACE_ICON:-}"
+name="${MACOS_SPACE_NAME:-}"
+if [ -n "$icon" ]; then printf '%s %s' "$icon" "$name"; else printf '%s' "$name"; fi
+'''
+format = "[$output ](bold fg:$env:MACOS_SPACE_COLOR)"
+shell = ["sh", "--norc"]

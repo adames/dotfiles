@@ -10,15 +10,24 @@ set -u
 
 WS_CONFIG="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
 WS_CACHE_DIR="${WS_CACHE_DIR:-$HOME/.cache/workspace}"
-WS_LOCK="$WS_CACHE_DIR/.lock"
+WS_LOCK_DIR="$WS_CACHE_DIR/.lock.d"
 WS_ENV="$WS_CACHE_DIR/current.env"
 
 mkdir -p "$WS_CACHE_DIR"
 
 # Serialize concurrent invocations (signal storm during display_added, or
-# rename racing a space switch). Block — handler is fast.
-exec 9>"$WS_LOCK"
-flock 9
+# rename racing a space switch). mkdir is atomic on POSIX — used here
+# because macOS ships no flock(1). Bounded retry: ~1.5s ceiling, then
+# proceed unlocked (handler is idempotent — the worst case is a torn
+# read of a half-written current.env, which the next signal corrects).
+_acquired=0
+for _ in $(seq 1 30); do
+  if mkdir "$WS_LOCK_DIR" 2>/dev/null; then _acquired=1; break; fi
+  sleep 0.05
+done
+if (( _acquired )); then
+  trap 'rmdir "$WS_LOCK_DIR" 2>/dev/null || true' EXIT
+fi
 
 # Resolve current focused space + display from yabai. If yabai is down or
 # scripting addition not loaded the query may fail; degrade quietly.
@@ -34,11 +43,13 @@ fi
 : "${DISPLAY:=1}"
 
 # Look up metadata. Missing entry → ws<N> + neutral text color.
+# IFS=$'\t' so workspace names containing spaces (e.g. "infra prod") stay
+# intact — jq emits TSV.
 NAME="ws${INDEX}"
 COLOR="#cdd6f4"
 ICON=""
 if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
-  read -r NAME COLOR ICON < <(
+  IFS=$'\t' read -r NAME COLOR ICON < <(
     jq -r --arg k "$INDEX" '
       .spaces[$k] // {}
       | [

@@ -49,4 +49,20 @@ yabai -m signal --add \
   label=ensure_spaces_on_display_add \
   action="\"$HOME/.config/yabai/ensure-spaces.sh\" 4"
 
+# Workspace-awareness: every space switch / display change refreshes
+# ~/.cache/workspace/current.env, pushes vars into tmux global env, and
+# triggers the Hammerspoon OSD. Handler is flock-guarded and silent on
+# subsystem absence — safe to fire even if hs or tmux isn't running.
+# Re-labeled so reloads of this file don't pile up duplicate handlers.
+yabai -m signal --remove workspace_on_space_change   2>/dev/null || true
+yabai -m signal --remove workspace_on_display_change 2>/dev/null || true
+yabai -m signal --add \
+  event=space_changed \
+  label=workspace_on_space_change \
+  action="\"$HOME/.config/workspace/on-space-changed.sh\""
+yabai -m signal --add \
+  event=display_changed \
+  label=workspace_on_display_change \
+  action="\"$HOME/.config/workspace/on-space-changed.sh\""
+
 echo "yabai configuration loaded"

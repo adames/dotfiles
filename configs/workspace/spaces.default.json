@@ -1,6 +1,7 @@
 {
   "version": 1,
   "palette": "catppuccin-mocha",
+  "_doc_icon": "Icons use nerd-font private-use glyphs (nf-fa-* set). Requires JetBrains Mono NF or any nerd font — installed via: brew install --cask font-jetbrains-mono-nerd-font",
   "spaces": {
     "1": { "name": "term",  "color": "#a6e3a1", "icon": "" },
     "2": { "name": "code",  "color": "#89b4fa", "icon": "" },
