@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# SketchyBar workspace indicator. 10 catppuccin pills, painted from
+# ~/.config/workspace/spaces.json. Refreshed by the yabai signal chain:
+#   yabai space_changed → on-space-changed.sh → --trigger workspace_changed
+# All pill rendering lives in plugins/space.sh.
+
+CONFIG_DIR="$HOME/.config/sketchybar"
+PLUGIN_DIR="$CONFIG_DIR/plugins"
+
+# shellcheck source=/dev/null
+source "$CONFIG_DIR/colors.sh"
+
+##### bar ####################################################################
+# Bottom-of-screen, full-width strip. topmost=on so tiled windows don't
+# occlude. Items are added with --add item ... center, so they cluster in
+# the horizontal middle. No notch to worry about at the bottom.
+sketchybar --bar \
+  height=26 \
+  position=bottom \
+  y_offset=0 \
+  padding_left=8 \
+  padding_right=8 \
+  color="$BAR_COLOR" \
+  topmost=on
+
+##### defaults ###############################################################
+# Icon-only pills (label.drawing=off). Font family is "JetBrainsMono NF"
+# with the space — that's the Core Text registered family name (per
+# `mdls -name kMDItemFonts ...`); the no-space variant does not resolve
+# and falls back to a non-Nerd-Font, hiding all PUA glyphs.
+# Wider per-pill padding gives the breathing room a bottom dock needs.
+sketchybar --default \
+  drawing=on \
+  updates=when_shown \
+  label.drawing=off \
+  background.corner_radius=6 \
+  background.height=22 \
+  background.padding_left=8 \
+  background.padding_right=8 \
+  icon.font="JetBrainsMono NF:Bold:14.0" \
+  icon.padding_left=10 \
+  icon.padding_right=10
+
+##### space items (10) #######################################################
+# Registered as one custom event so all pills repaint atomically on trigger.
+sketchybar --add event workspace_changed
+
+for sid in 1 2 3 4 5 6 7 8 9 10; do
+  sketchybar --add item "space.$sid" center \
+             --set "space.$sid" \
+                script="$PLUGIN_DIR/space.sh" \
+                click_script="yabai -m space --focus $sid" \
+             --subscribe "space.$sid" workspace_changed
+done
+
+##### init paint #############################################################
+sketchybar --update
+sketchybar --trigger workspace_changed

@@ -48,6 +48,10 @@ phase_packages() {
   brew install --quiet FelixKratz/formulae/borders >/dev/null || true
   ok "borders"
 
+  step "installing SketchyBar (FelixKratz tap) — workspace pill strip"
+  brew install --quiet FelixKratz/formulae/sketchybar >/dev/null || true
+  ok "sketchybar"
+
   # orbstack replaces docker-desktop — leaner, native Apple Silicon, faster
   # cold start. If docker-desktop is installed, see the migration note in
   # README.md → "Switching from Docker Desktop".
@@ -87,12 +91,19 @@ phase_configs() {
   install_file "$CONFIGS_DIR/yabai-ensure-spaces.sh"     "$HOME/.config/yabai/ensure-spaces.sh" 755
   install_file "$CONFIGS_DIR/hammerspoon-init.lua"       "$HOME/.hammerspoon/init.lua"
   install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua" "$HOME/.hammerspoon/cheatsheet.lua"
-  install_file "$CONFIGS_DIR/hammerspoon-workspace.lua"  "$HOME/.hammerspoon/workspace.lua"
 
-  # Workspace-awareness layer: yabai signal handler + rename flow +
-  # interactive Hammerspoon overlay. spaces.json is NOT install_file'd
-  # because that would clobber the user's renames; workspace/install.sh
-  # below seeds it only when missing.
+  # SketchyBar workspace-pill strip. Replaced the Hammerspoon OSD that
+  # used to flash on every space switch — pills are persistent and always
+  # visible. Items, colours and the per-pill repaint plugin live under
+  # configs/sketchybar/. brew service is started by workspace/install.sh.
+  install_file "$CONFIGS_DIR/sketchybar/sketchybarrc"       "$HOME/.config/sketchybar/sketchybarrc"       755
+  install_file "$CONFIGS_DIR/sketchybar/colors.sh"          "$HOME/.config/sketchybar/colors.sh"
+  install_file "$CONFIGS_DIR/sketchybar/plugins/space.sh"   "$HOME/.config/sketchybar/plugins/space.sh"   755
+  install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"       "$HOME/.config/sketchybar/bootstrap.sh"       755
+
+  # Workspace-awareness layer: yabai signal handler + rename flow.
+  # spaces.json is NOT install_file'd because that would clobber the
+  # user's renames; workspace/install.sh below seeds it only when missing.
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh" "$HOME/.config/workspace/on-space-changed.sh" 755
   install_file "$CONFIGS_DIR/workspace/rename.sh"           "$HOME/.config/workspace/rename.sh"           755
   install_file "$CONFIGS_DIR/workspace/install.sh"          "$HOME/.config/workspace/install.sh"          755

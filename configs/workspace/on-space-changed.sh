@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Refreshes ~/.cache/workspace/current.env from spaces.json + yabai state,
-# pushes vars into tmux global env, mirrors the JSON name onto the yabai
-# space label, repaints the JankyBorders active colour, and asks
-# Hammerspoon to render the overlay.
+# pushes vars into tmux global env, repaints the JankyBorders active
+# colour, and triggers the SketchyBar workspace-pill repaint.
 #
 # Called from yabai signals (space_changed, display_changed), the rename
 # flow, and skhd manual-refresh. Idempotent. Silent on subsystem absence
@@ -120,8 +119,11 @@ if command -v borders >/dev/null 2>&1 && pgrep -x borders >/dev/null 2>&1; then
   borders active_color="0xff${COLOR#\#}" 2>/dev/null || true
 fi
 
-# Hammerspoon overlay. Display id is passed so the OSD lands on the screen
-# containing the new focused space (not always the main display).
-if command -v hs >/dev/null 2>&1; then
-  hs -c "Workspace.show($INDEX, $DISPLAY)" >/dev/null 2>&1 || true
+# SketchyBar workspace pills. Fired AFTER current.env + tmux env + borders
+# are committed so every pill plugin reads the same state. The trigger is
+# a custom event registered in configs/sketchybar/sketchybarrc; all 10
+# pill items subscribe to it and call plugins/space.sh per-pill. Silent
+# on subsystem absence (e.g., fresh boot before brew services kicks in).
+if command -v sketchybar >/dev/null 2>&1; then
+  sketchybar --trigger workspace_changed >/dev/null 2>&1 || true
 fi

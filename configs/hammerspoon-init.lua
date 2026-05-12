@@ -96,11 +96,13 @@ local cheatsheet = require("cheatsheet")
 hs.hotkey.bind(hyper, "/", function() cheatsheet.toggle() end)
 hs.hotkey.bind(meh,   "/", function() cheatsheet.toggle() end)
 
--- Workspace OSD + rename. yabai signals call `hs -c "Workspace.show(N,D)"`,
--- so install the CLI shim and load the module on _G.
+-- hs CLI shim. The workspace OSD module is gone — SketchyBar's pill strip
+-- (configs/sketchybar/) is the persistent workspace indicator, fired by
+-- the yabai signal chain through configs/workspace/on-space-changed.sh.
+-- IPC is still installed because the skhd cheatsheet-fallback at
+-- configs/skhdrc invokes `hs -c "require('cheatsheet').toggle()"`.
 require("hs.ipc")
 if not hs.ipc.cliStatus() then hs.ipc.cliInstall() end
-require("workspace")
 
 -- Auto-reload on .lua save.
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", function(files)
