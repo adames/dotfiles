@@ -80,6 +80,17 @@ yabai -m signal --add \
   label=ensure_spaces_on_display_add \
   action="\"$HOME/.config/yabai/ensure-spaces.sh\""
 
+# Sync sketchybar pill set with yabai's per-display assignment whenever
+# a display attaches/detaches or its index changes. per-display-pills.sh
+# is idempotent + silent-on-absence, so safe to fire freely.
+for ev in display_added display_removed display_changed space_changed; do
+  yabai -m signal --remove "ws_pills_${ev}" 2>/dev/null || true
+  yabai -m signal --add \
+    event=$ev \
+    label=ws_pills_${ev} \
+    action="\"$HOME/.config/sketchybar/plugins/per-display-pills.sh\""
+done
+
 # ── neon window borders (JankyBorders) ──────────────────────────────────
 # Per-space active colour is set by on-space-changed.sh on every
 # space_changed event. Static defaults (width, style, inactive colour)
