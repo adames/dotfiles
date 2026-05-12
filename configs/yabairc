@@ -26,4 +26,20 @@ yabai -m rule --add app="^Karabiner-Elements$"  manage=off
 yabai -m rule --add app="^Hammerspoon$"         manage=off
 yabai -m rule --add app="^Finder$" title="^(Copy|Move|Info)" manage=off
 
+# Ghostty tab dance: Cmd+T creates a transient NSWindow that AppKit then
+# merges into the existing window's tab group. yabai sees the create event
+# first and BSP-splits, halving the visible window. We float the new window
+# immediately and re-tile after 400ms — by then a tab-merge has already
+# disposed of the window, so only true new windows (Cmd+N) get unfloated.
+yabai -m signal --remove ghostty_tab_dance 2>/dev/null
+yabai -m signal --add label=ghostty_tab_dance \
+  event=window_created \
+  app="^[Gg]hostty$" \
+  action='WID="$YABAI_WINDOW_ID"; \
+          yabai -m window "$WID" --toggle float 2>/dev/null; \
+          ( sleep 0.4; \
+            yabai -m query --windows --window "$WID" >/dev/null 2>&1 && \
+              yabai -m window "$WID" --toggle float 2>/dev/null \
+          ) &'
+
 echo "yabai configuration loaded"
