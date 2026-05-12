@@ -32,21 +32,60 @@ yabai -m rule --add app="^Finder$" title="^(Copy|Move|Info)" manage=off
 # a phantom tab-window. tmux handles in-window splits (C-Space + v/s).
 yabai -m signal --remove ghostty_tab_dance 2>/dev/null   # remove old approach if present
 
-# Spaces: ensure every connected display has at least 4 BSP spaces. Maps to
-# the skhdrc digit-row bindings: 1..4 on display 1, 5..8 on display 2 (when
-# attached). Logic lives in a helper so the display_added signal can reuse
-# it — attach a monitor mid-session and yabai tops the new display up to 4
-# spaces without a relogin. Requires the yabai scripting addition (see
-# macos/yabai-sa-install.sh).
-"$HOME/.config/yabai/ensure-spaces.sh" 4
+# Spaces: ensure exactly 10 BSP spaces total, labelled by index. Maps to
+# the skhdrc digit-row bindings: Caps+1..9 for slots 1–9, Caps+0 for
+# slot 10. The 10-slot identity (color, icon, default name) lives in
+# configs/workspace/spaces.default.json; labels created here let other
+# subsystems address spaces by name (e.g. `yabai -m space forge ...`)
+# rather than by volatile index.
+"$HOME/.config/yabai/ensure-spaces.sh"
 
-# Re-run the helper whenever a display is added (monitor plugged in or
-# spaces wake from sleep). Labeled so reloads of this file don't pile up
-# duplicate handlers.
+# ── workspace identity signals ──────────────────────────────────────────
+# space_changed → repaint window borders, refresh tmux/shell env, update
+# Hammerspoon overlay. Single point of integration; everything else
+# subscribes by reading ~/.cache/workspace/current.env or env vars in
+# tmux's global session.
+yabai -m signal --remove ws_space_changed 2>/dev/null || true
+yabai -m signal --add \
+  event=space_changed \
+  label=ws_space_changed \
+  action="\"$HOME/.config/workspace/on-space-changed.sh\""
+
+# Display reconciliation: keep slot 1 ("core") locked to the laptop
+# panel; exile slots 2..10 to the external display when one is attached.
+# Resolves laptop identity by stable UUID (captured by laptop-uuid-init.sh)
+# rather than by volatile yabai display index.
+for ev in display_added display_removed display_changed; do
+  yabai -m signal --remove "ws_reconcile_${ev}" 2>/dev/null || true
+  yabai -m signal --add \
+    event=$ev \
+    label=ws_reconcile_${ev} \
+    action="\"$HOME/.config/workspace/reconcile-displays.sh\""
+done
+
+# Re-run space-creation when a new display attaches. Combined with
+# reconcile-displays.sh this means: plug the monitor in, and within a
+# couple of seconds slots 2..10 have migrated to it; unplug and they
+# collapse back to the laptop.
 yabai -m signal --remove ensure_spaces_on_display_add 2>/dev/null || true
 yabai -m signal --add \
   event=display_added \
   label=ensure_spaces_on_display_add \
-  action="\"$HOME/.config/yabai/ensure-spaces.sh\" 4"
+  action="\"$HOME/.config/yabai/ensure-spaces.sh\""
+
+# ── neon window borders (JankyBorders) ──────────────────────────────────
+# Per-space active colour is set by on-space-changed.sh on every
+# space_changed event. Static defaults (width, style, inactive colour)
+# live in ~/.config/borders/bordersrc, which is itself the launch script.
+# brew formula: FelixKratz/formulae/borders.
+if command -v borders >/dev/null 2>&1 && [ -x "$HOME/.config/borders/bordersrc" ]; then
+  pgrep -x borders >/dev/null 2>&1 || ( "$HOME/.config/borders/bordersrc" >/dev/null 2>&1 & )
+fi
+
+# Prime current.env so a fresh shell launched before any space switch
+# already has identity metadata. Cheap; fails silently if the workspace
+# subsystem hasn't been installed yet.
+[ -x "$HOME/.config/workspace/on-space-changed.sh" ] && \
+  "$HOME/.config/workspace/on-space-changed.sh" >/dev/null 2>&1 || true
 
 echo "yabai configuration loaded"

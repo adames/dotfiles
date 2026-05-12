@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Refreshes ~/.cache/workspace/current.env from spaces.json + yabai state,
-# pushes vars into tmux global env, asks Hammerspoon to render the overlay.
+# pushes vars into tmux global env, mirrors the JSON name onto the yabai
+# space label, repaints the JankyBorders active colour, and asks
+# Hammerspoon to render the overlay.
 #
 # Called from yabai signals (space_changed, display_changed), the rename
-# flow, and skhd Meh+R (manual refresh). Idempotent. Silent on subsystem
-# absence — system stays usable even if Hammerspoon or tmux is down.
+# flow, and skhd manual-refresh. Idempotent. Silent on subsystem absence
+# — system stays usable even if Hammerspoon, tmux, or borders is down.
 
 set -u
 
@@ -57,6 +59,18 @@ _qq() {
   printf "'%s'" "$s"
 }
 
+# Pre-render the workspace chip's truecolor ANSI here, so prompt-time
+# consumers (starship custom.workspace) just `printf $MACOS_SPACE_ANSI`
+# instead of re-parsing the hex on every prompt. Hex parse is cheap
+# (~1ms) but multiplied by every prompt redraw it adds up; computing it
+# once per space switch keeps the prompt path purely a printf.
+hex="${COLOR#\#}"
+r=$(( 16#${hex:0:2} ))
+g=$(( 16#${hex:2:2} ))
+b=$(( 16#${hex:4:2} ))
+ANSI=$(printf '\033[1;38;2;24;24;37;48;2;%d;%d;%dm %s  %s \033[0;38;2;%d;%d;%dm\033[0m' \
+  "$r" "$g" "$b" "$ICON" "$NAME" "$r" "$g" "$b")
+
 tmp=$(mktemp "$WS_CACHE_DIR/.env.XXXXXX") || exit 1
 {
   printf 'export MACOS_SPACE_INDEX=%s\n'   "$INDEX"
@@ -64,6 +78,7 @@ tmp=$(mktemp "$WS_CACHE_DIR/.env.XXXXXX") || exit 1
   printf 'export MACOS_SPACE_COLOR=%s\n'   "$(_qq "$COLOR")"
   printf 'export MACOS_SPACE_ICON=%s\n'    "$(_qq "$ICON")"
   printf 'export MACOS_SPACE_DISPLAY=%s\n' "$DISPLAY"
+  printf 'export MACOS_SPACE_ANSI=%s\n'    "$(_qq "$ANSI")"
 } > "$tmp"
 mv -f "$tmp" "$WS_ENV"
 
@@ -77,6 +92,21 @@ if command -v tmux >/dev/null 2>&1 && tmux list-sessions >/dev/null 2>&1; then
   tmux set-environment -g MACOS_SPACE_ICON    "$ICON"
   tmux set-environment -g MACOS_SPACE_DISPLAY "$DISPLAY"
   tmux refresh-client -S 2>/dev/null || true
+fi
+
+# Note: the yabai space LABEL is intentionally NOT updated here. Labels
+# are the stable slot *identity* (core / forge / codex / …) set once by
+# yabai-ensure-spaces.sh; the JSON NAME is the mutable display string.
+# Mirroring rename → label would break reconcile-displays.sh, which uses
+# the default labels to address slots. Renames live in tmux/starship/
+# borders only.
+
+# JankyBorders: paint the active-window border in the slot's colour.
+# Borders takes 0xAARRGGBB; strip the leading '#' from COLOR. Daemon
+# may not be running yet (e.g., fresh boot before yabairc launched it)
+# — silent on absence.
+if command -v borders >/dev/null 2>&1 && pgrep -x borders >/dev/null 2>&1; then
+  borders active_color="0xff${COLOR#\#}" 2>/dev/null || true
 fi
 
 # Hammerspoon overlay. Display id is passed so the OSD lands on the screen

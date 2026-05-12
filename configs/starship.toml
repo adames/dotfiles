@@ -1,0 +1,81 @@
+# Starship prompt. Cyberpunk minimal — single line, semantic chips.
+# Workspace identity is the leftmost chip; pulls from MACOS_SPACE_*
+# env vars set by configs/workspace/on-space-changed.sh and refreshed
+# every precmd by configs/zshrc.
+
+format = """
+$custom\
+$directory\
+$git_branch$git_status\
+$python$nodejs\
+$cmd_duration\
+$line_break\
+$character"""
+
+add_newline = false
+scan_timeout = 30
+command_timeout = 500
+
+# ── workspace chip (leftmost) ───────────────────────────────────────────
+# Pre-rendered truecolor ANSI in MACOS_SPACE_ANSI, computed once per
+# space switch by configs/workspace/on-space-changed.sh. The prompt
+# path is just a printf — no hex parsing, no command substitution work.
+# Missing var (no yabai, fresh login, ssh remote) → empty chip.
+[custom.workspace]
+description = "Active yabai workspace identity (configs/workspace/on-space-changed.sh)"
+when        = "true"
+shell       = ["bash", "--noprofile", "--norc"]
+command     = 'printf %s "${MACOS_SPACE_ANSI:-}"'
+format      = "$output "
+
+# ── directory ───────────────────────────────────────────────────────────
+[directory]
+truncation_length     = 3
+truncate_to_repo      = true
+truncation_symbol     = "…/"
+read_only             = " "
+read_only_style       = "fg:#f38ba8"
+style                 = "fg:#a6adc8"
+format                = "[ $path ]($style)[$read_only]($read_only_style)"
+
+# ── git ─────────────────────────────────────────────────────────────────
+[git_branch]
+symbol         = " "
+style          = "fg:#cba6f7"
+format         = "[$symbol$branch ]($style)"
+truncation_length = 24
+
+[git_status]
+style    = "fg:#f9e2af"
+format   = "[$all_status$ahead_behind ]($style)"
+conflicted = "= "
+ahead     = "⇡${count} "
+behind    = "⇣${count} "
+diverged  = "⇕⇡${ahead_count}⇣${behind_count} "
+modified  = "● "
+staged    = "+ "
+untracked = "?${count} "
+stashed   = "≡ "
+
+# ── runtimes (compact, only when relevant) ──────────────────────────────
+[python]
+symbol = " "
+style  = "fg:#f9e2af"
+format = "[$symbol$pyenv_prefix($version )(\\($virtualenv\\) )]($style)"
+
+[nodejs]
+symbol = " "
+style  = "fg:#a6e3a1"
+format = "[$symbol($version )]($style)"
+
+# ── timing ──────────────────────────────────────────────────────────────
+[cmd_duration]
+min_time = 2000
+style    = "fg:#6c7086"
+format   = "[$duration]($style) "
+
+# ── prompt char ─────────────────────────────────────────────────────────
+[character]
+success_symbol = "[❯](bold fg:#cba6f7)"
+error_symbol   = "[❯](bold fg:#f38ba8)"
+vimcmd_symbol  = "[❮](bold fg:#a6e3a1)"

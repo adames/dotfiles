@@ -21,10 +21,11 @@ cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 
 # --- spaces (Hyper+digit focus, Meh+digit send window) -----------------
-# 4 BSP spaces per display (set by yabai-ensure-spaces.sh, fired both at
-# yabai startup and on the display_added signal). With 2 displays attached
-# that's 1..4 on display 1, 5..8 on display 2. Caps + 0 is the cheatsheet;
-# Caps + 9 unbound. For 3+ monitors use Caps + Tab to cycle displays.
+# 10 BSP spaces total (set by yabai-ensure-spaces.sh, fired both at yabai
+# startup and on the display_added signal). With 2 displays attached
+# slot 1 stays on the laptop ("core") and slots 2..10 migrate to the
+# monitor — see configs/workspace/reconcile-displays.sh. Caps + 0
+# focuses slot 10 ("void"); the cheatsheet has moved to Caps + /.
 cmd + alt + ctrl + shift - 1 : yabai -m space --focus 1
 cmd + alt + ctrl + shift - 2 : yabai -m space --focus 2
 cmd + alt + ctrl + shift - 3 : yabai -m space --focus 3
@@ -33,22 +34,34 @@ cmd + alt + ctrl + shift - 5 : yabai -m space --focus 5
 cmd + alt + ctrl + shift - 6 : yabai -m space --focus 6
 cmd + alt + ctrl + shift - 7 : yabai -m space --focus 7
 cmd + alt + ctrl + shift - 8 : yabai -m space --focus 8
+cmd + alt + ctrl + shift - 9 : yabai -m space --focus 9
+cmd + alt + ctrl + shift - 0 : yabai -m space --focus 10
 
 # Meh (Caps+Shift) is "modify": send focused window to space N and follow it.
-cmd + alt + ctrl - 1 : yabai -m window --space 1 && yabai -m space --focus 1
-cmd + alt + ctrl - 2 : yabai -m window --space 2 && yabai -m space --focus 2
-cmd + alt + ctrl - 3 : yabai -m window --space 3 && yabai -m space --focus 3
-cmd + alt + ctrl - 4 : yabai -m window --space 4 && yabai -m space --focus 4
-cmd + alt + ctrl - 5 : yabai -m window --space 5 && yabai -m space --focus 5
-cmd + alt + ctrl - 6 : yabai -m window --space 6 && yabai -m space --focus 6
-cmd + alt + ctrl - 7 : yabai -m window --space 7 && yabai -m space --focus 7
-cmd + alt + ctrl - 8 : yabai -m window --space 8 && yabai -m space --focus 8
+cmd + alt + ctrl - 1 : yabai -m window --space 1  && yabai -m space --focus 1
+cmd + alt + ctrl - 2 : yabai -m window --space 2  && yabai -m space --focus 2
+cmd + alt + ctrl - 3 : yabai -m window --space 3  && yabai -m space --focus 3
+cmd + alt + ctrl - 4 : yabai -m window --space 4  && yabai -m space --focus 4
+cmd + alt + ctrl - 5 : yabai -m window --space 5  && yabai -m space --focus 5
+cmd + alt + ctrl - 6 : yabai -m window --space 6  && yabai -m space --focus 6
+cmd + alt + ctrl - 7 : yabai -m window --space 7  && yabai -m space --focus 7
+cmd + alt + ctrl - 8 : yabai -m window --space 8  && yabai -m space --focus 8
+cmd + alt + ctrl - 9 : yabai -m window --space 9  && yabai -m space --focus 9
+cmd + alt + ctrl - 0 : yabai -m window --space 10 && yabai -m space --focus 10
 
 # --- displays -----------------------------------------------------------
-# Cycle focus between monitors. Scales past 8 spaces — useful with 3+
+# Cycle focus between monitors. Scales past 10 spaces — useful with 3+
 # displays where digit-row bindings stop making sense.
 cmd + alt + ctrl + shift - tab : yabai -m display --focus next
 cmd + alt + ctrl - tab         : yabai -m display --focus prev
+
+# --- cheatsheet ---------------------------------------------------------
+# Hyper+/ = the universal "show shortcuts" gesture. Moved here from
+# Hyper+0 once slot 10 took that binding. Hammerspoon owns the overlay;
+# this skhd entry is a no-op fallback in case Hammerspoon isn't running.
+# Backup keysyms documented in the cheatsheet itself.
+# 0x2C = / on US ANSI.
+cmd + alt + ctrl + shift - 0x2C : hs -c "require('cheatsheet').toggle()" 2>/dev/null || true
 
 # Hyper+T (new Ghostty window) is handled by Hammerspoon so it retargets
 # Ghostty even when it isn't frontmost. Hyper+N intentionally unbound.

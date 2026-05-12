@@ -52,6 +52,18 @@ fi
 command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 
+# Workspace identity: source the env file written by the yabai
+# space_changed signal so MACOS_SPACE_NAME / COLOR / ICON / INDEX are
+# available to starship's custom workspace module. precmd refresh keeps
+# the prompt in sync after a space switch without requiring a new shell.
+_workspace_env() {
+  [[ -r "$HOME/.cache/workspace/current.env" ]] && \
+    source "$HOME/.cache/workspace/current.env"
+}
+_workspace_env
+typeset -ag precmd_functions
+precmd_functions+=(_workspace_env)
+
 # Auto-attach tmux on SSH
 if [[ -n "$SSH_CONNECTION" && -z "$TMUX" ]]; then
   tmux attach-session -t main 2>/dev/null || tmux new-session -s main
