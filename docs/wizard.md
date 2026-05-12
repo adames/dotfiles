@@ -1,39 +1,63 @@
 # Permission Wizard
 
 `macos/permissions-wizard.sh` walks the three System Settings panes the
-Hyper-key stack needs. No probing, no polling — opens a pane, lists the
-toggles, waits for ↵. Three panes, ~5 minutes.
+Hyper-key stack needs — but only the ones that actually need attention.
+On a re-bootstrap of a working machine it finishes in ~2 seconds without
+opening anything. On a first install it opens whichever panes still have
+ungranted toggles, listing **only the missing items** rather than the
+full default set.
 
 ## Flow
 
-1. **Register apps in TCC lists.** `yabai/skhd --start-service`,
-   `open -ga Hammerspoon/Karabiner-Elements`. Once an app has been
-   launched, it appears in the relevant TCC pane with its toggle OFF.
-   You just flip it — no dragging through Finder's `+` dialog.
+1. **Probe.** [`lib/macos-tcc.sh`](../lib/macos-tcc.sh) asks each tool
+   whether its TCC bit is on — no prompts, no side effects, no Full Disk
+   Access required. Sources:
 
-2. **Three panes:**
+   | Tool | Probe |
+   |---|---|
+   | yabai · skhd                | `launchctl list` PID > 0 (services refuse to start without Accessibility); error-log fallback parses `"could not access accessibility"` / `"must be run with accessibility access"` |
+   | Hammerspoon                 | `osascript → hs.accessibilityState(false)` over the AppleScript bridge (our `init.lua` enables it). Behavioral fallback: registered hotkey count > 0. |
+   | Karabiner (Acc + Input Mon) | `Karabiner-Core-Service-rev2` agent PID — the service refuses to start without both bits granted, so a live PID is strong evidence of both. |
+   | DriverKit System Extension  | `systemextensionsctl list` for `Karabiner.*activated enabled`. |
+
+2. **Register if needed.** If any probe failed, launch the apps so they
+   appear in TCC lists (`yabai --start-service`, `skhd --start-service`,
+   `open -ga Hammerspoon`, `open -ga Karabiner-Elements`), then re-probe.
+   A freshly-installed app sometimes passes the second probe where it
+   failed the first.
+
+3. **Per pane, skip or open:**
 
    | Pane | Toggle ON |
    |---|---|
-   | Accessibility | yabai · skhd · Hammerspoon · Karabiner-Elements |
-   | Input Monitoring | Karabiner-Elements · Karabiner-DriverKit-VirtualHIDDevice |
-   | System Extensions | approve Karabiner-DriverKit-VirtualHIDDevice (banner near top) |
+   | Accessibility       | yabai · skhd · Hammerspoon · Karabiner-Elements |
+   | Input Monitoring    | Karabiner-Elements · Karabiner-DriverKit-VirtualHIDDevice |
+   | System Extensions   | approve Karabiner-DriverKit-VirtualHIDDevice (banner near top) |
 
-3. **Kick services.** `karabiner_grabber` and `karabiner_console_user_server`
-   re-launched so Karabiner picks up the new grants; Hammerspoon reloaded.
+   If a pane's missing list is empty, it's skipped with `✓ already granted`.
+   Otherwise the pane opens and the wizard lists only the still-missing
+   items so you're not re-toggling things that are already on.
 
-4. **Logout offer.** If `com.apple.spaces spans-displays` is set but yabai
-   isn't running, prompts to log out (yabai re-reads the value on fresh
-   login only).
+4. **Kick services.** Only runs if at least one pane was opened.
+   `karabiner_grabber` and `karabiner_console_user_server` are
+   re-launched so Karabiner picks up new grants; Hammerspoon reloaded.
+
+5. **Logout offer.** If `com.apple.spaces spans-displays` is set but
+   yabai isn't running, prompts to log out (yabai re-reads the value on
+   fresh login only).
 
 ## Run
 
 ```sh
-~/dotfiles/macos/permissions-wizard.sh   # full walk-through (idempotent)
+~/dotfiles/macos/permissions-wizard.sh           # probe-gated walk-through (idempotent)
+~/dotfiles/macos/permissions-wizard.sh --force   # bypass probes, open every pane
 ```
 
-There's no `--step` option: if you only need to fix one pane, open it
-directly:
+Use `--force` when you suspect a probe is lying (false positive → pane
+silently skipped when grant is actually missing) or for manual
+re-verification.
+
+If you only need to fix one pane, open it directly:
 
 ```sh
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
@@ -52,6 +76,8 @@ open "x-apple.systempreferences:com.apple.preference.security?Privacy_SystemServ
 
 | Symptom | Fix |
 |---|---|
+| Wizard reports a pane "already granted" but a binding doesn't work | Probe false positive. Re-run with `--force` to walk every pane manually. |
+| Wizard opens a pane whose toggles already look on | Probe false negative — the app probably wasn't running when probed. Harmless; press ↵ to advance. |
 | Toggle exists but is greyed out | Some macOS versions require unlocking the pane (click the lock at the bottom). |
 | Karabiner-DriverKit System Extension never goes green | Open Privacy & Security and scroll for the "Allow" banner near the top. |
 | `osascript: not authorized` errors | The terminal hosting the script needs Accessibility once. Grant it, re-run. |

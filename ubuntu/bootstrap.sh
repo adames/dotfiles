@@ -16,7 +16,7 @@ DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 # below isn't done through a broken REPL on the first-ever bootstrap from
 # a Ghostty SSH session.
 phase_terminfo() {
-  section "Phase 1/7 · terminfo (xterm-ghostty)"
+  section "Phase 1/6 · terminfo (xterm-ghostty)"
   if ! have tic; then
     step "installing ncurses-bin (provides tic)"
     sudo apt update -qq && sudo apt install -y ncurses-bin >/dev/null
@@ -33,7 +33,7 @@ phase_terminfo() {
 
 # ─── phase 1 · system packages ──────────────────────────────────────────────
 phase_system() {
-  section "Phase 2/7 · system packages"
+  section "Phase 2/6 · system packages"
   step "apt update + upgrade"
   sudo apt update && sudo apt upgrade -y >/dev/null
   ok "system up to date"
@@ -63,26 +63,9 @@ phase_system() {
   fi
 }
 
-# ─── phase 2 · chezmoi-managed dotfiles ─────────────────────────────────────
-phase_dotfiles() {
-  section "Phase 3/7 · dotfiles (chezmoi)"
-  if ! have chezmoi; then
-    step "installing chezmoi"
-    curl -fsLS https://get.chezmoi.io | bash -s -- -b "$HOME/.local/bin"
-    ok "chezmoi installed"
-  fi
-  if [[ ! -d "$HOME/.local/share/chezmoi" ]]; then
-    step "initialising chezmoi from $DOTFILES_REPO"
-    chezmoi init "$DOTFILES_REPO"
-  fi
-  step "applying chezmoi state"
-  chezmoi apply --force || warn "chezmoi apply had warnings"
-  ok "dotfiles applied"
-}
-
 # ─── phase 3 · shell layer ──────────────────────────────────────────────────
 phase_shell() {
-  section "Phase 4/7 · shell layer"
+  section "Phase 3/6 · shell layer"
   if ! have starship; then
     step "installing Starship"
     curl -sS https://starship.rs/install.sh | sh -s -- --yes >/dev/null
@@ -105,8 +88,12 @@ phase_shell() {
 }
 
 # ─── phase 4 · runtimes ─────────────────────────────────────────────────────
+# Docker intentionally NOT installed: on macOS, OrbStack covers containers.
+# On Ubuntu (this script) containers aren't a typical workload for the VPS /
+# VM use cases — develop locally with OrbStack, ship from there. If you ever
+# need a container runtime on the server: `curl -fsSL https://get.docker.com | sh`.
 phase_runtimes() {
-  section "Phase 5/7 · runtimes"
+  section "Phase 4/6 · runtimes"
   if ! have mise && [[ ! -x "$HOME/.local/bin/mise" ]]; then
     step "installing mise"
     curl -fsSL https://mise.run | sh >/dev/null
@@ -114,13 +101,6 @@ phase_runtimes() {
   fi
   step "mise install (per ~/.tool-versions / .mise.toml)"
   "$HOME/.local/bin/mise" install || mise install || true
-
-  if ! have docker; then
-    step "installing Docker"
-    curl -fsSL https://get.docker.com | sh >/dev/null
-    sudo usermod -aG docker "$USER"
-    ok "Docker installed (re-login for group membership)"
-  fi
 
   if ! have claude; then
     step "installing Claude CLI"
@@ -132,23 +112,33 @@ phase_runtimes() {
 
 # ─── phase 5 · configs ──────────────────────────────────────────────────────
 phase_configs() {
-  section "Phase 6/7 · configs"
+  section "Phase 5/6 · configs"
   install_file "$CONFIGS_DIR/tmux.conf"           "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/ripgreprc"           "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
+  install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
+  install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
 
   ensure_dir "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-init.lua"       "$HOME/.config/nvim/init.lua"
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"    "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
-  # zshrc + gitconfig left to chezmoi by design.
-  info "zshrc + gitconfig managed by chezmoi"
+  # User info lives in ~/.gitconfig.local (not tracked, [include]'d by gitconfig).
+  # Same pattern as macos/bootstrap.sh — keeps the two paths symmetric.
+  if [[ ! -f "$HOME/.gitconfig.local" ]]; then
+    cat > "$HOME/.gitconfig.local" <<'EOF'
+[user]
+	email = you@example.com
+	name = Your Name
+EOF
+    ok "created ~/.gitconfig.local stub — edit user.email / user.name"
+  fi
 }
 
 # ─── phase 6 · default shell ────────────────────────────────────────────────
 phase_default_shell() {
-  section "Phase 7/7 · default shell"
+  section "Phase 6/6 · default shell"
   if [[ "$SHELL" != "$(command -v zsh)" ]]; then
     step "setting login shell to zsh"
     sudo chsh -s "$(command -v zsh)" "$USER" || warn "chsh failed; run manually"
@@ -165,7 +155,6 @@ main() {
 
   phase_terminfo
   phase_system
-  phase_dotfiles
   phase_shell
   phase_runtimes
   phase_configs

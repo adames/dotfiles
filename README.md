@@ -50,10 +50,11 @@ git clone "${DOTFILES_REPO:-git@github.com:adames/dotfiles.git}" ~/dotfiles
 ```
 
 macOS bootstrap is five phases (sudo / packages / configs / defaults /
-wizard). Ubuntu is seven (terminfo / system / dotfiles / shell / runtimes
-/ configs / default-shell). The Ubuntu side skips yabai/Karabiner, leaves
-zshrc/gitconfig to chezmoi, and ships an `xterm-ghostty` terminfo entry
-so SSH'ing in from Ghostty doesn't break zsh's line editor.
+wizard). Ubuntu is six (terminfo / system / shell / runtimes / configs /
+default-shell). The Ubuntu side skips yabai/Karabiner, omits Docker
+(OrbStack covers containers on the Mac side; the VPS doesn't need them
+locally), and ships an `xterm-ghostty` terminfo entry so SSH'ing in from
+Ghostty doesn't break zsh's line editor.
 
 ## What you get
 
@@ -267,17 +268,23 @@ Tmux: `prefix + r`.
 ```
 ~/dotfiles/
 ├── bootstrap.sh                  # OS dispatcher
-├── lib/common.sh                 # logging + install_file helpers
+├── lib/
+│   ├── common.sh                 # logging + install_file helpers
+│   └── macos-tcc.sh              # TCC probes for the gated wizard
 ├── macos/
-│   ├── bootstrap.sh              # 5 phases
-│   └── permissions-wizard.sh     # opens 3 TCC panes, ↵ to advance
-├── ubuntu/bootstrap.sh           # 6 phases
+│   ├── bootstrap.sh              # 5 phases (sudo / pkgs / configs / defaults / wizard)
+│   ├── permissions-wizard.sh     # probe-gated; --force to walk every pane
+│   └── yabai-sa-install.sh       # post-SIP-disable: install scripting addition + sudoers
+├── ubuntu/bootstrap.sh           # 6 phases (terminfo / system / shell / runtimes / configs / shell)
 ├── docs/{architecture,wizard}.md
 └── configs/
     ├── karabiner.{json,md}       # Caps remap + JSON explainer
-    ├── yabairc · skhdrc          # tiling + Hyper bindings
+    ├── yabairc                   # BSP tiling
+    ├── yabai-ensure-spaces.sh    # idempotent N-spaces-per-display helper
+    ├── skhdrc                    # Hyper bindings → yabai
     ├── hammerspoon-{init,cheatsheet}.lua
     ├── ghostty-config
+    ├── xterm-ghostty.terminfo    # compiled into ~/.terminfo on Ubuntu boxes
     ├── tmux.conf · tmux-sessionizer
     ├── zshrc · gitconfig · ripgreprc
     └── nvim-{init.lua,lazy-lock.json,keymaps.lua}
