@@ -12,15 +12,17 @@
 local M = {}
 
 -- Hysteresis thresholds chosen so the bar "tags out" with the menu bar:
---   • Hide only when the cursor crosses the very top edge (y < 2) —
---     same trigger that wakes the macOS auto-hide menu bar.
---   • Stay hidden while the cursor hovers anywhere over the revealed
---     menu bar (y in [2, 40)).
---   • Show again only when the cursor drops to or below the line where
---     yabai-tiled windows snap to (frame.y for the top-most window =
---     macOS menu-bar reserve (32) + yabai top_padding (8) = 40).
+--   • Hide when the cursor crosses the very top edge (y < 2) — same
+--     trigger that wakes the macOS auto-hide menu bar.
+--   • Show again as soon as the cursor drops below the menu bar's
+--     reserved region, computed dynamically from the screen frame
+--     (typically y >= 32 on notched MacBooks, 24 on older displays).
+--     This is the same line at which macOS starts hiding the menu bar,
+--     so the two strips effectively tag-out.
 local HIDE_AT_Y = 2
-local SHOW_AT_Y = 40
+local function show_at_y()
+  return (hs.screen.primaryScreen():frame().y) or 25
+end
 
 local function find_sketchybar()
   for _, p in ipairs({ "/opt/homebrew/bin/sketchybar", "/usr/local/bin/sketchybar" }) do
@@ -50,7 +52,7 @@ M.timer = hs.timer.doEvery(0.1, function()
   local y = hs.mouse.absolutePosition().y
   if shown and y < HIDE_AT_Y then
     set_shown(false)
-  elseif not shown and y >= SHOW_AT_Y then
+  elseif not shown and y >= show_at_y() then
     set_shown(true)
   end
 end)
