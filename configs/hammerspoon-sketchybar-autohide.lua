@@ -11,10 +11,16 @@
 
 local M = {}
 
--- Trigger zone height. Slightly larger than the macOS menu bar so the
--- strip hides a beat before the menu bar slides in, and stays hidden
--- while the cursor is anywhere over a revealed menu bar.
-local TRIGGER_Y = 30
+-- Hysteresis thresholds chosen so the bar "tags out" with the menu bar:
+--   • Hide only when the cursor crosses the very top edge (y < 2) —
+--     same trigger that wakes the macOS auto-hide menu bar.
+--   • Stay hidden while the cursor hovers anywhere over the revealed
+--     menu bar (y in [2, 40)).
+--   • Show again only when the cursor drops to or below the line where
+--     yabai-tiled windows snap to (frame.y for the top-most window =
+--     macOS menu-bar reserve (32) + yabai top_padding (8) = 40).
+local HIDE_AT_Y = 2
+local SHOW_AT_Y = 40
 
 local function find_sketchybar()
   for _, p in ipairs({ "/opt/homebrew/bin/sketchybar", "/usr/local/bin/sketchybar" }) do
@@ -41,7 +47,12 @@ local function set_shown(s)
 end
 
 M.timer = hs.timer.doEvery(0.1, function()
-  set_shown(hs.mouse.absolutePosition().y >= TRIGGER_Y)
+  local y = hs.mouse.absolutePosition().y
+  if shown and y < HIDE_AT_Y then
+    set_shown(false)
+  elseif not shown and y >= SHOW_AT_Y then
+    set_shown(true)
+  end
 end)
 
 return M
