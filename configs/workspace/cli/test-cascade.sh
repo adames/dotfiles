@@ -193,21 +193,23 @@ cp -f "$SNAP" "$WS_CONFIG"
 assert "move C before A: slot 1 name = C" "$name3_orig" "$(jq -r '.spaces["1"].name' "$WS_CONFIG")"
 
 # 12c · rotate is well-defined (involution at rotate $n)
+# Comparisons use jq -Sc so intra-slot key order doesn't matter — only
+# semantic equivalence of (name, color, icon) per slot.
 cp -f "$SNAP" "$WS_CONFIG"
 n=$("$WS_BIN" count)
 "$WS_BIN" rotate "$n" >/dev/null
 assert "rotate by N is identity" \
-  "$(jq -c '.spaces' "$SNAP")" "$(jq -c '.spaces' "$WS_CONFIG")"
+  "$(jq -Sc '.spaces' "$SNAP")" "$(jq -Sc '.spaces' "$WS_CONFIG")"
 "$WS_BIN" rotate 1 >/dev/null
 "$WS_BIN" rotate -1 >/dev/null
 assert "rotate 1 then -1 restores" \
-  "$(jq -c '.spaces' "$SNAP")" "$(jq -c '.spaces' "$WS_CONFIG")"
+  "$(jq -Sc '.spaces' "$SNAP")" "$(jq -Sc '.spaces' "$WS_CONFIG")"
 
 # 12d · reverse is an involution
 "$WS_BIN" reverse >/dev/null
 "$WS_BIN" reverse >/dev/null
 assert "reverse twice = identity" \
-  "$(jq -c '.spaces' "$SNAP")" "$(jq -c '.spaces' "$WS_CONFIG")"
+  "$(jq -Sc '.spaces' "$SNAP")" "$(jq -Sc '.spaces' "$WS_CONFIG")"
 
 # 13 · theme application
 "$WS_BIN" theme gruvbox-dark >/dev/null
