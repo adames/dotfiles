@@ -116,6 +116,12 @@ phase_configs() {
   install_file "$CONFIGS_DIR/tmux.conf"           "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/ripgreprc"           "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
+
+  # Workspace CLI: cross-platform mutation tool for spaces.json. macOS-
+  # specific consumers (sketchybar, yabai, borders) are silent-on-absence
+  # here, but the CLI itself works for editing JSON state from Linux.
+  install_file "$CONFIGS_DIR/workspace/cli/workspace"       "$HOME/.local/bin/workspace"                       755
+  install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
   install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
   install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
 
