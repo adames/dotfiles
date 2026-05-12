@@ -49,13 +49,42 @@ _require_config() {
 
 _count() { jq '.spaces | keys | map(tonumber) | length' "$WS_CONFIG"; }
 
-_validate_slot() {
+# Accept either a numeric slot index OR a slot name. Print the resolved
+# slot index to stdout. Exit 2 on no-match / ambiguous.
+_resolve_slot() {
+  local input="$1"
   local n; n=$(_count)
-  if ! [[ "$1" =~ ^[1-9][0-9]*$ ]] || (( $1 < 1 )) || (( $1 > n )); then
-    err "slot must be 1..$n (got: $1)"
+  if [[ "$input" =~ ^[1-9][0-9]*$ ]]; then
+    if (( input >= 1 && input <= n )); then
+      printf '%s\n' "$input"
+      return 0
+    fi
+    err "slot index out of range: $input (have $n slots)"
+    exit 2
+  fi
+  # Name lookup. Names must match exactly; uniqueness is enforced.
+  local matches
+  matches=$(jq -r --arg q "$input" '
+    .spaces | to_entries | map(select(.value.name == $q) | .key) | .[]
+  ' "$WS_CONFIG")
+  local n_matches
+  n_matches=$(printf '%s' "$matches" | grep -c '^[0-9]' || true)
+  if (( n_matches == 1 )); then
+    printf '%s\n' "$matches"
+    return 0
+  elif (( n_matches == 0 )); then
+    err "no slot matches '$input' (use a 1..$n index or an exact slot name)"
+    exit 2
+  else
+    err "ambiguous: name '$input' matches multiple slots ($(echo "$matches" | tr '\n' ' '))"
     exit 2
   fi
 }
+
+# Legacy name kept for back-compat with existing callsites. Exits on
+# failure; otherwise sets nothing (callers that need the resolved index
+# should use _resolve_slot directly).
+_validate_slot() { _resolve_slot "$1" >/dev/null; }
 
 _validate_color() {
   [[ "$1" =~ ^#[0-9a-fA-F]{6}$ ]] || { err "color must be #RRGGBB (got: $1)"; exit 2; }
@@ -119,36 +148,52 @@ _confirm() {
 
 cmd_help() {
   cat <<'EOF_HELP'
-workspace — manage the workspace identity (name / color / icon) of each slot.
+workspace — manage the workspace identity (name / icon) of each slot.
+
+Colors are positional: slot N keeps its color across moves and reorders.
+(name, icon) are what flow when you swap / move / rotate / reverse /
+reorder. Use `workspace color N #HEX` to change a slot's color directly.
 
 USAGE
   workspace <subcommand> [args]
+  (anywhere a slot is expected, you can pass either an index or a unique name)
 
 INSPECTION
   status [--json]            list all slots with color swatches
-  get <N> [--json]           dump slot N as JSON
+  get <SLOT> [--json]        dump slot as JSON
   count                      print current slot count
   themes [--json]            list available themes
   doctor                     validate spaces.json schema
   verify                     run end-to-end cascade tests
 
 MUTATION  (every mutation fires the cascade + post-mutate hook)
-  name <N> <NAME>            rename slot N
-  color <N> <#HEX>           set slot N's color
-  icon <N> <GLYPH>           set slot N's icon
-  add [NAME] [COLOR] [ICON]  append a new slot
-  remove <N> [-y]            delete slot N, renumber the rest
-  swap <A> <B>               exchange two slots' (name,color,icon)
-  reorder <i1> ... <iN>      permute all N slots (args must be a permutation of 1..N)
-  theme <NAME> [--with-icons]  apply a palette to all slots
-  edit                       open spaces.json in $EDITOR
-  reset [-y]                 restore spaces.json from spaces.default.json
+  name <SLOT> <NEW_NAME>           rename a slot
+  color <SLOT> <#HEX>              set slot color
+  icon <SLOT> <GLYPH>              set slot icon
+  add [NAME] [COLOR] [ICON]        append a new slot
+  remove <SLOT> [-y]               delete a slot, renumber the rest
+  swap <A> <B>                     swap two slots' (name, icon)
+  move <SRC> <DEST>                move SRC to position DEST
+  move <SRC> before|after <REF>    move SRC adjacent to REF (natural-language)
+  rotate [N]                       shift all (name, icon) by N positions (default 1, signed)
+  reverse                          reverse the slot order
+  reorder <s1> ... <sN>            permute by full source-slot list
+  theme <NAME> [--with-icons]      apply a palette to all slots
+  edit                             open spaces.json in $EDITOR
+  reset [-y]                       restore spaces.json from spaces.default.json
+
+LAYOUTS  (named snapshots, per-machine)
+  layout save <NAME>               snapshot current state
+  layout load <NAME> [-y]          restore a saved snapshot
+  layout list                      list saved layouts
+  layout delete <NAME> [-y]        remove a saved layout
 
 ENV OVERRIDES
   WS_CONFIG       path to spaces.json     (default: ~/.config/workspace/spaces.json)
   WS_THEMES_DIR   themes directory        (default: ~/.config/workspace/themes)
   WS_HANDLER      cascade entry point     (default: ~/.config/workspace/on-space-changed.sh)
   WS_HOOK         post-mutate hook        (default: ~/.config/workspace/hooks/post-mutate.sh)
+  WS_LAYOUTS_DIR  layouts directory       (default: ~/.config/workspace/layouts)
 
 EXIT CODES
   0 success · 1 runtime error · 2 usage error
@@ -182,9 +227,9 @@ cmd_status() {
 
 cmd_get() {
   _require_config
-  [[ $# -ge 1 ]] || { err "usage: workspace get <N> [--json]"; exit 2; }
-  _validate_slot "$1"
-  jq --arg k "$1" '.spaces[$k]' "$WS_CONFIG"
+  [[ $# -ge 1 ]] || { err "usage: workspace get <SLOT_OR_NAME> [--json]"; exit 2; }
+  local slot; slot=$(_resolve_slot "$1") || exit $?
+  jq --arg k "$slot" '.spaces[$k]' "$WS_CONFIG"
 }
 
 cmd_count() {
@@ -212,29 +257,29 @@ cmd_themes() {
 
 cmd_name() {
   _require_config
-  [[ $# -eq 2 ]] || { err "usage: workspace name <N> <NAME>"; exit 2; }
-  _validate_slot "$1"
-  _write '.spaces[$k] = ((.spaces[$k] // {}) + {name: $v})' --arg k "$1" --arg v "$2"
-  _fire_post name "$1"
+  [[ $# -eq 2 ]] || { err "usage: workspace name <SLOT_OR_NAME> <NEW_NAME>"; exit 2; }
+  local slot; slot=$(_resolve_slot "$1") || exit $?
+  _write '.spaces[$k] = ((.spaces[$k] // {}) + {name: $v})' --arg k "$slot" --arg v "$2"
+  _fire_post name "$slot"
   _fire_cascade
 }
 
 cmd_color() {
   _require_config
-  [[ $# -eq 2 ]] || { err "usage: workspace color <N> <#HEX>"; exit 2; }
-  _validate_slot "$1"
+  [[ $# -eq 2 ]] || { err "usage: workspace color <SLOT_OR_NAME> <#HEX>"; exit 2; }
+  local slot; slot=$(_resolve_slot "$1") || exit $?
   _validate_color "$2"
-  _write '.spaces[$k] = ((.spaces[$k] // {}) + {color: $v})' --arg k "$1" --arg v "$2"
-  _fire_post color "$1"
+  _write '.spaces[$k] = ((.spaces[$k] // {}) + {color: $v})' --arg k "$slot" --arg v "$2"
+  _fire_post color "$slot"
   _fire_cascade
 }
 
 cmd_icon() {
   _require_config
-  [[ $# -eq 2 ]] || { err "usage: workspace icon <N> <GLYPH>"; exit 2; }
-  _validate_slot "$1"
-  _write '.spaces[$k] = ((.spaces[$k] // {}) + {icon: $v})' --arg k "$1" --arg v "$2"
-  _fire_post icon "$1"
+  [[ $# -eq 2 ]] || { err "usage: workspace icon <SLOT_OR_NAME> <GLYPH>"; exit 2; }
+  local slot; slot=$(_resolve_slot "$1") || exit $?
+  _write '.spaces[$k] = ((.spaces[$k] // {}) + {icon: $v})' --arg k "$slot" --arg v "$2"
+  _fire_post icon "$slot"
   _fire_cascade
 }
 
@@ -298,9 +343,8 @@ cmd_remove() {
     esac
     shift
   done
-  [[ ${#args[@]} -eq 1 ]] || { err "usage: workspace remove <N> [-y]"; exit 2; }
-  _validate_slot "${args[0]}"
-  local slot="${args[0]}"
+  [[ ${#args[@]} -eq 1 ]] || { err "usage: workspace remove <SLOT_OR_NAME> [-y]"; exit 2; }
+  local slot; slot=$(_resolve_slot "${args[0]}") || exit $?
   local n; n=$(_count)
   if (( n <= 1 )); then
     err "refusing to remove last slot (count would go to 0)"
@@ -329,16 +373,18 @@ cmd_remove() {
 
 cmd_swap() {
   _require_config
-  [[ $# -eq 2 ]] || { err "usage: workspace swap <A> <B>"; exit 2; }
-  _validate_slot "$1"
-  _validate_slot "$2"
-  if [[ "$1" == "$2" ]]; then return 0; fi
+  [[ $# -eq 2 ]] || { err "usage: workspace swap <SLOT_OR_NAME> <SLOT_OR_NAME>"; exit 2; }
+  local a b
+  a=$(_resolve_slot "$1") || exit $?
+  b=$(_resolve_slot "$2") || exit $?
+  if [[ "$a" == "$b" ]]; then return 0; fi
+  # Positional colors: name+icon swap, color stays at slot index.
   _write '
     . as $orig
-    | .spaces[$a] = $orig.spaces[$b]
-    | .spaces[$b] = $orig.spaces[$a]
-  ' --arg a "$1" --arg b "$2"
-  _fire_post swap "$1" "$2"
+    | .spaces[$a] = (($orig.spaces[$a] // {}) | {color}) + (($orig.spaces[$b] // {}) | {name, icon})
+    | .spaces[$b] = (($orig.spaces[$b] // {}) | {color}) + (($orig.spaces[$a] // {}) | {name, icon})
+  ' --arg a "$a" --arg b "$b"
+  _fire_post swap "$a" "$b"
   _fire_cascade
 }
 
@@ -349,32 +395,210 @@ cmd_reorder() {
     err "reorder requires exactly $n args (current slot count); got $#"
     exit 2
   fi
-  # Validate: each arg is an integer in [1,n] and they're a permutation.
+  # Resolve each arg (accepts names or indices) into a normalized
+  # numeric permutation. Validate: must be a permutation of 1..n.
+  local resolved=()
   local i seen=""
   for (( i=1; i<=$#; i++ )); do
-    local a="${!i}"
-    if ! [[ "$a" =~ ^[1-9][0-9]*$ ]] || (( a < 1 )) || (( a > n )); then
-      err "reorder arg $i = '$a' is not in 1..$n"
+    local r
+    r=$(_resolve_slot "${!i}") || exit $?
+    if [[ ",$seen," == *",$r,"* ]]; then
+      err "reorder arg $i = '${!i}' resolves to slot $r, which is a duplicate"
       exit 2
     fi
-    if [[ ",$seen," == *",$a,"* ]]; then
-      err "reorder arg $i = '$a' is a duplicate"
-      exit 2
-    fi
-    seen="$seen,$a"
+    seen="$seen,$r"
+    resolved+=("$r")
   done
+  local args_json
+  args_json=$(printf '%s\n' "${resolved[@]}" | jq -Rn '[inputs | tonumber]')
+  # Positional colors: only (name, icon) move; color stays at slot index.
+  _write '
+    . as $orig
+    | .spaces = (
+        reduce range(0; ($args | length)) as $i ({};
+          .[($i+1|tostring)] = (
+            (($orig.spaces[($i+1|tostring)] // {}) | {color})
+            + (($orig.spaces[($args[$i]|tostring)] // {}) | {name, icon})
+          )
+        )
+      )
+  ' --argjson args "$args_json"
+  _fire_post reorder "${resolved[@]}"
+  _fire_cascade
+}
+
+# Apply a numeric permutation array (each entry = source slot for that
+# destination index, 1..N) to .spaces with positional-color semantics.
+# Used by move / rotate / reverse to keep the jq path single-sourced.
+_apply_perm() {
+  # _apply_perm <subcommand-label> <slot1> <slot2> ... <slotN>
+  local label="$1"; shift
+  local n; n=$(_count)
+  if [[ $# -ne $n ]]; then
+    err "internal: _apply_perm got $# args, expected $n"
+    exit 1
+  fi
   local args_json
   args_json=$(printf '%s\n' "$@" | jq -Rn '[inputs | tonumber]')
   _write '
     . as $orig
     | .spaces = (
         reduce range(0; ($args | length)) as $i ({};
-          .[($i+1|tostring)] = $orig.spaces[($args[$i]|tostring)]
+          .[($i+1|tostring)] = (
+            (($orig.spaces[($i+1|tostring)] // {}) | {color})
+            + (($orig.spaces[($args[$i]|tostring)] // {}) | {name, icon})
+          )
         )
       )
   ' --argjson args "$args_json"
-  _fire_post reorder "$@"
+  _fire_post "$label" "$@"
   _fire_cascade
+}
+
+cmd_move() {
+  _require_config
+  [[ $# -ge 2 ]] || { err "usage: workspace move <SRC> <DEST>  |  move <SRC> before|after <REF>"; exit 2; }
+  local n; n=$(_count)
+  local src; src=$(_resolve_slot "$1") || exit $?
+  shift
+  local dest=""
+  if [[ "$1" == "before" || "$1" == "after" ]]; then
+    [[ $# -eq 2 ]] || { err "usage: workspace move <SRC> $1 <REF>"; exit 2; }
+    local direction="$1" ref
+    ref=$(_resolve_slot "$2") || exit $?
+    if [[ "$src" == "$ref" ]]; then return 0; fi
+    # Build the list of all slots minus src, find ref's new position,
+    # then compute dest position (1-indexed in the final list).
+    local without_src=()
+    local i
+    for (( i=1; i<=n; i++ )); do
+      [[ "$i" != "$src" ]] && without_src+=("$i")
+    done
+    local ref_pos=0
+    for (( i=0; i<${#without_src[@]}; i++ )); do
+      if [[ "${without_src[$i]}" == "$ref" ]]; then ref_pos=$((i+1)); break; fi
+    done
+    if [[ "$direction" == "before" ]]; then dest=$ref_pos; else dest=$((ref_pos + 1)); fi
+  else
+    [[ $# -eq 1 ]] || { err "usage: workspace move <SRC> <DEST>  |  move <SRC> before|after <REF>"; exit 2; }
+    if ! [[ "$1" =~ ^[1-9][0-9]*$ ]] || (( $1 < 1 )) || (( $1 > n )); then
+      err "destination must be 1..$n (got: $1)"; exit 2
+    fi
+    dest="$1"
+    if [[ "$src" == "$dest" ]]; then return 0; fi
+  fi
+  # Compose final permutation: without_src with src inserted at dest.
+  local without_src=()
+  local i
+  for (( i=1; i<=n; i++ )); do
+    [[ "$i" != "$src" ]] && without_src+=("$i")
+  done
+  local perm=()
+  for (( i=0; i<${#without_src[@]}; i++ )); do
+    if (( i+1 == dest )); then perm+=("$src"); fi
+    perm+=("${without_src[$i]}")
+  done
+  if (( dest > ${#without_src[@]} )); then perm+=("$src"); fi
+  _apply_perm move "${perm[@]}"
+}
+
+cmd_rotate() {
+  _require_config
+  local n; n=$(_count)
+  local k="${1:-1}"
+  if ! [[ "$k" =~ ^-?[0-9]+$ ]]; then err "rotate takes an integer step (got: $k)"; exit 2; fi
+  # Normalize k into [0, n)
+  k=$(( ((k % n) + n) % n ))
+  if (( k == 0 )); then return 0; fi
+  # Right rotation: new[i] = old[((i-1 - k + n) mod n) + 1]
+  local perm=() i src
+  for (( i=1; i<=n; i++ )); do
+    src=$(( ((i - 1 - k + n) % n) + 1 ))
+    perm+=("$src")
+  done
+  _apply_perm rotate "${perm[@]}"
+}
+
+cmd_reverse() {
+  _require_config
+  local n; n=$(_count)
+  local perm=() i
+  for (( i=n; i>=1; i-- )); do perm+=("$i"); done
+  _apply_perm reverse "${perm[@]}"
+}
+
+cmd_layout() {
+  _require_config
+  local layouts_dir="${WS_LAYOUTS_DIR:-$HOME/.config/workspace/layouts}"
+  mkdir -p "$layouts_dir"
+  local sub="${1:-}"; shift || true
+  case "$sub" in
+    save)
+      [[ $# -eq 1 ]] || { err "usage: workspace layout save <NAME>"; exit 2; }
+      [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || { err "layout name must be [A-Za-z0-9._-]+"; exit 2; }
+      local dest="$layouts_dir/$1.json"
+      local tmp; tmp=$(mktemp) || { err "mktemp failed"; exit 1; }
+      cp "$WS_CONFIG" "$tmp" && mv -f "$tmp" "$dest"
+      ok "saved layout ${dest/#$HOME/~}"
+      ;;
+    load)
+      local name="" yes=0
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          -y|--yes) yes=1 ;;
+          *) [[ -z "$name" ]] && name="$1" || { err "unexpected arg: $1"; exit 2; } ;;
+        esac
+        shift
+      done
+      [[ -n "$name" ]] || { err "usage: workspace layout load <NAME> [-y]"; exit 2; }
+      local src="$layouts_dir/$name.json"
+      [[ -r "$src" ]] || { err "layout not found: $src"; exit 1; }
+      jq -e . "$src" >/dev/null 2>&1 || { err "layout is malformed JSON: $src"; exit 1; }
+      _confirm "replace spaces.json with layout '$name'?" "$yes" \
+        || { warn "aborted"; exit 1; }
+      local tmp; tmp=$(mktemp) || { err "mktemp failed"; exit 1; }
+      cp "$src" "$tmp" && mv -f "$tmp" "$WS_CONFIG"
+      _fire_post layout "$name"
+      _fire_cascade
+      ;;
+    list)
+      local f
+      for f in "$layouts_dir"/*.json; do
+        [[ -f "$f" ]] && basename "$f" .json
+      done
+      ;;
+    delete|rm)
+      local name="" yes=0
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          -y|--yes) yes=1 ;;
+          *) [[ -z "$name" ]] && name="$1" || { err "unexpected arg: $1"; exit 2; } ;;
+        esac
+        shift
+      done
+      [[ -n "$name" ]] || { err "usage: workspace layout delete <NAME> [-y]"; exit 2; }
+      local target="$layouts_dir/$name.json"
+      [[ -e "$target" ]] || { err "layout not found: $target"; exit 1; }
+      _confirm "delete layout '$name'?" "$yes" || { warn "aborted"; exit 1; }
+      rm -f "$target"
+      ok "deleted ${target/#$HOME/~}"
+      ;;
+    ""|-h|--help|help)
+      cat <<'EOF_LAYOUT'
+workspace layout — save / load / list named snapshots of spaces.json
+
+  workspace layout save <NAME>          snapshot current state
+  workspace layout load <NAME> [-y]     restore a saved snapshot
+  workspace layout list                 list saved layouts
+  workspace layout delete <NAME> [-y]   remove a saved layout
+
+Layouts are stored in ~/.config/workspace/layouts/<NAME>.json (or
+$WS_LAYOUTS_DIR if set). They are per-machine and not committed.
+EOF_LAYOUT
+      ;;
+    *)
+      err "unknown layout subcommand: $sub"; exit 2 ;;
+  esac
 }
 
 cmd_theme() {
@@ -524,11 +748,15 @@ case "${1:-}" in
   add)               shift; cmd_add      "$@" ;;
   remove)            shift; cmd_remove   "$@" ;;
   swap)              shift; cmd_swap     "$@" ;;
+  move)              shift; cmd_move     "$@" ;;
+  rotate)            shift; cmd_rotate   "$@" ;;
+  reverse)           shift; cmd_reverse  "$@" ;;
   reorder)           shift; cmd_reorder  "$@" ;;
   theme)             shift; cmd_theme    "$@" ;;
   edit)              shift; cmd_edit     "$@" ;;
   reset)             shift; cmd_reset    "$@" ;;
   doctor)            shift; cmd_doctor   "$@" ;;
   verify)            shift; cmd_verify   "$@" ;;
+  layout)            shift; cmd_layout   "$@" ;;
   *) err "unknown subcommand: $1 (try 'workspace --help')"; exit 2 ;;
 esac

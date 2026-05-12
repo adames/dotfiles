@@ -124,30 +124,42 @@ assert "count decremented" "$((orig_count - 1))" "$("$WS_BIN" count)"
 # Restore from snapshot before next test (re-fire cascade silently)
 cp -f "$SNAP" "$WS_CONFIG"
 
-# 8 · swap involution
-orig1=$(jq -c '.spaces["1"]' "$SNAP")
-orig2=$(jq -c '.spaces["2"]' "$SNAP")
+# 8 · swap (positional colors: name+icon swap, color stays at slot)
+color1_orig=$(jq -r '.spaces["1"].color' "$SNAP")
+color2_orig=$(jq -r '.spaces["2"].color' "$SNAP")
+name1_orig=$(jq -r '.spaces["1"].name'  "$SNAP")
+name2_orig=$(jq -r '.spaces["2"].name'  "$SNAP")
 "$WS_BIN" swap 1 2 >/dev/null
-assert "swap: slot 1 = old slot 2" "$orig2" "$(jq -c '.spaces["1"]' "$WS_CONFIG")"
-assert "swap: slot 2 = old slot 1" "$orig1" "$(jq -c '.spaces["2"]' "$WS_CONFIG")"
+assert "swap: slot 1 name = old slot 2 name" "$name2_orig" "$(jq -r '.spaces["1"].name' "$WS_CONFIG")"
+assert "swap: slot 2 name = old slot 1 name" "$name1_orig" "$(jq -r '.spaces["2"].name' "$WS_CONFIG")"
+assert "swap (positional): slot 1 color UNCHANGED" "$color1_orig" "$(jq -r '.spaces["1"].color' "$WS_CONFIG")"
+assert "swap (positional): slot 2 color UNCHANGED" "$color2_orig" "$(jq -r '.spaces["2"].color' "$WS_CONFIG")"
 "$WS_BIN" swap 1 2 >/dev/null
-assert "swap is involution: slot 1 restored" "$orig1" "$(jq -c '.spaces["1"]' "$WS_CONFIG")"
+assert "swap involution: slot 1 name restored" "$name1_orig" "$(jq -r '.spaces["1"].name' "$WS_CONFIG")"
 
-# 9 · reorder: rotate left then right (involution at this arity is not
-# identity, but applying inverse permutation restores).
+# 8b · slot-name resolver: commands accept names not just indices
+"$WS_BIN" name "$name1_orig" "renamed-by-name-$$" >/dev/null
+assert "name resolver: slot 1 renamed via its old name" "renamed-by-name-$$" "$(jq -r '.spaces["1"].name' "$WS_CONFIG")"
+# Restore original name so subsequent positional tests work
+"$WS_BIN" name 1 "$name1_orig" >/dev/null
+
+# 9 · reorder: rotate left then right (positional colors → only name+icon move)
 n=$("$WS_BIN" count)
 left=$(seq 2 "$n"; echo 1)
 right=$(echo "$n"; seq 1 $((n - 1)))
 # shellcheck disable=SC2086
 "$WS_BIN" reorder $left >/dev/null
-assert "reorder rotate-left: slot $n = old slot 1" \
-  "$(jq -c '.spaces["1"]' "$SNAP")" \
-  "$(jq -c --arg c "$n" '.spaces[$c]' "$WS_CONFIG")"
+assert "reorder rotate-left: slot $n name = old slot 1 name" \
+  "$(jq -r '.spaces["1"].name' "$SNAP")" \
+  "$(jq -r --arg c "$n" '.spaces[$c].name' "$WS_CONFIG")"
+assert "reorder (positional): slot $n color UNCHANGED" \
+  "$(jq -r --arg c "$n" '.spaces[$c].color' "$SNAP")" \
+  "$(jq -r --arg c "$n" '.spaces[$c].color' "$WS_CONFIG")"
 # shellcheck disable=SC2086
 "$WS_BIN" reorder $right >/dev/null
 assert "reorder rotate-right restores" \
-  "$(jq -c '.spaces' "$SNAP")" \
-  "$(jq -c '.spaces' "$WS_CONFIG")"
+  "$(jq -Sc '.spaces' "$SNAP")" \
+  "$(jq -Sc '.spaces' "$WS_CONFIG")"
 
 # 10 · reorder validates: duplicates rejected
 seq_ok=$(seq 1 "$n" | tr '\n' ' ')
@@ -164,6 +176,39 @@ assert_false "reorder rejects out-of-range" "$WS_BIN" reorder $oor_args
 assert_false "reorder rejects wrong arity" "$WS_BIN" reorder 1 2 3
 unset seq_ok
 
+# 12a · move <SRC> <DEST> numeric
+cp -f "$SNAP" "$WS_CONFIG"
+"$WS_BIN" move 1 3 >/dev/null
+assert "move 1→3: slot 3 name = old slot 1 name" "$name1_orig" "$(jq -r '.spaces["3"].name' "$WS_CONFIG")"
+assert "move 1→3: slot 1 color UNCHANGED (positional)" "$color1_orig" "$(jq -r '.spaces["1"].color' "$WS_CONFIG")"
+
+# 12b · move <SRC> before|after <REF>
+cp -f "$SNAP" "$WS_CONFIG"
+name3_orig=$(jq -r '.spaces["3"].name' "$SNAP")
+"$WS_BIN" move "$name1_orig" after "$name3_orig" >/dev/null
+assert "move A after C: slot 3 name = A" "$name1_orig" "$(jq -r '.spaces["3"].name' "$WS_CONFIG")"
+
+cp -f "$SNAP" "$WS_CONFIG"
+"$WS_BIN" move "$name3_orig" before "$name1_orig" >/dev/null
+assert "move C before A: slot 1 name = C" "$name3_orig" "$(jq -r '.spaces["1"].name' "$WS_CONFIG")"
+
+# 12c · rotate is well-defined (involution at rotate $n)
+cp -f "$SNAP" "$WS_CONFIG"
+n=$("$WS_BIN" count)
+"$WS_BIN" rotate "$n" >/dev/null
+assert "rotate by N is identity" \
+  "$(jq -c '.spaces' "$SNAP")" "$(jq -c '.spaces' "$WS_CONFIG")"
+"$WS_BIN" rotate 1 >/dev/null
+"$WS_BIN" rotate -1 >/dev/null
+assert "rotate 1 then -1 restores" \
+  "$(jq -c '.spaces' "$SNAP")" "$(jq -c '.spaces' "$WS_CONFIG")"
+
+# 12d · reverse is an involution
+"$WS_BIN" reverse >/dev/null
+"$WS_BIN" reverse >/dev/null
+assert "reverse twice = identity" \
+  "$(jq -c '.spaces' "$SNAP")" "$(jq -c '.spaces' "$WS_CONFIG")"
+
 # 13 · theme application
 "$WS_BIN" theme gruvbox-dark >/dev/null
 gruv_first=$(jq -r '.colors[0]' "$WS_THEMES_DIR/gruvbox-dark.json")
@@ -178,6 +223,19 @@ assert "theme catppuccin-mocha restored slot 1 color" "$mocha1" "$(jq -r '.space
 echo 'not json' > "$WS_CONFIG"
 assert_false "doctor red on broken JSON" "$WS_BIN" doctor
 cp -f "$SNAP" "$WS_CONFIG"
+
+# 15a · layout save/load/list/delete roundtrip
+layout_name="harness-test-$$"
+"$WS_BIN" layout save "$layout_name" >/dev/null
+"$WS_BIN" layout list | grep -q "^$layout_name$" && pass "layout list shows saved layout" || fail "layout list missing $layout_name"
+# Mutate then reload
+"$WS_BIN" name 1 "layout-test-mutated-$$" >/dev/null
+"$WS_BIN" layout load "$layout_name" -y >/dev/null
+assert "layout load restores name" "$(jq -r '.spaces["1"].name' "$SNAP")" "$(jq -r '.spaces["1"].name' "$WS_CONFIG")"
+"$WS_BIN" layout delete -y "$layout_name" >/dev/null
+"$WS_BIN" layout list | grep -q "^$layout_name$" \
+  && fail "layout still listed after delete" \
+  || pass "layout delete removed entry"
 
 # 16 · best-effort downstream signals (skip on absence — don't fail)
 env_file="$HOME/.cache/workspace/current.env"

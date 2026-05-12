@@ -160,19 +160,28 @@ graph LR
   committed. Bootstrap seeds it from `spaces.default.json` only when
   missing; user edits survive `bootstrap.sh` re-runs.
 - **The CLI** (`~/.local/bin/workspace`) is the public mutation API.
-  Subcommands cover name/color/icon/theme/add/remove/swap/reorder/edit/
-  reset/doctor. Every mutation is atomic (mktemp + jq + mv) and fires
-  the cascade. Slot count is derived dynamically; the system tolerates
-  any count ≥ 1 even though skhd hotkeys only bind 1..10.
+  Subcommands cover name / color / icon / theme / add / remove / swap /
+  move / rotate / reverse / reorder / layout / edit / reset / doctor.
+  Every mutation is atomic (mktemp + jq + mv) and fires the cascade.
+  Slot count is derived dynamically; the system tolerates any count
+  ≥ 1 even though skhd hotkeys only bind 1..10. Any subcommand that
+  takes a slot accepts either a numeric index or a unique slot name.
+- **Positional colors.** Reordering operations (`swap`, `move`,
+  `rotate`, `reverse`, `reorder`) permute only the (name, icon) tuples
+  — color stays anchored to slot index. This preserves muscle-memory
+  ("orange always means slot 2") across reorderings. To change a
+  slot's color, use `workspace color N #HEX` directly.
 - **`on-space-changed.sh`** is the cascade entry point — called by the
   yabai `space_changed` signal *and* by every CLI mutation. It writes
   `current.env` atomically, pushes env into tmux, repaints borders,
   triggers sketchybar, and shows the HS overlay. Silent-on-absence per
   subsystem so Ubuntu and partial setups Just Work.
-- **`hooks/post-mutate.sh`** is a user-owned extension point. Empty by
-  default (gitconfig.local-style stub); receives `(subcommand,
-  slot_indices...)` after every successful mutation. Use it to
-  dynamically add/remove sketchybar pills, log changes, etc.
+- **`hooks/post-mutate.sh`** is a user-owned extension point. The
+  shipped default keeps SketchyBar's pill set in sync with spaces.json
+  on `add` / `remove` (other mutations just need a repaint, which the
+  cascade already fires). It receives `(subcommand, slot_indices...)`
+  after every successful mutation and is gitconfig.local-style — never
+  clobbered by bootstrap.
 - **`lib/colors.sh`** owns the slot↔yabai-label mapping (core, forge,
   …). Labels are immutable so reconcile-displays.sh can address spaces
   by name across plug/unplug events. The CLI never touches labels —
