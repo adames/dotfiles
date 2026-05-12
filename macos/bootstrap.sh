@@ -89,8 +89,9 @@ phase_configs() {
   install_file "$CONFIGS_DIR/skhdrc"                     "$HOME/.skhdrc"
   install_file "$CONFIGS_DIR/yabairc"                    "$HOME/.yabairc"             755
   install_file "$CONFIGS_DIR/yabai-ensure-spaces.sh"     "$HOME/.config/yabai/ensure-spaces.sh" 755
-  install_file "$CONFIGS_DIR/hammerspoon-init.lua"       "$HOME/.hammerspoon/init.lua"
-  install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua" "$HOME/.hammerspoon/cheatsheet.lua"
+  install_file "$CONFIGS_DIR/hammerspoon-init.lua"             "$HOME/.hammerspoon/init.lua"
+  install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua"       "$HOME/.hammerspoon/cheatsheet.lua"
+  install_file "$CONFIGS_DIR/hammerspoon-sketchybar-autohide.lua" "$HOME/.hammerspoon/sketchybar-autohide.lua"
 
   # SketchyBar workspace-pill strip. Replaced the Hammerspoon OSD that
   # used to flash on every space switch — pills are persistent and always
