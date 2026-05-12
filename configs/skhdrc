@@ -67,8 +67,9 @@ cmd + alt + ctrl + shift - 0x2C : hs -c "require('cheatsheet').toggle()" 2>/dev/
 # Ghostty even when it isn't frontmost. Hyper+N intentionally unbound.
 
 # --- workspace metadata --------------------------------------------------
-# Meh+R prompts to rename the current space. Hammerspoon's textPrompt is
-# preferred; falls back to an osascript dialog when hs is down so the
-# binding never feels broken. (Hyper+R is `--rotate 90`; rename uses Meh+R
-# to avoid the collision — rename is much rarer than rotation.)
-cmd + alt + ctrl - r : hs -c "Workspace.rename()" || "$HOME/.config/workspace/rename.sh"
+# Meh+R prompts to rename the current space via the osascript dialog in
+# workspace/rename.sh. (Hyper+R is `--rotate 90`; rename uses Meh+R to
+# avoid the collision — rename is much rarer than rotation.) The script
+# updates spaces.json and fires on-space-changed.sh to cascade the new
+# name into tmux env / starship / SketchyBar.
+cmd + alt + ctrl - r : "$HOME/.config/workspace/rename.sh"
