@@ -65,3 +65,36 @@ Shift+Caps case and the 3-mod Meh would never fire.
   `{ "ctrl", "alt", "cmd" }` for Meh.
 - **macOS shortcut conflicts** — Cmd+Q, Cmd+W, etc. still work normally
   because the user is pressing them without Caps Lock.
+
+## Rule 3 — Hyper app launchers
+
+```
+from: <key> with mandatory cmd+opt+ctrl+shift   (the 4-mod Hyper)
+to:   shell_command "open -a '<App>'"
+```
+
+Karabiner re-evaluates emitted modifier keys, so the Caps→Hyper rule
+fires first, then this rule sees the resulting `Hyper+<key>` and runs the
+shell. Currently bound:
+
+| Key | App |
+|---|---|
+| `b` | Brave Browser |
+| `c` | Claude |
+| `g` | Google Chrome |
+| `s` | Safari |
+
+`Caps + v` is intentionally unbound — reserved for a clipboard-manager
+binding (Maccy, Raycast clipboard, etc.) if one is ever installed.
+
+## Layer semantic: Hyper = navigate, Meh = modify
+
+The two layers carry a consistent split — useful when adding new bindings:
+
+- **Hyper** (Caps held)        — navigate / non-destructive
+  (focus window/space, launch app, new terminal, open cheatsheet)
+- **Meh**   (Caps+Shift held)  — modify / destructive
+  (swap window, send window to space, manual snap)
+
+When in doubt about where a new binding belongs, ask: does it *move* state
+(Meh) or *show* state (Hyper)?

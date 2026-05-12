@@ -61,7 +61,8 @@ zshrc/gitconfig to chezmoi.
 | Caps → Hyper / Meh / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
 | Hyper hotkeys → yabai | skhd | [`skhdrc`](configs/skhdrc) |
-| Hyper+T/N terminal, Hyper+arrow snaps, Hyper+0 cheatsheet | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) · [`hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
+| Hyper+T/N terminal, Meh+arrow snaps, Hyper+0 cheatsheet | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) · [`hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
+| Hyper app launchers (Brave/Chrome/Safari/Claude) | Karabiner shell_command | [`karabiner.json`](configs/karabiner.json) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
 | zsh: vi-mode · starship · direnv · autosuggestions · syntax-highlighting | zsh | [`zshrc`](configs/zshrc) |
@@ -69,26 +70,41 @@ zshrc/gitconfig to chezmoi.
 | `z foo` jump to frecent dir | zoxide | wired in `zshrc` |
 | `rg` with sensible globs | ripgrep | [`ripgreprc`](configs/ripgreprc) |
 | Side-by-side syntax-highlighted git diffs | git-delta | [`gitconfig`](configs/gitconfig) |
-| Neovim 0.12+ · Lazy + 13 plugins | nvim | [`nvim-init.lua`](configs/nvim-init.lua) |
+| Neovim 0.12+ · Lazy + 15 plugins (incl. harpoon, oil) | nvim | [`nvim-init.lua`](configs/nvim-init.lua) |
 | Python: Pyright + Ruff (LSP) · debugpy (DAP) · pytest (neotest) | Mason | same |
 
 ## Daily-driver keymap
 
-Full reference is `Hyper+0`. Mental map:
+Full reference is `Hyper+0`. Layer split: **Hyper = navigate, Meh (Caps+Shift) = modify.**
 
 ```
 Caps tap                      → Esc
-Caps + hjkl                   → focus / swap window
-Caps + 1…5                    → switch space
+
+# Hyper — navigate
+Caps + hjkl                   → focus window
+Caps + 1…5                    → focus space
 Caps + return / f / e / r     → fullscreen / float / balance / rotate
 Caps + t / n                  → new terminal tab / window
+Caps + b / g / s / c          → Brave / Chrome / Safari / Claude
 Caps + 0                      → toggle cheatsheet
 
+# Meh — modify
+Caps + Shift + hjkl           → swap window
+Caps + Shift + 1…5            → send window to space N (and follow)
+Caps + Shift + ←→↑↓           → manual snap for floats / non-yabai windows
+
+# Terminal
 C-Space  hjkl / v / s / z     → tmux pane nav / split / zoom
 C-Space  f                    → fzf project sessionizer
 
+# Neovim
 <leader>ff / fg / fb          → fzf files / live-grep / buffers
 <leader>ca / rn / =           → LSP code action / rename / format
+-                             → oil (parent dir as a buffer)
+<leader>ha / hh / 1…4         → harpoon add / menu / jump
+<leader>bn / bp / bd / bo     → buffer next / prev / delete / close-others
+]c / [c                       → next / prev git hunk (gitsigns)
+<leader>gs / gh / gp / gb     → git status / stage hunk / preview / blame
 <leader>db / dc / do / di     → DAP breakpoint / continue / over / into
 <leader>tn / tf / ts          → test nearest / file / summary
 ```

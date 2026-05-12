@@ -65,7 +65,13 @@ end
 hs.hotkey.bind(hyper, "t", sendTerminalCmd("t"))
 hs.hotkey.bind(hyper, "n", sendTerminalCmd("n"))
 
--- SIP-safe window snaps. No-ops when yabai is running (yabai eats Hyper+arrows).
+-- Absolute window snaps for floating / yabai-unmanaged windows (Ghostty,
+-- System Settings, etc.). Bound on Meh, not Hyper, to keep the layer split
+-- coherent:
+--   Hyper  = navigate  (Caps + hjkl yabai focus, Caps + 1..5 space focus, …)
+--   Meh    = modify    (Caps+Shift + hjkl yabai swap, Caps+Shift + 1..5 send-
+--                       to-space, Caps+Shift + arrows manual snap)
+-- Bare arrows on the Hyper layer are intentionally unbound — pass through.
 local function snap(f)
   return function()
     local w = hs.window.focusedWindow(); if not w then return end
@@ -73,10 +79,10 @@ local function snap(f)
     w:setFrame({ x = s.x + s.w*f.x, y = s.y + s.h*f.y, w = s.w*f.w, h = s.h*f.h })
   end
 end
-hs.hotkey.bind(hyper, "left",  snap({ x = 0,    y = 0,    w = 0.5, h = 1   }))
-hs.hotkey.bind(hyper, "right", snap({ x = 0.5,  y = 0,    w = 0.5, h = 1   }))
-hs.hotkey.bind(hyper, "up",    snap({ x = 0,    y = 0,    w = 1,   h = 1   }))
-hs.hotkey.bind(hyper, "down",  snap({ x = 0.25, y = 0.25, w = 0.5, h = 0.5 }))
+hs.hotkey.bind(meh, "left",  snap({ x = 0,    y = 0,    w = 0.5, h = 1   }))
+hs.hotkey.bind(meh, "right", snap({ x = 0.5,  y = 0,    w = 0.5, h = 1   }))
+hs.hotkey.bind(meh, "up",    snap({ x = 0,    y = 0,    w = 1,   h = 1   }))
+hs.hotkey.bind(meh, "down",  snap({ x = 0.25, y = 0.25, w = 0.5, h = 0.5 }))
 
 -- Cheatsheet overlay. Dropped Cmd+? bindings — apps eat them for Help menu.
 local cheatsheet = require("cheatsheet")

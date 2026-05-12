@@ -50,6 +50,22 @@ would collapse to `Hyper + H`. By making Caps+Shift emit a *different*
 combo (Meh), skhd binds them as separate shortcuts. JSON specifics in
 [`configs/karabiner.md`](../configs/karabiner.md).
 
+### Hyper = navigate, Meh = modify
+
+The two layers carry a consistent semantic split:
+
+| Layer | Role | Examples |
+|---|---|---|
+| **Hyper** | navigate / read-only | focus window (`hjkl`), focus space (`1..5`), new terminal (`t`/`n`), launch app (`b`/`g`/`s`/`c`), cheatsheet (`0`) |
+| **Meh**   | modify / destructive | swap window (`hjkl`), send-to-space (`1..5`), manual snap (`arrows`) |
+
+This is why the SIP-safe arrow snaps live on **Meh+arrows** rather than
+Hyper+arrows — snapping is "manually move this window," which belongs in
+the modify layer next to swap and send-to-space. It keeps the
+hjkl-vs-arrows distinction coherent: `hjkl` is always yabai-managed
+(tree-relative), arrows are always absolute-position (manual mode, for
+floating or unmanaged windows like Ghostty and System Settings).
+
 ## Who owns what
 
 | Concern | Owner | Config |

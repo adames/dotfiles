@@ -5,23 +5,37 @@ local M = {}
 
 local sections = {
   -- ── Windows ───────────────────────────────────────────────────────────────
+  -- Hyper = navigate · Meh (Caps+Shift) = modify.
   {
     color = "#60a5fa",
-    title = "Windows",
-    sub   = "yabai · skhd · Hammerspoon",
+    title = "Windows · Spaces",
+    sub   = "Hyper navigate · Meh modify  (yabai · skhd · Hammerspoon)",
     rows  = {
-      { "caps + hjkl",         "focus window  ←  ↓  ↑  →" },
-      { "caps + shift + hjkl", "swap window   ←  ↓  ↑  →" },
-      { "caps + return",       "zoom fullscreen (toggle)" },
-      { "caps + f",            "float / unfloat window" },
-      { "caps + e",            "balance space" },
-      { "caps + r",            "rotate space 90°" },
-      { "caps + 1…5",          "jump to space" },
-      { "caps + ← →",         "snap ½-left / ½-right  (SIP-safe)" },
-      { "caps + ↑ ↓",         "maximise / centre 50%  (SIP-safe)" },
-      { "caps + t",            "new terminal tab" },
-      { "caps + n",            "new terminal window" },
-      { "caps + 0",            "toggle this cheatsheet" },
+      { "caps + hjkl",                "focus window   ←  ↓  ↑  →" },
+      { "caps + shift + hjkl",        "swap  window   ←  ↓  ↑  →" },
+      { "caps + return",              "zoom fullscreen (toggle)" },
+      { "caps + f",                   "float / unfloat window" },
+      { "caps + e",                   "balance space" },
+      { "caps + r",                   "rotate space 90°" },
+      { "caps + 1…5",                 "focus space N" },
+      { "caps + shift + 1…5",         "send window to space N (and follow)" },
+      { "caps + shift + ← →",         "snap ½-left / ½-right  (manual, for floats)" },
+      { "caps + shift + ↑ ↓",         "maximise / centre 50%  (manual, for floats)" },
+      { "caps + t",                   "new terminal tab" },
+      { "caps + n",                   "new terminal window" },
+      { "caps + 0",                   "toggle this cheatsheet" },
+    },
+  },
+  -- ── App launchers ─────────────────────────────────────────────────────────
+  {
+    color = "#a78bfa",
+    title = "Launch",
+    sub   = "Karabiner shell_command → open -a",
+    rows  = {
+      { "caps + b",   "Brave Browser" },
+      { "caps + g",   "Google Chrome" },
+      { "caps + s",   "Safari" },
+      { "caps + c",   "Claude" },
     },
   },
   -- ── Tmux ──────────────────────────────────────────────────────────────────
@@ -102,7 +116,37 @@ local sections = {
       { "]d   [d",               "next / prev diagnostic" },
       { "ctrl-w  v / s",         "split right / below" },
       { "ctrl-w  hjkl",          "navigate splits" },
-      { ":bn  :bp  :bd",         "next / prev / delete buffer" },
+    },
+  },
+  -- ── Neovim files & buffers ────────────────────────────────────────────────
+  {
+    color = "#38bdf8",
+    title = "Neovim · Files & Buffers",
+    sub   = "harpoon · oil · :b*",
+    rows  = {
+      { "-",                      "open parent dir (oil — edit names like text)" },
+      { "⟨leader⟩ ha",             "harpoon: add file" },
+      { "⟨leader⟩ hh",             "harpoon: toggle quick menu" },
+      { "⟨leader⟩ 1…4",            "harpoon: jump to pinned slot N" },
+      { "⟨leader⟩ bn  bp",         "buffer: next / prev" },
+      { "⟨leader⟩ bd",             "buffer: delete current" },
+      { "⟨leader⟩ bo",             "buffer: close others" },
+      { ":bn  :bp  :bd",          "buffer: next / prev / delete (cmdline)" },
+    },
+  },
+  -- ── Neovim git (gitsigns) ─────────────────────────────────────────────────
+  {
+    color = "#fb7185",
+    title = "Neovim · Git",
+    sub   = "gitsigns + fzf-lua git_status",
+    rows  = {
+      { "] c   [ c",              "next / prev hunk" },
+      { "⟨leader⟩ gs",             "git status (fzf picker)" },
+      { "⟨leader⟩ gh",             "stage hunk" },
+      { "⟨leader⟩ gp",             "preview hunk" },
+      { "⟨leader⟩ gr",             "reset hunk" },
+      { "⟨leader⟩ gb",             "blame line (full)" },
+      { "⟨leader⟩ gd",             "diff this buffer" },
     },
   },
   -- ── Python dev (debug + test) ─────────────────────────────────────────────

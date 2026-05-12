@@ -134,7 +134,60 @@ require("lazy").setup({
     end,
   },
 
-  { "lewis6991/gitsigns.nvim", config = function() require("gitsigns").setup() end },
+  {
+    "lewis6991/gitsigns.nvim",
+    config = function()
+      local gs = require("gitsigns")
+      gs.setup({
+        on_attach = function(bufnr)
+          local map = function(k, fn, d) vim.keymap.set("n", k, fn, { buffer = bufnr, desc = d }) end
+          map("]c", function()
+            if vim.wo.diff then vim.cmd("normal! ]c") else gs.nav_hunk("next") end
+          end, "Next hunk")
+          map("[c", function()
+            if vim.wo.diff then vim.cmd("normal! [c") else gs.nav_hunk("prev") end
+          end, "Prev hunk")
+          map("<leader>gh", gs.stage_hunk,                                "Stage hunk")
+          map("<leader>gp", gs.preview_hunk,                              "Preview hunk")
+          map("<leader>gr", gs.reset_hunk,                                "Reset hunk")
+          map("<leader>gb", function() gs.blame_line({ full = true }) end, "Blame line")
+          map("<leader>gd", gs.diffthis,                                  "Diff this")
+        end,
+      })
+      -- Repo-level status panel (uses fzf-lua already loaded).
+      vim.keymap.set("n", "<leader>gs", "<cmd>FzfLua git_status<cr>", { desc = "Git status" })
+    end,
+  },
+
+  -- Pinned-file jumps. <leader>ha add · <leader>hh menu · <leader>1..4 jump.
+  {
+    "ThePrimeagen/harpoon",
+    branch = "harpoon2",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      local harpoon = require("harpoon")
+      harpoon:setup()
+      local map = vim.keymap.set
+      map("n", "<leader>ha", function() harpoon:list():add() end,                                     { desc = "Add file" })
+      map("n", "<leader>hh", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end,             { desc = "Menu" })
+      map("n", "<leader>1",  function() harpoon:list():select(1) end,                                  { desc = "Harpoon 1" })
+      map("n", "<leader>2",  function() harpoon:list():select(2) end,                                  { desc = "Harpoon 2" })
+      map("n", "<leader>3",  function() harpoon:list():select(3) end,                                  { desc = "Harpoon 3" })
+      map("n", "<leader>4",  function() harpoon:list():select(4) end,                                  { desc = "Harpoon 4" })
+    end,
+  },
+
+  -- File explorer as a buffer. `-` opens the parent dir; edit names like text.
+  {
+    "stevearc/oil.nvim",
+    config = function()
+      require("oil").setup({
+        view_options = { show_hidden = true },
+        skip_confirm_for_simple_edits = true,
+      })
+      vim.keymap.set("n", "-", "<cmd>Oil<cr>", { desc = "Open parent dir" })
+    end,
+  },
 
   {
     "folke/which-key.nvim",
@@ -143,12 +196,14 @@ require("lazy").setup({
       preset = "modern",
       delay  = 300,
       spec   = {
-        { "<leader>f", group = "find"  },
-        { "<leader>l", group = "lsp"   },
-        { "<leader>d", group = "debug" },
-        { "<leader>t", group = "test"  },
-        { "<leader>g", group = "git"   },
-        { "<leader>c", group = "code"  },
+        { "<leader>f", group = "find"    },
+        { "<leader>l", group = "lsp"     },
+        { "<leader>d", group = "debug"   },
+        { "<leader>t", group = "test"    },
+        { "<leader>g", group = "git"     },
+        { "<leader>c", group = "code"    },
+        { "<leader>b", group = "buffer"  },
+        { "<leader>h", group = "harpoon" },
       },
     },
   },

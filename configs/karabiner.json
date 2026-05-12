@@ -51,6 +51,51 @@
                 ]
               }
             ]
+          },
+          {
+            "description": "Hyper app launchers: b/c/g/s -> Brave/Claude/Chrome/Safari",
+            "manipulators": [
+              {
+                "type": "basic",
+                "from": {
+                  "key_code": "b",
+                  "modifiers": {
+                    "mandatory": ["left_command", "left_option", "left_control", "left_shift"]
+                  }
+                },
+                "to": [{ "shell_command": "open -a 'Brave Browser'" }]
+              },
+              {
+                "type": "basic",
+                "from": {
+                  "key_code": "c",
+                  "modifiers": {
+                    "mandatory": ["left_command", "left_option", "left_control", "left_shift"]
+                  }
+                },
+                "to": [{ "shell_command": "open -a 'Claude'" }]
+              },
+              {
+                "type": "basic",
+                "from": {
+                  "key_code": "g",
+                  "modifiers": {
+                    "mandatory": ["left_command", "left_option", "left_control", "left_shift"]
+                  }
+                },
+                "to": [{ "shell_command": "open -a 'Google Chrome'" }]
+              },
+              {
+                "type": "basic",
+                "from": {
+                  "key_code": "s",
+                  "modifiers": {
+                    "mandatory": ["left_command", "left_option", "left_control", "left_shift"]
+                  }
+                },
+                "to": [{ "shell_command": "open -a 'Safari'" }]
+              }
+            ]
           }
         ]
       }
