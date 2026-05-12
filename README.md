@@ -204,6 +204,94 @@ Don't use macOS green-button (⛶) fullscreen on apps you want yabai to
 manage — it creates a native fullscreen space yabai cannot touch. Use
 `Caps + Return` for yabai-managed zoom instead.
 
+### Customizing workspaces — the `workspace` CLI
+
+`~/.local/bin/workspace` wraps every spaces.json mutation with an atomic
+write and a re-fire of the cascade (tmux / starship / borders /
+sketchybar / hammerspoon all repaint within ~50ms):
+
+```
+# inspection
+workspace status                  # all slots with color swatches
+workspace get core                # one slot as JSON (accepts name OR index)
+workspace count                   # current slot count
+workspace doctor                  # validate schema
+workspace verify                  # run end-to-end test harness
+
+# point edits
+workspace name 3 lab              # rename slot 3
+workspace name core kernel        # … or address it by current name
+workspace color 3 "#ffaabb"       # recolor slot 3
+workspace icon 3 ""              # set slot 3 icon (PUA glyphs preserved)
+
+# reordering ergonomics (positional colors: only name + icon move)
+workspace swap core scope         # exchange two slots' name & icon
+workspace move codex 1            # codex → slot 1; others shift
+workspace move codex before forge # natural-language adjacency
+workspace move codex after lex
+workspace rotate 1                # shift all (name, icon) right by 1
+workspace rotate -1               # shift left
+workspace reverse                 # mirror the slot order
+workspace reorder 2 1 3 4 5 6 7 8 9 10   # full permutation
+
+# count changes (sketchybar pill count tracks automatically via hook)
+workspace add lab "#ffaabb" ""    # append a new slot (count → 11)
+workspace remove 11               # delete slot 11
+workspace remove lab              # … or by name
+
+# themes
+workspace themes
+workspace theme tokyonight
+workspace theme catppuccin-mocha --with-icons
+
+# saved layouts (per-machine snapshots of spaces.json)
+workspace layout save morning
+workspace layout list
+workspace layout load morning -y
+workspace layout delete morning -y
+
+# escape hatches
+workspace edit                    # $EDITOR on spaces.json
+workspace reset -y                # restore from spaces.default.json
+```
+
+**Positional colors.** Slot N's color is intrinsic to position N. When
+you `swap`, `move`, `rotate`, `reverse`, or `reorder`, only the
+`(name, icon)` tuples permute — the color palette stays anchored to
+slot indices. Use `workspace color N #HEX` to change a slot's color
+directly. (Orange always means slot 2, regardless of what's currently
+named there.)
+
+**Slot identifiers.** Anywhere a slot is expected — `name`, `color`,
+`icon`, `get`, `remove`, `swap`, `move` — you can pass either a numeric
+index OR a unique slot name. `workspace move codex before forge`.
+
+**Per-machine, not committed.** `~/.config/workspace/spaces.json`,
+saved layouts in `~/.config/workspace/layouts/`, and any custom themes
+in `~/.config/workspace/themes/` all live in `$HOME` — they survive
+bootstrap re-runs and are never written back to the repo.
+
+**Themes** at `~/.config/workspace/themes/<name>.json`. Drop a JSON
+file matching `{"name": "...", "colors": [...N hex strings]}` (optionally
+with an `icons[]` array) and it's auto-discovered by `workspace themes`.
+Canonical palettes shipped by bootstrap: `catppuccin-mocha` (default),
+`catppuccin-frappe`, `gruvbox-dark`, `tokyonight`, `rose-pine`.
+
+**Slot count is flexible.** The CLI derives the current count from
+`spaces.json` rather than hardcoding 10. `add` / `remove` are
+first-class, and the default post-mutate hook keeps the SketchyBar
+pill count in sync (add → new pill appears, remove → old pill is
+removed; on `--reload` sketchybarrc reads the current count). Hotkeys
+remain bound to slots 1..10 in `~/.skhdrc`; slots beyond 10 are
+reachable via yabai's own CLI or by adding skhd bindings yourself.
+
+**Extension point.** Each mutation invokes
+`~/.config/workspace/hooks/post-mutate.sh` with args
+`(subcommand, slot_indices...)`. The default shipped stub keeps
+SketchyBar's pill set in sync on `add` / `remove`; edit it freely to
+also send notifications, log changes, kick other status bars, etc.
+The hook is per-machine and never clobbered.
+
 ## Switching from Docker Desktop to OrbStack
 
 `bootstrap.sh` installs `orbstack` (cask). To complete the swap on a

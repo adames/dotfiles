@@ -50,20 +50,94 @@ elif command -v jq >/dev/null 2>&1; then
       .version = ($seed[0].version // 2)
       | .spaces = (($seed[0].spaces) * (.spaces // {}))
     ' "$target" > "$tmp" && mv -f "$tmp" "$target"
-    # Post-condition: migration must produce 10 slots — anything else is
-    # a bug in the seed or the merge. Refuse to leave a corrupt config.
+    # Post-condition: migration must produce at least the seed's 10 slots
+    # (extras from `workspace add` are fine). Anything less is a bug in
+    # the merge — refuse to leave a corrupt config.
     final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
-    if [[ "$final" != "10" ]]; then
-      err "migration produced $final slots (expected 10) — leaving original at ${target}.broken"
+    if (( final < 10 )); then
+      err "migration produced $final slots (expected ≥ 10) — leaving original at ${target}.broken"
       mv "$target" "${target}.broken" 2>/dev/null
       exit 1
     fi
-    ok "migrated to 10 slots (existing renames preserved)"
+    ok "migrated to $final slots (existing renames preserved)"
   else
-    ok "preserving existing ${target/#$HOME/~} (renames intact)"
+    final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
+    if [[ "$final" != "10" ]]; then
+      info "existing ${target/#$HOME/~} has $final slots (not the canonical 10) — preserving as-is"
+    else
+      ok "preserving existing ${target/#$HOME/~} (renames intact)"
+    fi
   fi
 else
   ok "preserving existing ${target/#$HOME/~} (jq not available; no migration)"
+fi
+
+# ── 2.5 · canonical themes registry ──────────────────────────────────────
+# Refresh canonical themes shipped from the repo (byte-compare; no-op if
+# already up to date). User-added themes with different basenames are
+# never touched — `install_file` only writes the specific destination.
+themes_src_dir="$SELF_DIR/../themes"
+if [[ -d "$themes_src_dir" ]] && command -v jq >/dev/null 2>&1; then
+  mkdir -p "$HOME/.config/workspace/themes"
+  for theme_src in "$themes_src_dir"/*.json; do
+    [[ -f "$theme_src" ]] || continue
+    install_file "$theme_src" "$HOME/.config/workspace/themes/$(basename "$theme_src")"
+  done
+fi
+
+# ── 2.6 · post-mutate hook stub (gitconfig.local-style: never clobber) ───
+# The CLI invokes this hook after every successful mutation. Empty by
+# default; users (or other programs) populate it to integrate with
+# sketchybar pill management, notifications, logging, etc.
+mkdir -p "$HOME/.config/workspace/hooks"
+hook="$HOME/.config/workspace/hooks/post-mutate.sh"
+if [[ ! -f "$hook" ]]; then
+  cat > "$hook" <<'EOF'
+#!/usr/bin/env bash
+# Called by the `workspace` CLI after every successful mutation.
+#   $1     = subcommand (name|color|icon|add|remove|swap|move|rotate|
+#                        reverse|reorder|theme|edit|reset|layout)
+#   $2..$N = slot indices touched (varies per subcommand)
+#
+# Default behavior: keep SketchyBar's pill set in lock-step with
+# spaces.json on add/remove. All other mutations only need a repaint,
+# which the cascade (on-space-changed.sh) already fires via the
+# workspace_changed event.
+#
+# Customize freely — this file is per-machine, never clobbered.
+
+set -u
+cmd="${1:-}"
+
+if ! command -v sketchybar >/dev/null 2>&1; then exit 0; fi
+if ! pgrep -x sketchybar >/dev/null 2>&1; then exit 0; fi
+
+case "$cmd" in
+  add)
+    new_slot="${2:-}"
+    [[ -z "$new_slot" ]] && exit 0
+    plugin_dir="$HOME/.config/sketchybar/plugins"
+    sketchybar --add item "space.$new_slot" center \
+               --set "space.$new_slot" \
+                  script="$plugin_dir/space.sh" \
+                  click_script="yabai -m space --focus $new_slot" \
+               --subscribe "space.$new_slot" workspace_changed \
+               --trigger workspace_changed >/dev/null 2>&1 || true
+    ;;
+  remove)
+    cur=$(command -v workspace >/dev/null 2>&1 \
+            && workspace count 2>/dev/null \
+            || jq '.spaces | keys | length' "$HOME/.config/workspace/spaces.json" 2>/dev/null \
+            || echo 0)
+    old_max=$((cur + 1))
+    sketchybar --remove "space.$old_max" \
+               --trigger workspace_changed >/dev/null 2>&1 || true
+    ;;
+esac
+exit 0
+EOF
+  chmod 755 "$hook"
+  ok "created ~/.config/workspace/hooks/post-mutate.sh (sketchybar-aware default)"
 fi
 
 # ── 3 · laptop UUID capture (single-display only, idempotent) ────────────

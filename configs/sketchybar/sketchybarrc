@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
-# SketchyBar workspace indicator. 10 catppuccin pills, painted from
-# ~/.config/workspace/spaces.json. Refreshed by the yabai signal chain:
+# SketchyBar workspace indicator. One catppuccin pill per slot in
+# ~/.config/workspace/spaces.json (slot-count agnostic). Refreshed by
+# the yabai signal chain:
 #   yabai space_changed → on-space-changed.sh → --trigger workspace_changed
 # All pill rendering lives in plugins/space.sh.
+#
+# In-session add/remove of pills (when `workspace add` / `workspace
+# remove` changes the slot count) is driven by the post-mutate hook at
+# ~/.config/workspace/hooks/post-mutate.sh. This rc only matters at
+# `sketchybar --reload` time, when it rebuilds the pill set from
+# scratch — using the *current* slot count.
 
 CONFIG_DIR="$HOME/.config/sketchybar"
 PLUGIN_DIR="$CONFIG_DIR/plugins"
@@ -41,11 +48,20 @@ sketchybar --default \
   icon.padding_left=10 \
   icon.padding_right=10
 
-##### space items (10) #######################################################
-# Registered as one custom event so all pills repaint atomically on trigger.
+##### space items (dynamic) ##################################################
+# Pill count derives from spaces.json, so `workspace add` / `workspace
+# remove` survive a `--reload`. Falls back to 10 if jq or the config
+# file is missing — workspaces still render; just the count is fixed.
+# Registered as one custom event so all pills repaint atomically.
 sketchybar --add event workspace_changed
 
-for sid in 1 2 3 4 5 6 7 8 9 10; do
+WS_CONFIG="$HOME/.config/workspace/spaces.json"
+SLOT_COUNT=10
+if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
+  SLOT_COUNT=$(jq '.spaces | keys | length' "$WS_CONFIG" 2>/dev/null || echo 10)
+fi
+
+for (( sid=1; sid<=SLOT_COUNT; sid++ )); do
   sketchybar --add item "space.$sid" center \
              --set "space.$sid" \
                 script="$PLUGIN_DIR/space.sh" \
