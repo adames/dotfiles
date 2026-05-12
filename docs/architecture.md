@@ -105,21 +105,6 @@ This works because **modifier sets the scope**: a bare `h` moves the cursor
 in vim, `C-Space + h` moves the tmux pane focus, `Caps + h` moves the OS
 window focus. Same letter, four contexts, no overlap.
 
-## lazy.nvim vs LazyVim
-
-Two different things, same name root, source of frequent confusion:
-
-| | What it is | In this setup |
-|---|---|---|
-| **lazy.nvim**  | Plugin manager (declarative spec, lockfile, lazy loading) | **Yes** — loads every plugin in [`nvim-init.lua`](../configs/nvim-init.lua), pinned via [`nvim-lazy-lock.json`](../configs/nvim-lazy-lock.json) |
-| **LazyVim**    | Full Neovim *distribution* built on top of lazy.nvim (preset LSP/UI/keymaps, ~5k LOC of opinions) | **No** — and intentionally so |
-
-The custom config covers the same surface area LazyVim would (LSP, DAP,
-test, find, harpoon, oil, gitsigns, treesitter, cmp) in ~270 lines of
-explicit Lua. Adopting LazyVim means replacing this entirely with a
-framework whose defaults and keymaps differ — additive coexistence isn't
-possible. Skip it unless the goal is to leave the custom path.
-
 ## Python dev path
 
 After bootstrap:
