@@ -97,26 +97,6 @@ floating or unmanaged windows like Ghostty and System Settings).
   need logic: targeting the user's terminal app, the SIP-safe arrow snaps
   (no-ops when yabai is up), and the Hyper+/ cheatsheet overlay.
 
-## Workspace identity cascade
-
-When yabai fires `space_changed`, [`workspace/on-space-changed.sh`](../configs/workspace/on-space-changed.sh)
-fans the signal out to every consumer of the 10-slot identity:
-
-1. Writes `~/.cache/workspace/current.env` atomically (zsh precmd reads it).
-2. Pushes `MACOS_SPACE_*` into the tmux global env (statusline reads it).
-3. Repaints the JankyBorders active colour for the focused window.
-4. Fires `sketchybar --trigger workspace_changed` — the 10 pill items
-   subscribe to that custom event and call
-   [`sketchybar/plugins/space.sh`](../configs/sketchybar/plugins/space.sh)
-   in parallel. The plugin reads the env-cache for the active slot and
-   jq-reads `spaces.json` for its own slot's name/color/icon.
-
-Single source of truth for slot metadata: `~/.config/workspace/spaces.json`.
-Edit it (or run `~/.config/workspace/rename.sh`) and the next space switch
-repaints all surfaces. The persistent pill strip means the question "which
-slot am I on?" is always one glance away, replacing the old Hammerspoon
-flash-OSD which was invisible most of the time.
-
 ## In-terminal layers
 
 Once you're in the terminal, the same hjkl + leader-key model continues:
@@ -211,8 +191,36 @@ graph LR
 - **`lib/colors.sh`** owns the slot↔yabai-label mapping (core, forge,
   …). Labels are immutable so reconcile-displays.sh can address spaces
   by name across plug/unplug events. The CLI never touches labels —
-  reorder permutes the (name, color, icon) tuples on top of stable
+  reorder permutes the (name, icon) tuples on top of stable
   label-anchored slots.
+
+## SketchyBar coexistence with the macOS menu bar
+
+Four layers cooperate so the pill strip shares space with the system
+menu bar without replacing it:
+
+| Layer | Setting | Effect |
+|---|---|---|
+| macOS | `_HIHideMenuBar=1` | Menu bar hides by default; reveals when cursor at top |
+| SketchyBar | `topmost=off`, `y_offset=7` | Strip draws behind the menu bar; vertically centered in the y=0..40 band |
+| yabai | `external_bar all:26:0` | BSP-tiled windows never enter the top 26px, so the strip is always exposed under normal tiling |
+| Hammerspoon | [`sketchybar-autohide.lua`](../configs/hammerspoon-sketchybar-autohide.lua) | 100ms timer toggles `--bar y_offset` between 7 and -100 based on cursor y, with hysteresis: hide at `y<2`, re-show at `y >= screen.frame.y` |
+
+The result: cursor at the very top → strip slides off-screen, menu bar
+slides in. Cursor moves down past the menu bar's drawn region → menu
+bar slides out, strip slides back. The two effectively "tag out" at
+the same boundary.
+
+**Horizontal centering.** [`sketchybar/plugins/recenter.sh`](../configs/sketchybar/plugins/recenter.sh)
+rewrites `--bar padding_left` so the strip stays centered between the
+corner and the notch as pills are added/removed. Called from
+sketchybarrc at startup and from the post-mutate hook on add/remove.
+Math: `padding = (screen_width/2 − NOTCH_WIDTH − pills_width) / 2`,
+with `NOTCH_WIDTH=400` reserving a half-notch buffer on the right.
+
+**Visible-pill cap.** Both sketchybarrc and the post-mutate hook
+refuse to create `space.11+`. The dock shows at most 10 pills even
+when `workspace count > 10`, mirroring the `Caps+1..0` hotkey range.
 
 ## File map
 
@@ -226,14 +234,21 @@ graph LR
 ├── ubuntu/bootstrap.sh           # 6 phases
 ├── docs/                         # this file + wizard.md
 └── configs/                      # source-of-truth dotfiles
-    └── workspace/
-        ├── cli/workspace              # CLI binary (→ ~/.local/bin/)
-        ├── cli/test-cascade.sh        # `workspace verify` harness
-        ├── themes/*.json              # canonical palettes
-        ├── spaces.default.json        # seed
-        ├── on-space-changed.sh        # cascade
-        ├── rename.sh                  # AppleScript wrapper
-        └── install.sh                 # workspace-system bootstrapper
+    ├── workspace/
+    │   ├── cli/workspace              # CLI binary (→ ~/.local/bin/)
+    │   ├── cli/test-cascade.sh        # `workspace verify` harness
+    │   ├── themes/*.json              # canonical palettes
+    │   ├── spaces.default.json        # seed
+    │   ├── on-space-changed.sh        # cascade
+    │   ├── rename.sh                  # AppleScript wrapper
+    │   └── install.sh                 # workspace-system bootstrapper
+    ├── sketchybar/
+    │   ├── sketchybarrc               # bar geometry + pill loop
+    │   ├── colors.sh                  # palette constants
+    │   ├── plugins/space.sh           # per-pill repaint
+    │   ├── plugins/recenter.sh        # horizontal centering math
+    │   └── bootstrap.sh               # brew services start
+    └── hammerspoon-sketchybar-autohide.lua   # cursor-y auto-hide
 ```
 
 `install_file` byte-compares src vs dst and skips no-ops, so editing

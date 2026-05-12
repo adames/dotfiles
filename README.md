@@ -141,19 +141,38 @@ Identity surfaces:
   [JankyBorders](https://github.com/FelixKratz/JankyBorders).
 - **Tmux statusline** — left chip shows icon + name in slot colour.
 - **Starship prompt** — leftmost segment is the workspace chip.
-- **SketchyBar pill strip** — persistent row of 10 catppuccin pills at
-  the bottom of the screen; the active slot is filled, the others show
-  number + tech-category nerd-font glyph in the slot's colour. Single
-  source of truth is `~/.config/workspace/spaces.json` (same file that
-  drives tmux/starship/borders); the pills repaint via a custom event
-  fired from [`workspace/on-space-changed.sh`](configs/workspace/on-space-changed.sh).
+- **SketchyBar pill strip** — persistent row of up to 10 catppuccin
+  pills in the top-left of the screen, between the corner and the
+  notch. The active slot is filled; others show number + nerd-font
+  glyph in the slot's colour. Single source of truth is
+  `~/.config/workspace/spaces.json` (same file that drives
+  tmux/starship/borders); pills repaint via a custom event fired from
+  [`workspace/on-space-changed.sh`](configs/workspace/on-space-changed.sh).
   Config: [`sketchybar/`](configs/sketchybar/).
 
-Slot **name is renameable** (run [`workspace/rename.sh`](configs/workspace/rename.sh)
-or edit `~/.config/workspace/spaces.json`); the **color and icon are
-fixed to the slot** so muscle-memory ("orange means slot 2") survives a
-rename. Slot identity stable across display moves: the system addresses
-spaces by yabai label (`core`, `forge`, …), not by volatile index.
+**Bar / menu-bar coexistence.** macOS auto-hide menu bar is on
+(`NSGlobalDomain._HIHideMenuBar=1`). When the cursor leaves the very
+top edge the strip is visible and clickable. When the cursor crosses
+back up, the strip slides off-screen and the macOS menu bar reveals
+in the same space — driven by a 100ms Hammerspoon timer in
+[`hammerspoon-sketchybar-autohide.lua`](configs/hammerspoon-sketchybar-autohide.lua)
+that toggles `--bar y_offset` with hysteresis (hide at `y<2`, re-show
+at `y >= screen.frame.y`, i.e. just below the menu-bar reserve).
+yabai's [`external_bar all:26:0`](configs/yabairc) reserves the top
+26px so BSP-tiled windows never encroach.
+
+**Slot identity.** Color is **positional** — slot N keeps its colour
+across `swap` / `move` / `rotate` / `reverse` / `reorder` ("orange
+always means slot 2"). Name and icon are what move when you
+reorder. Use `workspace color N #HEX` to change a slot's colour
+directly. Slot identity is also stable across display moves: the
+system addresses spaces by yabai label (`core`, `forge`, …), not by
+volatile index.
+
+**Visible-pill cap.** Even though `workspace add` lets you grow the
+slot count past 10, the dock displays at most 10 pills (matches the
+`Caps+1..0` hotkey range). Slots beyond 10 still exist and are
+reachable via the `workspace` / yabai CLI.
 
 **Display lock**: when a monitor is attached, slot 1 (`core`) stays on
 the laptop screen and slots 2..10 migrate to the external. Single-display
