@@ -97,10 +97,13 @@ phase_configs() {
   # used to flash on every space switch — pills are persistent and always
   # visible. Items, colours and the per-pill repaint plugin live under
   # configs/sketchybar/. brew service is started by workspace/install.sh.
-  install_file "$CONFIGS_DIR/sketchybar/sketchybarrc"       "$HOME/.config/sketchybar/sketchybarrc"       755
-  install_file "$CONFIGS_DIR/sketchybar/colors.sh"          "$HOME/.config/sketchybar/colors.sh"
-  install_file "$CONFIGS_DIR/sketchybar/plugins/space.sh"   "$HOME/.config/sketchybar/plugins/space.sh"   755
-  install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"       "$HOME/.config/sketchybar/bootstrap.sh"       755
+  install_file "$CONFIGS_DIR/sketchybar/sketchybarrc"               "$HOME/.config/sketchybar/sketchybarrc"               755
+  install_file "$CONFIGS_DIR/sketchybar/colors.sh"                  "$HOME/.config/sketchybar/colors.sh"
+  install_file "$CONFIGS_DIR/sketchybar/plugins/space.sh"           "$HOME/.config/sketchybar/plugins/space.sh"           755
+  install_file "$CONFIGS_DIR/sketchybar/plugins/recenter.sh"        "$HOME/.config/sketchybar/plugins/recenter.sh"        755
+  install_file "$CONFIGS_DIR/sketchybar/plugins/per-display-pills.sh" "$HOME/.config/sketchybar/plugins/per-display-pills.sh" 755
+  install_file "$CONFIGS_DIR/sketchybar/plugins/notch-detect.sh"    "$HOME/.config/sketchybar/plugins/notch-detect.sh"    755
+  install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"               "$HOME/.config/sketchybar/bootstrap.sh"               755
 
   # Workspace-awareness layer: yabai signal handler + rename flow.
   # spaces.json is NOT install_file'd because that would clobber the

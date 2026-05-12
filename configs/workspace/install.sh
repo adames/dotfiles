@@ -113,35 +113,14 @@ if ! command -v sketchybar >/dev/null 2>&1; then exit 0; fi
 if ! pgrep -x sketchybar >/dev/null 2>&1; then exit 0; fi
 
 plugin_dir="$HOME/.config/sketchybar/plugins"
-recenter() { [[ -x "$plugin_dir/recenter.sh" ]] && "$plugin_dir/recenter.sh"; }
 
 case "$cmd" in
-  add)
-    new_slot="${2:-}"
-    [[ -z "$new_slot" ]] && exit 0
-    # Hard cap: dock shows at most 10 pills even if slot count grows.
-    if (( new_slot <= 10 )); then
-      sketchybar --add item "space.$new_slot" left \
-                 --set "space.$new_slot" \
-                    script="$plugin_dir/space.sh" \
-                    click_script="yabai -m space --focus $new_slot" \
-                 --subscribe "space.$new_slot" workspace_changed \
-                 --trigger workspace_changed >/dev/null 2>&1 || true
-      recenter
-    fi
-    ;;
-  remove)
-    cur=$(command -v workspace >/dev/null 2>&1 \
-            && workspace count 2>/dev/null \
-            || jq '.spaces | keys | length' "$HOME/.config/workspace/spaces.json" 2>/dev/null \
-            || echo 0)
-    old_max=$((cur + 1))
-    # Only the topmost pill (≤10) actually exists in sketchybar.
-    if (( old_max <= 10 )); then
-      sketchybar --remove "space.$old_max" \
-                 --trigger workspace_changed >/dev/null 2>&1 || true
-      recenter
-    fi
+  add|remove|swap|move|rotate|reverse|reorder|theme|edit|reset|layout)
+    # per-display-pills.sh is the single source of truth for "what
+    # pills exist and where". It adds/removes items as needed, applies
+    # associated_display_mask, hides overflow on notched laptops, then
+    # calls recenter.sh and triggers workspace_changed.
+    [[ -x "$plugin_dir/per-display-pills.sh" ]] && "$plugin_dir/per-display-pills.sh"
     ;;
 esac
 exit 0
