@@ -94,22 +94,50 @@ hook="$HOME/.config/workspace/hooks/post-mutate.sh"
 if [[ ! -f "$hook" ]]; then
   cat > "$hook" <<'EOF'
 #!/usr/bin/env bash
-# Called after every successful `workspace` mutation.
-#   $1     = subcommand (name|color|icon|add|remove|swap|reorder|theme|edit|reset)
+# Called by the `workspace` CLI after every successful mutation.
+#   $1     = subcommand (name|color|icon|add|remove|swap|move|rotate|
+#                        reverse|reorder|theme|edit|reset|layout)
 #   $2..$N = slot indices touched (varies per subcommand)
 #
-# Empty stub. Populate to integrate with downstream consumers, e.g.:
+# Default behavior: keep SketchyBar's pill set in lock-step with
+# spaces.json on add/remove. All other mutations only need a repaint,
+# which the cascade (on-space-changed.sh) already fires via the
+# workspace_changed event.
 #
-#   case "$1" in
-#     add)    sketchybar --add item "space.$2" left ;;
-#     remove) sketchybar --remove "space.$2" ;;
-#   esac
-#
-# Hook is invoked in the background; failures here never abort the CLI.
+# Customize freely — this file is per-machine, never clobbered.
+
+set -u
+cmd="${1:-}"
+
+if ! command -v sketchybar >/dev/null 2>&1; then exit 0; fi
+if ! pgrep -x sketchybar >/dev/null 2>&1; then exit 0; fi
+
+case "$cmd" in
+  add)
+    new_slot="${2:-}"
+    [[ -z "$new_slot" ]] && exit 0
+    plugin_dir="$HOME/.config/sketchybar/plugins"
+    sketchybar --add item "space.$new_slot" center \
+               --set "space.$new_slot" \
+                  script="$plugin_dir/space.sh" \
+                  click_script="yabai -m space --focus $new_slot" \
+               --subscribe "space.$new_slot" workspace_changed \
+               --trigger workspace_changed >/dev/null 2>&1 || true
+    ;;
+  remove)
+    cur=$(command -v workspace >/dev/null 2>&1 \
+            && workspace count 2>/dev/null \
+            || jq '.spaces | keys | length' "$HOME/.config/workspace/spaces.json" 2>/dev/null \
+            || echo 0)
+    old_max=$((cur + 1))
+    sketchybar --remove "space.$old_max" \
+               --trigger workspace_changed >/dev/null 2>&1 || true
+    ;;
+esac
 exit 0
 EOF
   chmod 755 "$hook"
-  ok "created ~/.config/workspace/hooks/post-mutate.sh stub"
+  ok "created ~/.config/workspace/hooks/post-mutate.sh (sketchybar-aware default)"
 fi
 
 # ── 3 · laptop UUID capture (single-display only, idempotent) ────────────
