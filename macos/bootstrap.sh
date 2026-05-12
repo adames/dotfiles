@@ -1,24 +1,10 @@
 #!/usr/bin/env bash
-# macos/bootstrap.sh — set up the Hyper-key dev environment on macOS.
-#
-# Idempotent: re-running is safe and only does work where state has drifted.
-#
-# Phases:
-#   1. sudo       — cache once for the whole run
-#   2. packages   — Homebrew formulae (CLI + yabai/skhd) and GUI casks
-#   3. configs    — copy from configs/ to their canonical locations
-#   4. defaults   — system tweaks (spans-displays, iTerm Option-as-Meta)
-#   5. wizard     — hand off to the proactive TCC permission flow
-#
-# Env knobs:
-#   BOOTSTRAP_SKIP_CASKS=1   skip GUI cask installs (headless / no-TTY runs)
-#   NO_COLOR=1               plain output (no ANSI)
+# Idempotent macOS bootstrap. Env: BOOTSTRAP_SKIP_CASKS=1, NO_COLOR=1.
 
 set -euo pipefail
 
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 . "$DOTFILES_DIR/lib/common.sh"
-. "$DOTFILES_DIR/lib/macos-tcc.sh"
 
 # ─── phase 1 · sudo ─────────────────────────────────────────────────────────
 phase_sudo() {
@@ -59,32 +45,27 @@ phase_packages() {
   brew install --quiet koekeishiya/formulae/skhd  >/dev/null || true
   ok "yabai + skhd"
 
+  local casks="karabiner-elements hammerspoon ghostty raycast"
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
-    step "installing GUI casks (will sudo-prompt for each .pkg)"
-    info "karabiner-elements · hammerspoon · rectangle · ghostty · raycast"
-    brew install --cask karabiner-elements hammerspoon rectangle ghostty raycast 2>&1 \
-      | sed "s/^/    /" || true
+    step "installing GUI casks"
+    info "$casks"
+    # shellcheck disable=SC2086
+    brew install --cask $casks 2>&1 | sed "s/^/    /" || true
     ok "casks installed (or already present)"
   else
     warn "skipping cask installs (no TTY or BOOTSTRAP_SKIP_CASKS=1)"
-    info "later: brew install --cask karabiner-elements hammerspoon rectangle ghostty raycast"
+    info "later: brew install --cask $casks"
   fi
 
-  # Cask sanity: brew records a cask as "installed" once the artifact is
-  # staged, but if the .pkg installer was interrupted (e.g. killed mid-sudo)
-  # the .app never lands. Detect and re-run if we have a TTY.
+  # brew can mark a cask installed but skip the .pkg if interrupted mid-sudo.
   if [[ ! -d /Applications/Karabiner-Elements.app ]]; then
     local pkg
     pkg=$(find "$(brew --prefix 2>/dev/null)/Caskroom/karabiner-elements" -name "*.pkg" 2>/dev/null | head -1)
-    if [[ -n "$pkg" ]]; then
-      warn "Karabiner cask staged but .app missing — installer never ran"
-      if has_tty; then
-        step "running staged Karabiner installer (will sudo-prompt)"
-        sudo installer -pkg "$pkg" -target / && ok "Karabiner installed" \
-          || warn "installer failed"
-      else
-        info "fix later: sudo installer -pkg \"$pkg\" -target /"
-      fi
+    if [[ -n "$pkg" && "$(has_tty && echo y)" ]]; then
+      step "running staged Karabiner installer"
+      sudo installer -pkg "$pkg" -target / && ok "Karabiner installed" || warn "installer failed"
+    elif [[ -n "$pkg" ]]; then
+      warn "Karabiner staged but not installed — run: sudo installer -pkg \"$pkg\" -target /"
     fi
   fi
 }
@@ -132,32 +113,19 @@ EOF
 phase_defaults() {
   section "Phase 4/5 · macOS defaults"
 
-  # yabai requires "Displays have separate Spaces" (Mission Control toggle).
-  # The underlying preference is com.apple.spaces spans-displays = 0 (false).
-  # The change only takes effect after logout/login — surfaced in the wizard.
+  # yabai needs "Displays have separate Spaces" (re-read on fresh login only).
   if [[ "$(defaults read com.apple.spaces spans-displays 2>/dev/null)" != "0" ]]; then
-    step "spans-displays → false (yabai requirement)"
+    step "spans-displays → false"
     defaults write com.apple.spaces spans-displays -bool false
-    export HYPER_BOOTSTRAP_NEED_RELOGIN=1
-    info "logout required for this to take effect"
+    info "logout required to take effect"
   else
     ok "spans-displays already false"
   fi
 
-  if defaults read com.googlecode.iterm2 >/dev/null 2>&1; then
-    step "iTerm2 → Option = Meta"
-    defaults write com.googlecode.iterm2 "Left Option Key Sends" -string "Esc+"
-    ok "iTerm2 configured"
-  else
-    info "iTerm2 prefs not found — skipping (launch iTerm2 once, then re-run)"
-  fi
-
-  # Hammerspoon: prevent AppKit from restoring the Console window on every
-  # reload. Wipe the saved frame; init.lua's close-console hook handles the
-  # current process.
+  # Stop Hammerspoon Console from auto-restoring on reload.
   if defaults read org.hammerspoon.Hammerspoon >/dev/null 2>&1; then
     defaults delete org.hammerspoon.Hammerspoon "NSWindow Frame console" 2>/dev/null || true
-    ok "Hammerspoon Console window frame cleared"
+    ok "Hammerspoon console frame cleared"
   fi
 }
 

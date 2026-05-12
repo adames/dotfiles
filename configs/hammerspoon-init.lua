@@ -32,11 +32,8 @@ local hyper = { "ctrl", "alt", "cmd", "shift" }
 -- Order of preference for installed-but-not-running case. The first one that
 -- successfully launches wins. If the user is *already in* a terminal,
 -- we short-circuit and just send Cmd+T (or Cmd+N) without re-targeting.
-local PREFERRED_TERMINALS = { "Ghostty", "iTerm", "Terminal", "Alacritty", "kitty", "WezTerm" }
-local KNOWN_TERMINAL = {
-  Ghostty = true, iTerm = true, iTerm2 = true, Terminal = true,
-  Alacritty = true, kitty = true, WezTerm = true,
-}
+local PREFERRED_TERMINALS = { "Ghostty", "Terminal" }
+local KNOWN_TERMINAL = { Ghostty = true, Terminal = true }
 
 local function sendTerminalCmd(key)
   return function()
