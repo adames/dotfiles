@@ -1,31 +1,24 @@
-# PATH - only add if not already present
 export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
 typeset -U PATH
 
-# Vim mode FIRST — fzf and other ZLE consumers detect mode at source time
-# and install bindings into the active keymap. Setting -v after them loses
-# their bindings (Ctrl-R, Ctrl-T, etc.).
+# vi-mode FIRST: ZLE consumers (fzf, autosuggestions) bind to the active
+# keymap at source time. Switching after them loses Ctrl-R / Ctrl-T.
 bindkey -v
 
-# Starship prompt
 eval "$(starship init zsh)"
 
-# Plugins — prefer brew on macOS, fall back to git-clone install (~/.zsh) on Linux
+# brew on macOS, ~/.zsh git-clone on Linux
 for _zp in \
   /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
   ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
-do
-  [[ -f "$_zp" ]] && { source "$_zp"; break; }
-done
+do [[ -f "$_zp" ]] && { source "$_zp"; break; }; done
 for _zp in \
   /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
   ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-do
-  [[ -f "$_zp" ]] && { source "$_zp"; break; }
-done
+do [[ -f "$_zp" ]] && { source "$_zp"; break; }; done
 unset _zp
 
-# fzf — fd-backed for speed and to respect .gitignore by default
+# fzf, fd-backed (respects .gitignore by default)
 if command -v fd &>/dev/null; then
   export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
   export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
@@ -33,21 +26,14 @@ if command -v fd &>/dev/null; then
 fi
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-# History
 HISTSIZE=10000
 SAVEHIST=10000
 HISTFILE=~/.zsh_history
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_SPACE
-setopt SHARE_HISTORY
+setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE SHARE_HISTORY
 
-# Editor
 export EDITOR='vim'
-
-# ripgrep — uses ~/.ripgreprc for defaults
 export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
 
-# Aliases
 alias ll='ls -lah'
 alias la='ls -A'
 alias ..='cd ..'
@@ -58,25 +44,15 @@ alias gc='git commit'
 alias gp='git push'
 alias gpl='git pull'
 
-# mise - works on both macOS (brew) and Linux (~/.local/bin)
-if command -v mise &>/dev/null; then
-  eval "$(mise activate zsh)"
-elif [ -f ~/.local/bin/mise ]; then
-  eval "$(~/.local/bin/mise activate zsh)"
+# mise: brew on mac, ~/.local/bin on linux
+if   command -v mise        &>/dev/null; then eval "$(mise activate zsh)"
+elif [ -f ~/.local/bin/mise ];                then eval "$(~/.local/bin/mise activate zsh)"
 fi
 
-# direnv
-if command -v direnv &>/dev/null; then
-  eval "$(direnv hook zsh)"
-fi
+command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
+command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 
-# zoxide — `z foo` jumps to most-frecent dir matching foo
-if command -v zoxide &>/dev/null; then
-  eval "$(zoxide init zsh)"
-fi
-
-# Auto-attach or create tmux session on SSH
-if [[ -n "$SSH_CONNECTION" ]] && [[ -z "$TMUX" ]]; then
+# Auto-attach tmux on SSH
+if [[ -n "$SSH_CONNECTION" && -z "$TMUX" ]]; then
   tmux attach-session -t main 2>/dev/null || tmux new-session -s main
 fi
-

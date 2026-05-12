@@ -9,11 +9,10 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Leader must be set before lazy loads plugins
-vim.g.mapleader = " "
+-- Leader before plugins load
+vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
--- Options
 local opt = vim.opt
 opt.number         = true
 opt.relativenumber = true
@@ -31,96 +30,62 @@ opt.signcolumn     = "yes"
 opt.updatetime     = 250
 opt.splitbelow     = true
 opt.splitright     = true
-
 vim.fn.mkdir(vim.fn.stdpath("data") .. "/undo", "p")
 
--- Plugins
 require("lazy").setup({
 
-  -- Colorscheme
   {
-    "catppuccin/nvim",
-    name     = "catppuccin",
-    priority = 1000,
-    config   = function()
-      vim.cmd.colorscheme("catppuccin-mocha")
-    end,
+    "catppuccin/nvim", name = "catppuccin", priority = 1000,
+    config = function() vim.cmd.colorscheme("catppuccin-mocha") end,
   },
 
-  -- Treesitter (rewritten API; lazy = false required)
-  -- Bundled in Neovim 0.12: lua, markdown, c, vim, vimdoc
-  -- Installed by this plugin: python, typescript, tsx, bash, json, yaml
   {
     "nvim-treesitter/nvim-treesitter",
-    lazy  = false,
-    build = ":TSUpdate",
+    lazy = false, build = ":TSUpdate",
     config = function()
       require("nvim-treesitter").setup()
-
-      -- Install missing parsers (async; no-op if already installed)
       require("nvim-treesitter").install({
         "python", "typescript", "tsx", "bash", "json", "yaml",
       })
-
-      -- Enable highlighting for all filetypes that have a parser
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "*",
-        callback = function()
-          pcall(vim.treesitter.start)
-        end,
+        callback = function() pcall(vim.treesitter.start) end,
       })
     end,
   },
 
-  -- LSP: mason installs servers, mason-lspconfig auto-enables them,
-  -- nvim-lspconfig provides default server configs for vim.lsp to use.
+  -- LSP: mason installs servers, mason-lspconfig auto-enables them via vim.lsp.
+  -- mason-tool-installer handles non-LSP packages (debugpy).
   {
     "neovim/nvim-lspconfig",
     dependencies = {
-      { "williamboman/mason.nvim",           opts = {} },
-      {
-        "williamboman/mason-lspconfig.nvim",
-        opts = {
-          ensure_installed = { "pyright", "ruff", "ts_ls" },
-        },
-      },
-      -- DAP / formatters / linters that aren't LSPs still come from Mason
-      {
-        "WhoIsSethDaniel/mason-tool-installer.nvim",
-        opts = {
-          ensure_installed = { "debugpy" },
-        },
-      },
+      { "williamboman/mason.nvim",          opts = {} },
+      { "williamboman/mason-lspconfig.nvim", opts = { ensure_installed = { "pyright", "ruff", "ts_ls" } } },
+      { "WhoIsSethDaniel/mason-tool-installer.nvim", opts = { ensure_installed = { "debugpy" } } },
       "hrsh7th/cmp-nvim-lsp",
     },
     config = function()
-      -- Apply capabilities to all servers before they start
-      vim.lsp.config("*", {
-        capabilities = require("cmp_nvim_lsp").default_capabilities(),
-      })
+      vim.lsp.config("*", { capabilities = require("cmp_nvim_lsp").default_capabilities() })
 
-      -- Set keymaps whenever any LSP attaches
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("UserLspAttach", { clear = true }),
         callback = function(ev)
-          local map = function(keys, fn, desc)
-            vim.keymap.set("n", keys, fn, { buffer = ev.buf, desc = desc })
-          end
-          map("gd",         vim.lsp.buf.definition,   "Go to definition")
-          map("gr",         vim.lsp.buf.references,   "References")
-          map("K",          vim.lsp.buf.hover,         "Hover docs")
-          map("<leader>ca", vim.lsp.buf.code_action,   "Code action")
-          map("<leader>rn", vim.lsp.buf.rename,        "Rename symbol")
-          map("<leader>=",  function() vim.lsp.buf.format({ async = false }) end, "Format buffer")
+          local map = function(k, fn, d) vim.keymap.set("n", k, fn, { buffer = ev.buf, desc = d }) end
+          map("gd",         vim.lsp.buf.definition,  "Definition")
+          map("gr",         vim.lsp.buf.references,  "References")
+          map("K",          vim.lsp.buf.hover,        "Hover")
+          map("<leader>ca", vim.lsp.buf.code_action,  "Code action")
+          map("<leader>rn", vim.lsp.buf.rename,       "Rename")
+          map("<leader>=",  function() vim.lsp.buf.format({ async = false }) end, "Format")
         end,
       })
 
-      -- Format Python on save with Ruff (pyright doesn't format)
+      -- Ruff handles Python format-on-save (pyright doesn't format).
       vim.api.nvim_create_autocmd("BufWritePre", {
         pattern = "*.py",
         callback = function()
           vim.lsp.buf.format({
-            filter = function(client) return client.name == "ruff" end,
+            filter = function(c) return c.name == "ruff" end,
             timeout_ms = 1000,
           })
         end,
@@ -128,24 +93,14 @@ require("lazy").setup({
     end,
   },
 
-  -- Completion
   {
     "hrsh7th/nvim-cmp",
-    dependencies = {
-      "hrsh7th/cmp-nvim-lsp",
-      "L3MON4D3/LuaSnip",
-      "saadparwaiz1/cmp_luasnip",
-    },
+    dependencies = { "hrsh7th/cmp-nvim-lsp", "L3MON4D3/LuaSnip", "saadparwaiz1/cmp_luasnip" },
     config = function()
       local cmp     = require("cmp")
       local luasnip = require("luasnip")
-
       cmp.setup({
-        snippet = {
-          expand = function(args)
-            luasnip.lsp_expand(args.body)
-          end,
-        },
+        snippet = { expand = function(args) luasnip.lsp_expand(args.body) end },
         mapping = cmp.mapping.preset.insert({
           ["<C-b>"]     = cmp.mapping.scroll_docs(-4),
           ["<C-f>"]     = cmp.mapping.scroll_docs(4),
@@ -153,71 +108,52 @@ require("lazy").setup({
           ["<C-e>"]     = cmp.mapping.abort(),
           ["<CR>"]      = cmp.mapping.confirm({ select = true }),
           ["<Tab>"] = cmp.mapping(function(fallback)
-            if cmp.visible() then
-              cmp.select_next_item()
-            elseif luasnip.expand_or_jumpable() then
-              luasnip.expand_or_jump()
-            else
-              fallback()
-            end
+            if cmp.visible() then cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then luasnip.expand_or_jump()
+            else fallback() end
           end, { "i", "s" }),
           ["<S-Tab>"] = cmp.mapping(function(fallback)
-            if cmp.visible() then
-              cmp.select_prev_item()
-            elseif luasnip.jumpable(-1) then
-              luasnip.jump(-1)
-            else
-              fallback()
-            end
+            if cmp.visible() then cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then luasnip.jump(-1)
+            else fallback() end
           end, { "i", "s" }),
         }),
-        sources = cmp.config.sources({
-          { name = "nvim_lsp" },
-          { name = "luasnip" },
-        }),
+        sources = cmp.config.sources({ { name = "nvim_lsp" }, { name = "luasnip" } }),
       })
     end,
   },
 
-  -- Fuzzy finder
   {
     "ibhagwan/fzf-lua",
     config = function()
       require("fzf-lua").setup({})
       local map = vim.keymap.set
-      map("n", "<leader>ff", "<cmd>FzfLua files<cr>",     { desc = "Find files" })
+      map("n", "<leader>ff", "<cmd>FzfLua files<cr>",     { desc = "Files" })
       map("n", "<leader>fg", "<cmd>FzfLua live_grep<cr>", { desc = "Live grep" })
-      map("n", "<leader>fb", "<cmd>FzfLua buffers<cr>",   { desc = "Find buffers" })
+      map("n", "<leader>fb", "<cmd>FzfLua buffers<cr>",   { desc = "Buffers" })
     end,
   },
 
-  -- Git gutter
-  {
-    "lewis6991/gitsigns.nvim",
-    config = function()
-      require("gitsigns").setup()
-    end,
-  },
+  { "lewis6991/gitsigns.nvim", config = function() require("gitsigns").setup() end },
 
-  -- which-key: pops up keymap menu after <leader> — accelerates muscle memory
   {
     "folke/which-key.nvim",
     event = "VeryLazy",
     opts = {
       preset = "modern",
-      delay = 300,
-      spec = {
-        { "<leader>f", group = "find" },
-        { "<leader>l", group = "lsp"  },  -- reserved for future
+      delay  = 300,
+      spec   = {
+        { "<leader>f", group = "find"  },
+        { "<leader>l", group = "lsp"   },
         { "<leader>d", group = "debug" },
-        { "<leader>t", group = "test" },
-        { "<leader>g", group = "git"  },  -- reserved for future
-        { "<leader>c", group = "code" },
+        { "<leader>t", group = "test"  },
+        { "<leader>g", group = "git"   },
+        { "<leader>c", group = "code"  },
       },
     },
   },
 
-  -- Python debugging: nvim-dap UI + dap-python (uses debugpy from mason)
+  -- Python debugger. debugpy installed via mason-tool-installer above.
   {
     "mfussenegger/nvim-dap",
     dependencies = {
@@ -226,32 +162,29 @@ require("lazy").setup({
       "mfussenegger/nvim-dap-python",
     },
     config = function()
-      local dap   = require("dap")
-      local dapui = require("dapui")
+      local dap, dapui = require("dap"), require("dapui")
       dapui.setup()
 
-      -- debugpy is installed by mason-tool-installer above; dap-python finds
-      -- it via mason's path. Falls back to system python3 if not present.
-      local mason_python = vim.fn.stdpath("data") .. "/mason/packages/debugpy/venv/bin/python"
-      require("dap-python").setup(vim.fn.executable(mason_python) == 1 and mason_python or "python3")
+      local mason_py = vim.fn.stdpath("data") .. "/mason/packages/debugpy/venv/bin/python"
+      require("dap-python").setup(vim.fn.executable(mason_py) == 1 and mason_py or "python3")
 
-      dap.listeners.after.event_initialized["dapui_config"] = function() dapui.open() end
-      dap.listeners.before.event_terminated["dapui_config"] = function() dapui.close() end
-      dap.listeners.before.event_exited["dapui_config"]     = function() dapui.close() end
+      dap.listeners.after.event_initialized["dapui"] = function() dapui.open()  end
+      dap.listeners.before.event_terminated["dapui"] = function() dapui.close() end
+      dap.listeners.before.event_exited["dapui"]     = function() dapui.close() end
 
       local map = vim.keymap.set
-      map("n", "<leader>db", dap.toggle_breakpoint, { desc = "Toggle breakpoint" })
-      map("n", "<leader>dc", dap.continue,           { desc = "Continue" })
+      map("n", "<leader>db", dap.toggle_breakpoint, { desc = "Breakpoint" })
+      map("n", "<leader>dc", dap.continue,           { desc = "Continue"  })
       map("n", "<leader>do", dap.step_over,          { desc = "Step over" })
       map("n", "<leader>di", dap.step_into,          { desc = "Step into" })
-      map("n", "<leader>du", dap.step_out,           { desc = "Step out" })
-      map("n", "<leader>dr", dap.repl.open,          { desc = "REPL" })
+      map("n", "<leader>du", dap.step_out,           { desc = "Step out"  })
+      map("n", "<leader>dr", dap.repl.open,          { desc = "REPL"      })
       map("n", "<leader>dx", dap.terminate,          { desc = "Terminate" })
       map("n", "<leader>dU", dapui.toggle,           { desc = "Toggle UI" })
     end,
   },
 
-  -- Test runner: neotest + neotest-python (uses pytest, integrates with dap)
+  -- Test runner over pytest, with DAP integration for <leader>td.
   {
     "nvim-neotest/neotest",
     dependencies = {
@@ -264,19 +197,16 @@ require("lazy").setup({
       local neotest = require("neotest")
       neotest.setup({
         adapters = {
-          require("neotest-python")({
-            dap     = { justMyCode = false },
-            runner  = "pytest",
-          }),
+          require("neotest-python")({ dap = { justMyCode = false }, runner = "pytest" }),
         },
       })
       local map = vim.keymap.set
-      map("n", "<leader>tn", function() neotest.run.run() end,                     { desc = "Test nearest" })
-      map("n", "<leader>tf", function() neotest.run.run(vim.fn.expand("%")) end,    { desc = "Test file" })
-      map("n", "<leader>tl", function() neotest.run.run_last() end,                 { desc = "Test last" })
-      map("n", "<leader>ts", function() neotest.summary.toggle() end,               { desc = "Test summary" })
-      map("n", "<leader>to", function() neotest.output.open({ enter = true }) end,  { desc = "Test output" })
-      map("n", "<leader>td", function() neotest.run.run({ strategy = "dap" }) end,  { desc = "Test debug" })
+      map("n", "<leader>tn", function() neotest.run.run() end,                     { desc = "Nearest"  })
+      map("n", "<leader>tf", function() neotest.run.run(vim.fn.expand("%")) end,    { desc = "File"     })
+      map("n", "<leader>tl", function() neotest.run.run_last() end,                 { desc = "Last"     })
+      map("n", "<leader>ts", function() neotest.summary.toggle() end,               { desc = "Summary"  })
+      map("n", "<leader>to", function() neotest.output.open({ enter = true }) end,  { desc = "Output"   })
+      map("n", "<leader>td", function() neotest.run.run({ strategy = "dap" }) end,  { desc = "Debug"    })
     end,
   },
 })

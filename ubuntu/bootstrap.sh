@@ -1,21 +1,6 @@
 #!/usr/bin/env bash
-# ubuntu/bootstrap.sh — set up the Hyper-key dev environment on Ubuntu.
-#
-# For minerva (VPS / VM) where the macOS layer (yabai/skhd/Hammerspoon/
-# Karabiner) doesn't apply. Installs the same shell + nvim stack so the
-# editor and CLI tooling feel identical to the Mac.
-#
-# Idempotent: re-running is safe.
-#
-# Override the dotfiles repo URL with DOTFILES_REPO=git@github.com:you/dotfiles.git
-#
-# Phases:
-#   1. system   — apt packages
-#   2. dotfiles — chezmoi-managed home tree
-#   3. shell    — starship, zsh plugins (git-clone), fzf
-#   4. runtimes — mise + Docker + Claude CLI
-#   5. configs  — drop in tmux, nvim, ripgreprc, sessionizer
-#   6. shell    — set zsh as default
+# Idempotent Ubuntu bootstrap (VPS / VM). No yabai/Karabiner — shell + nvim only.
+# Override dotfiles repo with DOTFILES_REPO=...
 
 set -euo pipefail
 
@@ -35,8 +20,7 @@ phase_system() {
     ripgrep fd-find git-delta zoxide >/dev/null
   ok "git zsh tmux neovim direnv jq ripgrep fd zoxide …"
 
-  # fd is named fdfind on Debian/Ubuntu. Symlink so scripts/configs that
-  # reference `fd` work uniformly across macOS and Linux. ~/.local/bin is on PATH.
+  # Debian/Ubuntu calls fd "fdfind"; symlink for cross-OS parity.
   if have fdfind && ! have fd; then
     mkdir -p "$HOME/.local/bin"
     ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
@@ -44,7 +28,7 @@ phase_system() {
   fi
 
   if ! have gh; then
-    step "installing GitHub CLI (gh) from upstream apt repo"
+    step "adding GitHub CLI apt repo"
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg status=none
     sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
@@ -134,10 +118,8 @@ phase_configs() {
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"    "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
-  # zshrc and gitconfig are intentionally NOT installed here — chezmoi
-  # already manages them on Linux. To track them via chezmoi, copy
-  # configs/zshrc and configs/gitconfig into your chezmoi source dir.
-  info "zshrc + gitconfig left to chezmoi (see configs/ for canonical versions)"
+  # zshrc + gitconfig left to chezmoi by design.
+  info "zshrc + gitconfig managed by chezmoi"
 }
 
 # ─── phase 6 · default shell ────────────────────────────────────────────────

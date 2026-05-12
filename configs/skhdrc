@@ -1,13 +1,6 @@
-# skhd: hotkey daemon that drives yabai via `yabai -m` commands.
-# Window-tiling configuration (layout, gaps, rules) lives in ~/.yabairc.
-# This file is just the keybindings.
-#
-# Karabiner emits:
-#   Caps Lock        -> Ctrl+Opt+Cmd+Shift (Hyper)
-#   Caps Lock+Shift  -> Ctrl+Opt+Cmd       (Meh; Shift consumed)
-#
-# So: Hyper+key      = "cmd + alt + ctrl + shift - <key>" (focus)
-#     Hyper+Shift+key = "cmd + alt + ctrl - <key>"        (swap)
+# Hyper+key (cmd+alt+ctrl+shift) = focus.  Hyper+Shift+key (cmd+alt+ctrl) = swap.
+# Karabiner emits Hyper for Caps and Meh for Caps+Shift (Shift consumed).
+# yabai tiling config is in ~/.yabairc.
 
 # --- focus ---------------------------------------------------------------
 cmd + alt + ctrl + shift - h : yabai -m window --focus west

@@ -11,10 +11,9 @@ phase_sudo() {
   section "Phase 1/5 · sudo"
   if ! has_tty; then
     warn "no TTY — cask installs and Accessibility prompts will be skipped"
-    info "re-run from a real terminal, or set BOOTSTRAP_SKIP_CASKS=1"
     return 0
   fi
-  step "caching sudo credential (one prompt for the whole run)"
+  step "caching sudo (one prompt for the run)"
   sudo -v
   ( while true; do sudo -n true; sleep 50; kill -0 "$$" 2>/dev/null || exit; done ) &
   trap 'kill '"$!"' 2>/dev/null' EXIT
@@ -74,14 +73,14 @@ phase_packages() {
 phase_configs() {
   section "Phase 3/5 · deploy configs"
 
-  # Window/keyboard layer (Karabiner contract → skhd → yabai → Hammerspoon)
+  # Window/keyboard
   install_file "$CONFIGS_DIR/karabiner.json"             "$HOME/.config/karabiner/karabiner.json"
   install_file "$CONFIGS_DIR/skhdrc"                     "$HOME/.skhdrc"
   install_file "$CONFIGS_DIR/yabairc"                    "$HOME/.yabairc"             755
   install_file "$CONFIGS_DIR/hammerspoon-init.lua"       "$HOME/.hammerspoon/init.lua"
   install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua" "$HOME/.hammerspoon/cheatsheet.lua"
 
-  # Terminal + shell layer
+  # Terminal + shell
   install_file "$CONFIGS_DIR/ghostty-config"             "$HOME/.config/ghostty/config"
   install_file "$CONFIGS_DIR/tmux.conf"                  "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/zshrc"                      "$HOME/.zshrc"
@@ -89,23 +88,20 @@ phase_configs() {
   install_file "$CONFIGS_DIR/ripgreprc"                  "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
 
-  # Editor layer (init.lua + lazy lock; lazy.nvim self-installs on first launch)
+  # Editor — lazy.nvim self-installs on first nvim launch
   install_file "$CONFIGS_DIR/nvim-init.lua"              "$HOME/.config/nvim/init.lua"
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json"        "$HOME/.config/nvim/lazy-lock.json"
   ensure_dir "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"           "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
-  # gitconfig is split: structural settings tracked, user info in
-  # ~/.gitconfig.local (not tracked) via [include]. Stub it so [include]
-  # doesn't fail silently on a fresh box.
+  # User info lives in ~/.gitconfig.local (not tracked, [include]'d by gitconfig).
   if [[ ! -f "$HOME/.gitconfig.local" ]]; then
     cat > "$HOME/.gitconfig.local" <<'EOF'
 [user]
 	email = you@example.com
 	name = Your Name
 EOF
-    ok "created ~/.gitconfig.local stub"
-    info "edit it: $EDITOR ~/.gitconfig.local"
+    ok "created ~/.gitconfig.local stub — edit user.email / user.name"
   fi
 }
 
@@ -143,7 +139,7 @@ main() {
   phase_packages
   phase_configs
   phase_defaults
-  phase_wizard   # exec-replaces; nothing runs after this
+  phase_wizard   # exec-replaces
 }
 
 main "$@"

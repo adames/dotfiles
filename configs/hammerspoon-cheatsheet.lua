@@ -1,13 +1,8 @@
--- ~/.hammerspoon/cheatsheet.lua
--- Full-screen overlay of keybindings for this machine's setup.
--- Caps Lock + 0 (held) to toggle.  Background is fully invisible;
--- frosted-glass cards float over the live desktop.
--- Edit `sections` to add or remove entries — no logic to break.
+-- Caps + 0 overlay. Edit `sections`; no logic to break.
+-- Use ⟨x⟩ (unicode) for placeholders so HTML doesn't swallow them.
 
 local M = {}
 
--- Keys use ⟨x⟩ (unicode brackets) for placeholders so the HTML doesn't
--- swallow them as tags. "caps" = caps lock; "C-space" = ctrl-space.
 local sections = {
   -- ── Windows ───────────────────────────────────────────────────────────────
   {
