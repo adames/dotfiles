@@ -44,13 +44,25 @@ if [[ -z "$app" ]]; then
   exit 1
 fi
 
-if ! osascript >/dev/null 2>&1 \
-       -e "tell application \"$app\" to activate" \
-       -e "tell application \"$app\" to make new window"; then
-  # The app's dictionary doesn't expose `make new window`. Fall back
-  # to `open -na`, which forces Launch Services to spawn a new
-  # process. Some terminals (kitty, Alacritty) may interpret -n as
-  # "second app instance" rather than "new window of existing"; this
-  # is acceptable as a last resort.
-  open -na "$app" >/dev/null 2>&1 || true
+# The pgrep gate avoids the "two windows on first press" bug. When
+# the app is NOT already running, `tell app to activate` launches it
+# — and the launch creates the app's default startup window. Then
+# `make new window` would add a SECOND window. Two windows per press
+# when the app's cold.
+#
+# Branch:
+#   • App already running  → activate + make new window (1 new window).
+#   • App not running       → just `open -a` (1 window from the launch).
+if pgrep -xq "$app" 2>/dev/null; then
+  if ! osascript >/dev/null 2>&1 \
+         -e "tell application \"$app\" to activate" \
+         -e "tell application \"$app\" to make new window"; then
+    # Dictionary missing `make new window` — fall back to `open -na`.
+    # Some terminals (kitty, Alacritty) interpret -n as "second app
+    # instance" rather than "new window of existing"; acceptable as
+    # a last resort.
+    open -na "$app" >/dev/null 2>&1 || true
+  fi
+else
+  open -a "$app" >/dev/null 2>&1 || true
 fi

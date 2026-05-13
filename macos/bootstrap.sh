@@ -165,10 +165,12 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/lib/hex-ansi.sh"     "$HOME/.config/workspace/lib/hex-ansi.sh"
   install_file "$CONFIGS_DIR/workspace/lib/sf-to-nerd.json" "$HOME/.config/workspace/lib/sf-to-nerd.json"
   install_file "$CONFIGS_DIR/workspace/hooks/post-mutate.sh" "$HOME/.config/workspace/hooks/post-mutate.sh" 755
-  # ws-launch-terminal: focus a yabai space + open a new window of the
-  # user's terminal (auto-detected; override with $WS_TERMINAL_APP).
-  # Wired to Hyper+0 in skhdrc.
+  # ws-launch-terminal / ws-launch-browser: auto-detect the user's
+  # preferred terminal / browser and open a new window. No hardcoded
+  # app names; override with $WS_TERMINAL_APP / $WS_BROWSER_APP.
+  # Wired to Hyper+T / Hyper+0 (terminal) and Hyper+B (browser) in skhdrc.
   install_file "$CONFIGS_DIR/workspace/launch-terminal.sh"  "$HOME/.local/bin/ws-launch-terminal"             755
+  install_file "$CONFIGS_DIR/workspace/launch-browser.sh"   "$HOME/.local/bin/ws-launch-browser"              755
   # Clean up the notch-padding tuning env retired by the left-aligned
   # navbar refactor. The file had user edits, but the only consumer
   # (recenter.sh) is gone — nothing reads it now. Idempotent.
