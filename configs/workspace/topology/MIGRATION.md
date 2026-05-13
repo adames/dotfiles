@@ -1,20 +1,25 @@
 # spaces.json v1 → v2 migration
 
-## What changes
+This document is historical. The system is v2-only now. The migrator
+is kept as importer infrastructure: if you ever paste in a legacy v1
+`spaces.json` (or a `spaces.default.json` from an old commit), running
+`ws-topology migrate --apply` will rewrite it in place to v2 shape.
+
+## What changed
 
 | Field | v1 | v2 |
 |---|---|---|
 | `version` | `1` | `2` |
 | `spaces.<N>.icon` | raw glyph string (e.g. `""`) | _removed_ — superseded by `iconSpec` |
-| `spaces.<N>.iconSpec` | _not present_ | typed object: `kind`, `codepoint` (ASCII-escaped `\uXXXX`), `fontFamily`, `fallbackSfSymbol`, `fallbackText`, `userOverridden` |
+| `spaces.<N>.iconSpec` | _not present_ | typed object: `kind`, `codepoint` (ASCII-escaped `\uXXXX`), `fontFamily`, `fallbackSfSymbol`, `fallbackText`, `userOverridden`, optional `symbolName` |
 | `spaces.<N>.stableLogicalLabel` | _not present_ | persistent slot label; defaults to current `name`; preserved across renames |
 | All `_doc_*` top-level keys | preserved | preserved |
 
-The on-disk shape stays a JSON object keyed by the slot index (`"1".."N"`).
-The existing `workspace` CLI's `_NORMALIZE` filter continues to keep the file
-sorted numerically.
+The on-disk shape is still a JSON object keyed by the slot index
+(`"1".."N"`). The `workspace` CLI's `_NORMALIZE` filter keeps it sorted
+numerically AND actively strips any legacy `.icon` field that sneaks in.
 
-## Migration rules
+## Migration rules (still applied on `ws-topology migrate`)
 
 For each slot:
 
@@ -24,65 +29,38 @@ For each slot:
    * Single scalar in a Private Use Area (U+E000..U+F8FF or U+F0000..U+FFFFD)
      → `{ kind: "nerdFont", codepoint: "\uXXXX", fontFamily: "JetBrainsMono Nerd Font", fallbackSfSymbol, fallbackText }`.
    * Anything else (e.g. emoji) → `{ kind: "text", fallbackText: <glyph> }`.
-3. SF Symbol fallback comes from `SfSymbolFallbacks` keyed on the slot name
-   (`stream → play.fill`, `hub → square.grid.2x2`, …); unknown names map to
-   `circle.fill`.
+3. SF Symbol fallback comes from the table in `SfSymbolFallbacks.swift`
+   keyed on the slot name. Unknown names map to `circle.fill`.
 4. Two-letter text fallback comes from the slot name's uppercase prefix.
-5. `userOverridden` defaults to `false` so the auto-iconing pipeline can
-   regenerate when the user renames a slot. Explicit `workspace icon ...`
-   flips it to `true`.
-6. `stableLogicalLabel` is set to the current `name`. This is the value the
-   yabai `LABEL` will continue to use for slot identity.
+5. `userOverridden` defaults to `false`.
+6. `stableLogicalLabel` is set to the current `name`.
 
-## Rollout
+## Importing a legacy v1 config
 
-1. **Inspect the diff first**:
+```bash
+# Dry-run — print the proposed v2 shape without writing
+ws-topology migrate
 
-   ```bash
-   ws-topology migrate                  # writes nothing; prints v2 to stdout
-   ws-topology migrate > /tmp/v2.json   # save for inspection
-   diff <(jq -S . ~/.config/workspace/spaces.json) <(jq -S . /tmp/v2.json) | less
-   ```
+# Apply in place
+ws-topology migrate --apply
+```
 
-2. **Apply**:
+The cascade readers (`on-space-changed.sh`, `space.sh`) read
+`iconSpec.codepoint` exclusively — they no longer fall back to the
+legacy `.icon` field. So a v1 import without `--apply` would leave
+the bar rendering empty icons; always migrate before reloading.
 
-   ```bash
-   ws-topology migrate --apply
-   ```
+## Coexistence with the `workspace` CLI
 
-   Backs the original up to `~/.config/workspace/spaces.v1.json` before
-   writing. `--apply` is a no-op if the file is already v2 with all required
-   fields.
+* `workspace icon <slot> <glyph-or-SF-name>` writes `iconSpec.codepoint` +
+  flips `userOverridden=true`. Accepts SF Symbol names (looked up in
+  `~/.config/workspace/lib/sf-to-nerd.json`) or literal Nerd Font glyphs.
+  Does NOT write the legacy `.icon` field.
+* `workspace name <slot> <new>` only touches `.name`. The `iconSpec`
+  stays put. If `userOverridden=true`, the icon survives the rename.
+* `workspace migrate` thin-wraps `ws-topology migrate`. Accepts `--apply`.
 
-3. **Confirm cascade still works**:
-
-   ```bash
-   ~/.config/workspace/on-space-changed.sh
-   cat ~/.cache/workspace/current.env   # MACOS_SPACE_ICON should be the literal glyph
-   ```
-
-4. **Rollback if needed**:
-
-   ```bash
-   ws-topology migrate --rollback       # restores from spaces.v1.json
-   ```
-
-## Coexistence with the bash `workspace` CLI
-
-After migration:
-
-* `workspace icon <slot> <glyph>` writes BOTH `.icon` (legacy field, preserved
-  so v1 consumers in the cascade keep working during the migration window)
-  AND `.iconSpec.codepoint` + `.iconSpec.userOverridden=true` (the v2
-  authoritative shape).
-* `workspace name <slot> <new>` only touches `.name`; the `iconSpec` is
-  unchanged. If `userOverridden=true`, the icon survives the rename; if
-  `userOverridden=false`, future auto-iconing can regenerate from the new
-  name.
-* `workspace migrate` is a thin wrapper that delegates to `ws-topology
-  migrate`. It accepts the same flags (`--apply`, `--rollback`).
-
-## Sanity check
+## Sanity check after import
 
 ```bash
 ws-topology resolve-icon 1 --surface=font     # should print the Nerd Font glyph
@@ -90,6 +68,6 @@ ws-topology resolve-icon 1 --surface=native   # should print the SF Symbol name
 ws-topology resolve-icon stream --surface=font  # by name, equivalent to slot 1
 ```
 
-If the font-driven resolution returns the SF Symbol fallback or text instead
-of the glyph, the Nerd Font family may be missing — check
+If the font-driven resolution returns the SF Symbol fallback or text
+instead of the glyph, the Nerd Font family may be missing — check
 `fc-list | grep -i 'nerd font'` or visit Font Book.

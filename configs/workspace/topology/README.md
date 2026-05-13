@@ -137,8 +137,7 @@ Tested on macOS 26.3.1 / Mac15,10 (M3 Max 14") and MacBookPro17,1 (M1 13").
 ws-topology dump                                # current display snapshot, JSON
 ws-topology layout                              # per-display layout policy, JSON
 ws-topology migrate                             # dry-run v1 → v2; prints to stdout
-ws-topology migrate --apply                     # writes v2; backs up spaces.v1.json
-ws-topology migrate --rollback                  # restore from spaces.v1.json
+ws-topology migrate --apply                     # writes v2 (idempotent on v2 inputs)
 ws-topology resolve-icon <slot> --surface=font|native
 ws-topology emit-skhd --write --reload          # regenerate ~/.config/skhd/spaces.skhdrc
 
@@ -205,7 +204,7 @@ log stream --predicate 'subsystem == "com.adames.workspace.topology"'
 
 | What | How |
 |---|---|
-| spaces.json v2 → v1 | `ws-topology migrate --rollback` (restores from `spaces.v1.json`) |
+| spaces.json edit | edit by hand or use `workspace name/color/icon` — every mutation atomic via `_NORMALIZE` |
 | Topology daemon | `launchctl bootout "gui/$(id -u)/com.adames.workspace.topologyd"` |
 | Per-host overlay | `workspace host reset` |
 | Notch padding | edit `~/.config/workspace/sketchybar-tuning.env` |

@@ -217,7 +217,7 @@ LAYOUTS  (named snapshots, per-machine)
   layout delete <NAME> [-y]        remove a saved layout
 
 SYSTEM
-  migrate [--apply|--rollback]     spaces.json v1 → v2 (delegates to ws-topology)
+  migrate [--apply]                spaces.json v1 → v2 importer (delegates to ws-topology)
   host {status|init|reset|list}    per-host overlay (spaces.<hostname>.json)
   refresh [--full]                 force re-run cascade + sketchybar repaint
 
@@ -430,9 +430,9 @@ cmd_icon() {
 }
 
 cmd_migrate() {
-  # Thin delegate to ws-topology. Accepts the same flags (--apply,
-  # --rollback). Dry-run by default; --apply backs up to spaces.v1.json
-  # then writes v2.
+  # Thin delegate to ws-topology. Dry-run by default; --apply writes
+  # v2 in place. Idempotent on already-v2 files. Useful for importing
+  # a legacy v1 spaces.json from an old backup or fresh-install seed.
   if ! command -v ws-topology >/dev/null 2>&1; then
     err "ws-topology not on PATH (build + symlink from ~/.config/workspace/topology)"
     exit 1
