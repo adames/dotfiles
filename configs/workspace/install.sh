@@ -10,7 +10,7 @@
 #      configs by appending slots 9 & 10 from the new defaults
 #   3. capture laptop display UUID on a clean single-display run
 #   4. assert dependencies + minimum tmux version + JankyBorders presence
-#   5. nudge running yabai / Hammerspoon / skhd to pick up new signals
+#   5. nudge running yabai / skhd to pick up new signals
 
 set -u
 
@@ -176,11 +176,6 @@ fi
 if pgrep -x yabai >/dev/null 2>&1; then
   step "reloading yabai (registering new signals)"
   yabai --restart-service >/dev/null 2>&1 || warn "yabai --restart-service failed"
-fi
-
-if pgrep -x Hammerspoon >/dev/null 2>&1 && command -v hs >/dev/null 2>&1; then
-  step "reloading Hammerspoon"
-  hs -c "hs.reload()" >/dev/null 2>&1 || warn "Hammerspoon reload failed"
 fi
 
 if pgrep -x skhd >/dev/null 2>&1; then

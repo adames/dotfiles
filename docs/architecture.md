@@ -15,11 +15,9 @@ graph LR
   Hyper --> skhd
   Meh --> skhd
   skhd -->|"yabai -m ..."| yabai
-
-  Hyper --> Hammerspoon
-  Hammerspoon -->|cmd+T/N| Terminal
-  Hammerspoon -->|Caps+; shell-out| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
-  skhd -->|Hyper+/ fallback| WSCheatsheet
+  skhd -->|Hyper+T osascript| Ghostty
+  skhd -->|Meh+arrows| WSSnap[ws-snap · AX]
+  skhd -->|Hyper+;/Hyper+/| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
 
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
   WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
@@ -27,9 +25,8 @@ graph LR
   WorkspaceHandler -->|set-environment| tmux
 
   yabai --> Windows[(macOS Windows)]
-  Hammerspoon --> Windows
+  WSSnap --> Windows
 
-  Terminal --> Ghostty
   Ghostty --> tmux
   tmux --> zsh
   zsh -->|"$EDITOR"| Neovim
@@ -37,11 +34,12 @@ graph LR
 ```
 
 Caps Lock is intercepted by Karabiner, which re-emits one of three things
-depending on what's held with it. **skhd** and **Hammerspoon** listen for
-those re-emitted modifier sets and trigger shortcuts that drive **yabai**
-and the terminal. Inside the terminal, **tmux** + **zsh** + **Neovim** form
-the dev surface — every layer reusing the same vim-style hjkl + leader-key
-mental model.
+depending on what's held with it. **skhd** listens for those re-emitted
+modifier sets and dispatches each hotkey — either to **yabai** for tiling
+or to a tiny Swift CLI (**ws-snap**, **ws-cheatsheet**) for the cases
+where logic is required. Inside the terminal, **tmux** + **zsh** +
+**Neovim** form the dev surface — every layer reusing the same vim-style
+hjkl + leader-key mental model.
 
 ## The two Hyper levels
 
@@ -78,8 +76,9 @@ floating or unmanaged windows like Ghostty and System Settings).
 |---|---|---|
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
-| Hyper window hotkeys | skhd | `skhdrc` |
-| Hyper+T/N + Meh+arrows + Caps+; cheatsheet trigger | Hammerspoon | `hammerspoon-init.lua` |
+| Hyper/Meh hotkey dispatch (windows, spaces, app launchers, terminal, cheatsheet trigger) | skhd | `skhdrc` |
+| Floating-window snaps (Meh+arrows) | ws-snap (topology package, AX) | `configs/workspace/topology/Sources/ws-snap/` |
+| SketchyBar per-display autohide | ws-autohide (LaunchAgent, Swift) | `configs/workspace/topology/Sources/ws-autohide/` |
 | Cheatsheet HUD (SwiftUI) | ws-cheatsheet (topology package) | `configs/workspace/cheatsheet.json` + `configs/workspace/topology/Sources/ws-cheatsheet/` |
 | Cross-display topology (notch + aux geometry + per-display layout policy) | ws-topologyd (LaunchAgent, Swift) | `configs/workspace/topology/` |
 | Workspace pill strip (persistent 10-slot indicator) | SketchyBar | `sketchybar/sketchybarrc` · `sketchybar/plugins/space.sh` |
@@ -91,13 +90,25 @@ floating or unmanaged windows like Ghostty and System Settings).
 | Editor + plugins + LSP + DAP | Neovim + Lazy + Mason | `nvim-init.lua` |
 | Plugin version pin | lazy.nvim | `nvim-lazy-lock.json` |
 
-## Why skhd AND Hammerspoon?
+## Why skhd plus small Swift CLIs?
 
-- **skhd** uses `CGEventTap` to forward keystrokes to yabai. Fast, reliable,
-  but no API for "send Cmd+T to whatever terminal app is open."
-- **Hammerspoon** is Lua-scripted automation. We use it for things that
-  need logic: targeting the user's terminal app, the SIP-safe arrow snaps
-  (no-ops when yabai is up), and the Hyper+/ cheatsheet overlay.
+- **skhd** uses `CGEventTap` to forward keystrokes. Fast, stateless, but it
+  only knows how to fire shell commands — no AppKit, no AX, no logic.
+- Anything that needs macOS API access is its own one-shot binary, shipped
+  by the Swift package under `configs/workspace/topology/`:
+  - **ws-snap** moves floating / yabai-unmanaged windows via the
+    Accessibility API (Meh+arrows). One process per keypress.
+  - **ws-cheatsheet** is the SwiftUI HUD (Hyper+;).
+  - **ws-autohide** is the only long-running helper — a launchd-managed
+    cursor poller that hides each display's SketchyBar pills when the
+    cursor approaches its top edge.
+- Terminal launching (Hyper+T) is skhd → `osascript` invoking Ghostty's
+  File→New Window menu, which bypasses keyboard state (strict apps drop
+  Hyper+Cmd+T while Caps is held).
+
+This is a smaller surface than the old skhd + Hammerspoon split — no Lua
+runtime, no extra Accessibility-permissioned daemon, and no AppKit
+Console window fighting AppKit's saved-state.
 
 ## In-terminal layers
 
@@ -131,7 +142,7 @@ pinned via `lazy-lock.json` so machines stay in lockstep.
 
 | Permission | Apps | Wizard pane |
 |---|---|---|
-| Accessibility | yabai · skhd · Hammerspoon · Karabiner-Elements | `Privacy_Accessibility` |
+| Accessibility | yabai · skhd · ws-snap · Karabiner-Elements | `Privacy_Accessibility` |
 | Input Monitoring | Karabiner-Elements · Karabiner-DriverKit | `Privacy_ListenEvent` |
 | System Extension approval | Karabiner-DriverKit-VirtualHIDDevice | `Privacy_SystemServices` |
 | Spaces "Displays have separate Spaces" | yabai | bootstrap sets `defaults` — **logout required** |
@@ -193,7 +204,7 @@ hot path" rule holds.
 - **`on-space-changed.sh`** is the cascade entry point — called by the
   yabai `space_changed` signal *and* by every CLI mutation. It writes
   `current.env` atomically, pushes env into tmux, repaints borders,
-  triggers sketchybar, and shows the HS overlay. Silent-on-absence per
+  triggers sketchybar, and re-pushes env to tmux. Silent-on-absence per
   subsystem so Ubuntu and partial setups Just Work.
 - **`hooks/post-mutate.sh`** is a user-owned extension point. The
   shipped default keeps SketchyBar's pill set in sync with spaces.json
@@ -219,7 +230,7 @@ pill set:
 | SketchyBar | `topmost=off`, `y_offset=7` | Strip draws behind the menu bar; vertically centered in the y=0..40 band |
 | SketchyBar items | `display=<N>` per pill | Each pill is visible only on its owning yabai display |
 | yabai | `external_bar all:26:0` | BSP-tiled windows never enter the top 26px on any display |
-| Hammerspoon | [`sketchybar-autohide.lua`](../configs/hammerspoon-sketchybar-autohide.lua) | 100ms timer toggles each pill's per-item `y_offset` based on the cursor's display-relative y; PER-DISPLAY (only the strip on the cursor's current display hides) |
+| ws-autohide | [`Sources/ws-autohide/`](../configs/workspace/topology/Sources/ws-autohide) | LaunchAgent-managed 100ms cursor poller; toggles each pill's per-item `y_offset` based on the cursor's display-relative y; PER-DISPLAY (only the strip on the cursor's current display hides) |
 
 The result: cursor at the very top of display N → display N's pills
 slide off-screen, the macOS menu bar on display N reveals. Cursor
@@ -304,20 +315,21 @@ full label even in dense mode.
     │   │   ├── Sources/ws-topology/       # one-shot CLI
     │   │   ├── Sources/ws-topologyd/      # launchd agent (reconfig callback)
     │   │   ├── Sources/ws-cheatsheet/     # SwiftUI HUD (replaces cheatsheet.lua)
+    │   │   ├── Sources/ws-autohide/       # SketchyBar per-display cursor-y auto-hide (launchd)
+    │   │   ├── Sources/ws-snap/           # Meh+arrows floating-window snap (AX, skhd-driven)
     │   │   ├── Tests/                     # XCTest (full Xcode required)
-    │   │   ├── launchd/*.plist            # LaunchAgent
+    │   │   ├── launchd/*.plist            # LaunchAgents (topologyd + autohide)
     │   │   └── install.sh                 # builds + symlinks + load
     │   └── install.sh                     # workspace-system bootstrapper
-    ├── sketchybar/
-    │   ├── sketchybarrc                       # bar geometry + pill loop
-    │   ├── colors.sh                          # palette constants
-    │   ├── plugins/space.sh                   # per-pill render (iconSpec-driven)
-    │   ├── plugins/per-display-pills.sh       # pill display assignment (batched)
-    │   ├── plugins/recenter.sh                # split-around-notch / centered layout
-    │   ├── plugins/notch-detect.sh            # layout.env-driven (sysctl fallback)
-    │   ├── plugins/ssh-chip.sh                # outbound SSH presence chip
-    │   └── bootstrap.sh                       # brew services start
-    └── hammerspoon-sketchybar-autohide.lua    # per-display cursor-y auto-hide
+    └── sketchybar/
+        ├── sketchybarrc                       # bar geometry + pill loop
+        ├── colors.sh                          # palette constants
+        ├── plugins/space.sh                   # per-pill render (iconSpec-driven)
+        ├── plugins/per-display-pills.sh       # pill display assignment (batched)
+        ├── plugins/recenter.sh                # split-around-notch / centered layout
+        ├── plugins/notch-detect.sh            # layout.env-driven (sysctl fallback)
+        ├── plugins/ssh-chip.sh                # outbound SSH presence chip
+        └── bootstrap.sh                       # brew services start
 ```
 
 `install_file` byte-compares src vs dst and skips no-ops, so editing
