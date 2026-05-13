@@ -16,21 +16,21 @@ full default set.
    | Tool | Probe |
    |---|---|
    | yabai · skhd                | `launchctl list` PID > 0 (services refuse to start without Accessibility); error-log fallback parses `"could not access accessibility"` / `"must be run with accessibility access"` |
-   | Hammerspoon                 | `osascript → hs.accessibilityState(false)` over the AppleScript bridge (our `init.lua` enables it). Behavioral fallback: registered hotkey count > 0. |
+   | ws-snap                     | binary present on PATH; first AX call triggers the TCC prompt, after which the toggle survives across reboots. |
    | Karabiner (Acc + Input Mon) | `Karabiner-Core-Service-rev2` agent PID — the service refuses to start without both bits granted, so a live PID is strong evidence of both. |
    | DriverKit System Extension  | `systemextensionsctl list` for `Karabiner.*activated enabled`. |
 
 2. **Register if needed.** If any probe failed, launch the apps so they
    appear in TCC lists (`yabai --start-service`, `skhd --start-service`,
-   `open -ga Hammerspoon`, `open -ga Karabiner-Elements`), then re-probe.
-   A freshly-installed app sometimes passes the second probe where it
-   failed the first.
+   `open -ga Karabiner-Elements`, plus a no-op `ws-snap` invocation),
+   then re-probe. A freshly-installed app sometimes passes the second
+   probe where it failed the first.
 
 3. **Per pane, skip or open:**
 
    | Pane | Toggle ON |
    |---|---|
-   | Accessibility       | yabai · skhd · Hammerspoon · Karabiner-Elements |
+   | Accessibility       | yabai · skhd · ws-snap · Karabiner-Elements |
    | Input Monitoring    | Karabiner-Elements · Karabiner-DriverKit-VirtualHIDDevice |
    | System Extensions   | approve Karabiner-DriverKit-VirtualHIDDevice (banner near top) |
 
@@ -40,7 +40,7 @@ full default set.
 
 4. **Kick services.** Only runs if at least one pane was opened.
    `karabiner_grabber` and `karabiner_console_user_server` are
-   re-launched so Karabiner picks up new grants; Hammerspoon reloaded.
+   re-launched so Karabiner picks up new grants.
 
 5. **Logout offer.** If `com.apple.spaces spans-displays` is set but
    yabai isn't running, prompts to log out (yabai re-reads the value on
