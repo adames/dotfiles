@@ -216,6 +216,11 @@ LAYOUTS  (named snapshots, per-machine)
   layout list                      list saved layouts
   layout delete <NAME> [-y]        remove a saved layout
 
+SYSTEM
+  migrate [--apply|--rollback]     spaces.json v1 → v2 (delegates to ws-topology)
+  host {status|init|reset|list}    per-host overlay (spaces.<hostname>.json)
+  refresh [--full]                 force re-run cascade + sketchybar repaint
+
 ENV OVERRIDES
   WS_CONFIG       path to spaces.json     (default: ~/.config/workspace/spaces.json)
   WS_THEMES_DIR   themes directory        (default: ~/.config/workspace/themes)
@@ -365,6 +370,56 @@ cmd_migrate() {
     exit 1
   fi
   ws-topology migrate "$@"
+}
+
+cmd_refresh() {
+  # Force-re-run the cascade end-to-end. Useful after editing
+  # spaces.json by hand, after swapping the active host overlay, or
+  # any time the bar / borders / tmux env look stale.
+  #
+  # --full also asks ws-topologyd to republish topology.json + layout.env
+  # (otherwise those refresh only on display reconfiguration events).
+  local full=0
+  for arg in "$@"; do
+    case "$arg" in
+      --full) full=1 ;;
+      -h|--help)
+        cat <<'EOF_REFRESH_HELP' >&2
+usage: workspace refresh [--full]
+
+Re-run the cascade:
+  1. on-space-changed.sh   rewrite current.env + repaint borders + trigger sketchybar
+  2. per-display-pills.sh  re-apply pill display assignment + density + anchor
+
+With --full, also kickstarts ws-topologyd so topology.json / layout.env
+are re-emitted (normally only refreshed on display add/remove/change).
+EOF_REFRESH_HELP
+        return 0
+        ;;
+    esac
+  done
+
+  if [[ -x "$WS_HANDLER" ]]; then
+    "$WS_HANDLER" || warn "cascade handler exited non-zero"
+  else
+    warn "cascade handler not executable: $WS_HANDLER"
+  fi
+
+  local pills="$HOME/.config/sketchybar/plugins/per-display-pills.sh"
+  if [[ -x "$pills" ]]; then
+    "$pills" >/dev/null 2>&1 || warn "per-display-pills.sh exited non-zero"
+  fi
+
+  if (( full )); then
+    if launchctl print "gui/$(id -u)/com.adames.workspace.topologyd" >/dev/null 2>&1; then
+      launchctl kickstart -k "gui/$(id -u)/com.adames.workspace.topologyd" 2>/dev/null || true
+      printf 'workspace: refreshed (--full: daemon kicked)\n' >&2
+      return 0
+    else
+      warn "ws-topologyd not loaded; --full skipped"
+    fi
+  fi
+  printf 'workspace: refreshed\n' >&2
 }
 
 # ── host overlay management ─────────────────────────────────────────────
@@ -921,5 +976,6 @@ case "${1:-}" in
   layout)            shift; cmd_layout   "$@" ;;
   migrate)           shift; cmd_migrate  "$@" ;;
   host)              shift; cmd_host     "$@" ;;
+  refresh)           shift; cmd_refresh  "$@" ;;
   *) err "unknown subcommand: $1 (try 'workspace --help')"; exit 2 ;;
 esac

@@ -45,12 +45,22 @@ SPARSE_GAP=8
 COMFORT_GAP=2
 DENSE_GAP=0
 
-# User tuning. Precedence: env-var override > config file > default 0.
-if [[ -z "${WS_NOTCH_PADDING_PT:-}" && -r "$WS_TUNING_CONF" ]]; then
+# User tuning. Precedence (per variable): env override > config file > default.
+#
+# WS_NOTCH_PADDING_PT is the symmetric shortcut: applies equally to both
+# sides of the notch. WS_NOTCH_PAD_LEFT_PT / WS_NOTCH_PAD_RIGHT_PT override
+# per-side when the physical housing is shifted (not just slightly wider).
+# A side-specific override beats the symmetric default.
+if [[ ( -z "${WS_NOTCH_PADDING_PT:-}" \
+      || -z "${WS_NOTCH_PAD_LEFT_PT:-}" \
+      || -z "${WS_NOTCH_PAD_RIGHT_PT:-}" ) \
+   && -r "$WS_TUNING_CONF" ]]; then
   # shellcheck disable=SC1090
   source "$WS_TUNING_CONF" 2>/dev/null || true
 fi
 WS_NOTCH_PADDING_PT="${WS_NOTCH_PADDING_PT:-0}"
+WS_NOTCH_PAD_LEFT_PT="${WS_NOTCH_PAD_LEFT_PT:-$WS_NOTCH_PADDING_PT}"
+WS_NOTCH_PAD_RIGHT_PT="${WS_NOTCH_PAD_RIGHT_PT:-$WS_NOTCH_PADDING_PT}"
 
 command -v sketchybar >/dev/null 2>&1 || exit 0
 pgrep -x sketchybar >/dev/null 2>&1 || exit 0
@@ -158,8 +168,12 @@ while IFS=$'\t' read -r display width sid_csv; do
       notch_x=$(( ( ${width%.*} - LEGACY_NOTCH_WIDTH ) / 2 ))
       notch_w=$LEGACY_NOTCH_WIDTH
     fi
-    eff_notch_x=$(( notch_x - WS_NOTCH_PADDING_PT ))
-    eff_notch_w=$(( notch_w + 2 * WS_NOTCH_PADDING_PT ))
+    # User padding widens the perceived notch on each side. Per-side
+    # variables let the user dial in an asymmetric physical housing
+    # (where Apple's safe-area rect is shifted left or right of the
+    # visible camera cutout, not just slightly wider).
+    eff_notch_x=$(( notch_x - WS_NOTCH_PAD_LEFT_PT ))
+    eff_notch_w=$(( notch_w + WS_NOTCH_PAD_LEFT_PT + WS_NOTCH_PAD_RIGHT_PT ))
 
     L=$(( (visible_count + 1) / 2 ))
     chain_w_left=$(( L * pill_w + (L - 1) * gap ))
