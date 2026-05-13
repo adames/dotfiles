@@ -50,6 +50,11 @@ if [[ -r "$CONFIG" ]] && command -v jq >/dev/null 2>&1; then
       hex="${ICON_ESCAPED#\\u}"
       ICON=$(printf "\\u${hex}")
     fi
+  else
+    # v1 fallback: matches on-space-changed.sh. Read raw .icon glyph
+    # when iconSpec is missing (post-rollback or hand-edited configs).
+    ICON_LEGACY=$(_jq '.spaces[$k].icon // ""')
+    [[ -n "$ICON_LEGACY" ]] && ICON="$ICON_LEGACY"
   fi
 fi
 
