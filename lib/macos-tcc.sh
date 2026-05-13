@@ -14,6 +14,8 @@
 #
 # Source it: `. "$DOTFILES_DIR/lib/macos-tcc.sh"`
 
+set -u
+
 # Deep-link to System Settings panes. Pane keys we use:
 #   Privacy_Accessibility, Privacy_ListenEvent (Input Monitoring),
 #   Privacy_SystemServices (system extensions)

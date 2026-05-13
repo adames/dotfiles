@@ -261,6 +261,37 @@ else
   dim "skip: tmux not running"
 fi
 
+# 17 · idempotent refresh: running the cascade twice produces no JSON diff
+#      and a populated current.env. Mutations land via _write(), cascades
+#      via on-space-changed.sh — neither should rewrite spaces.json.
+cp -f "$SNAP" "$WS_CONFIG"
+before_hash=$(shasum -a 256 "$WS_CONFIG" | awk '{print $1}')
+if [[ -x "$WS_HANDLER" ]]; then
+  "$WS_HANDLER" >/dev/null 2>&1 || true
+  "$WS_HANDLER" >/dev/null 2>&1 || true
+  after_hash=$(shasum -a 256 "$WS_CONFIG" | awk '{print $1}')
+  assert "cascade re-run does not mutate spaces.json" "$before_hash" "$after_hash"
+else
+  dim "skip: WS_HANDLER not executable"
+fi
+
+# 18 · optional-subsystem absence: run on-space-changed.sh with a stripped
+#      PATH so sketchybar/borders/tmux/yabai are absent. The handler must
+#      still exit 0 and refresh current.env (silent-on-absence contract).
+if [[ -x "$WS_HANDLER" ]]; then
+  cache_env="$HOME/.cache/workspace/current.env"
+  if PATH="/usr/bin:/bin" WS_CONFIG="$WS_CONFIG" "$WS_HANDLER" >/dev/null 2>&1; then
+    pass "cascade exits 0 with stripped PATH (no sketchybar/borders/tmux/yabai)"
+  else
+    fail "cascade failed with stripped PATH"
+  fi
+  if [[ -r "$cache_env" ]] && grep -q '^export MACOS_SPACE_' "$cache_env"; then
+    pass "cascade refreshes current.env without optional subsystems"
+  else
+    fail "cascade left current.env unwritten under stripped PATH"
+  fi
+fi
+
 if (( FAILED )); then
   red "✗ verify FAILED"
   exit 1
