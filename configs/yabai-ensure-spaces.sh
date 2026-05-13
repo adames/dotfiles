@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Ensure yabai has exactly TARGET (default 10) spaces total across all
-# displays, then apply stable labels by index. Called by ~/.yabairc at
-# startup AND by the display_added signal so attaching/detaching a
-# monitor mid-session also reaches the right total without re-login.
+# Ensure yabai has at least TARGET (default 2: "home" + "code") spaces
+# total across all displays, then apply stable labels by index. Called
+# by ~/.yabairc at startup AND by the display_added signal so attaching
+# a monitor mid-session reaches the right minimum without re-login.
 #
 # Requires the yabai scripting addition. If SA is not loaded,
 # `--create` and `--destroy` print
@@ -10,15 +10,17 @@
 # and we break the inner loop — no infinite spin, just a no-op until the
 # user runs macos/yabai-sa-install.sh.
 #
-# Destruction is OPT-IN. Default behaviour is to top up only; if the
-# user has more spaces than TARGET (e.g., from a prior 12-space layout)
-# we warn and leave them. Pass TARGET_STRICT=1 to actually destroy
-# extras — that operation may carry windows with it, so it's not a safe
-# default.
+# Destruction is OPT-IN — default behaviour is to top up only. New
+# monitor handling: when macOS auto-creates a space for a freshly
+# attached display, yabai sees N+1; this script sees count > TARGET,
+# leaves the extra alone, paint-all.sh renders it gracefully as a
+# bare pill. The user can then `ws name 3 <new>` to customize it.
+# Pass TARGET_STRICT=1 to destroy extras (carries windows with it —
+# not a safe default).
 
 set -e
 
-TARGET="${1:-10}"
+TARGET="${1:-2}"
 
 # Single source of truth for the slot labels: lib/colors.sh. Sourced
 # from either the dotfiles checkout or the deployed library copy at
@@ -38,7 +40,7 @@ done
 if [ "${#WORKSPACE_LABELS[@]}" -gt 0 ]; then
   LABELS=("${WORKSPACE_LABELS[@]}")
 else
-  LABELS=(core forge codex lex scope uplink signal ledger craft void)
+  LABELS=(home code)
 fi
 
 # Save original focused display; the create-loop moves focus per-display

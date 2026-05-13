@@ -16,3 +16,11 @@ export ACTIVE_FG=0xff1e1e2e         # base
 # Inactive label color. overlay0 (dim gray) keeps the workspace name legible
 # without competing with the colored icon or the active pill.
 export INACTIVE_LABEL=0xff6c7086    # overlay0
+
+# Subtle background fill used by paint-all.sh for the active *bare* slot —
+# the one with no customized name or icon. Customized slots get their
+# assigned color as the active bg; bare slots get this muted surface
+# tone so they're still visibly "focused" without claiming a color.
+# surface1 in catppuccin mocha — sits between BAR_COLOR (transparent)
+# and the pastel slot colors.
+export INACTIVE_FILL=0xff45475a     # surface1
