@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Fallback rename flow for when Hammerspoon is unavailable. Uses an
-# AppleScript dialog so it works from skhd's no-tty daemon context.
-# Hammerspoon's Workspace.rename() is preferred (skhd tries that first).
+# Rename flow for the focused workspace slot. Uses an AppleScript dialog
+# so it works from skhd's no-tty daemon context.
 #
 # Thin wrapper: yabai-index lookup + AppleScript prompt → `workspace
 # name`. All the atomic-write + cascade machinery lives in the CLI.

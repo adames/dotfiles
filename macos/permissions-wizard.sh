@@ -2,10 +2,10 @@
 # Walks the three TCC panes the Hyper-key stack needs.
 #
 # Probe-gated: lib/macos-tcc.sh asks each tool whether its TCC bit is on
-# (via launchctl, systemextensionsctl, hs.accessibilityState, Karabiner-Core-
-# Service-rev2 liveness — no Full Disk Access required). Panes whose toggles
-# are all already on are skipped silently; panes with missing toggles list
-# ONLY the missing items, not the full set.
+# (via launchctl, systemextensionsctl, Karabiner-Core-Service-rev2 liveness
+# — no Full Disk Access required). Panes whose toggles are all already on
+# are skipped silently; panes with missing toggles list ONLY the missing
+# items, not the full set.
 #
 # On the re-bootstrap case (everything already granted) the wizard never
 # opens System Settings.
@@ -37,8 +37,12 @@ register() {
   step "registering apps in TCC lists"
   yabai --start-service       >/dev/null 2>&1 || true
   skhd  --start-service       >/dev/null 2>&1 || true
-  open -ga Hammerspoon        2>/dev/null    || true
   open -ga Karabiner-Elements 2>/dev/null    || true
+  # ws-snap moves floating windows via AX, so it needs Accessibility. A
+  # no-op invocation forces TCC to enumerate it in the Accessibility list
+  # so the user can flip the toggle. The "no focused window" error path
+  # is harmless here.
+  "$HOME/.local/bin/ws-snap" left >/dev/null 2>&1 || true
   sleep 2
   ok "registered"
 }
@@ -48,8 +52,6 @@ kick_services() {
   step "kicking services"
   launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.daemon.karabiner_grabber"             2>/dev/null || true
   launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.agent.karabiner_console_user_server"  2>/dev/null || true
-  pgrep -x Hammerspoon >/dev/null && \
-    osascript -e 'tell application "Hammerspoon" to execute lua code "hs.reload()"' >/dev/null 2>&1
   ok "kicked"
 }
 
@@ -68,8 +70,13 @@ maybe_logout() {
 missing_accessibility() {
   mac_yabai_status                  || echo "    • yabai"
   mac_skhd_status                   || echo "    • skhd"
-  mac_hammerspoon_accessibility_ok  || echo "    • Hammerspoon"
   mac_karabiner_accessibility_ok    || echo "    • Karabiner-Elements"
+  # ws-snap doesn't have a fast launchctl probe; just always remind on
+  # first-pass installs (the line is suppressed silently once all
+  # other items pass, since TCC grants survive across reboots).
+  if [[ ! -x "$HOME/.local/bin/ws-snap" ]]; then
+    echo "    • ws-snap (build the topology package first)"
+  fi
 }
 missing_input_monitoring() {
   mac_karabiner_input_monitoring_ok \
@@ -82,9 +89,9 @@ missing_system_extensions() {
 main() {
   banner "TCC permission walk-through" "probes first — only opens panes that need attention"
 
-  # First-pass probe. Some probes (Hammerspoon AppleScript bridge, Karabiner
-  # core service) need the app to be running. On re-bootstrap it usually is;
-  # on first install it isn't. Probe → if anything missing, register → re-probe.
+  # First-pass probe. Some probes (Karabiner core service) need the app to
+  # be running. On re-bootstrap it usually is; on first install it isn't.
+  # Probe → if anything missing, register → re-probe.
   local acc im se
   acc=$(missing_accessibility)
   im=$(missing_input_monitoring)
@@ -109,8 +116,8 @@ main() {
     pause_for "  Toggle ON in Accessibility:
 ${acc:-    • yabai
     • skhd
-    • Hammerspoon
-    • Karabiner-Elements}"
+    • Karabiner-Elements
+    • ws-snap}"
     need_kick=1
   fi
 
@@ -143,7 +150,7 @@ ${se:-    • Karabiner-DriverKit-VirtualHIDDevice}"
   if [[ -z "$need_kick" ]]; then
     banner "All permissions already in place" "no panes opened — re-run with --force to re-verify"
   else
-    banner "Done" "press Caps + 0 to verify the Hammerspoon overlay"
+    banner "Done" "press Caps + / to verify the ws-cheatsheet HUD"
   fi
 }
 
