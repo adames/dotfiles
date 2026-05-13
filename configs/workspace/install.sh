@@ -50,12 +50,15 @@ elif command -v jq >/dev/null 2>&1; then
       .version = ($seed[0].version // 2)
       | .spaces = (($seed[0].spaces) * (.spaces // {}))
     ' "$target" > "$tmp" && mv -f "$tmp" "$target"
-    # Post-condition: migration must produce at least the seed's 10 slots
-    # (extras from `workspace add` are fine). Anything less is a bug in
-    # the merge — refuse to leave a corrupt config.
+    # Post-condition: migration must produce at least the seed's slot
+    # count (extras from `ws add` are fine). Anything less is a bug in
+    # the merge — refuse to leave a corrupt config. Reads the expected
+    # count from the seed file so the assertion stays in lockstep with
+    # whatever spaces.default.json ships (2 today, may grow / shrink).
+    expected=$(jq '.spaces | length' "$seed" 2>/dev/null || echo 1)
     final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
-    if (( final < 10 )); then
-      err "migration produced $final slots (expected ≥ 10) — leaving original at ${target}.broken"
+    if (( final < expected )); then
+      err "migration produced $final slots (expected ≥ $expected) — leaving original at ${target}.broken"
       mv "$target" "${target}.broken" 2>/dev/null
       exit 1
     fi

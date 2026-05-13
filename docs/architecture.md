@@ -153,7 +153,7 @@ See [`wizard.md`](wizard.md).
 
 ## Workspace identity cascade
 
-The 10-slot (extensible) workspace identity is a single piece of state
+The workspace identity (factory: 2 slots — home, code — but extensible) is a single piece of state
 (`~/.config/workspace/spaces.json`) read by five subsystems. Mutations
 go through one of two entry points (the `ws` CLI — `workspace` is kept
 as a compat symlink — or `workspace/rename.sh` for the AppleScript

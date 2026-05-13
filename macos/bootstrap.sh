@@ -109,15 +109,15 @@ phase_configs() {
   install_file "$CONFIGS_DIR/sketchybar/colors.sh"                  "$HOME/.config/sketchybar/colors.sh"
   install_file "$CONFIGS_DIR/sketchybar/plugins/paint-all.sh"       "$HOME/.config/sketchybar/plugins/paint-all.sh"       755
   install_file "$CONFIGS_DIR/sketchybar/plugins/per-display-pills.sh" "$HOME/.config/sketchybar/plugins/per-display-pills.sh" 755
-  install_file "$CONFIGS_DIR/sketchybar/plugins/notch-detect.sh"    "$HOME/.config/sketchybar/plugins/notch-detect.sh"    755
   install_file "$CONFIGS_DIR/sketchybar/plugins/ssh-chip.sh"        "$HOME/.config/sketchybar/plugins/ssh-chip.sh"        755
   install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"               "$HOME/.config/sketchybar/bootstrap.sh"               755
   # Clean up plugins retired by the left-aligned-navbar refactor:
-  # space.sh (per-pill renderer) and recenter.sh (center/split-around-
-  # notch geometry). Both are now obsolete; paint-all.sh + the simple
-  # left-anchor layout replace them. Idempotent: no-op once gone.
+  # space.sh (per-pill renderer), recenter.sh (center/split-around-
+  # notch geometry), notch-detect.sh (gated a visibility cap that's
+  # now gone). Idempotent: no-op once gone.
   rm -f "$HOME/.config/sketchybar/plugins/space.sh"
   rm -f "$HOME/.config/sketchybar/plugins/recenter.sh"
+  rm -f "$HOME/.config/sketchybar/plugins/notch-detect.sh"
 
   # Workspace-awareness layer: yabai signal handler + rename flow.
   # spaces.json is NOT install_file'd because that would clobber the
@@ -150,7 +150,7 @@ phase_configs() {
   install_file "$CONFIGS_DIR/completions/_ws"               "$HOME/.config/zsh/completions/_ws"
   install_file "$CONFIGS_DIR/completions/ws.bash"           "$HOME/.config/bash/completions/ws.bash"
 
-  # Workspace identity layer (10-slot system; details in configs/workspace/)
+  # Workspace identity layer (factory: 2 slots — home, code; extensible)
   install_file "$DOTFILES_DIR/lib/colors.sh"              "$HOME/.config/workspace/lib/colors.sh"
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh" "$HOME/.config/workspace/on-space-changed.sh" 755
@@ -163,6 +163,10 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/lib/hex-ansi.sh"     "$HOME/.config/workspace/lib/hex-ansi.sh"
   install_file "$CONFIGS_DIR/workspace/lib/sf-to-nerd.json" "$HOME/.config/workspace/lib/sf-to-nerd.json"
   install_file "$CONFIGS_DIR/workspace/hooks/post-mutate.sh" "$HOME/.config/workspace/hooks/post-mutate.sh" 755
+  # ws-launch-terminal: focus a yabai space + open a new window of the
+  # user's terminal (auto-detected; override with $WS_TERMINAL_APP).
+  # Wired to Hyper+0 in skhdrc.
+  install_file "$CONFIGS_DIR/workspace/launch-terminal.sh"  "$HOME/.local/bin/ws-launch-terminal"             755
   # Clean up the notch-padding tuning env retired by the left-aligned
   # navbar refactor. The file had user edits, but the only consumer
   # (recenter.sh) is gone — nothing reads it now. Idempotent.
