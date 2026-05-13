@@ -17,6 +17,8 @@
 # External displays are always non-notched; this script only describes
 # the laptop's built-in panel.
 
+set -u
+
 if [[ -n "${WS_LAPTOP_HAS_NOTCH:-}" ]]; then
   printf '%s\n' "$WS_LAPTOP_HAS_NOTCH"
   exit 0
