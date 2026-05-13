@@ -3,32 +3,28 @@
 #
 #   yabai-ensure-spaces.sh        → applies these labels with --label
 #   workspace/reconcile-displays  → addresses spaces by these labels
-#   workspace/spaces.default.json → the user-visible NAMES happen to
-#                                   match these defaults but are mutable
-#                                   via workspace/rename.sh; the labels
-#                                   below are NOT mutable
+#   workspace/spaces.default.json → fresh-install seed; the user-visible
+#                                   NAMES happen to match these labels
+#                                   but are mutable via `ws name` /
+#                                   workspace/rename.sh. The LABELS
+#                                   below are NOT mutable — yabai
+#                                   addresses spaces by label across
+#                                   plug/unplug, reorder, and reboot.
 #
-# Sourced by bash scripts; not used in zsh interactively. The colors and
+# Sourced by bash scripts; not used in zsh interactively. Colors and
 # icons live in spaces.default.json (consumed via jq) so user edits to
 # the JSON are honoured without a code change.
 #
-# To add an 11th slot:
-#   1. Add it to WORKSPACE_LABELS below
-#   2. Add a "11" entry to spaces.default.json with the chosen color/icon
-#   3. Add Caps + (no free digit; pick a punctuation key) to skhdrc
-#   4. Update yabai-ensure-spaces.sh's TARGET arg if you go past 10
+# Factory default: 2 slots, "home" on the laptop, "code" on the
+# external (if any). When a new monitor is added, macOS auto-creates
+# a fresh yabai space; we leave it in place and paint-all.sh renders
+# it gracefully as a bare pill. Users can rename / customize with
+# `ws name N <new>` and `ws icon N <glyph>`; adding more slots via
+# `ws add` writes them into spaces.json with whatever name is given.
 
 WORKSPACE_LABELS=(
-  core      # 1  · always-on, laptop-locked
-  forge     # 2  · primary project work
-  codex     # 3  · learning · python · leetcode
-  lex       # 4  · writing · docs · notes
-  scope     # 5  · browser · research
-  uplink    # 6  · ssh · vps · remote
-  signal    # 7  · comms · chat · mail
-  ledger    # 8  · admin · finance
-  craft     # 9  · creative · music · design · gaming
-  void      # 10 · scratch · throwaway · overflow
+  home      # 1  · laptop-locked default
+  code      # 2  · terminal / dev workspace (Hyper+0 also jumps here)
 )
 
 # The label that lives on the laptop screen when an external monitor is

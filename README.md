@@ -64,13 +64,13 @@ Ghostty doesn't break zsh's line editor.
 | Caps → Hyper / Meh / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
 | Neon window borders (per-workspace colour) | JankyBorders | [`borders/bordersrc`](configs/borders/bordersrc) |
-| Persistent workspace pill strip (always-visible 10-slot indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
+| Persistent workspace pill strip (always-visible per-display indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
 | Hyper/Meh hotkeys → yabai · terminal · app launchers · cheatsheet · snaps | skhd | [`skhdrc`](configs/skhdrc) |
 | Meh+arrow snaps for floating windows (AX) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
 | SketchyBar per-display autohide (cursor poller, LaunchAgent) | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Cross-display topology + per-display layout policy (notch-aware) | ws-topologyd (LaunchAgent) | [`workspace/topology/`](configs/workspace/topology) |
-| 10-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
+| Per-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
 | Hyper app launchers (Brave, Claude) | Karabiner shell_command | [`karabiner.json`](configs/karabiner.json) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
@@ -120,24 +120,24 @@ C-Space  f                    → fzf project sessionizer
 <leader>tn / tf / ts          → test nearest / file / summary
 ```
 
-## Workspace identity (10 slots)
+## Workspace identity
 
-`Caps + 1…9, 0` focus a slot. There are **10 slots total** with stable
-identities — color, icon, and default name — defined in
-[`configs/workspace/spaces.default.json`](configs/workspace/spaces.default.json):
+Factory default: **2 slots** — `home` (laptop) and `code` (terminal /
+external). Use `ws add` to grow as needed; macOS auto-creates a yabai
+space when a new monitor is attached and the bar renders it gracefully
+as a bare pill until you customize it.
 
-| # | Slot | Color (Catppuccin) | Purpose |
-|---|---|---|---|
-| 1 | **core**    `Caps+1` |  mauve    | Always-on command center · primary terminal |
-| 2 | **forge**   `Caps+2` |  peach    | Primary TypeScript project work |
-| 3 | **codex**   `Caps+3` |  yellow   | Learning · Python · LeetCode · scratch |
-| 4 | **lex**     `Caps+4` |  green    | Writing · docs · notes · journals |
-| 5 | **scope**   `Caps+5` |  teal     | Browser · research · www |
-| 6 | **uplink**  `Caps+6` |  sky      | SSH · VPS · remote shells |
-| 7 | **signal**  `Caps+7` |  sapphire | Comms · chat · mail |
-| 8 | **ledger**  `Caps+8` |  blue     | Admin · freelance · billing |
-| 9 | **craft**   `Caps+9` |  lavender | Creative · music · design · gaming |
-| 10 | **void**   `Caps+0` |  overlay0 | Scratch · throwaway · overflow |
+| # | Slot | Color (Catppuccin) | Hotkey | Purpose |
+|---|---|---|---|---|
+| 1 | **home** |  green  | `Caps+1` | Laptop-locked default |
+| 2 | **code** |  mauve  | `Caps+0` (also `Caps+2`) | Dev workspace — `Caps+0` also spawns a new terminal window |
+
+`Caps+0` opens a new terminal in the `code` workspace. The terminal app
+is auto-detected (Ghostty preferred; falls back through iTerm,
+Alacritty, kitty, WezTerm, Terminal). Override with `$WS_TERMINAL_APP`.
+
+Defined in
+[`configs/workspace/spaces.default.json`](configs/workspace/spaces.default.json).
 
 Identity surfaces:
 
@@ -491,7 +491,7 @@ and re-links them. Tmux: `prefix + r`.
     ├── yabairc                   # BSP tiling + workspace + display signals
     ├── yabai-ensure-spaces.sh    # ensures 10 BSP spaces total + applies labels
     ├── skhdrc                    # Hyper/Meh bindings → yabai · ws-snap · ws-cheatsheet · apps
-    ├── workspace/                # 10-slot identity layer
+    ├── workspace/                # workspace identity layer (factory: 2 slots, extensible)
     │   ├── spaces.default.json   #  · slot → name/color/icon defaults
     │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + borders + sketchybar)
     │   ├── reconcile-displays.sh #  · slot 1 → laptop, 2..10 → monitor
