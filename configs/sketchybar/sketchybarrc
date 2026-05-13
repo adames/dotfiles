@@ -50,22 +50,19 @@ sketchybar --bar \
   topmost=off
 
 ##### defaults ###############################################################
-# Default label.drawing=off so a fresh pill (before paint-all.sh runs)
-# starts in the inactive-icon-only state. paint-all.sh flips
-# label.drawing=on per-pill for the active slot. Font family is
-# "JetBrainsMono NF" with the space — that's the Core Text registered
-# family name (per `mdls -name kMDItemFonts ...`); the no-space variant
-# does not resolve and falls back to a non-Nerd-Font, hiding all PUA
-# glyphs. Label font matches icon font so digit/dot, glyph, and name
-# read as one visual unit when label.drawing flips on.
+# Pills are icon-only. The focused workspace's NAME lives on the
+# right-side `workspace.name` chip below, not on the pills themselves —
+# that decouples the focus indicator from the pill-chain geometry so
+# the chain doesn't resize every time the active slot changes.
+# Font family is "JetBrainsMono NF" with the space — that's the Core
+# Text registered family name (per `mdls -name kMDItemFonts ...`); the
+# no-space variant does not resolve and falls back to a non-Nerd-Font,
+# hiding all PUA glyphs.
 # Wider per-pill padding gives the breathing room a bottom dock needs.
 sketchybar --default \
   drawing=on \
   updates=when_shown \
   label.drawing=off \
-  label.font="JetBrainsMono NF:Bold:12.0" \
-  label.padding_left=0 \
-  label.padding_right=0 \
   background.corner_radius=6 \
   background.height=22 \
   background.padding_left=8 \
@@ -127,11 +124,24 @@ sketchybar --add item workspace.paint left \
            --subscribe workspace.paint workspace_changed
 
 ##### right-side context items ###############################################
+# Workspace name chip — always-visible "where am I" label, painted by
+# paint-all.sh from current.env (MACOS_SPACE_NAME + MACOS_SPACE_COLOR).
+# Right-anchored so updates don't shift the pill chain in the middle of
+# the bar — focus changes update this chip's text in place, not the
+# pill geometry. Added BEFORE ctx.ssh so the SSH chip (when active)
+# stacks to the left of the workspace name.
+sketchybar --add item workspace.name right \
+           --set workspace.name \
+              icon.drawing=off \
+              label.drawing=on \
+              label.padding_left=8 \
+              label.padding_right=10 \
+              drawing=on
+
 # SSH presence chip. Visible only when there's at least one outbound ssh
 # session (lsof detects ESTABLISHED TCP owned by the `ssh` command).
 # Polled every 30s; click handles in plugins/ssh-chip.sh.
-# Right-anchored item — appears at the far right of the bar, in the
-# right aux region on notched displays / right edge on others.
+# Right-anchored item — sits to the left of workspace.name when active.
 sketchybar --add item ctx.ssh right \
            --set ctx.ssh \
               script="$PLUGIN_DIR/ssh-chip.sh" \
