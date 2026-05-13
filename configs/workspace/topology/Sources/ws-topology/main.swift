@@ -42,8 +42,9 @@ func printUsage() {
 
       dump                  print the current display topology as JSON
       layout                print the per-display layout policy as JSON
-      migrate [--apply]     migrate spaces.json from v1 to v2 (dry-run by default)
-        [--rollback]          restore spaces.json from spaces.v1.json
+      migrate [--apply]     migrate spaces.json from v1 to v2 (dry-run by default).
+                            Idempotent on already-v2 files; useful for importing
+                            legacy spaces.default.json seeds on fresh installs.
       resolve-icon <slot>   resolve the icon for a slot index or name; --surface=font|native
       emit-skhd [--write]   emit the dynamic skhd fragment to stdout or to disk
 
@@ -126,16 +127,7 @@ func cmdLayout(args: [String]) -> Int32 {
 
 func cmdMigrate(args: [String]) -> Int32 {
     let opts = parseCommonOptions(args)
-    let apply    = opts.remaining.contains("--apply")
-    let rollback = opts.remaining.contains("--rollback")
-
-    let backupURL = opts.configURL
-        .deletingLastPathComponent()
-        .appendingPathComponent("spaces.v1.json")
-
-    if rollback {
-        return performRollback(configURL: opts.configURL, backupURL: backupURL)
-    }
+    let apply = opts.remaining.contains("--apply")
 
     let data: Data
     do {
@@ -164,40 +156,14 @@ func cmdMigrate(args: [String]) -> Int32 {
         return 0
     }
 
-    // Backup the v1 file before overwriting.
-    if !FileManager.default.fileExists(atPath: backupURL.path) {
-        do {
-            try FileManager.default.copyItem(at: opts.configURL, to: backupURL)
-        } catch {
-            FileHandle.standardError.write(Data("migrate: backup to \(backupURL.path) failed: \(error)\n".utf8))
-            return 1
-        }
-    }
-
     do {
         try CacheEncoding.atomicWrite(result.outputJSON, to: opts.configURL)
     } catch {
         FileHandle.standardError.write(Data("migrate: write failed: \(error)\n".utf8))
         return 1
     }
-    FileHandle.standardError.write(Data("migrate: wrote v2 (slotsTouched=\(result.slotsTouched)); backup at \(backupURL.path)\n".utf8))
+    FileHandle.standardError.write(Data("migrate: wrote v2 (slotsTouched=\(result.slotsTouched))\n".utf8))
     return 0
-}
-
-func performRollback(configURL: URL, backupURL: URL) -> Int32 {
-    guard FileManager.default.fileExists(atPath: backupURL.path) else {
-        FileHandle.standardError.write(Data("rollback: no backup found at \(backupURL.path)\n".utf8))
-        return 1
-    }
-    do {
-        let backupData = try Data(contentsOf: backupURL)
-        try CacheEncoding.atomicWrite(String(decoding: backupData, as: UTF8.self), to: configURL)
-        FileHandle.standardError.write(Data("rollback: restored v1 from \(backupURL.path)\n".utf8))
-        return 0
-    } catch {
-        FileHandle.standardError.write(Data("rollback: \(error)\n".utf8))
-        return 1
-    }
 }
 
 // MARK: - resolve-icon
