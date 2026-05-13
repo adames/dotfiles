@@ -109,15 +109,17 @@ phase_configs() {
   install_file "$CONFIGS_DIR/sketchybar/colors.sh"                  "$HOME/.config/sketchybar/colors.sh"
   install_file "$CONFIGS_DIR/sketchybar/plugins/paint-all.sh"       "$HOME/.config/sketchybar/plugins/paint-all.sh"       755
   install_file "$CONFIGS_DIR/sketchybar/plugins/per-display-pills.sh" "$HOME/.config/sketchybar/plugins/per-display-pills.sh" 755
-  install_file "$CONFIGS_DIR/sketchybar/plugins/ssh-chip.sh"        "$HOME/.config/sketchybar/plugins/ssh-chip.sh"        755
   install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"               "$HOME/.config/sketchybar/bootstrap.sh"               755
-  # Clean up plugins retired by the left-aligned-navbar refactor:
-  # space.sh (per-pill renderer), recenter.sh (center/split-around-
-  # notch geometry), notch-detect.sh (gated a visibility cap that's
-  # now gone). Idempotent: no-op once gone.
+  # Clean up plugins retired across recent refactors:
+  # space.sh (per-pill renderer; replaced by paint-all.sh sentinel),
+  # recenter.sh (split-around-notch geometry; left-aligned now),
+  # notch-detect.sh (gated a visibility cap that's now gone),
+  # ssh-chip.sh (outbound-SSH presence chip; removed as complexity).
+  # Idempotent: no-op once gone.
   rm -f "$HOME/.config/sketchybar/plugins/space.sh"
   rm -f "$HOME/.config/sketchybar/plugins/recenter.sh"
   rm -f "$HOME/.config/sketchybar/plugins/notch-detect.sh"
+  rm -f "$HOME/.config/sketchybar/plugins/ssh-chip.sh"
 
   # Workspace-awareness layer: yabai signal handler + rename flow.
   # spaces.json is NOT install_file'd because that would clobber the
