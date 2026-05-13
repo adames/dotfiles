@@ -65,7 +65,9 @@ Ghostty doesn't break zsh's line editor.
 | Neon window borders (per-workspace colour) | JankyBorders | [`borders/bordersrc`](configs/borders/bordersrc) |
 | Persistent workspace pill strip (always-visible 10-slot indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
 | Hyper hotkeys → yabai | skhd | [`skhdrc`](configs/skhdrc) |
-| Hyper+T/N terminal, Meh+arrow snaps, Hyper+/ cheatsheet | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) · [`hammerspoon-cheatsheet.lua`](configs/hammerspoon-cheatsheet.lua) |
+| Hyper+T/N terminal, Meh+arrow snaps, Caps+; cheatsheet trigger | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) |
+| Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
+| Cross-display topology + per-display layout policy (notch-aware) | ws-topologyd (LaunchAgent) | [`workspace/topology/`](configs/workspace/topology) |
 | 10-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
 | Hyper app launchers (Brave, Claude) | Karabiner shell_command | [`karabiner.json`](configs/karabiner.json) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
@@ -256,7 +258,9 @@ workspace verify                  # run end-to-end test harness
 workspace name 3 lab              # rename slot 3
 workspace name core kernel        # … or address it by current name
 workspace color 3 "#ffaabb"       # recolor slot 3
-workspace icon 3 ""              # set slot 3 icon (PUA glyphs preserved)
+workspace icon 3 play.fill        # set icon via SF Symbol name (→ )
+workspace icon 3 ""              # … or paste a literal Nerd Font glyph
+workspace icon search lock        # discover SF names that have Nerd Font mappings
 
 # reordering ergonomics (positional colors: only name + icon move)
 workspace swap core scope         # exchange two slots' name & icon
@@ -287,6 +291,14 @@ workspace layout delete morning -y
 # escape hatches
 workspace edit                    # $EDITOR on spaces.json
 workspace reset -y                # restore from spaces.default.json
+
+# system
+workspace refresh                 # force-rerun cascade (current.env + pills)
+workspace refresh --full          # also kickstart the topology daemon
+workspace host                    # show effective config + overlay status
+workspace host init               # fork off a per-host overlay (spaces.<hostname>.json)
+workspace host reset              # remove overlay, fall back to shared
+workspace migrate --apply         # import a legacy v1 spaces.json (idempotent on v2)
 ```
 
 **Positional colors.** Slot N's color is intrinsic to position N. When
@@ -313,11 +325,20 @@ Canonical palettes shipped by bootstrap: `catppuccin-mocha` (default),
 
 **Slot count is flexible.** The CLI derives the current count from
 `spaces.json` rather than hardcoding 10. `add` / `remove` are
-first-class, and the default post-mutate hook keeps the SketchyBar
-pill count in sync (add → new pill appears, remove → old pill is
-removed; on `--reload` sketchybarrc reads the current count). Hotkeys
-remain bound to slots 1..10 in `~/.skhdrc`; slots beyond 10 are
-reachable via yabai's own CLI or by adding skhd bindings yourself.
+first-class, and the default post-mutate hook keeps the SketchyBar pill
+count in sync. Slot-focus hotkeys are *generated* on every mutation:
+`ws-topology emit-skhd --write` regenerates `~/.config/skhd/spaces.skhdrc`
+(loaded via `.load` from the main `skhdrc`) for `min(slotCount, 10)`
+slots — the 10-cap is a digit-keyboard hardware limit. Slots beyond 10
+are reachable via yabai's own CLI or a leader-prefix scheme you add
+manually.
+
+**Per-host overlay.** Need different slot identities on your laptop vs
+desktop? `workspace host init` forks the shared `spaces.json` into
+`spaces.<hostname>.json` (e.g. `spaces.m3.json`); the cascade and CLI
+both prefer the host file when present. `workspace host reset` removes
+the overlay; the machine falls back to the shared default. Both files
+sync with the rest of your config via your usual dotfiles workflow.
 
 **Extension point.** Each mutation invokes
 `~/.config/workspace/hooks/post-mutate.sh` with args
