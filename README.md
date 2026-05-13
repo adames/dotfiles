@@ -93,9 +93,10 @@ Caps tap                      → Esc
 
 # Hyper — navigate
 Caps + hjkl                   → focus window
-Caps + 1…9, 0                 → focus slot 1..10 (core/forge/codex/lex/scope/uplink/signal/ledger/craft/void)
+Caps + 1, 2, …               → focus slot N (factory: home, code; extend via `ws add`)
+Caps + 0                      → focus "code" + spawn new terminal window
 Caps + return / f / e / r     → fullscreen / float / balance / rotate
-Caps + t / n                  → new terminal tab / window
+Caps + t                      → new terminal window (current workspace)
 Caps + b / c                  → Brave (browser) / Claude
 Caps + /                      → toggle cheatsheet
 
