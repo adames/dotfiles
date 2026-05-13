@@ -45,7 +45,7 @@ ws-topology migrate
 ws-topology migrate --apply
 ```
 
-The cascade readers (`on-space-changed.sh`, `space.sh`) read
+The cascade readers (`on-space-changed.sh`, `paint-all.sh`) read
 `iconSpec.codepoint` exclusively — they no longer fall back to the
 legacy `.icon` field. So a v1 import without `--apply` would leave
 the bar rendering empty icons; always migrate before reloading.

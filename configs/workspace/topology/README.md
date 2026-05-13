@@ -17,7 +17,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | **Native Swift package** | `ws-topology` (one-shot CLI) + `ws-topologyd` (long-running launchd agent). Enumerates `NSScreen.screens`, classifies each into `notchedBuiltIn` / `compactBuiltIn` / `externalRectangular` / `mirrorSecondary`, debounces Core Graphics reconfig callbacks, and writes `topology.json` + `layout.env`. |
 | **Typed icon spec** | `IconSpec { kind, codepoint, fontFamily, fallbackSfSymbol, fallbackText, userOverridden }`. v1→v2 migration tool. Persistence is ASCII-escaped (`\uXXXX`) so PUA bytes never appear in JSON. |
 | **Per-host overlay** | `spaces.<hostname>.json` overrides the shared `spaces.json` on this machine. `workspace host` subcommands. Resolution helper sourced by every cascade reader. |
-| **Cache-driven shell adapters** | The four SketchyBar plugins (`notch-detect.sh`, `per-display-pills.sh`, `recenter.sh`, `space.sh`) and the cascade (`on-space-changed.sh`) prefer `layout.env` / `iconSpec.codepoint`, with legacy heuristics retained as boot-time fallbacks. |
+| **Cache-driven shell adapters** | The four SketchyBar plugins (`notch-detect.sh`, `per-display-pills.sh`, `recenter.sh`, `paint-all.sh`) and the cascade (`on-space-changed.sh`) prefer `layout.env` / `iconSpec.codepoint`, with legacy heuristics retained as boot-time fallbacks. `paint-all.sh` is the centralized batched-repaint plugin subscribed to `workspace_changed` via a single hidden sentinel item in `sketchybarrc`. |
 | **Layout policy** | Notched: pills split symmetrically around the camera housing, the two halves anchored to `auxiliaryTopLeftArea.maxX` and `auxiliaryTopRightArea.minX`. Non-notched: pills centered in `visibleFrame`. Density mode (sparse / comfort / dense) picks gap from `(N × pill_w) / usable_w`. |
 | **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; / Caps+/ via skhd). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
 | **Floating-window snaps** | `ws-snap` (Meh+arrows via skhd). One-shot AX writes to move yabai-unmanaged windows. Replaces the Hammerspoon `setFrame` block — same geometry fractions, no Lua runtime. |
@@ -51,7 +51,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 ├── notch-detect.sh                           cache-first; sysctl fallback
 ├── per-display-pills.sh                      bulk display-assignment + drawing in one sketchybar call
 ├── recenter.sh                               split-around-notch / centered; single-pass batched writes
-├── space.sh                                  per-pill render; iconSpec.codepoint-first
+├── paint-all.sh                              batched all-pill repaint; sentinel-item subscriber
 └── ssh-chip.sh                               outbound SSH presence (lsof + ps argv parser)
 
 .config/workspace/
@@ -69,7 +69,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | File | Writer | Consumers | What's in it |
 |---|---|---|---|
 | `~/.config/workspace/spaces.json` (v2) | `workspace` CLI, `ws-topology migrate` | everyone | slot identity: `{name, color, iconSpec, stableLogicalLabel}` |
-| `~/.cache/workspace/current.env` | `on-space-changed.sh` (atomic mv) | tmux, starship, borders, `space.sh` | focused-space `MACOS_SPACE_{INDEX,NAME,COLOR,ICON,DISPLAY,ANSI}` |
+| `~/.cache/workspace/current.env` | `on-space-changed.sh` (atomic mv) | tmux, starship, borders, `paint-all.sh` | focused-space `MACOS_SPACE_{INDEX,NAME,COLOR,ICON,DISPLAY,ANSI}` |
 | `~/.cache/workspace/topology.json` | `ws-topologyd` (atomic mv) | future native bar, diagnostics | per-display snapshot + policy |
 | `~/.cache/workspace/layout.env` | `ws-topologyd` (atomic mv) | `notch-detect.sh`, `per-display-pills.sh`, `recenter.sh` | `WS_LAPTOP_HAS_NOTCH`, `WS_TOP_REGION_W_<id>`, `WS_TOP_REGION_RIGHT_W_<id>`, `WS_NOTCH_X_<id>`, `WS_NOTCH_W_<id>`, `WS_MAX_VISIBLE_SLOTS_<id>`, `WS_PILL_AVG_WIDTH_PT_<id>`, … |
 
