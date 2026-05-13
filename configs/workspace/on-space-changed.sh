@@ -9,6 +9,14 @@
 
 set -u
 
+# Per-host overlay: source resolves WS_CONFIG to spaces.<hostname>.json
+# when present, else falls back to the shared spaces.json. Caller's
+# pre-set WS_CONFIG always wins.
+if [[ -r "$HOME/.config/workspace/lib/resolve-config.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/resolve-config.sh"
+fi
+
 WS_CONFIG="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
 WS_CACHE_DIR="${WS_CACHE_DIR:-$HOME/.cache/workspace}"
 WS_LOCK_DIR="$WS_CACHE_DIR/.lock.d"
@@ -43,23 +51,39 @@ fi
 : "${INDEX:=0}"
 : "${DISPLAY:=1}"
 
-# Look up metadata. Missing entry → ws<N> + neutral text color.
-# IFS=$'\t' so workspace names containing spaces (e.g. "infra prod") stay
-# intact — jq emits TSV.
+# Look up metadata from spaces.json (v2). Missing entry → ws<N> + neutral
+# text color.
+#
+# Why one jq call per field: jq's @tsv format escapes backslashes for
+# safe TSV transport (so `` arrives as `\\uf120` in shell), which
+# breaks our `${ICON_ESCAPED#\\u}` strip + printf unescape sequence.
+# Per-field jq calls cost ~3ms total — invisible at space-switch time —
+# and side-step the @tsv escape entirely.
+#
+# v2 stores the icon as a typed iconSpec.codepoint (ASCII-escaped:
+# "\uXXXX" for BMP, "\u{XXXXX}" for supplementary planes) — never raw
+# PUA bytes in JSON. We unescape to a literal glyph here so downstream
+# consumers (tmux / starship / sketchybar) read the same UTF-8 sequence
+# regardless of how the icon is persisted.
 NAME="ws${INDEX}"
 COLOR="#cdd6f4"
 ICON=""
 if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
-  IFS=$'\t' read -r NAME COLOR ICON < <(
-    jq -r --arg k "$INDEX" '
-      .spaces[$k] // {}
-      | [
-          (.name  // ("ws" + $k)),
-          (.color // "#cdd6f4"),
-          (.icon  // "")
-        ] | @tsv
-    ' "$WS_CONFIG" 2>/dev/null
-  ) || true
+  _jq() { jq -r --arg k "$INDEX" "$1" "$WS_CONFIG" 2>/dev/null; }
+  NAME=$(_jq '.spaces[$k].name // ("ws" + $k)')
+  COLOR=$(_jq '.spaces[$k].color // "#cdd6f4"')
+  ICON_ESCAPED=$(_jq '.spaces[$k].iconSpec.codepoint // ""')
+
+  if [[ -n "${ICON_ESCAPED:-}" ]]; then
+    if [[ "$ICON_ESCAPED" == "\\u{"* ]]; then
+      hex="${ICON_ESCAPED#\\u\{}"; hex="${hex%\}}"
+      padded=$(printf '%08x' "0x$hex")
+      ICON=$(printf "\\U${padded}")
+    else
+      hex="${ICON_ESCAPED#\\u}"
+      ICON=$(printf "\\u${hex}")
+    fi
+  fi
 fi
 
 # Atomic env file: write tmp + rename. Readers (zsh precmd) never see a
