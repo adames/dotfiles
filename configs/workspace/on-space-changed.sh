@@ -17,6 +17,22 @@ if [[ -r "$HOME/.config/workspace/lib/resolve-config.sh" ]]; then
   source "$HOME/.config/workspace/lib/resolve-config.sh"
 fi
 
+# Shared codepoint-unescape + hex-to-RGB helpers. The fallback stubs let
+# this script keep working when the lib/ shipment hasn't landed yet (very
+# early in a fresh bootstrap, before workspace/install.sh runs).
+if [[ -r "$HOME/.config/workspace/lib/icon-decode.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/icon-decode.sh"
+else
+  ws_decode_icon() { :; }
+fi
+if [[ -r "$HOME/.config/workspace/lib/hex-ansi.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/hex-ansi.sh"
+else
+  ws_hex_to_rgb() { printf '0 0 0\n'; }
+fi
+
 WS_CONFIG="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
 WS_CACHE_DIR="${WS_CACHE_DIR:-$HOME/.cache/workspace}"
 WS_LOCK_DIR="$WS_CACHE_DIR/.lock.d"
@@ -74,16 +90,7 @@ if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
   COLOR=$(_jq '.spaces[$k].color // "#cdd6f4"')
   ICON_ESCAPED=$(_jq '.spaces[$k].iconSpec.codepoint // ""')
 
-  if [[ -n "${ICON_ESCAPED:-}" ]]; then
-    if [[ "$ICON_ESCAPED" == "\\u{"* ]]; then
-      hex="${ICON_ESCAPED#\\u\{}"; hex="${hex%\}}"
-      padded=$(printf '%08x' "0x$hex")
-      ICON=$(printf "\\U${padded}")
-    else
-      hex="${ICON_ESCAPED#\\u}"
-      ICON=$(printf "\\u${hex}")
-    fi
-  fi
+  ICON=$(ws_decode_icon "${ICON_ESCAPED:-}")
 fi
 
 # Atomic env file: write tmp + rename. Readers (zsh precmd) never see a
@@ -98,10 +105,7 @@ _qq() {
 # instead of re-parsing the hex on every prompt. Hex parse is cheap
 # (~1ms) but multiplied by every prompt redraw it adds up; computing it
 # once per space switch keeps the prompt path purely a printf.
-hex="${COLOR#\#}"
-r=$(( 16#${hex:0:2} ))
-g=$(( 16#${hex:2:2} ))
-b=$(( 16#${hex:4:2} ))
+read -r r g b < <(ws_hex_to_rgb "$COLOR")
 ANSI=$(printf '\033[1;38;2;24;24;37;48;2;%d;%d;%dm %s  %s \033[0;38;2;%d;%d;%dm\033[0m' \
   "$r" "$g" "$b" "$ICON" "$NAME" "$r" "$g" "$b")
 

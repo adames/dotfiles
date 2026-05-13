@@ -1,4 +1,11 @@
 # Shared bootstrap helpers. Source: `. "$DOTFILES_DIR/lib/common.sh"`.
+#
+# `set -u` here catches typos in this file AND any caller that sources us
+# without its own `set -u` — every current caller already runs under -u
+# or -euo pipefail so this is a no-op today; the value is in keeping
+# future callers honest.
+
+set -u
 
 : "${DOTFILES_DIR:=$HOME/dotfiles}"
 : "${CONFIGS_DIR:=$DOTFILES_DIR/configs}"

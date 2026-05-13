@@ -21,6 +21,12 @@ DOTFILES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=../lib/common.sh
 . "$DOTFILES_DIR/lib/common.sh"
 
+# --force re-runs the install even when the SA is already loaded. Use it
+# after a yabai upgrade so the sudoers hash gets re-pinned to the new
+# binary; without --force the idempotency gate below skips the work.
+FORCE=0
+[[ "${1:-}" == "--force" ]] && FORCE=1
+
 banner "yabai SA installer" "Apple Silicon · macOS Sequoia · run AFTER SIP disable in Recovery"
 
 # ── 1. Prerequisite checks ────────────────────────────────────────────────
@@ -80,6 +86,33 @@ if [[ "$ARCH" == "arm64" ]]; then
 EOF
     exit 1
   fi
+fi
+
+# ── 1b. Idempotency gate ──────────────────────────────────────────────────
+# Skip the load-sa dance (and its sudo prompt) when the SA is already
+# loaded. Canonical probe: `yabai -m space --create` only succeeds when
+# Dock has accepted the SA injection — that's exactly the property we'd
+# verify at the end anyway, so checking it up front is cheap and lets
+# rerunning this script after a working install exit in <100ms.
+#
+# Bypass with --force to re-pin the sudoers hash after a yabai upgrade
+# (the new binary hash won't match the pinned entry).
+if (( FORCE == 0 )) && pgrep -x yabai >/dev/null 2>&1; then
+  section "1b. idempotency check"
+  PRE_COUNT="$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || echo 0)"
+  CREATE_OUT="$(yabai -m space --create 2>&1 || true)"
+  if [[ -n "$CREATE_OUT" && "$CREATE_OUT" != *"scripting-addition"* \
+        && "$CREATE_OUT" != *"cannot"* && "$CREATE_OUT" != *"could not"* ]] \
+     || [[ -z "$CREATE_OUT" ]]; then
+    POST_COUNT="$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || echo 0)"
+    if [[ "$POST_COUNT" -gt "$PRE_COUNT" ]]; then
+      yabai -m space --destroy "$POST_COUNT" >/dev/null 2>&1 || true
+    fi
+    ok "yabai SA already loaded — nothing to do"
+    info "rerun with --force after a yabai upgrade to re-pin the sudoers hash"
+    exit 0
+  fi
+  step "SA not loaded yet — proceeding with full install"
 fi
 
 # ── 2. Install + load the scripting addition ──────────────────────────────
