@@ -69,6 +69,16 @@ end
 hs.hotkey.bind(hyper, "t", sendTerminalCmd("t"))
 -- Hyper+N: intentionally unbound. Reserved for future use.
 
+-- Hyper app launchers. Moved here from karabiner.json — Hammerspoon's
+-- hs.hotkey path is more reliable than Karabiner's shell_command sitting
+-- behind the caps_lock to_if_alone timing rule.
+local function launch(name)
+  return function() hs.application.launchOrFocus(name) end
+end
+hs.hotkey.bind(hyper, "b", launch("Brave Browser"))
+hs.hotkey.bind(hyper, "c", launch("Claude"))
+hs.hotkey.bind(hyper, "m", launch("Spotify"))
+
 -- Absolute window snaps for floating / yabai-unmanaged windows (Ghostty,
 -- System Settings, etc.). Bound on Meh, not Hyper, to keep the layer split
 -- coherent:
@@ -88,13 +98,13 @@ hs.hotkey.bind(meh, "right", snap({ x = 0.5,  y = 0,    w = 0.5, h = 1   }))
 hs.hotkey.bind(meh, "up",    snap({ x = 0,    y = 0,    w = 1,   h = 1   }))
 hs.hotkey.bind(meh, "down",  snap({ x = 0.25, y = 0.25, w = 0.5, h = 0.5 }))
 
--- Cheatsheet overlay. Bound on Hyper+/ — the universal "show shortcuts"
--- gesture. Moved here from Hyper+0 once slot 10 ("void") took the digit.
--- Backups (if `/` ever conflicts): Hyper+', Hyper+grave. Apps eat
--- Cmd+? for the Help menu, so we never use that.
+-- Cheatsheet overlay. Bound on Hyper+; — moved off `/` because macOS's
+-- Cmd+Shift+/ Help-menu shortcut is a subset of Hyper+/ and the system
+-- intercepts it before Hammerspoon (Hyper+Shift+/ still worked because
+-- Karabiner's Caps+Shift rule consumes the shift, producing Meh+/).
 local cheatsheet = require("cheatsheet")
-hs.hotkey.bind(hyper, "/", function() cheatsheet.toggle() end)
-hs.hotkey.bind(meh,   "/", function() cheatsheet.toggle() end)
+hs.hotkey.bind(hyper, ";", function() cheatsheet.toggle() end)
+hs.hotkey.bind(meh,   ";", function() cheatsheet.toggle() end)
 
 -- Hide the SketchyBar workspace strip while the cursor is over the
 -- macOS auto-hidden menu bar's reveal zone. Pairs with sketchybarrc's
