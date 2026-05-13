@@ -41,14 +41,38 @@ cmd + alt + ctrl + shift - tab : yabai -m display --focus next
 cmd + alt + ctrl - tab         : yabai -m display --focus prev
 
 # --- cheatsheet ---------------------------------------------------------
-# Hyper+/ = the universal "show shortcuts" gesture. Hammerspoon's primary
-# binding is Hyper+; (Caps+;). This skhd entry is a no-op fallback that
-# also fires the native SwiftUI HUD (ws-cheatsheet) directly, so it works
-# even when Hammerspoon isn't running. 0x2C = / on US ANSI.
+# Hyper+; and Hyper+/ both toggle the native SwiftUI HUD (ws-cheatsheet).
+# 0x2C = / on US ANSI; 0x29 = ; on US ANSI. Two bindings because Hyper+;
+# is the muscle-memory binding and Hyper+/ is the universal "show
+# shortcuts" gesture.
+cmd + alt + ctrl + shift - 0x29 : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - 0x2C : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/null 2>&1 &
+cmd + alt + ctrl - 0x29         : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/null 2>&1 &
 
-# Hyper+T (new Ghostty window) is handled by Hammerspoon so it retargets
-# Ghostty even when it isn't frontmost. Hyper+N intentionally unbound.
+# --- terminal launcher --------------------------------------------------
+# Hyper+T → new Ghostty window. Uses File→New Window via AppleScript
+# rather than a Cmd+T keystroke: strict apps (Ghostty) don't bind
+# Hyper+Cmd+T when Caps is held, so the keystroke would drop. Menu
+# selection bypasses keyboard state entirely. Hyper+N is intentionally
+# unbound — reserved.
+cmd + alt + ctrl + shift - t : osascript \
+    -e 'tell application "Ghostty" to activate' \
+    -e 'tell application "System Events" to tell process "Ghostty" to click menu item "New Window" of menu "File" of menu bar 1' \
+    >/dev/null 2>&1 &
+
+# --- app launchers ------------------------------------------------------
+cmd + alt + ctrl + shift - b : open -a "Brave Browser"
+cmd + alt + ctrl + shift - c : open -a "Claude"
+cmd + alt + ctrl + shift - m : open -a "Spotify"
+
+# --- floating-window snaps (Meh+arrows) ---------------------------------
+# SIP-safe absolute snaps for yabai-unmanaged windows (System Settings,
+# floating Ghostty). Hyper layer keeps hjkl/yabai; Meh keeps arrows as
+# manual snaps — see docs/architecture.md "Hyper = navigate, Meh = modify".
+cmd + alt + ctrl - left  : $HOME/.local/bin/ws-snap left
+cmd + alt + ctrl - right : $HOME/.local/bin/ws-snap right
+cmd + alt + ctrl - up    : $HOME/.local/bin/ws-snap max
+cmd + alt + ctrl - down  : $HOME/.local/bin/ws-snap center
 
 # --- workspace metadata --------------------------------------------------
 # Meh+R prompts to rename the current space via the osascript dialog in
