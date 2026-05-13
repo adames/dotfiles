@@ -1,4 +1,4 @@
--- Caps + / overlay. Edit `sections`; no logic to break.
+-- Caps + ; overlay. Edit `sections`; no logic to break.
 -- Use ⟨x⟩ (unicode) for placeholders so HTML doesn't swallow them.
 
 local M = {}
@@ -24,7 +24,7 @@ local sections = {
       { "caps + shift + ← →",         "snap ½-left / ½-right  (manual, for floats)" },
       { "caps + shift + ↑ ↓",         "maximise / centre 50%  (manual, for floats)" },
       { "caps + t",                   "new yabai-tiled Ghostty window  (tmux for in-window splits)" },
-      { "caps + /",                   "toggle this cheatsheet" },
+      { "caps + ;",                   "toggle this cheatsheet" },
       { "—",                          "slot 1 (core) is locked to the laptop screen; slots 2–10 live on the external monitor when attached" },
       { "—",                          "⚠ avoid macOS green-button fullscreen — use caps+return so yabai keeps managing the window" },
     },
@@ -53,10 +53,11 @@ local sections = {
   {
     color = "#a78bfa",
     title = "Launch",
-    sub   = "Karabiner shell_command → open -a",
+    sub   = "Hammerspoon · launchOrFocus",
     rows  = {
       { "caps + b",   "Brave (browser)" },
       { "caps + c",   "Claude" },
+      { "caps + m",   "Spotify" },
     },
   },
   -- ── Tmux ──────────────────────────────────────────────────────────────────
@@ -378,7 +379,7 @@ local function render_html()
   end
 
   parts[#parts+1] = string.format(
-    '</div><div class="footer">CAPS LOCK + / TO CLOSE  ·  %s</div></div></body></html>',
+    '</div><div class="footer">CAPS LOCK + ; TO CLOSE  ·  %s</div></div></body></html>',
     os.date('%H:%M')
   )
   return table.concat(parts)
