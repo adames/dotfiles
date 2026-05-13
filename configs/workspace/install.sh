@@ -118,8 +118,8 @@ case "$cmd" in
   add|remove|swap|move|rotate|reverse|reorder|theme|edit|reset|layout)
     # per-display-pills.sh is the single source of truth for "what
     # pills exist and where". It adds/removes items as needed, applies
-    # associated_display_mask, hides overflow on notched laptops, then
-    # calls recenter.sh and triggers workspace_changed.
+    # display=<N> per item, hides overflow on notched laptops, then
+    # triggers workspace_changed so paint-all.sh repaints.
     [[ -x "$plugin_dir/per-display-pills.sh" ]] && "$plugin_dir/per-display-pills.sh"
     ;;
 esac

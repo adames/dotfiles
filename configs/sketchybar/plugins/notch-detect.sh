@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Print "yes" / "no" based on whether the BUILT-IN display has a camera
-# notch (the cutout). Used by per-display-pills.sh and recenter.sh to
-# decide whether to apply the 10-pill cap and half-notch buffer.
+# notch (the cutout). Used by per-display-pills.sh to decide whether
+# to cap visible pills at 10 on the laptop strip — past that count
+# pills slide under the camera housing.
 #
 # Detection priority:
 #   1. WS_LAPTOP_HAS_NOTCH env override (manual override hatch)
