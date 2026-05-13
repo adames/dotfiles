@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# test-cascade.sh — end-to-end verification of the `workspace` CLI.
+# test-cascade.sh — end-to-end verification of the `ws` CLI (formerly
+# `workspace`; the old name is kept as a compat symlink).
 #
 # Snapshot-mutate-assert-restore on the live spaces.json. The trap
 # guarantees restoration even on test failure or signal. Runs in <2s.
 #
-# Invoked by `workspace verify`. Exit 0 on success, non-zero on
-# regression. Best-effort downstream assertions (current.env, tmux env)
-# are skipped silently on absence so the harness works on Ubuntu / in CI.
+# Invoked by `ws verify`. Exit 0 on success, non-zero on regression.
+# Best-effort downstream assertions (current.env, tmux env) are skipped
+# silently on absence so the harness works on Ubuntu / in CI.
 
 set -u
 
@@ -15,15 +16,17 @@ WS_THEMES_DIR="${WS_THEMES_DIR:-$HOME/.config/workspace/themes}"
 WS_HANDLER="${WS_HANDLER:-$HOME/.config/workspace/on-space-changed.sh}"
 WS_HOOK="${WS_HOOK:-$HOME/.config/workspace/hooks/post-mutate.sh}"
 
-# Prefer the deployed CLI; fall back to the in-repo one.
+# Prefer the deployed CLI; fall back to the in-repo one. `ws` first;
+# `workspace` (compat symlink) is the secondary lookup path so older
+# installs continue to work until the next bootstrap.
 WS_BIN="${WS_BIN:-}"
 if [[ -z "$WS_BIN" ]]; then
-  if [[ -x "$HOME/.local/bin/workspace" ]]; then
-    WS_BIN="$HOME/.local/bin/workspace"
-  elif [[ -x "${BASH_SOURCE[0]%/*}/workspace" ]]; then
-    WS_BIN="${BASH_SOURCE[0]%/*}/workspace"
+  if   [[ -x "$HOME/.local/bin/ws" ]];                  then WS_BIN="$HOME/.local/bin/ws"
+  elif [[ -x "$HOME/.local/bin/workspace" ]];           then WS_BIN="$HOME/.local/bin/workspace"
+  elif [[ -x "${BASH_SOURCE[0]%/*}/ws" ]];              then WS_BIN="${BASH_SOURCE[0]%/*}/ws"
+  elif [[ -x "${BASH_SOURCE[0]%/*}/workspace" ]];       then WS_BIN="${BASH_SOURCE[0]%/*}/workspace"
   else
-    echo "test-cascade: workspace CLI not found" >&2
+    echo "test-cascade: ws CLI not found" >&2
     exit 1
   fi
 fi

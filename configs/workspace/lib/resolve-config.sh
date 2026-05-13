@@ -13,7 +13,7 @@
 # ~/.config/workspace/spaces.json as the shared default. Either machine
 # can opt into a divergent layout by creating spaces.<hostname>.json
 # (via `workspace host init`). All cascade consumers — the workspace
-# CLI, on-space-changed.sh, space.sh — pick up the override
+# CLI, on-space-changed.sh, paint-all.sh — pick up the override
 # automatically because they all source this file.
 
 set -u
