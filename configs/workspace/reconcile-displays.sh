@@ -67,10 +67,8 @@ fi
 # external monitor on every plug, which is the opposite of what the
 # user asked for.
 if [[ ! -r "$WS_LAPTOP_UUID_FILE" ]]; then
-  if command -v hs >/dev/null 2>&1; then
-    hs -c 'hs.alert.show("workspace: laptop UUID not captured — run laptop-uuid-init.sh")' \
-      >/dev/null 2>&1 || true
-  fi
+  osascript -e 'display notification "laptop UUID not captured — run laptop-uuid-init.sh" with title "workspace"' \
+    >/dev/null 2>&1 || true
   exit 0
 fi
 

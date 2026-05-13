@@ -55,7 +55,7 @@ phase_packages() {
   # orbstack replaces docker-desktop — leaner, native Apple Silicon, faster
   # cold start. If docker-desktop is installed, see the migration note in
   # README.md → "Switching from Docker Desktop".
-  local casks="karabiner-elements hammerspoon ghostty raycast orbstack"
+  local casks="karabiner-elements ghostty raycast orbstack"
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
     step "installing GUI casks"
     info "$casks"
@@ -89,18 +89,20 @@ phase_configs() {
   install_file "$CONFIGS_DIR/skhdrc"                     "$HOME/.skhdrc"
   install_file "$CONFIGS_DIR/yabairc"                    "$HOME/.yabairc"             755
   install_file "$CONFIGS_DIR/yabai-ensure-spaces.sh"     "$HOME/.config/yabai/ensure-spaces.sh" 755
-  install_file "$CONFIGS_DIR/hammerspoon-init.lua"             "$HOME/.hammerspoon/init.lua"
-  install_file "$CONFIGS_DIR/hammerspoon-sketchybar-autohide.lua" "$HOME/.hammerspoon/sketchybar-autohide.lua"
-  # cheatsheet.lua is retired — see ws-cheatsheet under configs/workspace/topology/
+  # Hammerspoon is retired. ws-autohide (configs/workspace/topology/Sources/
+  # ws-autohide) is the launchd-managed SketchyBar autohide poller, ws-snap
+  # is the Meh+arrows floating-window snap, and skhd owns the rest of what
+  # used to live in hammerspoon-init.lua. The cheatsheet HUD is the SwiftUI
+  # ws-cheatsheet — all reachable via the topology Swift package below.
 
   # Cheatsheet HUD content (hand-editable). ws-cheatsheet reads this on
   # every toggle so changes are picked up without rebuilding.
   install_file "$CONFIGS_DIR/workspace/cheatsheet.json"   "$HOME/.config/workspace/cheatsheet.json"
 
-  # SketchyBar workspace-pill strip. Replaced the Hammerspoon OSD that
-  # used to flash on every space switch — pills are persistent and always
+  # SketchyBar workspace-pill strip. Persistent 10-slot indicator, always
   # visible. Items, colours and the per-pill repaint plugin live under
   # configs/sketchybar/. brew service is started by workspace/install.sh.
+  # Per-display autohide is owned by ws-autohide (Swift launchd agent).
   install_file "$CONFIGS_DIR/sketchybar/sketchybarrc"               "$HOME/.config/sketchybar/sketchybarrc"               755
   install_file "$CONFIGS_DIR/sketchybar/colors.sh"                  "$HOME/.config/sketchybar/colors.sh"
   install_file "$CONFIGS_DIR/sketchybar/plugins/space.sh"           "$HOME/.config/sketchybar/plugins/space.sh"           755
@@ -204,11 +206,6 @@ phase_defaults() {
     ok "spans-displays already false"
   fi
 
-  # Stop Hammerspoon Console from auto-restoring on reload.
-  if defaults read org.hammerspoon.Hammerspoon >/dev/null 2>&1; then
-    defaults delete org.hammerspoon.Hammerspoon "NSWindow Frame console" 2>/dev/null || true
-    ok "Hammerspoon console frame cleared"
-  fi
 }
 
 # ─── phase 5 · permission wizard ────────────────────────────────────────────

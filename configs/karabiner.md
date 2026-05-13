@@ -61,8 +61,6 @@ Shift+Caps case and the 3-mod Meh would never fire.
 
 - **skhd** sees keystrokes with modifier sets `cmd+alt+ctrl+shift` (Hyper)
   or `cmd+alt+ctrl` (Meh) depending on whether Shift was held.
-- **Hammerspoon** binds `{ "ctrl", "alt", "cmd", "shift" }` for Hyper and
-  `{ "ctrl", "alt", "cmd" }` for Meh.
 - **macOS shortcut conflicts** — Cmd+Q, Cmd+W, etc. still work normally
   because the user is pressing them without Caps Lock.
 
