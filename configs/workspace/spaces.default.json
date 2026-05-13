@@ -1,121 +1,32 @@
 {
-  "_doc_icon": "Icons use nerd-font private-use glyphs (nf-fa-* set). Requires JetBrains Mono NF or any nerd font — installed via: brew install --cask font-jetbrains-mono-nerd-font",
+  "_doc_icon": "Icons use nerd-font private-use glyphs (nf-fa-* set). Requires JetBrains Mono NF or any Nerd Font — installed via: brew install --cask font-jetbrains-mono-nerd-font",
   "palette": "catppuccin-mocha",
   "spaces": {
     "1": {
-      "color": "#cba6f7",
-      "iconSpec": {
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "CO",
-        "kind": "none",
-        "userOverridden": false
-      },
-      "name": "core",
-      "stableLogicalLabel": "core"
-    },
-    "2": {
-      "color": "#fab387",
-      "iconSpec": {
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "FO",
-        "kind": "none",
-        "userOverridden": false
-      },
-      "name": "forge",
-      "stableLogicalLabel": "forge"
-    },
-    "3": {
-      "color": "#f9e2af",
-      "iconSpec": {
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "CO",
-        "kind": "none",
-        "userOverridden": false
-      },
-      "name": "codex",
-      "stableLogicalLabel": "codex"
-    },
-    "4": {
       "color": "#a6e3a1",
       "iconSpec": {
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "LE",
-        "kind": "none",
-        "userOverridden": false
-      },
-      "name": "lex",
-      "stableLogicalLabel": "lex"
-    },
-    "5": {
-      "color": "#94e2d5",
-      "iconSpec": {
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "SC",
-        "kind": "none",
-        "userOverridden": false
-      },
-      "name": "scope",
-      "stableLogicalLabel": "scope"
-    },
-    "6": {
-      "color": "#89dceb",
-      "iconSpec": {
-        "codepoint": "\\u{F048B}",
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "UP",
-        "fontFamily": "JetBrainsMono Nerd Font",
+        "fallbackSfSymbol": "house.fill",
+        "fallbackText": "HM",
         "kind": "nerdFont",
-        "userOverridden": false
-      },
-      "name": "uplink",
-      "stableLogicalLabel": "uplink"
-    },
-    "7": {
-      "color": "#74c7ec",
-      "iconSpec": {
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "SI",
-        "kind": "none",
-        "userOverridden": false
-      },
-      "name": "signal",
-      "stableLogicalLabel": "signal"
-    },
-    "8": {
-      "color": "#89b4fa",
-      "iconSpec": {
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "LE",
-        "kind": "none",
-        "userOverridden": false
-      },
-      "name": "ledger",
-      "stableLogicalLabel": "ledger"
-    },
-    "9": {
-      "color": "#b4befe",
-      "iconSpec": {
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "CR",
-        "kind": "none",
-        "userOverridden": false
-      },
-      "name": "craft",
-      "stableLogicalLabel": "craft"
-    },
-    "10": {
-      "color": "#6c7086",
-      "iconSpec": {
-        "codepoint": "\\u{F09DE}",
-        "fallbackSfSymbol": "circle.fill",
-        "fallbackText": "VO",
+        "codepoint": "\\uf015",
         "fontFamily": "JetBrainsMono Nerd Font",
-        "kind": "nerdFont",
         "userOverridden": false
       },
-      "name": "void",
-      "stableLogicalLabel": "void"
+      "name": "home",
+      "stableLogicalLabel": "home"
+    },
+    "2": {
+      "color": "#cba6f7",
+      "iconSpec": {
+        "fallbackSfSymbol": "terminal.fill",
+        "fallbackText": "TM",
+        "kind": "nerdFont",
+        "codepoint": "\\uf120",
+        "fontFamily": "JetBrainsMono Nerd Font",
+        "userOverridden": false
+      },
+      "name": "code",
+      "stableLogicalLabel": "code"
     }
-  },
-  "version": 2
+  }
 }

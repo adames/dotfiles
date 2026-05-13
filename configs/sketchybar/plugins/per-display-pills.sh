@@ -2,9 +2,9 @@
 # Sync sketchybar's per-display items with yabai's space assignment.
 # Adds/removes the per-display "you are here" name chips and the
 # workspace pills; assigns display=<N> to each so they render only on
-# their owning monitor; enforces the visible-pill cap on notched
-# displays. Pills + chips are left-anchored — the bar lays them out
-# from the left corner toward the center, no centering math needed.
+# their owning monitor. Pills + chips are left-anchored — the bar lays
+# them out from the left corner toward the center, no centering math
+# and no visibility cap.
 #
 # Item families:
 #   workspace.name.<D>   — left-most label per display, shows the focused
@@ -25,44 +25,18 @@
 #      both families.
 #   4. Reorder so each display's items are: chip, then pills in
 #      space-index order.
-#   5. Set display=<D> on every item; apply the visible-pill cap on
-#      notched laptops so pills don't slide under the camera housing.
+#   5. Set display=<D> + drawing=on on every pill (no visibility cap —
+#      yabai-ensure-spaces.sh + the user's pill count are the source
+#      of truth; if pills overflow the aux region on a notched laptop
+#      that's expected behavior, not a bug).
 
 set -u
-
-PLUGIN_DIR="$HOME/.config/sketchybar/plugins"
-WS_LAPTOP_UUID_FILE="${WS_LAPTOP_UUID_FILE:-$HOME/.config/workspace/laptop.uuid}"
-WS_LAYOUT_ENV="${WS_LAYOUT_ENV:-$HOME/.cache/workspace/layout.env}"
-LEGACY_NOTCH_MAX_VISIBLE=10
 
 # Silent bail.
 command -v sketchybar >/dev/null 2>&1 || exit 0
 pgrep -x sketchybar >/dev/null 2>&1 || exit 0
 command -v yabai >/dev/null 2>&1 || exit 0
 yabai -m query --spaces >/dev/null 2>&1 || exit 0
-
-# Pull authoritative display/notch state when available; tolerate absence.
-if [[ -r "$WS_LAYOUT_ENV" ]]; then
-  # shellcheck disable=SC1090
-  source "$WS_LAYOUT_ENV" 2>/dev/null || true
-fi
-
-# yabai-index of the laptop display (different domain from CGDirectDisplayID,
-# which is what the daemon publishes). UUID-first, origin-(0,0) fallback.
-laptop_idx=""
-if command -v jq >/dev/null 2>&1; then
-  if [[ -r "$WS_LAPTOP_UUID_FILE" ]]; then
-    laptop_uuid=$(<"$WS_LAPTOP_UUID_FILE")
-    laptop_idx=$(yabai -m query --displays 2>/dev/null \
-      | jq -r --arg u "$laptop_uuid" '[.[] | select(.uuid == $u) | .index] | first // empty' 2>/dev/null)
-  fi
-  if [[ -z "$laptop_idx" ]]; then
-    laptop_idx=$(yabai -m query --displays 2>/dev/null \
-      | jq -r '[.[] | select(.frame.x == 0 and .frame.y == 0) | .index] | first // empty' 2>/dev/null)
-  fi
-fi
-
-notch_host=$("$PLUGIN_DIR/notch-detect.sh" 2>/dev/null || echo no)
 
 spaces_json=$(yabai -m query --spaces 2>/dev/null)
 [[ -z "$spaces_json" ]] && exit 0
@@ -146,11 +120,10 @@ if (( ${#order_args[@]} > 0 )); then
   sketchybar --reorder "${order_args[@]}" >/dev/null 2>&1 || true
 fi
 
-# 5. Per-display: assignment + drawing state + max-visible enforcement
-#    for pills. Batched into one sketchybar invocation. The chip's
-#    display assignment was set at --add time; only pills need their
-#    display + drawing updated here (they may have moved between
-#    displays since the last sync).
+# 5. Per-display: assignment + drawing=on on every pill. No cap. The
+#    chip's display assignment was set at --add time; only pills need
+#    their display updated here (they may have moved between displays
+#    since the last sync). Batched into one sketchybar invocation.
 display_groups=$(
   echo "$spaces_json" \
     | jq -r '. | group_by(.display)[] | "\(.[0].display)\t\([.[].index | tostring] | join(","))"'
@@ -159,31 +132,8 @@ set_args=()
 while IFS=$'\t' read -r display sid_csv; do
   [[ -z "$display" ]] && continue
   IFS=',' read -ra sids <<<"$sid_csv"
-
-  # Visible-pill cap on notched laptops: pills past the cap render
-  # drawing=off so they don't get clipped by the camera housing. The
-  # ws-topologyd-published WS_MAX_VISIBLE_SLOTS_<id> overrides the
-  # legacy 10-pill default when available.
-  max_visible=""
-  if [[ -n "${WS_LAPTOP_DISPLAY_ID:-}" \
-        && -n "$laptop_idx" \
-        && "$display" == "$laptop_idx" ]]; then
-    var_name="WS_MAX_VISIBLE_SLOTS_${WS_LAPTOP_DISPLAY_ID}"
-    max_visible="${!var_name:-}"
-  fi
-  if [[ -z "$max_visible" \
-        && "$notch_host" == "yes" \
-        && -n "$laptop_idx" \
-        && "$display" == "$laptop_idx" ]]; then
-    max_visible=$LEGACY_NOTCH_MAX_VISIBLE
-  fi
-
-  n=0
   for sid in "${sids[@]}"; do
-    n=$((n + 1))
-    drawing=on
-    [[ -n "$max_visible" && "$n" -gt "$max_visible" ]] && drawing=off
-    set_args+=(--set "space.$sid" "display=$display" "drawing=$drawing")
+    set_args+=(--set "space.$sid" "display=$display" "drawing=on")
   done
 done <<< "$display_groups"
 if (( ${#set_args[@]} > 0 )); then

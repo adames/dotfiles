@@ -50,15 +50,16 @@ cmd + alt + ctrl + shift - 0x2C : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/
 cmd + alt + ctrl - 0x29         : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/null 2>&1 &
 
 # --- terminal launcher --------------------------------------------------
-# Hyper+T → new Ghostty window. Uses File→New Window via AppleScript
-# rather than a Cmd+T keystroke: strict apps (Ghostty) don't bind
-# Hyper+Cmd+T when Caps is held, so the keystroke would drop. Menu
-# selection bypasses keyboard state entirely. Hyper+N is intentionally
-# unbound — reserved.
-cmd + alt + ctrl + shift - t : osascript \
-    -e 'tell application "Ghostty" to activate' \
-    -e 'tell application "System Events" to tell process "Ghostty" to click menu item "New Window" of menu "File" of menu bar 1' \
-    >/dev/null 2>&1 &
+# Hyper+T → new terminal window in the current workspace. Terminal app
+# is auto-detected (Ghostty preferred; falls back through iTerm /
+# Alacritty / kitty / WezTerm / Terminal). Override with
+# $WS_TERMINAL_APP. See configs/workspace/launch-terminal.sh.
+#
+# Hyper+0 → focus the "code" workspace AND spawn a new terminal there.
+# This makes Hyper+0 the dev-entry shortcut; pairs with the "code" pill
+# in the factory-default 2-slot navbar (home, code).
+cmd + alt + ctrl + shift - t : "$HOME/.local/bin/ws-launch-terminal" >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - 0 : "$HOME/.local/bin/ws-launch-terminal" code >/dev/null 2>&1 &
 
 # --- app launchers ------------------------------------------------------
 cmd + alt + ctrl + shift - b : open -a "Brave Browser"
