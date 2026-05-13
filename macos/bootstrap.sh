@@ -124,8 +124,9 @@ phase_configs() {
   # Workspace-awareness layer: yabai signal handler + rename flow.
   # spaces.json is NOT install_file'd because that would clobber the
   # user's renames; workspace/install.sh below seeds it only when missing.
-  install_file "$CONFIGS_DIR/workspace/on-space-changed.sh" "$HOME/.config/workspace/on-space-changed.sh" 755
-  install_file "$CONFIGS_DIR/workspace/rename.sh"           "$HOME/.config/workspace/rename.sh"           755
+  install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
+  install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
+  install_file "$CONFIGS_DIR/workspace/rename.sh"             "$HOME/.config/workspace/rename.sh"             755
   install_file "$CONFIGS_DIR/workspace/install.sh"          "$HOME/.config/workspace/install.sh"          755
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
 
@@ -155,7 +156,8 @@ phase_configs() {
   # Workspace identity layer (factory: 2 slots — home, code; extensible)
   install_file "$DOTFILES_DIR/lib/colors.sh"              "$HOME/.config/workspace/lib/colors.sh"
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
-  install_file "$CONFIGS_DIR/workspace/on-space-changed.sh" "$HOME/.config/workspace/on-space-changed.sh" 755
+  install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
+  install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
   install_file "$CONFIGS_DIR/workspace/reconcile-displays.sh" "$HOME/.config/workspace/reconcile-displays.sh" 755
   install_file "$CONFIGS_DIR/workspace/laptop-uuid-init.sh" "$HOME/.config/workspace/laptop-uuid-init.sh" 755
   install_file "$CONFIGS_DIR/workspace/rename.sh"         "$HOME/.config/workspace/rename.sh" 755
