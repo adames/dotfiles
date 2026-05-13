@@ -170,7 +170,7 @@ graph LR
   CGCallback[CGDisplayRegisterReconfigurationCallback] --> Daemon[ws-topologyd]
   Daemon --> TopologyJSON[(~/.cache/workspace/topology.json)]
   Daemon --> LayoutEnv[(~/.cache/workspace/layout.env)]
-  LayoutEnv --> SketchybarPlugins[per-display-pills.sh · recenter.sh · notch-detect.sh]
+  LayoutEnv --> SketchybarPlugins[per-display-pills.sh · notch-detect.sh]
   Cascade --> EnvFile[(~/.cache/workspace/current.env)]
   Cascade --> TmuxEnv[tmux global env]
   Cascade --> Borders[JankyBorders]
@@ -255,50 +255,38 @@ slide off-screen, the macOS menu bar on display N reveals. Cursor
 elsewhere → that display's strip stays put. Other displays are
 unaffected.
 
-**Per-display pill assignment.**
+**Per-display pill assignment + name chip.**
 [`plugins/per-display-pills.sh`](../configs/sketchybar/plugins/per-display-pills.sh)
 queries `yabai -m query --spaces` and sets `display=<idx>` on each pill
-(`space.N`), then adds missing pills / removes orphans so the sketchybar
-item set tracks yabai exactly. Re-fires from the yabai signals
-`display_added` / `display_removed` / `display_changed` only — *not* on
-`space_changed`, because per-pill display assignment doesn't change on
-space focus. A previous iteration subscribed it to `space_changed` and
-produced a "paint to right then snap" pulse on every space switch; the
-fix is documented in `configs/workspace/topology/README.md`.
+(`space.N`); it also creates one `workspace.name.<D>` chip per display
+(the always-visible "you are here" label sitting at the leftmost slot
+of each display's strip). It adds missing items / removes orphans so
+the sketchybar item set tracks yabai exactly. Re-fires from the yabai
+signals `display_added` / `display_removed` / `display_changed` only —
+*not* on `space_changed`, because per-pill display assignment doesn't
+change on space focus. A previous iteration subscribed it to
+`space_changed` and produced a "paint to right then snap" pulse on
+every space switch; the fix is documented in
+`configs/workspace/topology/README.md`.
 
 **Notch detection + visible cap.**
 [`plugins/notch-detect.sh`](../configs/sketchybar/plugins/notch-detect.sh)
 sources `~/.cache/workspace/layout.env`, written by `ws-topologyd` from
 `NSScreen.safeAreaInsets` — the authoritative runtime API for camera
-housing geometry. The previous model-table approach (`sysctl hw.model`
-matched against `MacBookPro18,* / Mac14-20,*`) is retired: it required a
-code edit per new Mac generation and broke silently on hardware Apple's
-docs hadn't shipped yet. On a notched laptop's built-in display, visible
-pills are capped at `WS_MAX_VISIBLE_SLOTS_<id>` — derived by the
-LayoutPolicyEngine from `(auxLeft.width + auxRight.width) / pill_width`.
-Non-notched displays show all assigned pills with no cap.
+housing geometry. On a notched laptop's built-in display, visible
+pills are capped at 10 (or `WS_MAX_VISIBLE_SLOTS_<id>` when published
+by ws-topologyd). Past that cap, pills slide under the camera housing
+and become unclickable; the cap prevents that. Non-notched displays
+show all assigned pills with no cap.
 
-**Per-display horizontal layout.**
-[`plugins/recenter.sh`](../configs/sketchybar/plugins/recenter.sh) walks
-yabai's displays and writes per-pill `padding_left` based on the policy
-in `layout.env`. All `sketchybar --set` calls are accumulated into one
-invocation per layout pass so the bar redraws once per transition.
-
-- **Notched laptop**: pills split symmetrically around the camera
-  housing. Left half right-anchored at `WS_TOP_REGION_W` (= aux-left
-  width); right half left-anchored at `WS_TOP_REGION_W + WS_NOTCH_W`
-  (= aux-right start). Half-counts via `ceil(N/2)` left + `floor(N/2)`
-  right. The user-tunable `WS_NOTCH_PAD_LEFT_PT` / `WS_NOTCH_PAD_RIGHT_PT`
-  (defaulting to `WS_NOTCH_PADDING_PT`) widen the perceived notch when
-  the OS-reported safe-area rect is a few points off from the visible
-  housing.
-- **Non-notched**: pills centered in `visibleFrame`. Anchor pad =
-  `(usable_w − chain_w) / 2`.
-
-Density mode (sparse / comfort / dense) picks the inter-pill gap from
-the ratio `(N × pill_w) / usable_w`. Active pill always renders with
-full label even in dense mode.
-
+**Per-display horizontal layout.** Items anchored `left` lay out from
+the screen corner toward the center. SketchyBar handles notched
+displays automatically: `left`-anchored items land in the left aux
+region between the screen corner and the camera. There is no
+centering math, no notch-split, no per-pill padding rewrite — each
+display's strip is just `[ workspace.name.<D>, space.1, space.2, … ]`
+in that order. `padding_left=2` per pill provides the inter-pill gap;
+the bar's `padding_left=8` handles the corner margin.
 ## File map
 
 ```
@@ -320,7 +308,6 @@ full label even in dense mode.
     │   ├── rename.sh                      # AppleScript wrapper
     │   ├── borders-refresh.sh             # yabai window_focused → JankyBorders re-assert
     │   ├── cheatsheet.json                # ws-cheatsheet content (hand-editable)
-    │   ├── sketchybar-tuning.env          # WS_NOTCH_PAD_LEFT_PT / _RIGHT_PT / etc.
     │   ├── hooks/post-mutate.sh           # user-owned extension point
     │   ├── lib/resolve-config.sh          # per-host overlay resolution
     │   ├── lib/sf-to-nerd.json            # SF Symbol → Nerd Font codepoint map (~113)
@@ -340,12 +327,11 @@ full label even in dense mode.
     │   │   └── install.sh                 # builds + symlinks + load
     │   └── install.sh                     # workspace-system bootstrapper
     └── sketchybar/
-        ├── sketchybarrc                       # bar geometry + pill loop
+        ├── sketchybarrc                       # bar geometry + pill loop (left-aligned)
         ├── colors.sh                          # palette constants
-        ├── plugins/paint-all.sh               # batched all-pill repaint (sentinel-subscribed)
-        ├── plugins/per-display-pills.sh       # pill display assignment (batched)
-        ├── plugins/recenter.sh                # split-around-notch / centered layout
-        ├── plugins/notch-detect.sh            # layout.env-driven (sysctl fallback)
+        ├── plugins/paint-all.sh               # batched all-pill + chip repaint (sentinel-subscribed)
+        ├── plugins/per-display-pills.sh       # per-display item lifecycle + display=<N> assignment
+        ├── plugins/notch-detect.sh            # is-laptop-notched? (gates the visible-pill cap)
         ├── plugins/ssh-chip.sh                # outbound SSH presence chip
         └── bootstrap.sh                       # brew services start
 ```

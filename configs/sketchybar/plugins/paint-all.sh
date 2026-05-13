@@ -1,28 +1,30 @@
 #!/usr/bin/env bash
-# Single batched paint of every workspace pill + the right-side workspace
-# name chip. Subscribed to the workspace_changed event via a hidden
-# sentinel item — fires once per focus / cascade event regardless of
-# pill count. Replaces the per-pill space.sh subscriptions that produced
-# staggered repaints (the visible flicker on space switches).
+# Single batched paint of every workspace pill + the per-display
+# workspace-name chip. Subscribed to the workspace_changed event via a
+# hidden sentinel item — fires once per focus / cascade event regardless
+# of pill or display count. Replaces the per-pill space.sh subscriptions
+# that produced staggered repaints (visible flicker on space switches).
 #
 # Pill rendering matrix (slot_state × focus_state):
 #
 #   bare    + inactive   icon=<ident>          (gray, no bg)
-#   bare    + active     icon=<ident>          (gray icon over muted gray bg —
-#                        subtle focus cue without resizing the pill chain)
+#   bare    + active     icon=<ident>          (gray icon over muted gray
+#                        bg — subtle focus cue)
 #   custom  + inactive   icon=<ident> <glyph>  (assigned color, no bg)
-#   custom  + active     icon=<ident> <glyph>  (active fg over colored bg fill)
+#   custom  + active     icon=<ident> <glyph>  (active fg over colored
+#                        bg fill)
 #
-# Pills no longer carry labels. The focused-slot NAME lives on the
-# right-side `workspace.name` chip (added in sketchybarrc, painted at
-# the bottom of this script) — that keeps "where am I" visible without
-# the pill chain resizing every time the active slot changes.
+# Pills carry no labels. Each display's leftmost item is a
+# workspace.name.<D> chip showing the workspace that's currently
+# *visible* on display D (per yabai), painted in that space's color.
+# The chip items themselves are created by per-display-pills.sh; this
+# script only updates their text + color.
 #
 # `<ident>` is the slot's digit for slot index ≤ 10 (hotkey-reachable
 # via Hyper+1..0), or U+2022 BULLET for higher indices.
 #
-# `<bare>` = seed-identity slot (name == stableLogicalLabel) AND no icon
-# codepoint AND iconSpec.userOverridden == false. Anything else =
+# `<bare>` = seed-identity slot (name == stableLogicalLabel) AND no
+# icon codepoint AND iconSpec.userOverridden == false. Anything else =
 # customized, which earns its assigned color.
 
 set -u
@@ -57,14 +59,10 @@ command -v sketchybar >/dev/null 2>&1 || exit 0
 [[ -r "$CONFIG" ]] || exit 0
 
 ACTIVE_SID=0
-ACTIVE_NAME=""
-ACTIVE_COLOR=""
 if [[ -r "$CACHE" ]]; then
   # shellcheck source=/dev/null
   source "$CACHE" 2>/dev/null || true
   ACTIVE_SID="${MACOS_SPACE_INDEX:-0}"
-  ACTIVE_NAME="${MACOS_SPACE_NAME:-}"
-  ACTIVE_COLOR="${MACOS_SPACE_COLOR:-}"
 fi
 
 DOT_GLYPH=$'\xe2\x80\xa2'   # U+2022 BULLET (UTF-8 bytes). Used for slot > 10.
@@ -159,21 +157,42 @@ done < <(jq -r --arg sep "$SEP" '
   | join($sep)
 ' "$CONFIG" 2>/dev/null)
 
-# Right-side workspace name chip. Pulls the focused slot's name + color
-# from current.env (already written by on-space-changed.sh before this
-# trigger fires). Renders in the slot's color so "where am I" is also
-# encoded chromatically. Empty name (cold boot before first cascade) →
-# the chip just shows blank; SketchyBar handles empty labels fine.
-if [[ -n "$ACTIVE_COLOR" ]]; then
-  chip_color="0xff${ACTIVE_COLOR#\#}"
-else
-  chip_color="$INACTIVE_LABEL"
+# Per-display workspace name chip update. For each yabai display, find
+# the currently visible space and set workspace.name.<display>'s label
+# to that space's name + color from spaces.json. The chip items are
+# created by per-display-pills.sh; this loop just rewrites their text.
+# Silently no-ops on machines without yabai (the chips simply stay
+# blank — non-fatal).
+if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
+  while IFS="$SEP" read -r d_idx s_idx s_name s_color; do
+    [[ -z "$d_idx" || -z "$s_idx" ]] && continue
+    [[ -z "$s_name" ]] && s_name="ws$s_idx"
+    [[ -z "$s_color" ]] && s_color="#cdd6f4"
+    args+=(
+      --set "workspace.name.$d_idx"
+      label="$s_name"
+      label.color="0xff${s_color#\#}"
+    )
+  done < <(
+    # Visible-per-display from yabai → join with spaces.json metadata.
+    # One jq pipeline: ingests the two JSON sources via $cfg, emits
+    # one row per visible space with [display, index, name, color].
+    yabai -m query --spaces 2>/dev/null \
+      | jq -r --slurpfile cfg "$CONFIG" --arg sep "$SEP" '
+          .[]
+          | select(."is-visible")
+          | . as $s
+          | $cfg[0].spaces[($s.index | tostring)] as $meta
+          | [
+              ($s.display | tostring),
+              ($s.index | tostring),
+              ($meta.name // ("ws" + ($s.index | tostring))),
+              ($meta.color // "#cdd6f4")
+            ]
+          | join($sep)
+        ' 2>/dev/null
+  )
 fi
-args+=(
-  --set workspace.name
-  label="$ACTIVE_NAME"
-  label.color="$chip_color"
-)
 
 # One sketchybar invocation = one redraw transaction. Tolerant of items
 # not yet existing (init race during boot).
