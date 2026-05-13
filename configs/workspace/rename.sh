@@ -8,7 +8,9 @@
 set -u
 
 WS_CONFIG="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
-WS_BIN="${WS_BIN:-$HOME/.local/bin/workspace}"
+WS_BIN="${WS_BIN:-$HOME/.local/bin/ws}"
+# Fallback to compat symlink if `ws` isn't yet installed (older deployments).
+[[ ! -x "$WS_BIN" && -x "$HOME/.local/bin/workspace" ]] && WS_BIN="$HOME/.local/bin/workspace"
 
 INDEX=$(yabai -m query --spaces --space 2>/dev/null | jq -r '.index' 2>/dev/null)
 if [[ -z "${INDEX:-}" || "$INDEX" == "null" ]]; then
