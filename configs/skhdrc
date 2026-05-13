@@ -41,12 +41,11 @@ cmd + alt + ctrl + shift - tab : yabai -m display --focus next
 cmd + alt + ctrl - tab         : yabai -m display --focus prev
 
 # --- cheatsheet ---------------------------------------------------------
-# Hyper+/ = the universal "show shortcuts" gesture. Moved here from
-# Hyper+0 once slot 10 took that binding. Hammerspoon owns the overlay;
-# this skhd entry is a no-op fallback in case Hammerspoon isn't running.
-# Backup keysyms documented in the cheatsheet itself.
-# 0x2C = / on US ANSI.
-cmd + alt + ctrl + shift - 0x2C : hs -c "require('cheatsheet').toggle()" 2>/dev/null || true
+# Hyper+/ = the universal "show shortcuts" gesture. Hammerspoon's primary
+# binding is Hyper+; (Caps+;). This skhd entry is a no-op fallback that
+# also fires the native SwiftUI HUD (ws-cheatsheet) directly, so it works
+# even when Hammerspoon isn't running. 0x2C = / on US ANSI.
+cmd + alt + ctrl + shift - 0x2C : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/null 2>&1 &
 
 # Hyper+T (new Ghostty window) is handled by Hammerspoon so it retargets
 # Ghostty even when it isn't frontmost. Hyper+N intentionally unbound.
