@@ -17,7 +17,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | **Native Swift package** | `ws-topology` (one-shot CLI) + `ws-topologyd` (long-running launchd agent). Enumerates `NSScreen.screens`, classifies each into `notchedBuiltIn` / `compactBuiltIn` / `externalRectangular` / `mirrorSecondary`, debounces Core Graphics reconfig callbacks, and writes `topology.json` + `layout.env`. |
 | **Typed icon spec** | `IconSpec { kind, codepoint, fontFamily, fallbackSfSymbol, fallbackText, userOverridden }`. v1→v2 migration tool. Persistence is ASCII-escaped (`\uXXXX`) so PUA bytes never appear in JSON. |
 | **Per-host overlay** | `spaces.<hostname>.json` overrides the shared `spaces.json` on this machine. `workspace host` subcommands. Resolution helper sourced by every cascade reader. |
-| **Cache-driven shell adapters** | The four SketchyBar plugins (`notch-detect.sh`, `per-display-pills.sh`, `recenter.sh`, `paint-all.sh`) and the cascade (`on-space-changed.sh`) prefer `layout.env` / `iconSpec.codepoint`, with legacy heuristics retained as boot-time fallbacks. `paint-all.sh` is the centralized batched-repaint plugin subscribed to `workspace_changed` via a single hidden sentinel item in `sketchybarrc`. |
+| **Cache-driven shell adapters** | The SketchyBar plugins (`notch-detect.sh`, `per-display-pills.sh`, `paint-all.sh`) and the cascade (`on-space-changed.sh`) prefer `layout.env` / `iconSpec.codepoint`, with legacy heuristics retained as boot-time fallbacks. `paint-all.sh` is the centralized batched-repaint plugin subscribed to `workspace_changed` via a single hidden sentinel item in `sketchybarrc`. Items anchored `left`, no centering math. |
 | **Layout policy** | Notched: pills split symmetrically around the camera housing, the two halves anchored to `auxiliaryTopLeftArea.maxX` and `auxiliaryTopRightArea.minX`. Non-notched: pills centered in `visibleFrame`. Density mode (sparse / comfort / dense) picks gap from `(N × pill_w) / usable_w`. |
 | **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; / Caps+/ via skhd). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
 | **Floating-window snaps** | `ws-snap` (Meh+arrows via skhd). One-shot AX writes to move yabai-unmanaged windows. Replaces the Hammerspoon `setFrame` block — same geometry fractions, no Lua runtime. |
@@ -50,7 +50,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 .config/sketchybar/plugins/
 ├── notch-detect.sh                           cache-first; sysctl fallback
 ├── per-display-pills.sh                      bulk display-assignment + drawing in one sketchybar call
-├── recenter.sh                               split-around-notch / centered; single-pass batched writes
+                                              (recenter.sh retired with the left-aligned navbar refactor)
 ├── paint-all.sh                              batched all-pill repaint; sentinel-item subscriber
 └── ssh-chip.sh                               outbound SSH presence (lsof + ps argv parser)
 
@@ -59,7 +59,6 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 ├── spaces.<hostname>.json                    optional per-host overlay
 ├── on-space-changed.sh                       cascade entry point
 ├── borders-refresh.sh                        re-assert JankyBorders active_color on window_focused
-├── sketchybar-tuning.env                     WS_NOTCH_PADDING_PT (your hardware tuning)
 ├── lib/resolve-config.sh                     sources WS_CONFIG = host overlay if present
 └── hooks/post-mutate.sh                      regenerate skhd fragment, ping sketchybar
 ```
@@ -71,60 +70,24 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | `~/.config/workspace/spaces.json` (v2) | `workspace` CLI, `ws-topology migrate` | everyone | slot identity: `{name, color, iconSpec, stableLogicalLabel}` |
 | `~/.cache/workspace/current.env` | `on-space-changed.sh` (atomic mv) | tmux, starship, borders, `paint-all.sh` | focused-space `MACOS_SPACE_{INDEX,NAME,COLOR,ICON,DISPLAY,ANSI}` |
 | `~/.cache/workspace/topology.json` | `ws-topologyd` (atomic mv) | future native bar, diagnostics | per-display snapshot + policy |
-| `~/.cache/workspace/layout.env` | `ws-topologyd` (atomic mv) | `notch-detect.sh`, `per-display-pills.sh`, `recenter.sh` | `WS_LAPTOP_HAS_NOTCH`, `WS_TOP_REGION_W_<id>`, `WS_TOP_REGION_RIGHT_W_<id>`, `WS_NOTCH_X_<id>`, `WS_NOTCH_W_<id>`, `WS_MAX_VISIBLE_SLOTS_<id>`, `WS_PILL_AVG_WIDTH_PT_<id>`, … |
+| `~/.cache/workspace/layout.env` | `ws-topologyd` (atomic mv) | `notch-detect.sh`, `per-display-pills.sh` | `WS_LAPTOP_HAS_NOTCH`, `WS_LAPTOP_DISPLAY_ID`, `WS_MAX_VISIBLE_SLOTS_<id>` (active consumers); the daemon still publishes `WS_TOP_REGION_W_<id>` / `WS_NOTCH_X_<id>` / `WS_NOTCH_W_<id>` / `WS_PILL_AVG_WIDTH_PT_<id>` for diagnostics, but no shell consumer reads them after the left-aligned navbar refactor retired `recenter.sh`. |
 
 `current.env` is keyed on focused space; `layout.env` is keyed on display.
 They never overlap.
 
 ## Layout rules
 
-### Notched (M3 Max 14", M3 16", future notched MBPs)
-
-```
-            ┌──── auxiliaryTopLeftArea ────┐  ▒▒notch▒▒  ┌──── auxiliaryTopRightArea ────┐
-            │  [1][2][3][4]                │             │                [5][6][7][8]  │
-            │  ←─── L pills + (L-1) gaps ──→            ←── R pills + (R-1) gaps ───→  │
-            │                          anchor pad        cross-notch pad                │
-            └──────────────────────────────┘             └────────────────────────────────┘
-```
-
-- `L = ceil(N/2)`, `R = N − L`. Left half is the bigger half when N is odd.
-- The left half's right edge sits at `eff_notch_x` (= `WS_NOTCH_X_<id> − WS_NOTCH_PADDING_PT`).
-- The right half's left edge sits at `eff_notch_x + eff_notch_w + LEFT_MARGIN`.
-- `WS_NOTCH_PADDING_PT` lets the user dial in any per-hardware drift between Apple's safe-area rect and the visible edge of the physical notch. Set in `~/.config/workspace/sketchybar-tuning.env`.
-
-### Non-notched (M1 13", externals, anyone else's monitor)
-
-Pills centered in `visibleFrame` — chain width = `N × pill_w + (N−1) × gap`,
-anchor pad = `(usable − chain_w) / 2`.
-
-### Density modes (per display)
-
-```
-ratio = (N × pill_w) / usable_w
-
-ratio ≤ 0.55      → SPARSE   gap = 8pt
-0.55 < r ≤ 0.85   → COMFORT  gap = 2pt
-r > 0.85          → DENSE    gap = 0pt
-```
-
-Density affects only the inter-pill `padding_left`. All other geometry
-(anchor pad, cross-notch pad) is computed from the chosen gap.
-
-### Batched writes
-
-Every layout pass produces ONE `sketchybar "${args[@]}"` invocation
-containing all per-pill `--set` operations. No two-pass writes, no
-intermediate frames. The previous "paint to the right then snap" pulse
-was caused by:
-
-1. `per-display-pills.sh` was subscribed to `space_changed` — it ran on
-   every space switch, even though display assignments don't change on
-   space focus. **Fixed**: subscription removed (display events only).
-2. `recenter.sh` wrote everyone to the default gap first, then overrode
-   the anchor + cross-notch pills. **Fixed**: each pill's role-specific
-   padding is computed once; all `--set` ops batched into a single
-   sketchybar transaction.
+**Layout: left-aligned, no centering math.** The previous version of
+this section described a notched/non-notched split-and-center layout
+implemented by `recenter.sh`, with density modes (sparse / comfort /
+dense) picking inter-pill gaps from `(N × pill_w) / usable_w`. That
+all got ripped out in the left-aligned refactor — items now anchor
+left and SketchyBar lays them out from the screen corner toward the
+center automatically. The only Swift-side input still consumed is
+`WS_MAX_VISIBLE_SLOTS_<id>`, which caps the count on notched
+displays so pills don't slide under the camera housing. The
+LayoutPolicy module still computes the older auxiliary-region geometry
+for diagnostic completeness, but no shell adapter reads it.
 
 ## Build / install
 
@@ -175,23 +138,19 @@ Xcode to run the suites. Files in `Tests/` are valid and exercise:
 
 ## Tuning
 
-`~/.config/workspace/sketchybar-tuning.env`:
-
-```bash
-# Extra clearance (in points) on each side of the camera notch beyond
-# what NSScreen.auxiliaryTopLeft/RightArea reports.
-WS_NOTCH_PADDING_PT=16    # the value you dialed in on this M3 Max
-```
-
-Precedence: env override > config file > default 0. Re-read on every
-`recenter.sh` invocation.
+After the left-aligned refactor there is nothing user-tunable in the
+navbar layout — items lay out from the left corner with a fixed
+inter-pill gap. The previously documented `WS_NOTCH_PAD_LEFT_PT` /
+`_RIGHT_PT` / `WS_NOTCH_PADDING_PT` knobs and the
+`~/.config/workspace/sketchybar-tuning.env` file are retired and no
+longer read by any consumer.
 
 ## What it replaces
 
 | Before | After |
 |---|---|
 | `sysctl hw.model` notch detection table | `NSScreen.safeAreaInsets.top > 0` via daemon |
-| `NOTCH_WIDTH=400` heuristic in `recenter.sh` | `WS_TOP_REGION_W_<id>` + `WS_NOTCH_W_<id>` (exact API values) |
+| `NOTCH_WIDTH=400` heuristic in `recenter.sh` | recenter retired; left-aligned layout sidesteps the notch geometry entirely. `WS_TOP_REGION_W_<id>` / `WS_NOTCH_W_<id>` still published for diagnostics. |
 | `NOTCH_MAX_VISIBLE=10` constant | `WS_MAX_VISIBLE_SLOTS_<id>` (derived from combined aux width) |
 | Raw Nerd Font PUA bytes in JSON `.icon` | `iconSpec.codepoint = "\uXXXX"`; literal glyph reconstructed only at the env sink |
 | Static `cmd + alt + ctrl + shift - N` block in `skhdrc` | Generated `~/.config/skhd/spaces.skhdrc` loaded via `.load`, regenerated by `ws-topology emit-skhd` after every workspace mutation |
@@ -215,7 +174,7 @@ log stream --predicate 'subsystem == "com.adames.workspace.topology"'
 | spaces.json edit | edit by hand or use `workspace name/color/icon` — every mutation atomic via `_NORMALIZE` |
 | Topology daemon | `launchctl bootout "gui/$(id -u)/com.adames.workspace.topologyd"` |
 | Per-host overlay | `workspace host reset` |
-| Notch padding | edit `~/.config/workspace/sketchybar-tuning.env` |
+| Notch padding | retired with the left-aligned refactor (no longer tunable / needed) |
 | Border refresh signal | `yabai -m signal --remove ws_borders_window_focused` |
 | Plugin edits | `cd ~/dotfiles && git checkout configs/sketchybar configs/workspace` then re-run `macos/bootstrap.sh` |
 
