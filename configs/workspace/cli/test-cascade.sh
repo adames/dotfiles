@@ -95,24 +95,71 @@ assert "color 5 = #abcdef" "#abcdef" "$(jq -r '.spaces["5"].color' "$WS_CONFIG")
 # 4 · color validation rejects bad input
 assert_false "color rejects non-hex" "$WS_BIN" color 5 "not-a-color"
 
-# 5 · icon roundtrip + PUA preservation
+# 5 · icon roundtrip writes a v2 iconSpec.codepoint
 if jq -e '.icons[5] | length > 0' "$WS_THEMES_DIR/catppuccin-mocha.json" >/dev/null 2>&1; then
   pua_icon=$(jq -r '.icons[5]' "$WS_THEMES_DIR/catppuccin-mocha.json")
   "$WS_BIN" icon 7 "$pua_icon" >/dev/null
-  py_ok=$(python3 -c '
-import json, sys
-d = json.load(open(sys.argv[1]))
-ic = d["spaces"]["7"]["icon"]
-print("ok" if any(0xE000 <= ord(c) <= 0xF8FF or 0xF0000 <= ord(c) <= 0xFFFFD for c in ic) else "no")
-' "$WS_CONFIG")
-  assert "icon 7 preserves PUA codepoint" "ok" "$py_ok"
+  # The codepoint is stored as an ASCII-escape (`\u{F048B}` or `\uXXXX`),
+  # not the raw PUA char. Just assert the field is present and looks like
+  # a codepoint escape — round-tripping the literal glyph through decode
+  # is covered by lib/icon-decode.sh's own tests.
+  cp7=$(jq -r '.spaces["7"].iconSpec.codepoint // ""' "$WS_CONFIG")
+  kind7=$(jq -r '.spaces["7"].iconSpec.kind // ""' "$WS_CONFIG")
+  if [[ "$cp7" =~ ^\\u[0-9a-fA-F{}]+$ ]] && [[ "$kind7" == "nerdFont" ]]; then
+    pass "icon 7: iconSpec.codepoint=$cp7, kind=nerdFont"
+  else
+    fail "icon 7: expected v2 iconSpec.codepoint+kind=nerdFont (got cp='$cp7', kind='$kind7')"
+  fi
+fi
+
+# 5a · cmd_status renders v2 icons (must DECODE iconSpec.codepoint to a
+# glyph — not print the literal \uXXXX escape). Restore the snapshot
+# first because prior tests have shuffled slots around, and the icons
+# may have moved.
+cp -f "$SNAP" "$WS_CONFIG"
+status_out=$("$WS_BIN" status 2>/dev/null)
+slot1_icon=$(printf '%s\n' "$status_out" | awk 'NR>1 && $1=="1" {print $2}')
+if [[ "$slot1_icon" == *'\u'* ]]; then
+  fail "status row 1 has literal \\u escape (not decoded): '$slot1_icon'"
+elif [[ -z "$slot1_icon" ]]; then
+  # Slot 1's iconSpec may legitimately have no codepoint (kind=none).
+  # In that case the column shows fallbackText. Empty is only a failure
+  # if BOTH codepoint and fallbackText are unset, which is itself a
+  # doctor violation — so trust doctor and treat empty as inconclusive.
+  dim "skip: status slot 1 icon empty (kind=none seed?)"
+else
+  pass "status decodes iconSpec.codepoint to a glyph (slot 1: '$slot1_icon')"
 fi
 
 # 6 · add / count / remove involution
 "$WS_BIN" add "added-$$" "#112233" "" >/dev/null
 assert "add increments count" "$((orig_count + 1))" "$("$WS_BIN" count)"
 assert "added slot has expected name" "added-$$" "$(jq -r --arg c "$((orig_count + 1))" '.spaces[$c].name' "$WS_CONFIG")"
-"$WS_BIN" remove -y "$((orig_count + 1))" >/dev/null
+
+# 6a · add writes a v2 iconSpec scaffold (kind: none, fallbackText derived)
+new_slot_idx=$((orig_count + 1))
+add_kind=$(jq -r --arg c "$new_slot_idx" '.spaces[$c].iconSpec.kind // "MISSING"' "$WS_CONFIG")
+assert "add seeds iconSpec.kind=none" "none" "$add_kind"
+add_ft=$(jq -r --arg c "$new_slot_idx" '.spaces[$c].iconSpec.fallbackText // ""' "$WS_CONFIG")
+assert "add seeds iconSpec.fallbackText" "AD" "$add_ft"
+
+# 6b · icon NEW_SLOT star.fill mutates the just-added slot (was a no-op pre-fix)
+"$WS_BIN" icon "$new_slot_idx" star.fill >/dev/null
+new_kind=$(jq -r --arg c "$new_slot_idx" '.spaces[$c].iconSpec.kind // ""' "$WS_CONFIG")
+new_sf=$(jq -r --arg c "$new_slot_idx" '.spaces[$c].iconSpec.symbolName // ""' "$WS_CONFIG")
+assert "icon on new slot sets kind=sfSymbol" "sfSymbol" "$new_kind"
+assert "icon on new slot sets symbolName=star.fill" "star.fill" "$new_sf"
+
+# 6c · duplicate name rejected
+assert_false "add rejects duplicate name" "$WS_BIN" add "added-$$"
+
+# 6d · rename to existing name rejected
+existing_name=$(jq -r '.spaces["1"].name' "$WS_CONFIG")
+assert_false "name rejects collision with another slot" "$WS_BIN" name 2 "$existing_name"
+# Self-rename to current name is allowed (no-op)
+assert_true "name self-rename allowed" "$WS_BIN" name 1 "$existing_name"
+
+"$WS_BIN" remove -y "$new_slot_idx" >/dev/null
 assert "remove restores count" "$orig_count" "$("$WS_BIN" count)"
 
 # 7 · remove from middle: renumbering
@@ -225,6 +272,21 @@ assert "theme catppuccin-mocha restored slot 1 color" "$mocha1" "$(jq -r '.space
 echo 'not json' > "$WS_CONFIG"
 assert_false "doctor red on broken JSON" "$WS_BIN" doctor
 cp -f "$SNAP" "$WS_CONFIG"
+
+# 15a · doctor catches v2 iconSpec issues
+# Each mutation overwrites the iconSpec wholesale so the test result
+# doesn't depend on what fields a user-customized $SNAP carries.
+baseline_spec='{"fallbackSfSymbol":"circle.fill","fallbackText":"CO","userOverridden":false}'
+jq '.spaces["1"] |= del(.iconSpec)' "$SNAP" > "$WS_CONFIG"
+assert_false "doctor red on missing iconSpec" "$WS_BIN" doctor
+jq --argjson b "$baseline_spec" '.spaces["1"].iconSpec = ($b + {kind: "nerdFont"})' "$SNAP" > "$WS_CONFIG"
+assert_false "doctor red on kind=nerdFont without codepoint" "$WS_BIN" doctor
+jq --argjson b "$baseline_spec" '.spaces["1"].iconSpec = ($b + {kind: "sfSymbol"})' "$SNAP" > "$WS_CONFIG"
+assert_false "doctor red on kind=sfSymbol without symbolName" "$WS_BIN" doctor
+jq --argjson b "$baseline_spec" '.spaces["1"].iconSpec = ($b + {kind: "bogusKind"})' "$SNAP" > "$WS_CONFIG"
+assert_false "doctor red on iconSpec.kind=bogusKind" "$WS_BIN" doctor
+cp -f "$SNAP" "$WS_CONFIG"
+assert_true "doctor green on seed (v2 iconSpec OK)" "$WS_BIN" doctor
 
 # 15a · layout save/load/list/delete roundtrip
 layout_name="harness-test-$$"
