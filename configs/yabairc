@@ -109,6 +109,30 @@ for ev in display_added display_removed display_changed; do
     action="\"$HOME/.config/sketchybar/plugins/per-display-pills.sh\""
 done
 
+# Space lifecycle: track macOS-native Space creation / destruction so
+# the bar stays in sync with Mission Control gestures. These signals
+# fire on BOTH `yabai -m space --create/--destroy` AND on the user
+# adding/removing a Space via Mission Control's `+`/`x` controls.
+#
+# space_created  → per-display-pills.sh adds the new pill (idempotent;
+#                  no-op if `ws add` already added it via the post-mutate
+#                  hook).
+# space_destroyed → on-space-destroyed.sh prunes the now-orphan slot
+#                  from spaces.json and re-runs per-display-pills.sh to
+#                  drop the dead pill.
+for ev in space_created space_destroyed; do
+  yabai -m signal --remove "ws_pills_${ev}" 2>/dev/null || true
+  yabai -m signal --add \
+    event=$ev \
+    label=ws_pills_${ev} \
+    action="\"$HOME/.config/sketchybar/plugins/per-display-pills.sh\""
+done
+yabai -m signal --remove ws_prune_space_destroyed 2>/dev/null || true
+yabai -m signal --add \
+  event=space_destroyed \
+  label=ws_prune_space_destroyed \
+  action="\"$HOME/.config/workspace/on-space-destroyed.sh\""
+
 # ── neon window borders (JankyBorders) ──────────────────────────────────
 # Per-space active colour is set by on-space-changed.sh on every
 # space_changed event. Static defaults (width, style, inactive colour)
