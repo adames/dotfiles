@@ -149,9 +149,11 @@ fi
 
 # SketchyBar workspace pills. Fired AFTER current.env + tmux env + borders
 # are committed so every pill plugin reads the same state. The trigger is
-# a custom event registered in configs/sketchybar/sketchybarrc; all 10
-# pill items subscribe to it and call plugins/space.sh per-pill. Silent
-# on subsystem absence (e.g., fresh boot before brew services kicks in).
+# a custom event registered in configs/sketchybar/sketchybarrc; a single
+# hidden `workspace.paint` sentinel item subscribes to it and runs
+# plugins/paint-all.sh, which emits one batched --set transaction for
+# every pill (no per-pill repaint stagger). Silent on subsystem absence
+# (e.g., fresh boot before brew services kicks in).
 if command -v sketchybar >/dev/null 2>&1; then
   sketchybar --trigger workspace_changed >/dev/null 2>&1 || true
 fi

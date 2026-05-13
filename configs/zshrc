@@ -64,6 +64,14 @@ _workspace_env
 typeset -ag precmd_functions
 precmd_functions+=(_workspace_env)
 
+# ws CLI completion (installed by bootstrap to ~/.config/zsh/completions).
+# Adds the dir to fpath, then compinit picks up _ws (also completes
+# the `workspace` compat symlink).
+if [[ -d "$HOME/.config/zsh/completions" ]]; then
+  fpath=("$HOME/.config/zsh/completions" $fpath)
+fi
+autoload -Uz compinit && compinit -i
+
 # Auto-attach tmux on SSH
 if [[ -n "$SSH_CONNECTION" && -z "$TMUX" ]]; then
   tmux attach-session -t main 2>/dev/null || tmux new-session -s main

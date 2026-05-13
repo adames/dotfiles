@@ -74,15 +74,17 @@ for item in $legacy_nav; do
 done
 
 # 2. Pills — add missing, remove stale.
+# Pills carry no per-item script and no event subscription — the
+# centralized workspace.paint sentinel (added in sketchybarrc) is the
+# sole subscriber to workspace_changed and runs plugins/paint-all.sh
+# for the batched per-pill render.
 for sid in $current_spaces; do
   if ! grep -qx "$sid" <<<"$existing_pills"; then
     sketchybar --add item "space.$sid" left \
                --set "space.$sid" \
-                  script="$PLUGIN_DIR/space.sh" \
                   click_script="yabai -m space --focus $sid" \
                   padding_left=0 \
                   padding_right=0 \
-               --subscribe "space.$sid" workspace_changed \
                >/dev/null 2>&1 || true
   fi
 done

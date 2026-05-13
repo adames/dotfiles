@@ -81,7 +81,7 @@ floating or unmanaged windows like Ghostty and System Settings).
 | SketchyBar per-display autohide | ws-autohide (LaunchAgent, Swift) | `configs/workspace/topology/Sources/ws-autohide/` |
 | Cheatsheet HUD (SwiftUI) | ws-cheatsheet (topology package) | `configs/workspace/cheatsheet.json` + `configs/workspace/topology/Sources/ws-cheatsheet/` |
 | Cross-display topology (notch + aux geometry + per-display layout policy) | ws-topologyd (LaunchAgent, Swift) | `configs/workspace/topology/` |
-| Workspace pill strip (persistent 10-slot indicator) | SketchyBar | `sketchybar/sketchybarrc` · `sketchybar/plugins/space.sh` |
+| Workspace pill strip (persistent per-display indicator) | SketchyBar | `sketchybar/sketchybarrc` · `sketchybar/plugins/paint-all.sh` |
 | Terminal app config | Ghostty | `ghostty-config` |
 | Pane nav, sessionizer | tmux | `tmux.conf` + `tmux-sessionizer` |
 | Shell layer | zsh | `zshrc` |
@@ -155,13 +155,13 @@ See [`wizard.md`](wizard.md).
 
 The 10-slot (extensible) workspace identity is a single piece of state
 (`~/.config/workspace/spaces.json`) read by five subsystems. Mutations
-go through one of two entry points (the `workspace` CLI or
-`workspace/rename.sh` for the AppleScript flow) and fan out via the
-cascade.
+go through one of two entry points (the `ws` CLI — `workspace` is kept
+as a compat symlink — or `workspace/rename.sh` for the AppleScript
+flow) and fan out via the cascade.
 
 ```mermaid
 graph LR
-  CLI[workspace CLI] -->|atomic write| JSON[(spaces.json v2)]
+  CLI[ws CLI] -->|atomic write| JSON[(spaces.json v2)]
   Rename[rename.sh AppleScript] --> CLI
   JSON --> Hook[post-mutate.sh hook]
   JSON --> Cascade[on-space-changed.sh]
@@ -181,21 +181,38 @@ graph LR
 ```
 
 Two parallel cache lines: `current.env` is keyed on focused space
-(consumed by tmux / starship / borders / per-pill render), and
+(consumed by tmux / starship / borders / `paint-all.sh`), and
 `layout.env` is keyed on display (consumed by the sketchybar layout
 plugins). They never overlap — the postmortem's "one source per render
 hot path" rule holds.
 
+**Sketchybar pill rendering uses a sentinel-subscriber pattern.** The
+custom `workspace_changed` event is fired from four places — yabai's
+`space_changed` signal (via `on-space-changed.sh`), `sketchybarrc`
+init, `per-display-pills.sh` (after lazy add/remove on display events),
+and `ws-topologyd` (on display reconfig). All four trigger sites
+deliver to one hidden item (`workspace.paint` in `sketchybarrc`),
+whose `script=` points at `plugins/paint-all.sh`. That plugin reads
+`spaces.json` once via a single `jq` invocation, decides per-slot
+state (bare vs customized, active vs inactive, digit vs dot for slots
+> 10), and emits one batched `sketchybar --set …` transaction for
+every pill. Pills themselves carry no per-item script and no event
+subscription, so a focus change is one atomic redraw, not N staggered
+ones.
+
 - **Source of truth**: `spaces.json` is per-machine, in `$HOME`, never
   committed. Bootstrap seeds it from `spaces.default.json` only when
   missing; user edits survive `bootstrap.sh` re-runs.
-- **The CLI** (`~/.local/bin/workspace`) is the public mutation API.
-  Subcommands cover name / color / icon / theme / add / remove / swap /
-  move / rotate / reverse / reorder / layout / edit / reset / doctor.
-  Every mutation is atomic (mktemp + jq + mv) and fires the cascade.
-  Slot count is derived dynamically; the system tolerates any count
-  ≥ 1 even though skhd hotkeys only bind 1..10. Any subcommand that
-  takes a slot accepts either a numeric index or a unique slot name.
+- **The CLI** (`~/.local/bin/ws`, plus `workspace` kept as a compat
+  symlink) is the public mutation API. Subcommands cover name / color /
+  icon / theme / add / remove / swap / move / rotate / reverse / reorder /
+  layout / edit / reset / doctor. Every mutation is atomic (mktemp + jq
+  + mv) and fires the cascade. Slot count is derived dynamically; the
+  system tolerates any count ≥ 1 even though skhd hotkeys only bind
+  1..10. Any subcommand that takes a slot accepts either a numeric
+  index or a unique slot name. `ws add` and `ws remove` are also bound
+  to Hyper+Shift+= / Hyper+Shift+- so the bar can grow / shrink without
+  a terminal round-trip.
 - **Positional colors.** Reordering operations (`swap`, `move`,
   `rotate`, `reverse`, `reorder`) permute only the (name, icon) tuples
   — color stays anchored to slot index. This preserves muscle-memory
@@ -294,8 +311,8 @@ full label even in dense mode.
 ├── docs/                         # this file + wizard.md
 └── configs/                      # source-of-truth dotfiles
     ├── workspace/
-    │   ├── cli/workspace                  # CLI binary (→ ~/.local/bin/)
-    │   ├── cli/test-cascade.sh            # `workspace verify` harness
+    │   ├── cli/ws                         # CLI binary (→ ~/.local/bin/ws; `workspace` symlink for compat)
+    │   ├── cli/test-cascade.sh            # `ws verify` harness
     │   ├── themes/*.json                  # canonical palettes
     │   ├── spaces.default.json            # fresh-install seed (v2)
     │   ├── on-space-changed.sh            # cascade (v2 only)
@@ -324,7 +341,7 @@ full label even in dense mode.
     └── sketchybar/
         ├── sketchybarrc                       # bar geometry + pill loop
         ├── colors.sh                          # palette constants
-        ├── plugins/space.sh                   # per-pill render (iconSpec-driven)
+        ├── plugins/paint-all.sh               # batched all-pill repaint (sentinel-subscribed)
         ├── plugins/per-display-pills.sh       # pill display assignment (batched)
         ├── plugins/recenter.sh                # split-around-notch / centered layout
         ├── plugins/notch-detect.sh            # layout.env-driven (sysctl fallback)
