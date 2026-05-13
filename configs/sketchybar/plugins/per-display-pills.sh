@@ -62,14 +62,24 @@ done
 #    label text + color from spaces.json + yabai's per-display visible
 #    space; this script only handles the item's lifecycle + display
 #    assignment.
+#
+#    `width=140` pins the chip's geometry: the pill chain to the right
+#    of the chip doesn't shift when the focused-workspace name changes
+#    length (home → uplink → ridiculouslylongname). Set at --add time,
+#    never updated by paint-all.sh, so focus events stay geometry-stable.
+#    label.align=left so short names don't get centered inside the
+#    fixed-width slot. ~140pt fits ~11 chars at 12pt bold; longer names
+#    truncate (acceptable trade vs. geometry instability).
 for d in $current_displays; do
   if ! grep -qx "$d" <<<"$existing_chips"; then
     sketchybar --add item "workspace.name.$d" left \
                --set "workspace.name.$d" \
                   icon.drawing=off \
                   label.drawing=on \
+                  label.align=left \
                   label.padding_left=8 \
                   label.padding_right=12 \
+                  width=140 \
                   display="$d" \
                   drawing=on \
                >/dev/null 2>&1 || true
