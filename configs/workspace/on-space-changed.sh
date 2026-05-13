@@ -83,6 +83,12 @@ if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
       hex="${ICON_ESCAPED#\\u}"
       ICON=$(printf "\\u${hex}")
     fi
+  else
+    # v1 fallback: spaces.json without iconSpec (post-rollback, hand-edited
+    # configs, or fresh installs before migrate). Read the raw .icon glyph.
+    # Keeps `ws-topology migrate --rollback` truly reversible.
+    ICON_LEGACY=$(_jq '.spaces[$k].icon // ""')
+    [[ -n "$ICON_LEGACY" ]] && ICON="$ICON_LEGACY"
   fi
 fi
 
