@@ -22,7 +22,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; / Caps+/ via skhd). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
 | **Floating-window snaps** | `ws-snap` (Meh+arrows via skhd). One-shot AX writes to move yabai-unmanaged windows. Replaces the Hammerspoon `setFrame` block — same geometry fractions, no Lua runtime. |
 | **SketchyBar autohide** | `ws-autohide` launchd agent. 100ms cursor poller: when the cursor enters the top 2px of any display, that display's pills slide off and the auto-hide menu bar reveals. Other displays unaffected. Replaces the Hammerspoon timer. |
-| **Side surfaces** | `ctx.ssh` chip (`vm`/`vps` when SSH'd, dim baseline otherwise). JankyBorders `active_color` re-asserted on `window_focused`. |
+| **Side surfaces** | JankyBorders `active_color` re-asserted on `window_focused`. |
 
 ## File layout
 
@@ -52,7 +52,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 ├── per-display-pills.sh                      bulk display-assignment + drawing in one sketchybar call
                                               (recenter.sh retired with the left-aligned navbar refactor)
 ├── paint-all.sh                              batched all-pill repaint; sentinel-item subscriber
-└── ssh-chip.sh                               outbound SSH presence (lsof + ps argv parser)
+                                              (ssh-chip.sh retired — complexity cleanup)
 
 .config/workspace/
 ├── spaces.json                               v2 — single source of truth
