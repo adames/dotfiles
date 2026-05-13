@@ -12,16 +12,17 @@ if command -v sketchybar >/dev/null 2>&1 && pgrep -x sketchybar >/dev/null 2>&1;
   esac
 fi
 
-# Dynamic skhd bindings: regenerate the `spaces.skhdrc` fragment after any
-# mutation that changes slot count or ordering. `topology` is fired by the
-# ws-topologyd daemon on display reconfiguration; no slot-count change there,
-# so we skip regeneration in that case.
-if command -v ws-topology >/dev/null 2>&1; then
-  case "$cmd" in
-    add|remove|swap|move|rotate|reverse|reorder|reset)
-      ws-topology emit-skhd --write --reload >/dev/null 2>&1 || true
-      ;;
-  esac
-fi
+# NOTE: this hook used to regenerate ~/.config/skhd/spaces.skhdrc via
+# `ws-topology emit-skhd --write --reload` after every workspace
+# mutation. That fragment is gone — Hyper+digit / Meh+digit bindings
+# are now inlined directly in configs/skhdrc (skhd's `.load` directive
+# couldn't expand `~` reliably, and the bindings don't actually need to
+# vary by slot count: yabai is silent on `--space N --focus` for an
+# index that doesn't exist).
+#
+# If you want to layer additional behaviour on workspace mutations
+# (sketchybar repaint kicks above are the canonical example), add it
+# above. The `topology` cmd is fired by the ws-topologyd daemon on
+# display reconfig; the other cmds come from the `ws` CLI's mutations.
 
 exit 0

@@ -332,7 +332,6 @@ the bar's `padding_left=8` handles the corner margin.
         ├── plugins/paint-all.sh               # batched all-pill + chip repaint (sentinel-subscribed)
         ├── plugins/per-display-pills.sh       # per-display item lifecycle + display=<N> assignment
         ├── plugins/notch-detect.sh            # is-laptop-notched? (gates the visible-pill cap)
-        ├── plugins/ssh-chip.sh                # outbound SSH presence chip
         └── bootstrap.sh                       # brew services start
 ```
 
