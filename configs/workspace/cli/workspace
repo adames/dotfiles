@@ -49,6 +49,21 @@ fi
 
 have() { command -v "$1" >/dev/null 2>&1; }   # ensure available regardless
 
+# Shared helpers for codepoint unescape + hex→RGB. Stubs let the CLI keep
+# working when the lib/ shipment hasn't landed (very fresh install).
+if [[ -r "$HOME/.config/workspace/lib/icon-decode.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/icon-decode.sh"
+else
+  ws_decode_icon() { :; }
+fi
+if [[ -r "$HOME/.config/workspace/lib/hex-ansi.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/hex-ansi.sh"
+else
+  ws_hex_to_rgb() { printf '0 0 0\n'; }
+fi
+
 # ── helpers ─────────────────────────────────────────────────────────────
 
 _require_config() {
@@ -148,12 +163,10 @@ _write() {
   mv -f "$tmp" "$WS_CONFIG"
 }
 
-# Truecolor swatch helper. Mirrors on-space-changed.sh:78-83.
+# Truecolor swatch helper. Uses the shared ws_hex_to_rgb parser.
 _swatch() {
-  local hex="${1#\#}" r g b
-  r=$(( 16#${hex:0:2} ))
-  g=$(( 16#${hex:2:2} ))
-  b=$(( 16#${hex:4:2} ))
+  local r g b
+  read -r r g b < <(ws_hex_to_rgb "$1")
   if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
     printf '\033[38;2;%d;%d;%dm▓▓▓\033[0m' "$r" "$g" "$b"
   else
@@ -378,15 +391,9 @@ cmd_icon() {
       | "\(.key)\t\(.value)"
     ' "$_SF_TO_NERD_MAP" \
       | while IFS=$'\t' read -r name esc; do
-          # Render the glyph for visual preview.
-          local glyph=""
-          if [[ "$esc" == "\\u{"* ]]; then
-            local h="${esc#\\u\{}"; h="${h%\}}"; h=$(printf '%08x' "0x$h")
-            glyph=$(printf "\\U${h}")
-          else
-            local h="${esc#\\u}"
-            glyph=$(printf "\\u${h}")
-          fi
+          # Render the glyph for visual preview via the shared helper.
+          local glyph
+          glyph=$(ws_decode_icon "$esc")
           printf '  %-40s %s  %s\n' "$name" "$glyph" "$esc"
         done
     return 0
