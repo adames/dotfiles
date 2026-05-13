@@ -7,16 +7,15 @@ system settings to toggle. Re-run when validating a release.
 
 | # | Scenario | Setup | Expected `ws-topology dump` | Expected SketchyBar |
 |---|---|---|---|---|
-| 1 | M3 only | unplug external from M3 Max | One display, `isBuiltIn=true`, `safeAreaInsets.top > 0`, `auxiliaryTopLeftArea` + `auxiliaryTopRightArea` non-nil | Pills split symmetrically around the notch; left half ends at `eff_notch_x`, right half starts at `eff_notch_x + eff_notch_w + 8` |
-| 2 | M3 + external, external is primary | System Settings → Displays → drag white menu-bar bar to external | Both displays present; external has `isPrimaryMenuBarDisplay=true`; M3 keeps `isBuiltIn=true` | M3 stays split around its notch; external pills centered in its `visibleFrame` |
-| 3 | M3 + external, unplug external | Plug then unplug | Exactly one snapshot diff (debounced); `fallbackScreenIDOnDisconnect` resolves to M3's id | All 12 pills migrate to M3; no stale display assignments |
-| 4 | M1 only | Use the M1 13" alone | One display, `isBuiltIn=true`, `safeAreaInsets.top == 0`, no aux areas | Pills centered in full-width top strip |
-| 5 | M1 + external | Plug monitor into M1 | Two displays, compact built-in + external rectangular | Each display centers its own pill group; identical slot identity |
+| 1 | M3 only | unplug external from M3 Max | One display, `isBuiltIn=true`, `safeAreaInsets.top > 0`, `auxiliaryTopLeftArea` + `auxiliaryTopRightArea` non-nil | Left-aligned strip in the left aux region; visible-pill cap of 10 applied |
+| 2 | M3 + external, external is primary | System Settings → Displays → drag white menu-bar bar to external | Both displays present; external has `isPrimaryMenuBarDisplay=true`; M3 keeps `isBuiltIn=true` | Each display has its own left-aligned strip with its `workspace.name.<D>` chip leftmost |
+| 3 | M3 + external, unplug external | Plug then unplug | Exactly one snapshot diff (debounced); `fallbackScreenIDOnDisconnect` resolves to M3's id | All pills migrate to M3; chip for the removed display is cleaned up |
+| 4 | M1 only | Use the M1 13" alone | One display, `isBuiltIn=true`, `safeAreaInsets.top == 0`, no aux areas | Left-aligned strip across the top; chip leftmost; no visible cap |
+| 5 | M1 + external | Plug monitor into M1 | Two displays, compact built-in + external rectangular | Each display has its own left-aligned strip + chip; identical slot identity |
 | 6 | Mirrored mode | System Settings → Displays → mirror to external | Two displays; secondary has `mirrorMasterID != nil`; policy marks it `isCollapsedMirrorSecondary=true` | Only one logical bar (master); secondary repaints suppressed |
 | 7 | Lid closed (clamshell) on M3 with external | Close lid with external attached | Single display (external); fallback resolves to external | Bar continues on external; no orphaned slot indices |
-| 8 | "Other people's monitor" | Plug into an unfamiliar display | Unknown `stableUUID` appears; policy still classifies as `externalRectangular` | Pills appear centered immediately, no pre-configuration |
-| 9 | Notch padding tuning | Edit `~/.config/workspace/sketchybar-tuning.env` → `WS_NOTCH_PADDING_PT=N`; run `~/.config/sketchybar/plugins/per-display-pills.sh` | (no `dump` change) | Both halves shift inward/outward by N points symmetrically |
-| 10 | Display reconfig callback storm | Hot-plug external twice in quick succession | OSLog shows one debounced publish per physical event; `topology.json` mtime advances once | No duplicate sketchybar repaints |
+| 8 | "Other people's monitor" | Plug into an unfamiliar display | Unknown `stableUUID` appears; policy still classifies as `externalRectangular` | Left-aligned strip appears immediately with its chip; no pre-configuration |
+| 9 | Display reconfig callback storm | Hot-plug external twice in quick succession | OSLog shows one debounced publish per physical event; `topology.json` mtime advances once | No duplicate sketchybar repaints |
 
 ## Icons + identity
 
