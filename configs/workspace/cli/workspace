@@ -114,6 +114,25 @@ _validate_color() {
   [[ "$1" =~ ^#[0-9a-fA-F]{6}$ ]] || { err "color must be #RRGGBB (got: $1)"; exit 2; }
 }
 
+# Reject a name that is already in use on another slot. `add` calls this
+# with no exclude. `name` passes the slot being renamed so the rename is
+# allowed to keep its own value. Why: _resolve_slot fails closed on
+# ambiguous matches (lines 96-104), so silently allowing duplicates here
+# breaks slot-lookup-by-name downstream.
+_validate_name_unique() {
+  local name="$1" exclude="${2:-}"
+  local hit
+  hit=$(jq -r --arg q "$name" --arg exclude "$exclude" '
+    .spaces | to_entries
+    | map(select(.value.name == $q and .key != $exclude) | .key)
+    | first // empty
+  ' "$WS_CONFIG" 2>/dev/null)
+  if [[ -n "$hit" ]]; then
+    err "name '$name' already exists at slot $hit"
+    exit 2
+  fi
+}
+
 _fire_post() {
   # Backgrounded; failures never abort the caller.
   if [[ -x "$WS_HOOK" ]]; then
@@ -210,7 +229,8 @@ INSPECTION
 MUTATION  (every mutation fires the cascade + post-mutate hook)
   name <SLOT> <NEW_NAME>           rename a slot
   color <SLOT> <#HEX>              set slot color
-  icon <SLOT> <GLYPH>              set slot icon
+  icon <SLOT> [GLYPH]              set slot icon (no arg → fzf picker)
+  icon search <TERM>               non-interactive list of SF Symbols
   add [NAME] [COLOR] [ICON]        append a new slot
   remove <SLOT> [-y]               delete a slot, renumber the rest
   swap <A> <B>                     swap two slots' (name, icon)
@@ -257,18 +277,33 @@ cmd_status() {
     jq '.spaces' "$WS_CONFIG"
     return
   fi
-  local n; n=$(_count)
   printf '%-3s %-4s %-12s %-9s %s\n' '#' 'ICON' 'NAME' 'COLOR' ''
-  local i
-  for (( i=1; i<=n; i++ )); do
-    local entry name color icon
-    entry=$(jq -c --arg k "$i" '.spaces[$k]' "$WS_CONFIG")
-    name=$(jq -r --arg k "$i" '.spaces[$k].name // ""' "$WS_CONFIG")
-    color=$(jq -r --arg k "$i" '.spaces[$k].color // "#cdd6f4"' "$WS_CONFIG")
-    icon=$(jq -r --arg k "$i" '.spaces[$k].icon // ""' "$WS_CONFIG")
-    printf '%-3s %-4s %-12s %-9s %s\n' "$i" "$icon" "$name" "$color" "$(_swatch "$color")"
-    : "$entry"  # silence
-  done
+  # Single jq pass yields one row per slot: <idx>\t<name>\t<color>\t<icon_escape>\t<fallback_text>
+  # icon_escape is the iconSpec.codepoint (a `\uXXXX` or `\u{XXXXX}` string)
+  # which ws_decode_icon turns into the literal glyph at render time.
+  # fallback_text is iconSpec.fallbackText; we show it when codepoint is
+  # absent so the column isn't structurally empty for kind=none slots.
+  while IFS=$'\t' read -r i name color cp ft; do
+    local glyph
+    if [[ -n "$cp" ]]; then
+      glyph=$(ws_decode_icon "$cp")
+    else
+      glyph="$ft"
+    fi
+    printf '%-3s %-4s %-12s %-9s %s\n' "$i" "$glyph" "$name" "$color" "$(_swatch "$color")"
+  done < <(jq -r '
+    .spaces | to_entries
+    | sort_by(.key | tonumber)
+    | .[]
+    | [
+        .key,
+        (.value.name // ""),
+        (.value.color // "#cdd6f4"),
+        (.value.iconSpec.codepoint // ""),
+        (.value.iconSpec.fallbackText // "")
+      ]
+    | @tsv
+  ' "$WS_CONFIG")
 }
 
 cmd_get() {
@@ -305,6 +340,7 @@ cmd_name() {
   _require_config
   [[ $# -eq 2 ]] || { err "usage: workspace name <SLOT_OR_NAME> <NEW_NAME>"; exit 2; }
   local slot; slot=$(_resolve_slot "$1") || exit $?
+  _validate_name_unique "$2" "$slot"
   _write '.spaces[$k] = ((.spaces[$k] // {}) + {name: $v})' --arg k "$slot" --arg v "$2"
   _fire_post name "$slot"
   _fire_cascade
@@ -374,14 +410,14 @@ if s:
 cmd_icon() {
   _require_config
 
-  # `workspace icon search <term>` — discovery aid.
+  # `workspace icon search <term>` — non-interactive list dump. Useful for
+  # piping/scripting. The interactive picker is the no-glyph form below.
   if [[ "${1:-}" == "search" ]]; then
     shift
     local q="${1:-}"
     if [[ ! -r "$_SF_TO_NERD_MAP" ]] || ! have jq; then
       err "sf-to-nerd map not available"; exit 1
     fi
-    # Print: SF_NAME  glyph  codepoint  for matches (or all if no query).
     jq -r --arg q "$q" '
       to_entries
       | map(select(.key | startswith("_") | not))
@@ -391,7 +427,6 @@ cmd_icon() {
       | "\(.key)\t\(.value)"
     ' "$_SF_TO_NERD_MAP" \
       | while IFS=$'\t' read -r name esc; do
-          # Render the glyph for visual preview via the shared helper.
           local glyph
           glyph=$(ws_decode_icon "$esc")
           printf '  %-40s %s  %s\n' "$name" "$glyph" "$esc"
@@ -399,39 +434,84 @@ cmd_icon() {
     return 0
   fi
 
-  if [[ $# -ne 2 ]]; then
-    err "usage: workspace icon <SLOT_OR_NAME> <GLYPH_OR_SF_NAME>"
+  if [[ $# -lt 1 || $# -gt 2 ]]; then
+    err "usage: workspace icon <SLOT_OR_NAME> [GLYPH_OR_SF_NAME]"
     err "       workspace icon search <term>"
+    err "   (omit GLYPH for an interactive fzf picker)"
     exit 2
   fi
   local slot; slot=$(_resolve_slot "$1") || exit $?
-  local arg="$2"
+  local arg="${2:-}"
+
+  # Interactive picker when no glyph was passed. Reuses the sf-to-nerd
+  # table + ws_decode_icon (same data as `icon search`) so the preview
+  # column shows what will land. Selection feeds back into the same
+  # write path the two-arg form uses.
+  if [[ -z "$arg" ]]; then
+    if ! have fzf; then
+      err "no glyph given and fzf not on PATH"
+      err "  try: workspace icon $slot <SF_SYMBOL_NAME>"
+      err "  or:  workspace icon search <term>"
+      exit 2
+    fi
+    if [[ ! -r "$_SF_TO_NERD_MAP" ]]; then
+      err "sf-to-nerd map not available at $_SF_TO_NERD_MAP"
+      exit 1
+    fi
+    local picked
+    picked=$(jq -r '
+      to_entries
+      | map(select(.key | startswith("_") | not))
+      | sort_by(.key) | .[]
+      | "\(.key)\t\(.value)"
+    ' "$_SF_TO_NERD_MAP" \
+      | while IFS=$'\t' read -r name esc; do
+          printf '%s\t%s\t%s\n' "$(ws_decode_icon "$esc")" "$name" "$esc"
+        done \
+      | fzf --prompt="icon for slot $slot> " \
+            --with-nth=1,2 \
+            --delimiter=$'\t' \
+            --header="ENTER: apply · ESC: cancel" \
+            --reverse --height=40% \
+      | awk -F'\t' '{print $2}')
+    if [[ -z "$picked" ]]; then
+      warn "no selection — slot $slot unchanged"
+      exit 1
+    fi
+    arg="$picked"
+  fi
 
   _resolve_icon_input "$arg"
 
-  # Decide kind: sfSymbol if we identified an SF name, else nerdFont
-  # (when we have a codepoint), else neither (no change).
-  # Always set userOverridden=true on explicit `workspace icon`.
-  # If iconSpec doesn't exist (unmigrated slot), the merge is a no-op —
-  # run `ws-topology migrate --apply` first.
+  # Decide kind: sfSymbol if we identified an SF name, else nerdFont when
+  # we have a codepoint, else "none" (cleared). userOverridden=true on
+  # explicit edit. When iconSpec is missing (slot added pre-v2-fix), seed
+  # the same baseline shape cmd_add now writes — single-source the schema.
+  local kind="none"
+  if [[ -n "$_ICON_SF_NAME" ]]; then
+    kind="sfSymbol"
+  elif [[ -n "$_ICON_ESCAPED" ]]; then
+    kind="nerdFont"
+  fi
+  # Build iconSpec fresh, preserving only the fallback fields. This
+  # clears stale `symbolName` / `codepoint` when the user switches kinds
+  # (e.g. nerdFont → sfSymbol). On slots that never had iconSpec, the
+  # fallback fields are synthesized from the slot name.
   _write '
-    .spaces[$k] = (
-      (.spaces[$k] // {}) as $s
-      | $s
-      + (
-          if $s.iconSpec then
-            { iconSpec: (
-                $s.iconSpec
-                + (if $cp != "" then {codepoint: $cp} else {} end)
-                + (if $sf != "" then {symbolName: $sf, kind: "sfSymbol"}
-                   else (if $cp != "" then {kind: "nerdFont"} else {} end)
-                   end)
-                + {userOverridden: true}
-            ) }
-          else {} end
+    .spaces[$k] |= (
+      . as $s
+      | .iconSpec = (
+          {
+            kind: $kind,
+            fallbackSfSymbol: (($s.iconSpec.fallbackSfSymbol) // "circle.fill"),
+            fallbackText: (($s.iconSpec.fallbackText) // (($s.name // "") | .[0:2] | ascii_upcase)),
+            userOverridden: true
+          }
+          + (if $cp != "" then {codepoint: $cp, fontFamily: "JetBrainsMono Nerd Font"} else {} end)
+          + (if $sf != "" then {symbolName: $sf} else {} end)
         )
     )
-  ' --arg k "$slot" --arg cp "$_ICON_ESCAPED" --arg sf "$_ICON_SF_NAME"
+  ' --arg k "$slot" --arg kind "$kind" --arg cp "$_ICON_ESCAPED" --arg sf "$_ICON_SF_NAME"
   _fire_post icon "$slot"
   _fire_cascade
 }
@@ -606,9 +686,41 @@ cmd_add() {
     [[ -z "$name" ]] && name="ws${new_slot}"
   fi
   _validate_color "$color"
+  _validate_name_unique "$name"
+
+  # Build a v2 iconSpec scaffold. The fallbackText is the first two chars
+  # of the name uppercased (matches the seed convention in
+  # spaces.default.json so post-rename slots aren't visually distinct
+  # from the seeded ones in degraded renders). If an icon arg was passed,
+  # resolve it now and populate kind + codepoint/symbolName.
+  _resolve_icon_input "$icon"
+  local fallback_text
+  fallback_text=$(printf '%s' "${name:0:2}" | tr '[:lower:]' '[:upper:]')
+  local kind="none"
+  if [[ -n "$_ICON_SF_NAME" ]]; then
+    kind="sfSymbol"
+  elif [[ -n "$_ICON_ESCAPED" ]]; then
+    kind="nerdFont"
+  fi
+
   _write '
-    .spaces[$k] = {name: $n, color: $c, icon: $i}
-  ' --arg k "$new_slot" --arg n "$name" --arg c "$color" --arg i "$icon"
+    .spaces[$k] = {
+      name: $n,
+      color: $c,
+      iconSpec: (
+        {
+          kind: $kind,
+          fallbackSfSymbol: "circle.fill",
+          fallbackText: $ft,
+          userOverridden: false
+        }
+        + (if $cp != "" then {codepoint: $cp, fontFamily: "JetBrainsMono Nerd Font"} else {} end)
+        + (if $sf != "" then {symbolName: $sf} else {} end)
+      )
+    }
+  ' --arg k "$new_slot" --arg n "$name" --arg c "$color" \
+    --arg kind "$kind" --arg ft "$fallback_text" \
+    --arg cp "$_ICON_ESCAPED" --arg sf "$_ICON_SF_NAME"
   _fire_post add "$new_slot"
   _fire_cascade
   # Best-effort: keep yabai's space count in sync. Silent on absence and
@@ -669,11 +781,23 @@ cmd_swap() {
   a=$(_resolve_slot "$1") || exit $?
   b=$(_resolve_slot "$2") || exit $?
   if [[ "$a" == "$b" ]]; then return 0; fi
-  # Positional colors: name+icon swap, color stays at slot index.
+  # Positional fields stay anchored to the destination slot (color +
+  # stableLogicalLabel). Identity fields move with the source (name +
+  # iconSpec). with_entries(select(.value != null)) drops nulls so a
+  # missing optional field on either side doesn't leak through as an
+  # explicit null.
   _write '
     . as $orig
-    | .spaces[$a] = (($orig.spaces[$a] // {}) | {color}) + (($orig.spaces[$b] // {}) | {name, icon})
-    | .spaces[$b] = (($orig.spaces[$b] // {}) | {color}) + (($orig.spaces[$a] // {}) | {name, icon})
+    | .spaces[$a] = (
+        (($orig.spaces[$b] // {}) | {name, iconSpec})
+        + (($orig.spaces[$a] // {}) | {color, stableLogicalLabel})
+        | with_entries(select(.value != null))
+      )
+    | .spaces[$b] = (
+        (($orig.spaces[$a] // {}) | {name, iconSpec})
+        + (($orig.spaces[$b] // {}) | {color, stableLogicalLabel})
+        | with_entries(select(.value != null))
+      )
   ' --arg a "$a" --arg b "$b"
   _fire_post swap "$a" "$b"
   _fire_cascade
@@ -702,14 +826,16 @@ cmd_reorder() {
   done
   local args_json
   args_json=$(printf '%s\n' "${resolved[@]}" | jq -Rn '[inputs | tonumber]')
-  # Positional colors: only (name, icon) move; color stays at slot index.
+  # Positional: color + stableLogicalLabel stay anchored to slot index.
+  # Identity: name + iconSpec move with the source slot.
   _write '
     . as $orig
     | .spaces = (
         reduce range(0; ($args | length)) as $i ({};
           .[($i+1|tostring)] = (
-            (($orig.spaces[($i+1|tostring)] // {}) | {color})
-            + (($orig.spaces[($args[$i]|tostring)] // {}) | {name, icon})
+            (($orig.spaces[($args[$i]|tostring)] // {}) | {name, iconSpec})
+            + (($orig.spaces[($i+1|tostring)] // {}) | {color, stableLogicalLabel})
+            | with_entries(select(.value != null))
           )
         )
       )
@@ -731,13 +857,17 @@ _apply_perm() {
   fi
   local args_json
   args_json=$(printf '%s\n' "$@" | jq -Rn '[inputs | tonumber]')
+  # Same permutation semantics as cmd_reorder: identity (name + iconSpec)
+  # moves with the source slot, positional fields (color +
+  # stableLogicalLabel) stay anchored to slot index.
   _write '
     . as $orig
     | .spaces = (
         reduce range(0; ($args | length)) as $i ({};
           .[($i+1|tostring)] = (
-            (($orig.spaces[($i+1|tostring)] // {}) | {color})
-            + (($orig.spaces[($args[$i]|tostring)] // {}) | {name, icon})
+            (($orig.spaces[($args[$i]|tostring)] // {}) | {name, iconSpec})
+            + (($orig.spaces[($i+1|tostring)] // {}) | {color, stableLogicalLabel})
+            | with_entries(select(.value != null))
           )
         )
       )
@@ -752,19 +882,21 @@ cmd_move() {
   local n; n=$(_count)
   local src; src=$(_resolve_slot "$1") || exit $?
   shift
+
+  # Compute the 1..n list minus src ONCE; both the before|after path and
+  # the numeric-dest path use it.
+  local without_src=()
+  local i
+  for (( i=1; i<=n; i++ )); do
+    [[ "$i" != "$src" ]] && without_src+=("$i")
+  done
+
   local dest=""
   if [[ "$1" == "before" || "$1" == "after" ]]; then
     [[ $# -eq 2 ]] || { err "usage: workspace move <SRC> $1 <REF>"; exit 2; }
     local direction="$1" ref
     ref=$(_resolve_slot "$2") || exit $?
     if [[ "$src" == "$ref" ]]; then return 0; fi
-    # Build the list of all slots minus src, find ref's new position,
-    # then compute dest position (1-indexed in the final list).
-    local without_src=()
-    local i
-    for (( i=1; i<=n; i++ )); do
-      [[ "$i" != "$src" ]] && without_src+=("$i")
-    done
     local ref_pos=0
     for (( i=0; i<${#without_src[@]}; i++ )); do
       if [[ "${without_src[$i]}" == "$ref" ]]; then ref_pos=$((i+1)); break; fi
@@ -778,12 +910,8 @@ cmd_move() {
     dest="$1"
     if [[ "$src" == "$dest" ]]; then return 0; fi
   fi
+
   # Compose final permutation: without_src with src inserted at dest.
-  local without_src=()
-  local i
-  for (( i=1; i<=n; i++ )); do
-    [[ "$i" != "$src" ]] && without_src+=("$i")
-  done
   local perm=()
   for (( i=0; i<${#without_src[@]}; i++ )); do
     if (( i+1 == dest )); then perm+=("$src"); fi
@@ -911,22 +1039,61 @@ cmd_theme() {
   local n; n=$(_count)
   local apply_icons="false"
   (( with_icons )) && apply_icons="true"
+
+  # Pre-resolve theme icons (when --with-icons) into a parallel array of
+  # ASCII-escaped codepoints, so jq can patch iconSpec.codepoint per slot
+  # without forking _resolve_icon_input mid-reduce. The theme file stores
+  # icons as raw glyph strings; we round-trip through _resolve_icon_input
+  # to get the same `\uXXXX`/`\u{XXXXX}` form spaces.json uses.
+  local theme_icons_json="[]"
+  if (( with_icons )); then
+    local raw_icons=()
+    mapfile -t raw_icons < <(jq -r '.icons // [] | .[]' "$theme_file")
+    local escaped=()
+    local raw
+    for raw in "${raw_icons[@]}"; do
+      if [[ -z "$raw" ]]; then
+        escaped+=("")
+      else
+        _resolve_icon_input "$raw"
+        escaped+=("$_ICON_ESCAPED")
+      fi
+    done
+    theme_icons_json=$(printf '%s\n' "${escaped[@]:-}" | jq -R . | jq -s .)
+  fi
+
   _write '
     . as $orig
     | ($theme[0].colors // []) as $tc
-    | ($theme[0].icons  // []) as $ti
     | ($n | tonumber) as $count
+    | ($icons | length) as $ni
     | .spaces = (
         reduce range(1; $count+1) as $i ($orig.spaces;
           .[($i|tostring)] = (
-            (.[($i|tostring)] // {})
+            (.[($i|tostring)] // {}) as $s
+            | $s
             + (if ($tc | length) >= $i then {color: $tc[$i-1]} else {} end)
-            + (if ($apply_icons == "true") and ($ti | length) >= $i then {icon: $ti[$i-1]} else {} end)
+            + (
+                if ($apply_icons == "true") and $ni >= $i and ($icons[$i-1] // "") != "" then
+                  { iconSpec: (
+                      {
+                        kind: "nerdFont",
+                        fallbackSfSymbol: ($s.iconSpec.fallbackSfSymbol // "circle.fill"),
+                        fallbackText: ($s.iconSpec.fallbackText // (($s.name // "") | .[0:2] | ascii_upcase)),
+                        userOverridden: false,
+                        codepoint: $icons[$i-1],
+                        fontFamily: "JetBrainsMono Nerd Font"
+                      }
+                  )}
+                else {} end
+              )
           )
         )
       )
     | .palette = $name
-  ' --slurpfile theme "$theme_file" --arg n "$n" --arg apply_icons "$apply_icons" --arg name "$name"
+  ' --slurpfile theme "$theme_file" \
+    --arg n "$n" --arg apply_icons "$apply_icons" --arg name "$name" \
+    --argjson icons "$theme_icons_json"
   _fire_post theme
   _fire_cascade
 }
@@ -967,7 +1134,13 @@ cmd_doctor() {
     return 1
   fi
   local bad=0
-  # Every slot has all three keys, and keys are contiguous 1..count.
+  # Schema invariants:
+  #   - slot keys are contiguous 1..count
+  #   - name (string) + color (#RRGGBB string)
+  #   - iconSpec (object) with kind ∈ {sfSymbol, nerdFont, none}
+  #   - kind=nerdFont implies codepoint (string)
+  #   - kind=sfSymbol implies symbolName (string)
+  #   - userOverridden is boolean
   local report
   report=$(jq -r '
     .spaces as $s
@@ -980,14 +1153,37 @@ cmd_doctor() {
         $s | to_entries[]
         | select(
             (.value.name | type) != "string" or
-            (.value.color | type) != "string" or
-            (.value.icon  | type) != "string"
+            (.value.color | type) != "string"
           )
-        | "slot \(.key): missing/wrong type for name|color|icon"
+        | "slot \(.key): missing/wrong type for name|color"
       ] + [
         $s | to_entries[]
         | select((.value.color // "") | test("^#[0-9a-fA-F]{6}$") | not)
         | "slot \(.key): color \"\(.value.color)\" is not #RRGGBB"
+      ] + [
+        $s | to_entries[]
+        | select((.value.iconSpec | type) != "object")
+        | "slot \(.key): iconSpec missing or not an object"
+      ] + [
+        $s | to_entries[]
+        | select(.value.iconSpec | type == "object")
+        | select((.value.iconSpec.kind // "") as $k | $k != "sfSymbol" and $k != "nerdFont" and $k != "none")
+        | "slot \(.key): iconSpec.kind \"\(.value.iconSpec.kind)\" must be sfSymbol|nerdFont|none"
+      ] + [
+        $s | to_entries[]
+        | select(.value.iconSpec.kind == "nerdFont")
+        | select((.value.iconSpec.codepoint // "") == "" or (.value.iconSpec.codepoint | type) != "string")
+        | "slot \(.key): kind=nerdFont but codepoint missing"
+      ] + [
+        $s | to_entries[]
+        | select(.value.iconSpec.kind == "sfSymbol")
+        | select((.value.iconSpec.symbolName // "") == "" or (.value.iconSpec.symbolName | type) != "string")
+        | "slot \(.key): kind=sfSymbol but symbolName missing"
+      ] + [
+        $s | to_entries[]
+        | select(.value.iconSpec | type == "object")
+        | select(.value.iconSpec.userOverridden != null and (.value.iconSpec.userOverridden | type) != "boolean")
+        | "slot \(.key): iconSpec.userOverridden must be boolean"
       ]
     | .[]
   ' "$WS_CONFIG" 2>/dev/null) || bad=1
