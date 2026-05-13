@@ -3,9 +3,11 @@
 #
 # Idempotent. Steps:
 #   1. swift build -c release
-#   2. symlink built binaries into ~/.local/bin/
-#   3. copy the LaunchAgent plists into ~/Library/LaunchAgents/
-#   4. launchctl load each agent
+#   2. re-sign each binary ad-hoc with a stable identifier (so TCC grants
+#      survive rebuilds — see codesign block below)
+#   3. symlink built binaries into ~/.local/bin/
+#   4. copy the LaunchAgent plists into ~/Library/LaunchAgents/
+#   5. launchctl load each agent
 #
 # Does NOT run the v1→v2 migration on spaces.json. Run that explicitly:
 #   ~/.local/bin/ws-topology migrate           # dry-run, prints diff
@@ -30,14 +32,34 @@ step "swift build -c release"
 
 BUILD_DIR="$(cd "$HERE" && swift build -c release --show-bin-path)"
 
-mkdir -p "$LOCAL_BIN"
+# Re-sign each binary ad-hoc with a stable identifier and a custom
+# Designated Requirement that omits cdhash. Why: `swift build` produces
+# ad-hoc signatures whose default DR pins the build's cdhash, so TCC
+# treats every rebuild as a new entity and asks you to flip the
+# Accessibility toggle again. Stamping a stable DR (`identifier "X"`,
+# no cdhash) lets TCC carry an existing grant across rebuilds — `ws-snap`
+# is the practical beneficiary, but signing all of them keeps the bundle
+# identity tidy and lets future binaries reuse the pattern.
+step "ad-hoc codesigning with stable identifiers"
 for bin in "${BINARIES[@]}"; do
   src="$BUILD_DIR/$bin"
-  dst="$LOCAL_BIN/$bin"
   if [[ ! -x "$src" ]]; then
     warn "missing build product: $src"
     exit 1
   fi
+  identifier="com.adames.workspace.$bin"
+  if ! codesign --force --sign - \
+        --identifier "$identifier" \
+        --requirements "=designated => identifier \"$identifier\"" \
+        "$src" 2>/dev/null; then
+    warn "codesign $bin failed — TCC may re-prompt after rebuilds"
+  fi
+done
+
+mkdir -p "$LOCAL_BIN"
+for bin in "${BINARIES[@]}"; do
+  src="$BUILD_DIR/$bin"
+  dst="$LOCAL_BIN/$bin"
   ln -sfn "$src" "$dst"
   step "linked $dst -> $src"
 done
