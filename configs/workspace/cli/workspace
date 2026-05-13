@@ -302,7 +302,7 @@ cmd_status() {
         (.value.iconSpec.codepoint // ""),
         (.value.iconSpec.fallbackText // "")
       ]
-    | @tsv
+    | join("\t")
   ' "$WS_CONFIG")
 }
 
