@@ -18,7 +18,8 @@ graph LR
 
   Hyper --> Hammerspoon
   Hammerspoon -->|cmd+T/N| Terminal
-  Hammerspoon -->|hs.webview Hyper+/| Cheatsheet[Cheatsheet overlay]
+  Hammerspoon -->|Caps+; shell-out| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
+  skhd -->|Hyper+/ fallback| WSCheatsheet
 
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
   WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
@@ -78,8 +79,9 @@ floating or unmanaged windows like Ghostty and System Settings).
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
 | Hyper window hotkeys | skhd | `skhdrc` |
-| Hyper+T/N + Meh+arrows + Hyper+/ | Hammerspoon | `hammerspoon-init.lua` |
-| Cheatsheet overlay | Hammerspoon | `hammerspoon-cheatsheet.lua` |
+| Hyper+T/N + Meh+arrows + Caps+; cheatsheet trigger | Hammerspoon | `hammerspoon-init.lua` |
+| Cheatsheet HUD (SwiftUI) | ws-cheatsheet (topology package) | `configs/workspace/cheatsheet.json` + `configs/workspace/topology/Sources/ws-cheatsheet/` |
+| Cross-display topology (notch + aux geometry + per-display layout policy) | ws-topologyd (LaunchAgent, Swift) | `configs/workspace/topology/` |
 | Workspace pill strip (persistent 10-slot indicator) | SketchyBar | `sketchybar/sketchybarrc` · `sketchybar/plugins/space.sh` |
 | Terminal app config | Ghostty | `ghostty-config` |
 | Pane nav, sessionizer | tmux | `tmux.conf` + `tmux-sessionizer` |
@@ -148,19 +150,30 @@ cascade.
 
 ```mermaid
 graph LR
-  CLI[workspace CLI] -->|atomic write| JSON[(spaces.json)]
+  CLI[workspace CLI] -->|atomic write| JSON[(spaces.json v2)]
   Rename[rename.sh AppleScript] --> CLI
   JSON --> Hook[post-mutate.sh hook]
   JSON --> Cascade[on-space-changed.sh]
-  yabai[yabai space_changed signal] --> Cascade
+  yabai[yabai space_changed] --> Cascade
+  yabai_focus[yabai window_focused] --> BordersRefresh[borders-refresh.sh]
+  CGCallback[CGDisplayRegisterReconfigurationCallback] --> Daemon[ws-topologyd]
+  Daemon --> TopologyJSON[(~/.cache/workspace/topology.json)]
+  Daemon --> LayoutEnv[(~/.cache/workspace/layout.env)]
+  LayoutEnv --> SketchybarPlugins[per-display-pills.sh · recenter.sh · notch-detect.sh]
   Cascade --> EnvFile[(~/.cache/workspace/current.env)]
   Cascade --> TmuxEnv[tmux global env]
   Cascade --> Borders[JankyBorders]
+  BordersRefresh --> Borders
   Cascade --> Sketchybar[SketchyBar]
-  Cascade --> HS[Hammerspoon overlay]
   EnvFile --> Starship
   EnvFile --> Zsh[zsh precmd]
 ```
+
+Two parallel cache lines: `current.env` is keyed on focused space
+(consumed by tmux / starship / borders / per-pill render), and
+`layout.env` is keyed on display (consumed by the sketchybar layout
+plugins). They never overlap — the postmortem's "one source per render
+hot path" rule holds.
 
 - **Source of truth**: `spaces.json` is per-machine, in `$HOME`, never
   committed. Bootstrap seeds it from `spaces.default.json` only when
@@ -215,29 +228,47 @@ unaffected.
 
 **Per-display pill assignment.**
 [`plugins/per-display-pills.sh`](../configs/sketchybar/plugins/per-display-pills.sh)
-queries `yabai -m query --spaces` and sets `display=<idx>` on each
-pill (`space.N`), then adds missing pills / removes orphans so the
-sketchybar item set tracks yabai exactly. Re-fires from the yabai
-signals (`display_added`, `display_removed`, `display_changed`,
-`space_changed`) and from the workspace CLI's post-mutate hook on
-`add` / `remove`.
+queries `yabai -m query --spaces` and sets `display=<idx>` on each pill
+(`space.N`), then adds missing pills / removes orphans so the sketchybar
+item set tracks yabai exactly. Re-fires from the yabai signals
+`display_added` / `display_removed` / `display_changed` only — *not* on
+`space_changed`, because per-pill display assignment doesn't change on
+space focus. A previous iteration subscribed it to `space_changed` and
+produced a "paint to right then snap" pulse on every space switch; the
+fix is documented in `configs/workspace/topology/README.md`.
 
 **Notch detection + visible cap.**
 [`plugins/notch-detect.sh`](../configs/sketchybar/plugins/notch-detect.sh)
-checks `sysctl hw.model` against the known list of notched Apple
-laptops (MacBookPro18,*, Mac14-20,*). On a notched laptop's built-in
-display, visible pills are capped at 10 (`drawing=off` on overflow)
-to match the camera-nodule geometry and the `Caps+1..0` hotkey range.
-Non-notched displays (externals, MBAir / 13" Pro built-in) show all
-assigned pills with no cap.
+sources `~/.cache/workspace/layout.env`, written by `ws-topologyd` from
+`NSScreen.safeAreaInsets` — the authoritative runtime API for camera
+housing geometry. The previous model-table approach (`sysctl hw.model`
+matched against `MacBookPro18,* / Mac14-20,*`) is retired: it required a
+code edit per new Mac generation and broke silently on hardware Apple's
+docs hadn't shipped yet. On a notched laptop's built-in display, visible
+pills are capped at `WS_MAX_VISIBLE_SLOTS_<id>` — derived by the
+LayoutPolicyEngine from `(auxLeft.width + auxRight.width) / pill_width`.
+Non-notched displays show all assigned pills with no cap.
 
-**Per-display horizontal centering.**
-[`plugins/recenter.sh`](../configs/sketchybar/plugins/recenter.sh)
-walks yabai's displays and writes a centering `padding_left` to the
-first pill on each. Subsequent pills on the display pack with
-zero padding. Math:
-- Notched laptop: `padding = ((display.w − NOTCH_WIDTH)/2 − n*PILL_W) / 2` with `NOTCH_WIDTH=400` (notch + half-notch buffer)
-- Non-notched: `padding = (display.w − n*PILL_W) / 2`
+**Per-display horizontal layout.**
+[`plugins/recenter.sh`](../configs/sketchybar/plugins/recenter.sh) walks
+yabai's displays and writes per-pill `padding_left` based on the policy
+in `layout.env`. All `sketchybar --set` calls are accumulated into one
+invocation per layout pass so the bar redraws once per transition.
+
+- **Notched laptop**: pills split symmetrically around the camera
+  housing. Left half right-anchored at `WS_TOP_REGION_W` (= aux-left
+  width); right half left-anchored at `WS_TOP_REGION_W + WS_NOTCH_W`
+  (= aux-right start). Half-counts via `ceil(N/2)` left + `floor(N/2)`
+  right. The user-tunable `WS_NOTCH_PAD_LEFT_PT` / `WS_NOTCH_PAD_RIGHT_PT`
+  (defaulting to `WS_NOTCH_PADDING_PT`) widen the perceived notch when
+  the OS-reported safe-area rect is a few points off from the visible
+  housing.
+- **Non-notched**: pills centered in `visibleFrame`. Anchor pad =
+  `(usable_w − chain_w) / 2`.
+
+Density mode (sparse / comfort / dense) picks the inter-pill gap from
+the ratio `(N × pill_w) / usable_w`. Active pill always renders with
+full label even in dense mode.
 
 ## File map
 
@@ -252,20 +283,39 @@ zero padding. Math:
 ├── docs/                         # this file + wizard.md
 └── configs/                      # source-of-truth dotfiles
     ├── workspace/
-    │   ├── cli/workspace              # CLI binary (→ ~/.local/bin/)
-    │   ├── cli/test-cascade.sh        # `workspace verify` harness
-    │   ├── themes/*.json              # canonical palettes
-    │   ├── spaces.default.json        # seed
-    │   ├── on-space-changed.sh        # cascade
-    │   ├── rename.sh                  # AppleScript wrapper
-    │   └── install.sh                 # workspace-system bootstrapper
+    │   ├── cli/workspace                  # CLI binary (→ ~/.local/bin/)
+    │   ├── cli/test-cascade.sh            # `workspace verify` harness
+    │   ├── themes/*.json                  # canonical palettes
+    │   ├── spaces.default.json            # fresh-install seed (v2)
+    │   ├── on-space-changed.sh            # cascade (v2 only)
+    │   ├── rename.sh                      # AppleScript wrapper
+    │   ├── borders-refresh.sh             # yabai window_focused → JankyBorders re-assert
+    │   ├── cheatsheet.json                # ws-cheatsheet content (hand-editable)
+    │   ├── sketchybar-tuning.env          # WS_NOTCH_PAD_LEFT_PT / _RIGHT_PT / etc.
+    │   ├── hooks/post-mutate.sh           # user-owned extension point
+    │   ├── lib/resolve-config.sh          # per-host overlay resolution
+    │   ├── lib/sf-to-nerd.json            # SF Symbol → Nerd Font codepoint map (~113)
+    │   ├── topology/                      # native helper, Swift Package
+    │   │   ├── Package.swift              # .macOS(.v14), Swift 5.10+
+    │   │   ├── Sources/DisplayTopology/   # NSScreen + CGDisplay enumeration, debouncer
+    │   │   ├── Sources/LayoutPolicy/      # pure [snapshot] → [policy] per display
+    │   │   ├── Sources/WorkspaceState/    # IconSpec + v1→v2 Migration
+    │   │   ├── Sources/AdaptersAppKit/    # NSWindow delegate + AX probe
+    │   │   ├── Sources/ws-topology/       # one-shot CLI
+    │   │   ├── Sources/ws-topologyd/      # launchd agent (reconfig callback)
+    │   │   ├── Sources/ws-cheatsheet/     # SwiftUI HUD (replaces cheatsheet.lua)
+    │   │   ├── Tests/                     # XCTest (full Xcode required)
+    │   │   ├── launchd/*.plist            # LaunchAgent
+    │   │   └── install.sh                 # builds + symlinks + load
+    │   └── install.sh                     # workspace-system bootstrapper
     ├── sketchybar/
-    │   ├── sketchybarrc                       # bar geometry + pill loop (yabai-driven)
+    │   ├── sketchybarrc                       # bar geometry + pill loop
     │   ├── colors.sh                          # palette constants
-    │   ├── plugins/space.sh                   # per-pill repaint
-    │   ├── plugins/per-display-pills.sh       # yabai-to-pill display assignment
-    │   ├── plugins/recenter.sh                # per-display horizontal centering
-    │   ├── plugins/notch-detect.sh            # model-id → notched? (yes/no)
+    │   ├── plugins/space.sh                   # per-pill render (iconSpec-driven)
+    │   ├── plugins/per-display-pills.sh       # pill display assignment (batched)
+    │   ├── plugins/recenter.sh                # split-around-notch / centered layout
+    │   ├── plugins/notch-detect.sh            # layout.env-driven (sysctl fallback)
+    │   ├── plugins/ssh-chip.sh                # outbound SSH presence chip
     │   └── bootstrap.sh                       # brew services start
     └── hammerspoon-sketchybar-autohide.lua    # per-display cursor-y auto-hide
 ```
