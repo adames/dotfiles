@@ -19,6 +19,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | **Per-host overlay** | `spaces.<hostname>.json` overrides the shared `spaces.json` on this machine. `workspace host` subcommands. Resolution helper sourced by every cascade reader. |
 | **Cache-driven shell adapters** | The four SketchyBar plugins (`notch-detect.sh`, `per-display-pills.sh`, `recenter.sh`, `space.sh`) and the cascade (`on-space-changed.sh`) prefer `layout.env` / `iconSpec.codepoint`, with legacy heuristics retained as boot-time fallbacks. |
 | **Layout policy** | Notched: pills split symmetrically around the camera housing, the two halves anchored to `auxiliaryTopLeftArea.maxX` and `auxiliaryTopRightArea.minX`. Non-notched: pills centered in `visibleFrame`. Density mode (sparse / comfort / dense) picks gap from `(N × pill_w) / usable_w`. |
+| **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; via Hammerspoon, Hyper+/ skhd fallback). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
 | **Side surfaces** | `ctx.ssh` chip (`vm`/`vps` when SSH'd, dim baseline otherwise). JankyBorders `active_color` re-asserted on `window_focused`. |
 
 ## File layout
@@ -32,7 +33,8 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 │   ├── WorkspaceState/                       IconSpec + WorkspaceStateStore + v1→v2 Migration
 │   ├── AdaptersAppKit/                       window-delegate sample, accessibility probe (+ ObjC bridge)
 │   ├── ws-topology/                          one-shot CLI
-│   └── ws-topologyd/                          launchd agent (CGDisplayRegisterReconfigurationCallback)
+│   ├── ws-topologyd/                         launchd agent (CGDisplayRegisterReconfigurationCallback)
+│   └── ws-cheatsheet/                        SwiftUI HUD (Caps+; binding via Hammerspoon)
 ├── Tests/                                    XCTest suites (require full Xcode; see "Testing")
 ├── launchd/com.adames.workspace.topologyd.plist
 ├── install.sh                                build + symlink + load
@@ -213,10 +215,15 @@ log stream --predicate 'subsystem == "com.adames.workspace.topology"'
 
 ## Out of scope / deferred
 
-- **SwiftUI cheatsheet HUD** to replace `cheatsheet.lua` (17.7KB Lua).
-- **Adopted-display modal** — first-time prompt when an unknown monitor appears.
-- **Menu-bar auto-hide** via `kAXMenuOpenedNotification` in `ws-topologyd`.
-- **Asymmetric notch padding** (`WS_NOTCH_PAD_LEFT_PT` / `WS_NOTCH_PAD_RIGHT_PT`).
+- **Adopted-display modal** — first-time prompt when an unknown monitor appears. Not implemented.
+- **Menu-bar auto-hide** via `kAXMenuOpenedNotification` in `ws-topologyd`. Not implemented.
 - **Leader-prefix hotkeys for slots > 10** — currently capped at 10 by digit-key hardware; overflow reachable via `workspace focus <name>`.
-- **Auto-iconing from slot names when `userOverridden == false`** — SF Symbol dictionary today covers the canonical 10 slot names; fuzzy match for renamed slots is a follow-up.
+- **Auto-iconing from slot names when `userOverridden == false`** — SF Symbol dictionary in `sf-to-nerd.json` covers ~113 common names; fuzzy match for arbitrary renamed slots is a follow-up.
 - **External monitor model identification** — layout policy uses runtime density classification, so identification is not blocking.
+
+## What ships in the package
+
+`ws-topology` (one-shot CLI), `ws-topologyd` (launchd agent), and
+`ws-cheatsheet` (SwiftUI HUD that replaces the previous `cheatsheet.lua`
+overlay; content lives in `~/.config/workspace/cheatsheet.json`). The
+package's [install.sh](install.sh) builds + symlinks all three.
