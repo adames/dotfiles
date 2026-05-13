@@ -142,6 +142,8 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/rename.sh"         "$HOME/.config/workspace/rename.sh" 755
   install_file "$CONFIGS_DIR/workspace/borders-refresh.sh" "$HOME/.config/workspace/borders-refresh.sh" 755
   install_file "$CONFIGS_DIR/workspace/lib/resolve-config.sh" "$HOME/.config/workspace/lib/resolve-config.sh"
+  install_file "$CONFIGS_DIR/workspace/lib/icon-decode.sh"  "$HOME/.config/workspace/lib/icon-decode.sh"
+  install_file "$CONFIGS_DIR/workspace/lib/hex-ansi.sh"     "$HOME/.config/workspace/lib/hex-ansi.sh"
   install_file "$CONFIGS_DIR/workspace/lib/sf-to-nerd.json" "$HOME/.config/workspace/lib/sf-to-nerd.json"
   install_file "$CONFIGS_DIR/workspace/sketchybar-tuning.env" "$HOME/.config/workspace/sketchybar-tuning.env"
   install_file "$CONFIGS_DIR/workspace/hooks/post-mutate.sh" "$HOME/.config/workspace/hooks/post-mutate.sh" 755

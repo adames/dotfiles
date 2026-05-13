@@ -14,6 +14,13 @@ if [[ -r "$HOME/.config/workspace/lib/resolve-config.sh" ]]; then
   # shellcheck source=/dev/null
   source "$HOME/.config/workspace/lib/resolve-config.sh"
 fi
+# Shared codepoint-unescape helper. Stub if the lib hasn't shipped yet.
+if [[ -r "$HOME/.config/workspace/lib/icon-decode.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/icon-decode.sh"
+else
+  ws_decode_icon() { :; }
+fi
 
 CONFIG="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
 CACHE="$HOME/.cache/workspace/current.env"
@@ -41,16 +48,7 @@ if [[ -r "$CONFIG" ]] && command -v jq >/dev/null 2>&1; then
   COLOR=$(_jq '.spaces[$k].color // "#9399b2"')
   ICON_ESCAPED=$(_jq '.spaces[$k].iconSpec.codepoint // ""')
 
-  if [[ -n "$ICON_ESCAPED" ]]; then
-    if [[ "$ICON_ESCAPED" == "\\u{"* ]]; then
-      hex="${ICON_ESCAPED#\\u\{}"; hex="${hex%\}}"
-      padded=$(printf '%08x' "0x$hex")
-      ICON=$(printf "\\U${padded}")
-    else
-      hex="${ICON_ESCAPED#\\u}"
-      ICON=$(printf "\\u${hex}")
-    fi
-  fi
+  ICON=$(ws_decode_icon "${ICON_ESCAPED:-}")
 fi
 
 PILL_COLOR="0xff${COLOR#\#}"

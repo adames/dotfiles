@@ -16,6 +16,8 @@
 # CLI, on-space-changed.sh, space.sh — pick up the override
 # automatically because they all source this file.
 
+set -u
+
 if [[ -z "${WS_CONFIG:-}" ]]; then
   _ws_host=$(hostname -s 2>/dev/null || echo unknown)
   _ws_hostfile="$HOME/.config/workspace/spaces.${_ws_host}.json"
