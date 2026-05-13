@@ -120,8 +120,12 @@ phase_configs() {
   # Workspace CLI: cross-platform mutation tool for spaces.json. macOS-
   # specific consumers (sketchybar, yabai, borders) are silent-on-absence
   # here, but the CLI itself works for editing JSON state from Linux.
-  install_file "$CONFIGS_DIR/workspace/cli/workspace"       "$HOME/.local/bin/workspace"                       755
+  # `ws` is the canonical name; `workspace` is kept as a compat symlink.
+  install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
+  ln -sf "ws" "$HOME/.local/bin/workspace"
   install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
+  install_file "$CONFIGS_DIR/completions/_ws"               "$HOME/.config/zsh/completions/_ws"
+  install_file "$CONFIGS_DIR/completions/ws.bash"           "$HOME/.config/bash/completions/ws.bash"
   install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
   install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
 

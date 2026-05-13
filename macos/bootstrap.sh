@@ -99,18 +99,23 @@ phase_configs() {
   # every toggle so changes are picked up without rebuilding.
   install_file "$CONFIGS_DIR/workspace/cheatsheet.json"   "$HOME/.config/workspace/cheatsheet.json"
 
-  # SketchyBar workspace-pill strip. Persistent 10-slot indicator, always
-  # visible. Items, colours and the per-pill repaint plugin live under
+  # SketchyBar workspace-pill strip. Persistent workspace indicator,
+  # always visible. Items, colours and plugins live under
   # configs/sketchybar/. brew service is started by workspace/install.sh.
   # Per-display autohide is owned by ws-autohide (Swift launchd agent).
+  # paint-all.sh is the centralized batched-repaint plugin subscribed
+  # via the workspace.paint sentinel item in sketchybarrc.
   install_file "$CONFIGS_DIR/sketchybar/sketchybarrc"               "$HOME/.config/sketchybar/sketchybarrc"               755
   install_file "$CONFIGS_DIR/sketchybar/colors.sh"                  "$HOME/.config/sketchybar/colors.sh"
-  install_file "$CONFIGS_DIR/sketchybar/plugins/space.sh"           "$HOME/.config/sketchybar/plugins/space.sh"           755
+  install_file "$CONFIGS_DIR/sketchybar/plugins/paint-all.sh"       "$HOME/.config/sketchybar/plugins/paint-all.sh"       755
   install_file "$CONFIGS_DIR/sketchybar/plugins/recenter.sh"        "$HOME/.config/sketchybar/plugins/recenter.sh"        755
   install_file "$CONFIGS_DIR/sketchybar/plugins/per-display-pills.sh" "$HOME/.config/sketchybar/plugins/per-display-pills.sh" 755
   install_file "$CONFIGS_DIR/sketchybar/plugins/notch-detect.sh"    "$HOME/.config/sketchybar/plugins/notch-detect.sh"    755
   install_file "$CONFIGS_DIR/sketchybar/plugins/ssh-chip.sh"        "$HOME/.config/sketchybar/plugins/ssh-chip.sh"        755
   install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"               "$HOME/.config/sketchybar/bootstrap.sh"               755
+  # Stale space.sh from previous installs is cleaned out here so the
+  # plugin dir reflects the new sentinel-item architecture cleanly.
+  rm -f "$HOME/.config/sketchybar/plugins/space.sh"
 
   # Workspace-awareness layer: yabai signal handler + rename flow.
   # spaces.json is NOT install_file'd because that would clobber the
@@ -132,8 +137,16 @@ phase_configs() {
 
   # Workspace CLI: per-machine mutation tool for spaces.json. Slot-count
   # agnostic; works on Ubuntu too (cascade is silent-on-absence).
-  install_file "$CONFIGS_DIR/workspace/cli/workspace"       "$HOME/.local/bin/workspace"                       755
+  # `ws` is the canonical name; `workspace` is kept as a compat symlink
+  # so older bindings and muscle-memory keep working.
+  install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
+  ln -sf "ws" "$HOME/.local/bin/workspace"
   install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
+  # Shell completions for `ws` (and the `workspace` alias). zshrc adds
+  # ~/.config/zsh/completions to fpath; bashrc (if present) sources
+  # ~/.config/bash/completions/ws.bash.
+  install_file "$CONFIGS_DIR/completions/_ws"               "$HOME/.config/zsh/completions/_ws"
+  install_file "$CONFIGS_DIR/completions/ws.bash"           "$HOME/.config/bash/completions/ws.bash"
 
   # Workspace identity layer (10-slot system; details in configs/workspace/)
   install_file "$DOTFILES_DIR/lib/colors.sh"              "$HOME/.config/workspace/lib/colors.sh"

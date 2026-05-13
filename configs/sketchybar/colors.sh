@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Catppuccin Mocha palette + sketchybar AARRGGBB constants. Sourced by
-# sketchybarrc and plugins/space.sh. Per-slot colors live in spaces.json
-# (so user edits don't require a code change).
+# sketchybarrc and plugins/paint-all.sh. Per-slot colors live in
+# spaces.json (so user edits don't require a code change).
 
 # Bar background — transparent so the system menu-bar blur shows through.
 # That's the "native macOS feel" — sketchybar does not draw its own
