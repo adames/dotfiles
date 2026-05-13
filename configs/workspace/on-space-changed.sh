@@ -5,7 +5,7 @@
 #
 # Called from yabai signals (space_changed, display_changed), the rename
 # flow, and skhd manual-refresh. Idempotent. Silent on subsystem absence
-# — system stays usable even if Hammerspoon, tmux, or borders is down.
+# — system stays usable even if tmux or borders is down.
 
 set -u
 

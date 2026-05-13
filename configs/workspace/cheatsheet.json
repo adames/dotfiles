@@ -10,7 +10,7 @@
     {
       "color": "#60a5fa",
       "title": "Windows · Spaces",
-      "sub": "Hyper navigate · Meh modify  (yabai · skhd · Hammerspoon)",
+      "sub": "Hyper navigate · Meh modify  (yabai · skhd · ws-snap)",
       "rows": [
         ["caps + hjkl", "focus window  ←  ↓  ↑  →"],
         ["caps + shift + hjkl", "swap  window  ←  ↓  ↑  →"],
@@ -41,7 +41,7 @@
     {
       "color": "#a78bfa",
       "title": "Launch",
-      "sub": "Hammerspoon · launchOrFocus",
+      "sub": "skhd · open -a",
       "rows": [
         ["caps + b", "Brave (browser)"],
         ["caps + c", "Claude"],

@@ -22,13 +22,14 @@ Keyboard-first dev environment. Three rules:
                   │  • +Shift → Meh │
                   └────────┬────────┘
                            │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-       skhd          Hammerspoon       (system Cmd-keys
-        │           ┌──────┴──────┐    pass through)
-        ▼           ▼             ▼
-      yabai     Terminal      Cheatsheet
-   (BSP tiler)  Cmd+T/N      Hyper+/ overlay
+                           │
+                          skhd ──────────────► (system Cmd-keys
+                           │                    pass through)
+              ┌────────────┼────────────┐
+              ▼            ▼            ▼
+            yabai       Terminal    Cheatsheet
+         (BSP tiler)    Cmd+T/N    Hyper+/ HUD
+                       (osascript) (ws-cheatsheet)
         │
         ▼
   ┌──────────────────────────────────────────────────────────┐
@@ -64,8 +65,9 @@ Ghostty doesn't break zsh's line editor.
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
 | Neon window borders (per-workspace colour) | JankyBorders | [`borders/bordersrc`](configs/borders/bordersrc) |
 | Persistent workspace pill strip (always-visible 10-slot indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
-| Hyper hotkeys → yabai | skhd | [`skhdrc`](configs/skhdrc) |
-| Hyper+T/N terminal, Meh+arrow snaps, Caps+; cheatsheet trigger | Hammerspoon | [`hammerspoon-init.lua`](configs/hammerspoon-init.lua) |
+| Hyper/Meh hotkeys → yabai · terminal · app launchers · cheatsheet · snaps | skhd | [`skhdrc`](configs/skhdrc) |
+| Meh+arrow snaps for floating windows (AX) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
+| SketchyBar per-display autohide (cursor poller, LaunchAgent) | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Cross-display topology + per-display layout policy (notch-aware) | ws-topologyd (LaunchAgent) | [`workspace/topology/`](configs/workspace/topology) |
 | 10-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
@@ -166,15 +168,15 @@ and from the post-mutate hook on `workspace add` / `remove`.
 (`NSGlobalDomain._HIHideMenuBar=1`). When the cursor leaves the top
 edge of a display, that display's pill strip is visible and clickable;
 when the cursor crosses back up, the strip slides off-screen and the
-macOS menu bar reveals in the same space. Driven by a 100ms
-Hammerspoon timer in
-[`hammerspoon-sketchybar-autohide.lua`](configs/hammerspoon-sketchybar-autohide.lua)
-that toggles each pill's `y_offset` based on cursor.y RELATIVE to
-its current display (hide at `rel_y < 2`, re-show at
-`rel_y >= screen.frame.y - screen.fullFrame.y`). Per-display — moving
-the cursor between monitors only hides the side you're approaching.
-yabai's [`external_bar all:26:0`](configs/yabairc) reserves the top
-26px on every display so BSP-tiled windows never encroach.
+macOS menu bar reveals in the same space. Driven by the
+[`ws-autohide`](configs/workspace/topology/Sources/ws-autohide)
+launchd agent — a 100ms cursor poller that toggles each pill's
+`y_offset` based on cursor.y RELATIVE to its current display (hide
+at `rel_y < 2`, re-show at `rel_y >= frame.maxY - visibleFrame.maxY`).
+Per-display — moving the cursor between monitors only hides the side
+you're approaching. yabai's [`external_bar all:26:0`](configs/yabairc)
+reserves the top 26px on every display so BSP-tiled windows never
+encroach.
 
 **Slot identity.** Color is **positional** — slot N keeps its colour
 across `swap` / `move` / `rotate` / `reverse` / `reorder` ("orange
@@ -244,7 +246,7 @@ manage — it creates a native fullscreen space yabai cannot touch. Use
 
 `~/.local/bin/workspace` wraps every spaces.json mutation with an atomic
 write and a re-fire of the cascade (tmux / starship / borders /
-sketchybar / hammerspoon all repaint within ~50ms):
+sketchybar all repaint within ~50ms):
 
 ```
 # inspection
@@ -380,12 +382,11 @@ each TCC bit first** (via [`lib/macos-tcc.sh`](lib/macos-tcc.sh)) and
 only opens System Settings panes that have missing toggles. On a
 re-bootstrap of a working machine, the wizard finishes in ~2 seconds
 without ever popping a window. Probes don't require Full Disk Access —
-they use `launchctl` liveness, `systemextensionsctl list`, and
-Hammerspoon's `hs.accessibilityState()` over the AppleScript bridge.
+they use `launchctl` liveness and `systemextensionsctl list`.
 
 Three gates:
 
-1. **Accessibility** — yabai, skhd, Hammerspoon, Karabiner-Elements
+1. **Accessibility** — yabai, skhd, ws-snap, Karabiner-Elements
 2. **Input Monitoring** — Karabiner-Elements, Karabiner-DriverKit-VirtualHIDDevice
 3. **System Extensions** — approve Karabiner-DriverKit-VirtualHIDDevice
 
@@ -439,8 +440,9 @@ $EDITOR ~/dotfiles/configs/zshrc
 `install_file` byte-compares; re-running is cheap. No `.bak` is written
 — git history is the source of truth for what was there before.
 
-Hammerspoon Lua reloads automatically on `.lua` save (pathwatcher).
-Tmux: `prefix + r`.
+Native helpers (ws-snap / ws-autohide / ws-cheatsheet / ws-topology) live
+under `configs/workspace/topology/`; re-running `bootstrap.sh` re-builds
+and re-links them. Tmux: `prefix + r`.
 
 ## Troubleshooting
 
@@ -449,7 +451,7 @@ Tmux: `prefix + r`.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | "Karabiner installed but `.app` missing" | `installer -pkg` was interrupted; bootstrap re-runs the staged installer when TTY is present, or `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
-| `Caps + /` cheatsheet doesn't appear | Hammerspoon not running / no Accessibility — `pgrep -x Hammerspoon` then re-run wizard |
+| `Caps + /` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — re-run `~/.config/workspace/topology/install.sh` |
 | Window borders missing | `borders` not installed or daemon dead — `brew install FelixKratz/formulae/borders` then `~/.config/borders/bordersrc &` |
 | Workspace pills missing from menu/bottom bar | `sketchybar` not installed or service dead — `brew install FelixKratz/formulae/sketchybar` then `brew services restart sketchybar`. Pills painted but blank glyphs → wrong font family in `sketchybarrc` (must be `"JetBrainsMono NF"` with the space) |
 | Workspace pill doesn't update on space switch | `on-space-changed.sh` ran but sketchybar trigger silent — `sketchybar --trigger workspace_changed` to repaint; if that does nothing, `brew services restart sketchybar` |
@@ -478,14 +480,14 @@ Tmux: `prefix + r`.
     ├── karabiner.{json,md}       # Caps remap + JSON explainer
     ├── yabairc                   # BSP tiling + workspace + display signals
     ├── yabai-ensure-spaces.sh    # ensures 10 BSP spaces total + applies labels
-    ├── skhdrc                    # Hyper bindings → yabai (1..9, 0 + Hyper+/)
-    ├── hammerspoon-{init,cheatsheet}.lua
+    ├── skhdrc                    # Hyper/Meh bindings → yabai · ws-snap · ws-cheatsheet · apps
     ├── workspace/                # 10-slot identity layer
     │   ├── spaces.default.json   #  · slot → name/color/icon defaults
     │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + borders + sketchybar)
     │   ├── reconcile-displays.sh #  · slot 1 → laptop, 2..10 → monitor
     │   ├── laptop-uuid-init.sh   #  · captures built-in display UUID
     │   ├── rename.sh             #  · osascript-prompted slot rename
+    │   ├── topology/             #  · Swift package: ws-topology(d), ws-cheatsheet, ws-snap, ws-autohide
     │   └── install.sh            #  · seeds + migrates + restarts daemons
     ├── borders/bordersrc         # JankyBorders launch script + defaults
     ├── sketchybar/               # persistent workspace pill strip
