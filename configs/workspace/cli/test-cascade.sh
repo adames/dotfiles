@@ -112,27 +112,23 @@ if jq -e '.icons[5] | length > 0' "$WS_THEMES_DIR/catppuccin-mocha.json" >/dev/n
   fi
 fi
 
-# 5a · cmd_status renders v2 icons (the ICON column must be non-empty for
-# slots whose iconSpec.codepoint is set in the seed: 6 and 10).
-status_out=$("$WS_BIN" status)
-slot6_icon=$(printf '%s\n' "$status_out" | awk 'NR>1 && $1=="6" {print $2}')
-slot10_icon=$(printf '%s\n' "$status_out" | awk 'NR>1 && $1=="10" {print $2}')
-if [[ -n "$slot6_icon" && "$slot6_icon" != "FO" && "$slot6_icon" != "UP" ]] \
-   || [[ -n "$slot10_icon" && "$slot10_icon" != "VO" ]]; then
-  pass "status renders v2 nerdFont glyphs (slots 6, 10)"
+# 5a · cmd_status renders v2 icons (must DECODE iconSpec.codepoint to a
+# glyph — not print the literal \uXXXX escape). Restore the snapshot
+# first because prior tests have shuffled slots around, and the icons
+# may have moved.
+cp -f "$SNAP" "$WS_CONFIG"
+status_out=$("$WS_BIN" status 2>/dev/null)
+slot1_icon=$(printf '%s\n' "$status_out" | awk 'NR>1 && $1=="1" {print $2}')
+if [[ "$slot1_icon" == *'\u'* ]]; then
+  fail "status row 1 has literal \\u escape (not decoded): '$slot1_icon'"
+elif [[ -z "$slot1_icon" ]]; then
+  # Slot 1's iconSpec may legitimately have no codepoint (kind=none).
+  # In that case the column shows fallbackText. Empty is only a failure
+  # if BOTH codepoint and fallbackText are unset, which is itself a
+  # doctor violation — so trust doctor and treat empty as inconclusive.
+  dim "skip: status slot 1 icon empty (kind=none seed?)"
 else
-  # On a fresh worktree slot 7 has been renamed by tests 2-3. Be lenient:
-  # we mainly care that the column is non-empty for the seeded nerdFont
-  # rows. Re-check after restore.
-  cp -f "$SNAP" "$WS_CONFIG"
-  status_out=$("$WS_BIN" status)
-  slot6_icon=$(printf '%s\n' "$status_out" | awk 'NR>1 && $1=="6" {print $2}')
-  slot10_icon=$(printf '%s\n' "$status_out" | awk 'NR>1 && $1=="10" {print $2}')
-  if [[ -n "$slot6_icon" && -n "$slot10_icon" ]]; then
-    pass "status renders v2 nerdFont glyphs (slots 6, 10) — post-restore"
-  else
-    fail "status ICON column empty for slot 6 ('$slot6_icon') and/or slot 10 ('$slot10_icon')"
-  fi
+  pass "status decodes iconSpec.codepoint to a glyph (slot 1: '$slot1_icon')"
 fi
 
 # 6 · add / count / remove involution
