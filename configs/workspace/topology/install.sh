@@ -29,7 +29,7 @@ step "swift build -c release"
 BUILD_DIR="$(cd "$HERE" && swift build -c release --show-bin-path)"
 
 mkdir -p "$LOCAL_BIN"
-for bin in ws-topology ws-topologyd; do
+for bin in ws-topology ws-topologyd ws-cheatsheet; do
   src="$BUILD_DIR/$bin"
   dst="$LOCAL_BIN/$bin"
   if [[ ! -x "$src" ]]; then

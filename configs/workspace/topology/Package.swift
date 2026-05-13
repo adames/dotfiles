@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .executable(name: "ws-topology", targets: ["ws-topology"]),
         .executable(name: "ws-topologyd", targets: ["ws-topologyd"]),
+        .executable(name: "ws-cheatsheet", targets: ["ws-cheatsheet"]),
         .library(name: "DisplayTopology", targets: ["DisplayTopology"]),
         .library(name: "LayoutPolicy", targets: ["LayoutPolicy"]),
         .library(name: "WorkspaceState", targets: ["WorkspaceState"]),
@@ -53,6 +54,11 @@ let package = Package(
             name: "ws-topologyd",
             dependencies: ["DisplayTopology", "LayoutPolicy", "WorkspaceState", "AdaptersAppKit"],
             path: "Sources/ws-topologyd"
+        ),
+        .executableTarget(
+            name: "ws-cheatsheet",
+            dependencies: ["DisplayTopology"],
+            path: "Sources/ws-cheatsheet"
         ),
         .testTarget(
             name: "DisplayTopologyTests",
