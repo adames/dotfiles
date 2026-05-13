@@ -11,10 +11,13 @@
 #   2. Ghostty, iTerm, Alacritty, kitty, WezTerm  — modern picks first
 #   3. Terminal  — always present on macOS, final fallback
 #
-# Spawning uses AppleScript "click File→New Window" rather than
-# `open -na`, because some terminals (kitty, Alacritty) interpret -n
-# as "spawn a second app instance" rather than "open a new window" of
-# the existing one. The menu-click pattern works uniformly.
+# Spawning talks directly to the app's AppleScript dictionary
+# (`tell application "X" to make new window`). This avoids the
+# System-Events menu-click pattern, which requires Accessibility
+# permission for osascript (`-1719: not allowed assistive access`)
+# and silently fails when permission isn't granted. Fallback to
+# `open -na` if the app doesn't expose `make new window` (rare for
+# terminals; common dictionaries cover it).
 
 set -u
 
@@ -41,7 +44,13 @@ if [[ -z "$app" ]]; then
   exit 1
 fi
 
-osascript >/dev/null 2>&1 \
-  -e "tell application \"$app\" to activate" \
-  -e "tell application \"System Events\" to tell process \"$app\" to click menu item \"New Window\" of menu \"File\" of menu bar 1" \
-  || true
+if ! osascript >/dev/null 2>&1 \
+       -e "tell application \"$app\" to activate" \
+       -e "tell application \"$app\" to make new window"; then
+  # The app's dictionary doesn't expose `make new window`. Fall back
+  # to `open -na`, which forces Launch Services to spawn a new
+  # process. Some terminals (kitty, Alacritty) may interpret -n as
+  # "second app instance" rather than "new window of existing"; this
+  # is acceptable as a last resort.
+  open -na "$app" >/dev/null 2>&1 || true
+fi

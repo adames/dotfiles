@@ -45,12 +45,8 @@ system settings to toggle. Re-run when validating a release.
 
 | # | Scenario | Setup | Expected |
 |---|---|---|---|
-| 20 | SSH chip — 0 sessions | Have no active outbound ssh | `ctx.ssh` shows dim baseline icon, no label |
-| 21 | SSH chip — 1 session | `ssh vm` from terminal | Within 30s, chip lights yellow with label `vm`; right-click → notification banner with host |
-| 22 | SSH chip — both sessions | `ssh vm` and `ssh vps` open simultaneously | Chip shows `vm · vps` (≤3 sessions and joined label ≤ 20 chars) |
-| 23 | SSH chip — 4+ sessions | Open 4 distinct ssh hosts | Chip shows `4 ssh` (over threshold) |
-| 24 | Border refresh on focus | Switch between two windows within same space | JankyBorders re-asserts `active_color = MACOS_SPACE_COLOR` on each focus change; visible via `log stream --process=borders --predicate 'eventMessage CONTAINS "active_color"'` |
-| 25 | Border survives daemon restart | `pkill borders && bordersrc` then focus a window | Active color matches the current workspace within one focus event |
+| 20 | Border refresh on focus | Switch between two windows within same space | JankyBorders re-asserts `active_color = MACOS_SPACE_COLOR` on each focus change; visible via `log stream --process=borders --predicate 'eventMessage CONTAINS "active_color"'` |
+| 21 | Border survives daemon restart | `pkill borders && bordersrc` then focus a window | Active color matches the current workspace within one focus event |
 
 ## Hotkeys
 
