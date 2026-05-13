@@ -312,11 +312,13 @@ slot indices. Use `ws color N #HEX` to change a slot's color directly.
 (Orange always means slot 2, regardless of what's currently named
 there.)
 
-**Hotkey add/remove.** `Hyper+Shift+=` opens a Ghostty window running
-`ws add` interactively (prompts for name, icon, color); `Hyper+Shift+-`
-removes the currently focused slot (`ws remove $MACOS_SPACE_INDEX -y`).
-Subcommands and slot identifiers tab-complete in zsh and bash when the
-completion file is sourced (handled by `zshrc` / `bashrc`).
+**Hotkey remove.** `Hyper+Shift+-` removes the currently focused slot
+(`ws remove $MACOS_SPACE_INDEX -y`). There's no companion add hotkey
+right now — the previous Hyper+Shift+= binding spawned a Ghostty window
+and typed `ws add` into it, which was unreliable; run `ws add` from
+your shell directly until we find a better entry point. Subcommands
+and slot identifiers tab-complete in zsh and bash when the completion
+file is sourced (handled by `zshrc` / `bashrc`).
 
 **Slot identifiers.** Anywhere a slot is expected — `name`, `color`,
 `icon`, `get`, `remove`, `swap`, `move` — you can pass either a numeric

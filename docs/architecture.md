@@ -210,9 +210,10 @@ ones.
   + mv) and fires the cascade. Slot count is derived dynamically; the
   system tolerates any count ≥ 1 even though skhd hotkeys only bind
   1..10. Any subcommand that takes a slot accepts either a numeric
-  index or a unique slot name. `ws add` and `ws remove` are also bound
-  to Hyper+Shift+= / Hyper+Shift+- so the bar can grow / shrink without
-  a terminal round-trip.
+  index or a unique slot name. `ws remove` is bound to Hyper+Shift+- so
+  the bar can shrink without a terminal round-trip; the companion `ws
+  add` hotkey was removed because the Ghostty-spawn-then-keystroke
+  pattern proved unreliable.
 - **Positional colors.** Reordering operations (`swap`, `move`,
   `rotate`, `reverse`, `reorder`) permute only the (name, icon) tuples
   — color stays anchored to slot index. This preserves muscle-memory
