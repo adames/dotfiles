@@ -307,22 +307,41 @@ cmd_color() {
   _fire_cascade
 }
 
-cmd_icon() {
-  _require_config
-  [[ $# -eq 2 ]] || { err "usage: workspace icon <SLOT_OR_NAME> <GLYPH>"; exit 2; }
-  local slot; slot=$(_resolve_slot "$1") || exit $?
-  local glyph="$2"
+_SF_TO_NERD_MAP="${WS_SF_MAP:-$HOME/.config/workspace/lib/sf-to-nerd.json}"
+_NF_QUESTION_FALLBACK='\uf128'   # nf-fa-question_circle — placeholder when SF has no mapping
 
-  # Derive the ASCII-escaped codepoint for v2 iconSpec persistence.
-  # BMP scalars (U+E000..U+F8FF — where most Nerd Font glyphs live) get
-  # "\uXXXX"; supplementary plane gets "\u{XXXXX}". Python program is
-  # inline via `-c` rather than heredoc so the pipe-redirected stdin
-  # carries the glyph bytes (heredocs clobber pipe redirection).
-  local escaped=""
-  if [[ -n "$glyph" ]]; then
-    local form="" hex=""
-    read -r form hex < <(
-      printf '%s' "$glyph" | python3 -c '
+# Derive (codepoint, sf_name) from a single icon argument. Sets:
+#   _ICON_ESCAPED   — ASCII-escaped codepoint (e.g. "") or empty
+#   _ICON_SF_NAME   — SF Symbol name (e.g. "play.fill") or empty
+# Heuristic:
+#   • ASCII identifier matching ^[a-z][a-z0-9._]*$  → SF Symbol path
+#     (look up codepoint in sf-to-nerd.json; warn + placeholder on miss)
+#   • Anything else (UTF-8 multibyte, mixed case, etc.) → literal glyph path
+#     (extract the first codepoint via python3, encode as \uXXXX or \u{X..})
+_resolve_icon_input() {
+  local input="$1"
+  _ICON_ESCAPED=""
+  _ICON_SF_NAME=""
+  [[ -z "$input" ]] && return 0
+
+  if [[ "$input" =~ ^[a-z][a-z0-9._]*$ ]]; then
+    # SF Symbol identifier. Map → Nerd Font codepoint via curated table.
+    _ICON_SF_NAME="$input"
+    if [[ -r "$_SF_TO_NERD_MAP" ]] && have jq; then
+      _ICON_ESCAPED=$(jq -r --arg n "$input" '.[$n] // ""' "$_SF_TO_NERD_MAP" 2>/dev/null)
+    fi
+    if [[ -z "$_ICON_ESCAPED" ]]; then
+      warn "no Nerd Font mapping for SF Symbol '$input' — using placeholder ($_NF_QUESTION_FALLBACK)."
+      warn "  add a mapping in ${_SF_TO_NERD_MAP/#$HOME/~}"
+      _ICON_ESCAPED="$_NF_QUESTION_FALLBACK"
+    fi
+    return 0
+  fi
+
+  # Literal glyph path. Extract the FIRST scalar; encode as \uXXXX or \u{X..}.
+  local form="" hex=""
+  read -r form hex < <(
+    printf '%s' "$input" | python3 -c '
 import sys
 s = sys.stdin.read()
 if s:
@@ -332,31 +351,80 @@ if s:
     else:
         print("S", f"{cp:X}")
 ' 2>/dev/null
-    )
-    case "$form" in
-      B) escaped="\\u${hex}" ;;
-      S) escaped="\\u{${hex}}" ;;
-    esac
+  )
+  case "$form" in
+    B) _ICON_ESCAPED="\\u${hex}" ;;
+    S) _ICON_ESCAPED="\\u{${hex}}" ;;
+  esac
+}
+
+cmd_icon() {
+  _require_config
+
+  # `workspace icon search <term>` — discovery aid.
+  if [[ "${1:-}" == "search" ]]; then
+    shift
+    local q="${1:-}"
+    if [[ ! -r "$_SF_TO_NERD_MAP" ]] || ! have jq; then
+      err "sf-to-nerd map not available"; exit 1
+    fi
+    # Print: SF_NAME  glyph  codepoint  for matches (or all if no query).
+    jq -r --arg q "$q" '
+      to_entries
+      | map(select(.key | startswith("_") | not))
+      | map(select($q == "" or (.key | test($q; "i"))))
+      | sort_by(.key)
+      | .[]
+      | "\(.key)\t\(.value)"
+    ' "$_SF_TO_NERD_MAP" \
+      | while IFS=$'\t' read -r name esc; do
+          # Render the glyph for visual preview.
+          local glyph=""
+          if [[ "$esc" == "\\u{"* ]]; then
+            local h="${esc#\\u\{}"; h="${h%\}}"; h=$(printf '%08x' "0x$h")
+            glyph=$(printf "\\U${h}")
+          else
+            local h="${esc#\\u}"
+            glyph=$(printf "\\u${h}")
+          fi
+          printf '  %-40s %s  %s\n' "$name" "$glyph" "$esc"
+        done
+    return 0
   fi
 
-  # Update iconSpec.codepoint and flip userOverridden=true. The flip is
-  # the postmortem rule: an explicit user-chosen icon must survive
-  # subsequent renames; auto-iconing only regenerates while
-  # userOverridden=false. If iconSpec doesn't exist (unmigrated slot),
-  # the merge is a no-op — run `ws-topology migrate --apply` first.
+  if [[ $# -ne 2 ]]; then
+    err "usage: workspace icon <SLOT_OR_NAME> <GLYPH_OR_SF_NAME>"
+    err "       workspace icon search <term>"
+    exit 2
+  fi
+  local slot; slot=$(_resolve_slot "$1") || exit $?
+  local arg="$2"
+
+  _resolve_icon_input "$arg"
+
+  # Decide kind: sfSymbol if we identified an SF name, else nerdFont
+  # (when we have a codepoint), else neither (no change).
+  # Always set userOverridden=true on explicit `workspace icon`.
+  # If iconSpec doesn't exist (unmigrated slot), the merge is a no-op —
+  # run `ws-topology migrate --apply` first.
   _write '
     .spaces[$k] = (
       (.spaces[$k] // {}) as $s
       | $s
       + (
           if $s.iconSpec then
-            { iconSpec: ($s.iconSpec
-              + (if $cp != "" then {codepoint: $cp, kind: "nerdFont"} else {} end)
-              + {userOverridden: true}) }
+            { iconSpec: (
+                $s.iconSpec
+                + (if $cp != "" then {codepoint: $cp} else {} end)
+                + (if $sf != "" then {symbolName: $sf, kind: "sfSymbol"}
+                   else (if $cp != "" then {kind: "nerdFont"} else {} end)
+                   end)
+                + {userOverridden: true}
+            ) }
           else {} end
         )
     )
-  ' --arg k "$slot" --arg cp "$escaped"
+  ' --arg k "$slot" --arg cp "$_ICON_ESCAPED" --arg sf "$_ICON_SF_NAME"
   _fire_post icon "$slot"
   _fire_cascade
 }
