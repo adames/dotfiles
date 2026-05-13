@@ -90,8 +90,12 @@ phase_configs() {
   install_file "$CONFIGS_DIR/yabairc"                    "$HOME/.yabairc"             755
   install_file "$CONFIGS_DIR/yabai-ensure-spaces.sh"     "$HOME/.config/yabai/ensure-spaces.sh" 755
   install_file "$CONFIGS_DIR/hammerspoon-init.lua"             "$HOME/.hammerspoon/init.lua"
-  install_file "$CONFIGS_DIR/hammerspoon-cheatsheet.lua"       "$HOME/.hammerspoon/cheatsheet.lua"
   install_file "$CONFIGS_DIR/hammerspoon-sketchybar-autohide.lua" "$HOME/.hammerspoon/sketchybar-autohide.lua"
+  # cheatsheet.lua is retired — see ws-cheatsheet under configs/workspace/topology/
+
+  # Cheatsheet HUD content (hand-editable). ws-cheatsheet reads this on
+  # every toggle so changes are picked up without rebuilding.
+  install_file "$CONFIGS_DIR/workspace/cheatsheet.json"   "$HOME/.config/workspace/cheatsheet.json"
 
   # SketchyBar workspace-pill strip. Replaced the Hammerspoon OSD that
   # used to flash on every space switch — pills are persistent and always

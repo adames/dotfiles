@@ -98,13 +98,20 @@ hs.hotkey.bind(meh, "right", snap({ x = 0.5,  y = 0,    w = 0.5, h = 1   }))
 hs.hotkey.bind(meh, "up",    snap({ x = 0,    y = 0,    w = 1,   h = 1   }))
 hs.hotkey.bind(meh, "down",  snap({ x = 0.25, y = 0.25, w = 0.5, h = 0.5 }))
 
--- Cheatsheet overlay. Bound on Hyper+; — moved off `/` because macOS's
--- Cmd+Shift+/ Help-menu shortcut is a subset of Hyper+/ and the system
--- intercepts it before Hammerspoon (Hyper+Shift+/ still worked because
--- Karabiner's Caps+Shift rule consumes the shift, producing Meh+/).
-local cheatsheet = require("cheatsheet")
-hs.hotkey.bind(hyper, ";", function() cheatsheet.toggle() end)
-hs.hotkey.bind(meh,   ";", function() cheatsheet.toggle() end)
+-- Cheatsheet HUD. Now a native SwiftUI app (ws-cheatsheet) built from
+-- ~/.config/workspace/topology, with section data in a hand-editable
+-- ~/.config/workspace/cheatsheet.json. Replaces the previous Lua/HTML
+-- overlay — cheatsheet.lua is retired.
+--
+-- Both bindings (Hyper+; and Meh+;) shell out to the same --toggle
+-- invocation. The binary uses a PID file at ~/.cache/workspace/cheatsheet.pid
+-- to coordinate single-instance behavior: first press opens; second press
+-- sends SIGTERM to the running instance which closes the window cleanly.
+local function toggle_cheatsheet()
+  hs.execute("$HOME/.local/bin/ws-cheatsheet --toggle >/dev/null 2>&1 &", true)
+end
+hs.hotkey.bind(hyper, ";", toggle_cheatsheet)
+hs.hotkey.bind(meh,   ";", toggle_cheatsheet)
 
 -- Hide the SketchyBar workspace strip while the cursor is over the
 -- macOS auto-hidden menu bar's reveal zone. Pairs with sketchybarrc's
@@ -115,8 +122,7 @@ require("sketchybar-autohide")
 -- hs CLI shim. The workspace OSD module is gone — SketchyBar's pill strip
 -- (configs/sketchybar/) is the persistent workspace indicator, fired by
 -- the yabai signal chain through configs/workspace/on-space-changed.sh.
--- IPC is still installed because the skhd cheatsheet-fallback at
--- configs/skhdrc invokes `hs -c "require('cheatsheet').toggle()"`.
+-- IPC kept available for ad-hoc `hs -c "..."` calls.
 require("hs.ipc")
 if not hs.ipc.cliStatus() then hs.ipc.cliInstall() end
 
