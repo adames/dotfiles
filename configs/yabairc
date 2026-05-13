@@ -39,12 +39,12 @@ yabai -m rule --add app="^Finder$" title="^(Copy|Move|Info)" manage=off
 # a phantom tab-window. tmux handles in-window splits (C-Space + v/s).
 yabai -m signal --remove ghostty_tab_dance 2>/dev/null   # remove old approach if present
 
-# Spaces: ensure exactly 10 BSP spaces total, labelled by index. Maps to
-# the skhdrc digit-row bindings: Caps+1..9 for slots 1–9, Caps+0 for
-# slot 10. The 10-slot identity (color, icon, default name) lives in
-# configs/workspace/spaces.default.json; labels created here let other
-# subsystems address spaces by name (e.g. `yabai -m space forge ...`)
-# rather than by volatile index.
+# Spaces: top up to the factory minimum (2: "home" + "code"), labelled
+# by index. Top-up-only by default — if the user has more slots (via
+# `ws add` or auto-created when a new monitor attaches), ensure-spaces
+# leaves them in place. Labels let other subsystems address spaces by
+# name (`yabai -m space code --focus`) rather than by volatile index.
+# Workspace identity (color, icon, name) lives in spaces.json.
 "$HOME/.config/yabai/ensure-spaces.sh"
 
 # ── workspace identity signals ──────────────────────────────────────────
@@ -95,12 +95,11 @@ yabai -m signal --add \
 # is idempotent + silent-on-absence, so safe to fire freely.
 #
 # Deliberately NOT subscribed to space_changed: per-pill display
-# assignment and padding don't change on space focus (only the active-
-# pill highlight does, which space.sh handles via the workspace_changed
-# event from on-space-changed.sh). Re-running per-display-pills.sh on
-# every space switch caused a visible "paint to right then snap" pulse
-# because recenter.sh's two-pass write briefly placed every pill at the
-# default gap before overriding the anchor + cross-notch pads.
+# assignment doesn't change on space focus (only the active-pill
+# highlight does, which paint-all.sh handles via the workspace_changed
+# event from on-space-changed.sh). A previous iteration subscribed to
+# space_changed too and produced visible "paint to right then snap"
+# flicker on every space switch.
 yabai -m signal --remove ws_pills_space_changed 2>/dev/null || true
 for ev in display_added display_removed display_changed; do
   yabai -m signal --remove "ws_pills_${ev}" 2>/dev/null || true

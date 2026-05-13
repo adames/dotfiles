@@ -29,8 +29,10 @@ for _src in \
     break
   fi
 done
-if [ "${#WORKSPACE_LABELS[@]}" -lt 10 ]; then
-  WORKSPACE_LABELS=(core forge codex lex scope uplink signal ledger craft void)
+if [ "${#WORKSPACE_LABELS[@]}" -lt 1 ]; then
+  # Fallback only when lib/colors.sh isn't sourceable. Mirrors the
+  # factory default in spaces.default.json (home + code).
+  WORKSPACE_LABELS=(home code)
 fi
 WORKSPACE_LAPTOP_LABEL="${WORKSPACE_LAPTOP_LABEL:-${WORKSPACE_LABELS[0]}}"
 
