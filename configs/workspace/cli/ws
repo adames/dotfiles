@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# workspace — CLI for the 10-slot (extensible) workspace identity layer.
+# ws — CLI for the per-display workspace pill strip. Mutates a workspace
+# slot's identity (name / icon / color) and dispatches the cascade so
+# every consumer (tmux, starship, borders, sketchybar) repaints in
+# step. Formerly called `workspace`; the old name is kept as a compat
+# symlink so older scripts and muscle-memory continue to work.
 #
-# Mutates ~/.config/workspace/spaces.json atomically (mktemp + jq + mv),
-# fires the cascade (on-space-changed.sh) so tmux / starship / borders /
-# sketchybar / hammerspoon repaint, and invokes the optional
-# ~/.config/workspace/hooks/post-mutate.sh as an extension point for
-# other programs.
+# Atomic spaces.json writes (mktemp + jq + mv), then on-space-changed.sh
+# fires, then the optional ~/.config/workspace/hooks/post-mutate.sh runs
+# as an extension point.
 #
 # Slot-count agnostic: every subcommand derives the current count from
 # the JSON itself, not a hardcoded constant.
@@ -208,14 +210,15 @@ _confirm() {
 
 cmd_help() {
   cat <<'EOF_HELP'
-workspace — manage the workspace identity (name / icon) of each slot.
+ws — manage the workspace identity (name / icon) of each slot.
 
 Colors are positional: slot N keeps its color across moves and reorders.
 (name, icon) are what flow when you swap / move / rotate / reverse /
-reorder. Use `workspace color N #HEX` to change a slot's color directly.
+reorder. Use `ws color N #HEX` to change a slot's color directly.
+(`workspace` remains as a compat alias for muscle-memory.)
 
 USAGE
-  workspace <subcommand> [args]
+  ws <subcommand> [args]
   (anywhere a slot is expected, you can pass either an index or a unique name)
 
 INSPECTION
@@ -278,12 +281,17 @@ cmd_status() {
     return
   fi
   printf '%-3s %-4s %-12s %-9s %s\n' '#' 'ICON' 'NAME' 'COLOR' ''
-  # Single jq pass yields one row per slot: <idx>\t<name>\t<color>\t<icon_escape>\t<fallback_text>
-  # icon_escape is the iconSpec.codepoint (a `\uXXXX` or `\u{XXXXX}` string)
-  # which ws_decode_icon turns into the literal glyph at render time.
-  # fallback_text is iconSpec.fallbackText; we show it when codepoint is
-  # absent so the column isn't structurally empty for kind=none slots.
-  while IFS=$'\t' read -r i name color cp ft; do
+  # Single jq pass yields one row per slot, fields separated by U+001F
+  # (Unit Separator). Why not \t: bash's `read` with whitespace IFS
+  # collapses consecutive separators, which misaligns fields when
+  # codepoint is empty (kind=none slot) — fallbackText would slide
+  # into the cp slot and ws_decode_icon would croak on "SM" or "CO".
+  # \x1f is non-whitespace, so empty fields are preserved verbatim.
+  # icon_escape is the iconSpec.codepoint (a `\uXXXX` or `\u{XXXXX}`
+  # string) which ws_decode_icon turns into the literal glyph at render
+  # time. fallback_text is iconSpec.fallbackText; shown when codepoint
+  # is absent so the column isn't structurally empty for kind=none slots.
+  while IFS=$'\x1f' read -r i name color cp ft; do
     local glyph
     if [[ -n "$cp" ]]; then
       glyph=$(ws_decode_icon "$cp")
@@ -302,13 +310,13 @@ cmd_status() {
         (.value.iconSpec.codepoint // ""),
         (.value.iconSpec.fallbackText // "")
       ]
-    | join("\t")
+    | join("")
   ' "$WS_CONFIG")
 }
 
 cmd_get() {
   _require_config
-  [[ $# -ge 1 ]] || { err "usage: workspace get <SLOT_OR_NAME> [--json]"; exit 2; }
+  [[ $# -ge 1 ]] || { err "usage: ws get <SLOT_OR_NAME> [--json]"; exit 2; }
   local slot; slot=$(_resolve_slot "$1") || exit $?
   jq --arg k "$slot" '.spaces[$k]' "$WS_CONFIG"
 }
@@ -338,7 +346,7 @@ cmd_themes() {
 
 cmd_name() {
   _require_config
-  [[ $# -eq 2 ]] || { err "usage: workspace name <SLOT_OR_NAME> <NEW_NAME>"; exit 2; }
+  [[ $# -eq 2 ]] || { err "usage: ws name <SLOT_OR_NAME> <NEW_NAME>"; exit 2; }
   local slot; slot=$(_resolve_slot "$1") || exit $?
   _validate_name_unique "$2" "$slot"
   _write '.spaces[$k] = ((.spaces[$k] // {}) + {name: $v})' --arg k "$slot" --arg v "$2"
@@ -348,7 +356,7 @@ cmd_name() {
 
 cmd_color() {
   _require_config
-  [[ $# -eq 2 ]] || { err "usage: workspace color <SLOT_OR_NAME> <#HEX>"; exit 2; }
+  [[ $# -eq 2 ]] || { err "usage: ws color <SLOT_OR_NAME> <#HEX>"; exit 2; }
   local slot; slot=$(_resolve_slot "$1") || exit $?
   _validate_color "$2"
   _write '.spaces[$k] = ((.spaces[$k] // {}) + {color: $v})' --arg k "$slot" --arg v "$2"
@@ -367,6 +375,33 @@ _NF_QUESTION_FALLBACK='\uf128'   # nf-fa-question_circle — placeholder when SF
 #     (look up codepoint in sf-to-nerd.json; warn + placeholder on miss)
 #   • Anything else (UTF-8 multibyte, mixed case, etc.) → literal glyph path
 #     (extract the first codepoint via python3, encode as \uXXXX or \u{X..})
+# Interactive fzf icon picker. Prints the selected SF Symbol name to
+# stdout. Returns non-zero (and prints nothing) if cancelled or fzf
+# isn't available. Reused by `ws icon <slot>` and `ws add`.
+_pick_icon_fzf() {
+  local prompt="${1:-icon> }"
+  have fzf || return 1
+  [[ -r "$_SF_TO_NERD_MAP" ]] || return 1
+  local picked
+  picked=$(jq -r '
+    to_entries
+    | map(select(.key | startswith("_") | not))
+    | sort_by(.key) | .[]
+    | "\(.key)\t\(.value)"
+  ' "$_SF_TO_NERD_MAP" \
+    | while IFS=$'\t' read -r name esc; do
+        printf '%s\t%s\t%s\n' "$(ws_decode_icon "$esc")" "$name" "$esc"
+      done \
+    | fzf --prompt="$prompt" \
+          --with-nth=1,2 \
+          --delimiter=$'\t' \
+          --header="ENTER: apply · ESC: cancel" \
+          --reverse --height=40% \
+    | awk -F'\t' '{print $2}')
+  [[ -n "$picked" ]] || return 1
+  printf '%s' "$picked"
+}
+
 _resolve_icon_input() {
   local input="$1"
   _ICON_ESCAPED=""
@@ -435,8 +470,8 @@ cmd_icon() {
   fi
 
   if [[ $# -lt 1 || $# -gt 2 ]]; then
-    err "usage: workspace icon <SLOT_OR_NAME> [GLYPH_OR_SF_NAME]"
-    err "       workspace icon search <term>"
+    err "usage: ws icon <SLOT_OR_NAME> [GLYPH_OR_SF_NAME]"
+    err "       ws icon search <term>"
     err "   (omit GLYPH for an interactive fzf picker)"
     exit 2
   fi
@@ -448,37 +483,9 @@ cmd_icon() {
   # column shows what will land. Selection feeds back into the same
   # write path the two-arg form uses.
   if [[ -z "$arg" ]]; then
-    if ! have fzf; then
-      err "no glyph given and fzf not on PATH"
-      err "  try: workspace icon $slot <SF_SYMBOL_NAME>"
-      err "  or:  workspace icon search <term>"
-      exit 2
-    fi
-    if [[ ! -r "$_SF_TO_NERD_MAP" ]]; then
-      err "sf-to-nerd map not available at $_SF_TO_NERD_MAP"
-      exit 1
-    fi
-    local picked
-    picked=$(jq -r '
-      to_entries
-      | map(select(.key | startswith("_") | not))
-      | sort_by(.key) | .[]
-      | "\(.key)\t\(.value)"
-    ' "$_SF_TO_NERD_MAP" \
-      | while IFS=$'\t' read -r name esc; do
-          printf '%s\t%s\t%s\n' "$(ws_decode_icon "$esc")" "$name" "$esc"
-        done \
-      | fzf --prompt="icon for slot $slot> " \
-            --with-nth=1,2 \
-            --delimiter=$'\t' \
-            --header="ENTER: apply · ESC: cancel" \
-            --reverse --height=40% \
-      | awk -F'\t' '{print $2}')
-    if [[ -z "$picked" ]]; then
-      warn "no selection — slot $slot unchanged"
-      exit 1
-    fi
-    arg="$picked"
+    arg=$(_pick_icon_fzf "icon for slot $slot> ") || {
+      warn "no selection — slot $slot unchanged"; exit 1;
+    }
   fi
 
   _resolve_icon_input "$arg"
@@ -540,7 +547,7 @@ cmd_refresh() {
       --full) full=1 ;;
       -h|--help)
         cat <<'EOF_REFRESH_HELP' >&2
-usage: workspace refresh [--full]
+usage: ws refresh [--full]
 
 Re-run the cascade:
   1. on-space-changed.sh   rewrite current.env + repaint borders + trigger sketchybar
@@ -568,13 +575,13 @@ EOF_REFRESH_HELP
   if (( full )); then
     if launchctl print "gui/$(id -u)/com.adames.workspace.topologyd" >/dev/null 2>&1; then
       launchctl kickstart -k "gui/$(id -u)/com.adames.workspace.topologyd" 2>/dev/null || true
-      printf 'workspace: refreshed (--full: daemon kicked)\n' >&2
+      printf 'ws: refreshed (--full: daemon kicked)\n' >&2
       return 0
     else
       warn "ws-topologyd not loaded; --full skipped"
     fi
   fi
-  printf 'workspace: refreshed\n' >&2
+  printf 'ws: refreshed\n' >&2
 }
 
 # ── host overlay management ─────────────────────────────────────────────
@@ -595,7 +602,7 @@ cmd_host() {
     reset)      _host_reset "$@" ;;
     list)       _host_list ;;
     *)
-      err "usage: workspace host {status|init [HOST]|reset [HOST]|list}"
+      err "usage: ws host {status|init [HOST]|reset [HOST]|list}"
       exit 2 ;;
   esac
 }
@@ -616,7 +623,7 @@ _host_init() {
   local target="${1:-$(_host_short)}"
   local hf; hf=$(_host_file "$target")
   if [[ -e "$hf" ]]; then
-    err "$hf already exists; refusing to overwrite (use 'workspace host reset $target' first)"
+    err "$hf already exists; refusing to overwrite (use 'ws host reset $target' first)"
     exit 1
   fi
   local shared="$HOME/.config/workspace/spaces.json"
@@ -675,16 +682,74 @@ _label_for_slot() {
 
 cmd_add() {
   _require_config
+  # Flag parse: --no-prompt / -q skips interactive prompts even on a TTY.
+  # Positional args (name, color, icon) still supported for back-compat
+  # and for the hotkey wrapper that wants a one-shot non-interactive add.
+  local no_prompt=0
+  local positional=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --no-prompt|-q) no_prompt=1 ;;
+      *) positional+=("$1") ;;
+    esac
+    shift
+  done
+  set -- "${positional[@]}"
+
   local n new_slot name color icon
   n=$(_count)
   new_slot=$((n + 1))
   name="${1:-}"
-  color="${2:-#cdd6f4}"
+  color="${2:-}"
   icon="${3:-}"
+
+  # Interactive path: TTY + no --no-prompt. Skipped under skhdrc and
+  # other no-tty contexts (the hotkey wrapper opens a Ghostty window
+  # so the prompts get a real terminal).
+  local interactive=0
+  [[ $no_prompt -eq 0 && -t 0 && -t 1 ]] && interactive=1
+
+  if (( interactive )); then
+    # Name prompt with the seed-label suggestion. ENTER on empty input
+    # accepts the suggestion (matches the existing label_for_slot path).
+    local suggested
+    suggested=$(_label_for_slot "$new_slot")
+    [[ -z "$suggested" ]] && suggested="ws${new_slot}"
+    if [[ -z "$name" ]]; then
+      printf 'name [%s]: ' "$suggested" >&2
+      read -r name
+      [[ -z "$name" ]] && name="$suggested"
+    fi
+    # Icon prompt via fzf picker if available; ESC leaves the slot
+    # icon-less (kind=none). Skipped if fzf or sf-to-nerd map missing.
+    if [[ -z "$icon" ]] && have fzf && [[ -r "$_SF_TO_NERD_MAP" ]]; then
+      printf 'icon: opening fzf (ESC to skip) ...\n' >&2
+      icon=$(_pick_icon_fzf "icon for new slot $new_slot> " || true)
+    fi
+    # Color prompt with the slot's positional default from
+    # spaces.default.json. Accepts blank (uses default) or any #RRGGBB
+    # hex. The default file's positional colors are catppuccin pastels —
+    # keeps fresh slots visually consistent with the seeded set.
+    if [[ -z "$color" ]]; then
+      local default_color="#cdd6f4"
+      if [[ -r "$WS_DEFAULTS" ]] && have jq; then
+        local seeded
+        seeded=$(jq -r --arg k "$new_slot" '.spaces[$k].color // empty' "$WS_DEFAULTS" 2>/dev/null)
+        [[ -n "$seeded" ]] && default_color="$seeded"
+      fi
+      printf 'color [%s]: ' "$default_color" >&2
+      read -r color
+      [[ -z "$color" ]] && color="$default_color"
+    fi
+  fi
+
+  # Non-interactive fallbacks (or post-prompt defaulting if any field
+  # is still unset).
   if [[ -z "$name" ]]; then
     name=$(_label_for_slot "$new_slot")
     [[ -z "$name" ]] && name="ws${new_slot}"
   fi
+  [[ -z "$color" ]] && color="#cdd6f4"
   _validate_color "$color"
   _validate_name_unique "$name"
 
@@ -693,33 +758,42 @@ cmd_add() {
   # spaces.default.json so post-rename slots aren't visually distinct
   # from the seeded ones in degraded renders). If an icon arg was passed,
   # resolve it now and populate kind + codepoint/symbolName.
+  # `userOverridden` flips true when an icon was actually picked — the
+  # paint-all.sh "bare slot" detector keys off this + stableLogicalLabel
+  # to decide gray-vs-color rendering. stableLogicalLabel is set to the
+  # user-supplied name so the slot starts in "customized" state and
+  # gets its color shown.
   _resolve_icon_input "$icon"
   local fallback_text
   fallback_text=$(printf '%s' "${name:0:2}" | tr '[:lower:]' '[:upper:]')
   local kind="none"
+  local user_overridden=false
   if [[ -n "$_ICON_SF_NAME" ]]; then
     kind="sfSymbol"
+    user_overridden=true
   elif [[ -n "$_ICON_ESCAPED" ]]; then
     kind="nerdFont"
+    user_overridden=true
   fi
 
   _write '
     .spaces[$k] = {
       name: $n,
       color: $c,
+      stableLogicalLabel: $n,
       iconSpec: (
         {
           kind: $kind,
           fallbackSfSymbol: "circle.fill",
           fallbackText: $ft,
-          userOverridden: false
+          userOverridden: ($uo == "true")
         }
         + (if $cp != "" then {codepoint: $cp, fontFamily: "JetBrainsMono Nerd Font"} else {} end)
         + (if $sf != "" then {symbolName: $sf} else {} end)
       )
     }
   ' --arg k "$new_slot" --arg n "$name" --arg c "$color" \
-    --arg kind "$kind" --arg ft "$fallback_text" \
+    --arg kind "$kind" --arg ft "$fallback_text" --arg uo "$user_overridden" \
     --arg cp "$_ICON_ESCAPED" --arg sf "$_ICON_SF_NAME"
   _fire_post add "$new_slot"
   _fire_cascade
@@ -746,7 +820,7 @@ cmd_remove() {
     esac
     shift
   done
-  [[ ${#args[@]} -eq 1 ]] || { err "usage: workspace remove <SLOT_OR_NAME> [-y]"; exit 2; }
+  [[ ${#args[@]} -eq 1 ]] || { err "usage: ws remove <SLOT_OR_NAME> [-y]"; exit 2; }
   local slot; slot=$(_resolve_slot "${args[0]}") || exit $?
   local n; n=$(_count)
   if (( n <= 1 )); then
@@ -776,7 +850,7 @@ cmd_remove() {
 
 cmd_swap() {
   _require_config
-  [[ $# -eq 2 ]] || { err "usage: workspace swap <SLOT_OR_NAME> <SLOT_OR_NAME>"; exit 2; }
+  [[ $# -eq 2 ]] || { err "usage: ws swap <SLOT_OR_NAME> <SLOT_OR_NAME>"; exit 2; }
   local a b
   a=$(_resolve_slot "$1") || exit $?
   b=$(_resolve_slot "$2") || exit $?
@@ -878,7 +952,7 @@ _apply_perm() {
 
 cmd_move() {
   _require_config
-  [[ $# -ge 2 ]] || { err "usage: workspace move <SRC> <DEST>  |  move <SRC> before|after <REF>"; exit 2; }
+  [[ $# -ge 2 ]] || { err "usage: ws move <SRC> <DEST>  |  move <SRC> before|after <REF>"; exit 2; }
   local n; n=$(_count)
   local src; src=$(_resolve_slot "$1") || exit $?
   shift
@@ -893,7 +967,7 @@ cmd_move() {
 
   local dest=""
   if [[ "$1" == "before" || "$1" == "after" ]]; then
-    [[ $# -eq 2 ]] || { err "usage: workspace move <SRC> $1 <REF>"; exit 2; }
+    [[ $# -eq 2 ]] || { err "usage: ws move <SRC> $1 <REF>"; exit 2; }
     local direction="$1" ref
     ref=$(_resolve_slot "$2") || exit $?
     if [[ "$src" == "$ref" ]]; then return 0; fi
@@ -903,7 +977,7 @@ cmd_move() {
     done
     if [[ "$direction" == "before" ]]; then dest=$ref_pos; else dest=$((ref_pos + 1)); fi
   else
-    [[ $# -eq 1 ]] || { err "usage: workspace move <SRC> <DEST>  |  move <SRC> before|after <REF>"; exit 2; }
+    [[ $# -eq 1 ]] || { err "usage: ws move <SRC> <DEST>  |  move <SRC> before|after <REF>"; exit 2; }
     if ! [[ "$1" =~ ^[1-9][0-9]*$ ]] || (( $1 < 1 )) || (( $1 > n )); then
       err "destination must be 1..$n (got: $1)"; exit 2
     fi
@@ -953,7 +1027,7 @@ cmd_layout() {
   local sub="${1:-}"; shift || true
   case "$sub" in
     save)
-      [[ $# -eq 1 ]] || { err "usage: workspace layout save <NAME>"; exit 2; }
+      [[ $# -eq 1 ]] || { err "usage: ws layout save <NAME>"; exit 2; }
       [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || { err "layout name must be [A-Za-z0-9._-]+"; exit 2; }
       local dest="$layouts_dir/$1.json"
       local tmp; tmp=$(mktemp) || { err "mktemp failed"; exit 1; }
@@ -969,7 +1043,7 @@ cmd_layout() {
         esac
         shift
       done
-      [[ -n "$name" ]] || { err "usage: workspace layout load <NAME> [-y]"; exit 2; }
+      [[ -n "$name" ]] || { err "usage: ws layout load <NAME> [-y]"; exit 2; }
       local src="$layouts_dir/$name.json"
       [[ -r "$src" ]] || { err "layout not found: $src"; exit 1; }
       jq -e . "$src" >/dev/null 2>&1 || { err "layout is malformed JSON: $src"; exit 1; }
@@ -995,7 +1069,7 @@ cmd_layout() {
         esac
         shift
       done
-      [[ -n "$name" ]] || { err "usage: workspace layout delete <NAME> [-y]"; exit 2; }
+      [[ -n "$name" ]] || { err "usage: ws layout delete <NAME> [-y]"; exit 2; }
       local target="$layouts_dir/$name.json"
       [[ -e "$target" ]] || { err "layout not found: $target"; exit 1; }
       _confirm "delete layout '$name'?" "$yes" || { warn "aborted"; exit 1; }
@@ -1004,12 +1078,12 @@ cmd_layout() {
       ;;
     ""|-h|--help|help)
       cat <<'EOF_LAYOUT'
-workspace layout — save / load / list named snapshots of spaces.json
+ws layout — save / load / list named snapshots of spaces.json
 
-  workspace layout save <NAME>          snapshot current state
-  workspace layout load <NAME> [-y]     restore a saved snapshot
-  workspace layout list                 list saved layouts
-  workspace layout delete <NAME> [-y]   remove a saved layout
+  ws layout save <NAME>          snapshot current state
+  ws layout load <NAME> [-y]     restore a saved snapshot
+  ws layout list                 list saved layouts
+  ws layout delete <NAME> [-y]   remove a saved layout
 
 Layouts are stored in ~/.config/workspace/layouts/<NAME>.json (or
 $WS_LAYOUTS_DIR if set). They are per-machine and not committed.
@@ -1031,7 +1105,7 @@ cmd_theme() {
     esac
     shift
   done
-  [[ -n "$name" ]] || { err "usage: workspace theme <NAME> [--with-icons]"; exit 2; }
+  [[ -n "$name" ]] || { err "usage: ws theme <NAME> [--with-icons]"; exit 2; }
   local theme_file="$WS_THEMES_DIR/$name.json"
   [[ -r "$theme_file" ]] || { err "theme not found: $theme_file"; exit 1; }
   jq -e . "$theme_file" >/dev/null 2>&1 || { err "theme is malformed JSON: $theme_file"; exit 1; }
@@ -1103,7 +1177,7 @@ cmd_edit() {
   local editor="${EDITOR:-vi}"
   "$editor" "$WS_CONFIG"
   if ! jq -e . "$WS_CONFIG" >/dev/null 2>&1; then
-    err "spaces.json is now malformed; refusing to fire cascade (fix the file or run 'workspace reset')"
+    err "spaces.json is now malformed; refusing to fire cascade (fix the file or run 'ws reset')"
     exit 1
   fi
   _fire_post edit
@@ -1248,5 +1322,5 @@ case "${1:-}" in
   migrate)           shift; cmd_migrate  "$@" ;;
   host)              shift; cmd_host     "$@" ;;
   refresh)           shift; cmd_refresh  "$@" ;;
-  *) err "unknown subcommand: $1 (try 'workspace --help')"; exit 2 ;;
+  *) err "unknown subcommand: $1 (try 'ws --help')"; exit 2 ;;
 esac

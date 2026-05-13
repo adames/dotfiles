@@ -3,7 +3,10 @@
 # ~/.config/workspace/spaces.json (slot-count agnostic). Refreshed by
 # the yabai signal chain:
 #   yabai space_changed → on-space-changed.sh → --trigger workspace_changed
-# All pill rendering lives in plugins/space.sh.
+# A hidden `workspace.paint` sentinel item is the sole subscriber to
+# workspace_changed; it runs plugins/paint-all.sh once per event,
+# emitting one batched --set transaction for all pills (no per-pill
+# repaint stagger).
 #
 # In-session add/remove of pills (when `workspace add` / `workspace
 # remove` changes the slot count) is driven by the post-mutate hook at
@@ -47,15 +50,22 @@ sketchybar --bar \
   topmost=off
 
 ##### defaults ###############################################################
-# Icon-only pills (label.drawing=off). Font family is "JetBrainsMono NF"
-# with the space — that's the Core Text registered family name (per
-# `mdls -name kMDItemFonts ...`); the no-space variant does not resolve
-# and falls back to a non-Nerd-Font, hiding all PUA glyphs.
+# Default label.drawing=off so a fresh pill (before paint-all.sh runs)
+# starts in the inactive-icon-only state. paint-all.sh flips
+# label.drawing=on per-pill for the active slot. Font family is
+# "JetBrainsMono NF" with the space — that's the Core Text registered
+# family name (per `mdls -name kMDItemFonts ...`); the no-space variant
+# does not resolve and falls back to a non-Nerd-Font, hiding all PUA
+# glyphs. Label font matches icon font so digit/dot, glyph, and name
+# read as one visual unit when label.drawing flips on.
 # Wider per-pill padding gives the breathing room a bottom dock needs.
 sketchybar --default \
   drawing=on \
   updates=when_shown \
   label.drawing=off \
+  label.font="JetBrainsMono NF:Bold:12.0" \
+  label.padding_left=0 \
+  label.padding_right=0 \
   background.corner_radius=6 \
   background.height=22 \
   background.padding_left=8 \
@@ -67,10 +77,12 @@ sketchybar --default \
 ##### space items (per-display, yabai-driven) ################################
 # Yabai is the source of truth for "what spaces exist and which display
 # owns each one". We register the custom event here and add one pill per
-# yabai space (no global cap; per-display-pills.sh applies the 10-pill
-# notch-cap downstream).
-# Falls back to spaces.json count if yabai isn't reachable (fresh boot
-# before yabai is up, or running headless).
+# yabai space (no global cap; per-display-pills.sh applies the per-
+# display visible-slot cap downstream).
+#
+# Falls back to whatever spaces.json reports if yabai isn't reachable
+# (fresh boot before yabai is up, or running headless). No hardcoded
+# upper bound — slot count is system-driven.
 sketchybar --add event workspace_changed
 
 space_indices=""
@@ -81,22 +93,38 @@ if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; 
 fi
 if [[ -z "${space_indices// }" ]]; then
   WS_CONFIG="$HOME/.config/workspace/spaces.json"
+  count=10
   if [[ -r "$WS_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
-    space_indices=$(seq 1 "$(jq '.spaces | keys | length' "$WS_CONFIG" 2>/dev/null || echo 10)" | tr '\n' ' ')
-  else
-    space_indices="1 2 3 4 5 6 7 8 9 10"
+    count=$(jq '.spaces | length' "$WS_CONFIG" 2>/dev/null)
+    [[ -z "$count" || "$count" -lt 1 ]] && count=10
   fi
+  space_indices=$(seq 1 "$count" | tr '\n' ' ')
 fi
 
+# Pills carry no per-item script and no event subscription — paint is
+# centralized at the workspace.paint sentinel below. Each pill is just
+# its yabai-focus click handler + a placeholder rendering until the
+# sentinel paints.
 for sid in $space_indices; do
   sketchybar --add item "space.$sid" left \
              --set "space.$sid" \
-                script="$PLUGIN_DIR/space.sh" \
                 click_script="yabai -m space --focus $sid" \
                 padding_left=0 \
-                padding_right=0 \
-             --subscribe "space.$sid" workspace_changed
+                padding_right=0
 done
+
+##### workspace.paint sentinel (single subscriber → batched repaint) #########
+# Hidden, never drawn. Its only job is to receive the workspace_changed
+# event once per cascade and run plugins/paint-all.sh, which emits a
+# single batched sketchybar --set transaction for every pill. This
+# replaces the previous per-pill workspace_changed subscription, which
+# produced staggered repaints (visible flicker on space switches).
+sketchybar --add item workspace.paint left \
+           --set workspace.paint \
+              drawing=off \
+              updates=on \
+              script="$PLUGIN_DIR/paint-all.sh" \
+           --subscribe workspace.paint workspace_changed
 
 ##### right-side context items ###############################################
 # SSH presence chip. Visible only when there's at least one outbound ssh

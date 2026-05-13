@@ -242,73 +242,81 @@ Don't use macOS green-button (⛶) fullscreen on apps you want yabai to
 manage — it creates a native fullscreen space yabai cannot touch. Use
 `Caps + Return` for yabai-managed zoom instead.
 
-### Customizing workspaces — the `workspace` CLI
+### Customizing workspaces — the `ws` CLI
 
-`~/.local/bin/workspace` wraps every spaces.json mutation with an atomic
+`~/.local/bin/ws` wraps every spaces.json mutation with an atomic
 write and a re-fire of the cascade (tmux / starship / borders /
-sketchybar all repaint within ~50ms):
+sketchybar all repaint within ~50ms). The old `workspace` name remains
+as a compat symlink, so existing muscle-memory keeps working.
 
 ```
 # inspection
-workspace status                  # all slots with color swatches
-workspace get core                # one slot as JSON (accepts name OR index)
-workspace count                   # current slot count
-workspace doctor                  # validate schema
-workspace verify                  # run end-to-end test harness
+ws status                  # all slots with color swatches
+ws get core                # one slot as JSON (accepts name OR index)
+ws count                   # current slot count
+ws doctor                  # validate schema
+ws verify                  # run end-to-end test harness
 
 # point edits
-workspace name 3 lab              # rename slot 3
-workspace name core kernel        # … or address it by current name
-workspace color 3 "#ffaabb"       # recolor slot 3
-workspace icon 3 play.fill        # set icon via SF Symbol name (→ )
-workspace icon 3 ""              # … or paste a literal Nerd Font glyph
-workspace icon search lock        # discover SF names that have Nerd Font mappings
+ws name 3 lab              # rename slot 3
+ws name core kernel        # … or address it by current name
+ws color 3 "#ffaabb"       # recolor slot 3
+ws icon 3 play.fill        # set icon via SF Symbol name (→ )
+ws icon 3 ""              # … or paste a literal Nerd Font glyph
+ws icon search lock        # discover SF names that have Nerd Font mappings
 
 # reordering ergonomics (positional colors: only name + icon move)
-workspace swap core scope         # exchange two slots' name & icon
-workspace move codex 1            # codex → slot 1; others shift
-workspace move codex before forge # natural-language adjacency
-workspace move codex after lex
-workspace rotate 1                # shift all (name, icon) right by 1
-workspace rotate -1               # shift left
-workspace reverse                 # mirror the slot order
-workspace reorder 2 1 3 4 5 6 7 8 9 10   # full permutation
+ws swap core scope         # exchange two slots' name & icon
+ws move codex 1            # codex → slot 1; others shift
+ws move codex before forge # natural-language adjacency
+ws move codex after lex
+ws rotate 1                # shift all (name, icon) right by 1
+ws rotate -1               # shift left
+ws reverse                 # mirror the slot order
+ws reorder 2 1 3 4 5 6 7 8 9 10   # full permutation
 
 # count changes (sketchybar pill count tracks automatically via hook)
-workspace add lab "#ffaabb" ""    # append a new slot (count → 11)
-workspace remove 11               # delete slot 11
-workspace remove lab              # … or by name
+ws add                     # interactive: prompts for name, icon, color
+ws add lab "#ffaabb" ""    # … or pass them positionally (--no-prompt for scripts)
+ws remove 11               # delete slot 11 (prompts unless -y)
+ws remove lab -y           # … or by name, no confirm
 
 # themes
-workspace themes
-workspace theme tokyonight
-workspace theme catppuccin-mocha --with-icons
+ws themes
+ws theme tokyonight
+ws theme catppuccin-mocha --with-icons
 
 # saved layouts (per-machine snapshots of spaces.json)
-workspace layout save morning
-workspace layout list
-workspace layout load morning -y
-workspace layout delete morning -y
+ws layout save morning
+ws layout list
+ws layout load morning -y
+ws layout delete morning -y
 
 # escape hatches
-workspace edit                    # $EDITOR on spaces.json
-workspace reset -y                # restore from spaces.default.json
+ws edit                    # $EDITOR on spaces.json
+ws reset -y                # restore from spaces.default.json
 
 # system
-workspace refresh                 # force-rerun cascade (current.env + pills)
-workspace refresh --full          # also kickstart the topology daemon
-workspace host                    # show effective config + overlay status
-workspace host init               # fork off a per-host overlay (spaces.<hostname>.json)
-workspace host reset              # remove overlay, fall back to shared
-workspace migrate --apply         # import a legacy v1 spaces.json (idempotent on v2)
+ws refresh                 # force-rerun cascade (current.env + pills)
+ws refresh --full          # also kickstart the topology daemon
+ws host                    # show effective config + overlay status
+ws host init               # fork off a per-host overlay (spaces.<hostname>.json)
+ws host reset              # remove overlay, fall back to shared
+ws migrate --apply         # import a legacy v1 spaces.json (idempotent on v2)
 ```
 
 **Positional colors.** Slot N's color is intrinsic to position N. When
 you `swap`, `move`, `rotate`, `reverse`, or `reorder`, only the
 `(name, icon)` tuples permute — the color palette stays anchored to
-slot indices. Use `workspace color N #HEX` to change a slot's color
-directly. (Orange always means slot 2, regardless of what's currently
-named there.)
+slot indices. Use `ws color N #HEX` to change a slot's color directly.
+(Orange always means slot 2, regardless of what's currently named
+there.)
+
+**Hotkey add/remove.** `Hyper+Shift+=` opens a Ghostty window running
+`ws add` interactively (prompts for name, icon, color); `Hyper+Shift+-`
+removes the currently focused slot (`ws remove $MACOS_SPACE_INDEX -y`).
+Subcommands and slot identifiers tab-complete in zsh and bash when the
+completion file is sourced (handled by `zshrc` / `bashrc`).
 
 **Slot identifiers.** Anywhere a slot is expected — `name`, `color`,
 `icon`, `get`, `remove`, `swap`, `move` — you can pass either a numeric
@@ -491,9 +499,9 @@ and re-links them. Tmux: `prefix + r`.
     │   └── install.sh            #  · seeds + migrates + restarts daemons
     ├── borders/bordersrc         # JankyBorders launch script + defaults
     ├── sketchybar/               # persistent workspace pill strip
-    │   ├── sketchybarrc          #  · bar geometry + 10 space items + workspace_changed event
+    │   ├── sketchybarrc          #  · bar geometry + space items + workspace.paint sentinel
     │   ├── colors.sh             #  · catppuccin AARRGGBB constants
-    │   ├── plugins/space.sh      #  · per-pill repaint (reads current.env + spaces.json)
+    │   ├── plugins/paint-all.sh  #  · batched all-pill repaint (single sketchybar transaction)
     │   └── bootstrap.sh          #  · idempotent installer (brew + service start)
     ├── starship.toml             # prompt + workspace chip
     ├── ghostty-config
