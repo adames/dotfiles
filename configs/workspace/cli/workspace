@@ -17,6 +17,15 @@
 
 set -u
 
+# Resolve WS_CONFIG via the per-host overlay helper (falls back to the
+# shared spaces.json when no host-specific file exists). Sourced before
+# any other default-resolution so subsequent `${WS_CONFIG:-…}` defaults
+# don't clobber the host overlay.
+if [[ -r "$HOME/.config/workspace/lib/resolve-config.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/resolve-config.sh"
+fi
+
 WS_CONFIG="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
 WS_THEMES_DIR="${WS_THEMES_DIR:-$HOME/.config/workspace/themes}"
 WS_HANDLER="${WS_HANDLER:-$HOME/.config/workspace/on-space-changed.sh}"
@@ -105,16 +114,17 @@ _fire_cascade() {
 
 # Canonical ordering filter run after every mutation. Sorts .spaces
 # keys numerically (so 10 comes after 9, not after 1) and writes each
-# slot's (name, color, icon) fields in that order — matching the
-# hand-authored shape in spaces.default.json. Any extra user-added
-# fields on a slot are appended after, untouched. Keeps git diffs of
-# saved layouts clean.
+# slot's (name, color) fields in that order. iconSpec (v2) and any
+# user-added extras land after, untouched. The legacy `.icon` raw-glyph
+# field is actively dropped: with the cascade fully v2-aware
+# (on-space-changed.sh and space.sh both prefer iconSpec.codepoint), no
+# reader depends on it, so retiring the field keeps diffs clean.
 _NORMALIZE='
   .spaces as $s
   | .spaces = (
       reduce ($s | keys | map(tonumber) | sort | map(tostring))[] as $k ({};
         .[$k] = (
-          ($s[$k] | {name, color, icon} | with_entries(select(.value != null)))
+          ($s[$k] | {name, color} | with_entries(select(.value != null)))
           + ($s[$k] | del(.name, .color, .icon))
         )
       )
@@ -296,9 +306,142 @@ cmd_icon() {
   _require_config
   [[ $# -eq 2 ]] || { err "usage: workspace icon <SLOT_OR_NAME> <GLYPH>"; exit 2; }
   local slot; slot=$(_resolve_slot "$1") || exit $?
-  _write '.spaces[$k] = ((.spaces[$k] // {}) + {icon: $v})' --arg k "$slot" --arg v "$2"
+  local glyph="$2"
+
+  # Derive the ASCII-escaped codepoint for v2 iconSpec persistence.
+  # BMP scalars (U+E000..U+F8FF — where most Nerd Font glyphs live) get
+  # "\uXXXX"; supplementary plane gets "\u{XXXXX}". Python program is
+  # inline via `-c` rather than heredoc so the pipe-redirected stdin
+  # carries the glyph bytes (heredocs clobber pipe redirection).
+  local escaped=""
+  if [[ -n "$glyph" ]]; then
+    local form="" hex=""
+    read -r form hex < <(
+      printf '%s' "$glyph" | python3 -c '
+import sys
+s = sys.stdin.read()
+if s:
+    cp = ord(s[0])
+    if cp <= 0xFFFF:
+        print("B", f"{cp:04x}")
+    else:
+        print("S", f"{cp:X}")
+' 2>/dev/null
+    )
+    case "$form" in
+      B) escaped="\\u${hex}" ;;
+      S) escaped="\\u{${hex}}" ;;
+    esac
+  fi
+
+  # Update iconSpec.codepoint and flip userOverridden=true. The flip is
+  # the postmortem rule: an explicit user-chosen icon must survive
+  # subsequent renames; auto-iconing only regenerates while
+  # userOverridden=false. If iconSpec doesn't exist (unmigrated slot),
+  # the merge is a no-op — run `ws-topology migrate --apply` first.
+  _write '
+    .spaces[$k] = (
+      (.spaces[$k] // {}) as $s
+      | $s
+      + (
+          if $s.iconSpec then
+            { iconSpec: ($s.iconSpec
+              + (if $cp != "" then {codepoint: $cp, kind: "nerdFont"} else {} end)
+              + {userOverridden: true}) }
+          else {} end
+        )
+    )
+  ' --arg k "$slot" --arg cp "$escaped"
   _fire_post icon "$slot"
   _fire_cascade
+}
+
+cmd_migrate() {
+  # Thin delegate to ws-topology. Accepts the same flags (--apply,
+  # --rollback). Dry-run by default; --apply backs up to spaces.v1.json
+  # then writes v2.
+  if ! command -v ws-topology >/dev/null 2>&1; then
+    err "ws-topology not on PATH (build + symlink from ~/.config/workspace/topology)"
+    exit 1
+  fi
+  ws-topology migrate "$@"
+}
+
+# ── host overlay management ─────────────────────────────────────────────
+# Per-host workspace identity: ~/.config/workspace/spaces.<hostname>.json
+# overrides ~/.config/workspace/spaces.json on this machine. Both files
+# are valid v2 configs; the overlay simply takes precedence when present.
+# Useful for divergent slot identities between machines (the M3 Max and
+# the M1 13" may want different slot 8 names, for instance).
+
+_host_short() { hostname -s 2>/dev/null || echo unknown; }
+_host_file()  { printf '%s/.config/workspace/spaces.%s.json' "$HOME" "$1"; }
+
+cmd_host() {
+  local sub="${1:-status}"; shift 2>/dev/null || true
+  case "$sub" in
+    status|"")  _host_status ;;
+    init)       _host_init "$@" ;;
+    reset)      _host_reset "$@" ;;
+    list)       _host_list ;;
+    *)
+      err "usage: workspace host {status|init [HOST]|reset [HOST]|list}"
+      exit 2 ;;
+  esac
+}
+
+_host_status() {
+  local h; h=$(_host_short)
+  local hf; hf=$(_host_file "$h")
+  printf 'hostname     %s\n' "$h"
+  printf 'effective    %s\n' "$WS_CONFIG"
+  if [[ -r "$hf" ]]; then
+    printf 'overlay      yes (%s)\n' "$hf"
+  else
+    printf 'overlay      no (would be %s)\n' "$hf"
+  fi
+}
+
+_host_init() {
+  local target="${1:-$(_host_short)}"
+  local hf; hf=$(_host_file "$target")
+  if [[ -e "$hf" ]]; then
+    err "$hf already exists; refusing to overwrite (use 'workspace host reset $target' first)"
+    exit 1
+  fi
+  local shared="$HOME/.config/workspace/spaces.json"
+  if [[ ! -r "$shared" ]]; then
+    err "shared $shared not found; nothing to fork from"
+    exit 1
+  fi
+  cp "$shared" "$hf"
+  printf 'forked %s → %s\n' "$shared" "$hf" >&2
+  printf '%s\n' "$hf"
+  _fire_cascade
+}
+
+_host_reset() {
+  local target="${1:-$(_host_short)}"
+  local hf; hf=$(_host_file "$target")
+  if [[ ! -e "$hf" ]]; then
+    printf 'no overlay at %s; nothing to remove\n' "$hf" >&2
+    return 0
+  fi
+  rm -f "$hf"
+  printf 'removed %s (now falling back to shared spaces.json)\n' "$hf" >&2
+  _fire_cascade
+}
+
+_host_list() {
+  local dir="$HOME/.config/workspace"
+  local active="$WS_CONFIG"
+  find "$dir" -maxdepth 1 -name 'spaces*.json' -type f 2>/dev/null \
+    | sort \
+    | while read -r f; do
+        local marker=" "
+        [[ "$f" == "$active" ]] && marker="*"
+        printf '%s %s\n' "$marker" "$f"
+      done
 }
 
 # Optional sourcing of WORKSPACE_LABELS for default add names.
@@ -776,5 +919,7 @@ case "${1:-}" in
   doctor)            shift; cmd_doctor   "$@" ;;
   verify)            shift; cmd_verify   "$@" ;;
   layout)            shift; cmd_layout   "$@" ;;
+  migrate)           shift; cmd_migrate  "$@" ;;
+  host)              shift; cmd_host     "$@" ;;
   *) err "unknown subcommand: $1 (try 'workspace --help')"; exit 2 ;;
 esac

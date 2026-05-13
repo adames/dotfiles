@@ -9,7 +9,13 @@ set -u
 
 SID="${NAME##*.}"
 
-CONFIG="$HOME/.config/workspace/spaces.json"
+# Per-host overlay: resolve to spaces.<hostname>.json when present.
+if [[ -r "$HOME/.config/workspace/lib/resolve-config.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/resolve-config.sh"
+fi
+
+CONFIG="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
 CACHE="$HOME/.cache/workspace/current.env"
 
 # shellcheck source=/dev/null
@@ -24,17 +30,27 @@ if [[ -r "$CACHE" ]]; then
   ACTIVE_SID="${MACOS_SPACE_INDEX:-0}"
 fi
 
-# Per-slot metadata from spaces.json. IFS=$'\t' so names with spaces survive.
+# Per-slot metadata from spaces.json (v2). One jq call per field — see
+# on-space-changed.sh for why @tsv would corrupt the escaped codepoint.
 NAME_TXT="ws$SID"
 COLOR="#9399b2"
 ICON=""
 if [[ -r "$CONFIG" ]] && command -v jq >/dev/null 2>&1; then
-  IFS=$'\t' read -r NAME_TXT COLOR ICON < <(
-    jq -r --arg k "$SID" '
-      .spaces[$k] // {}
-      | [(.name // ("ws"+$k)), (.color // "#9399b2"), (.icon // "")] | @tsv
-    ' "$CONFIG" 2>/dev/null
-  ) || true
+  _jq() { jq -r --arg k "$SID" "$1" "$CONFIG" 2>/dev/null; }
+  NAME_TXT=$(_jq '.spaces[$k].name // ("ws" + $k)')
+  COLOR=$(_jq '.spaces[$k].color // "#9399b2"')
+  ICON_ESCAPED=$(_jq '.spaces[$k].iconSpec.codepoint // ""')
+
+  if [[ -n "$ICON_ESCAPED" ]]; then
+    if [[ "$ICON_ESCAPED" == "\\u{"* ]]; then
+      hex="${ICON_ESCAPED#\\u\{}"; hex="${hex%\}}"
+      padded=$(printf '%08x' "0x$hex")
+      ICON=$(printf "\\U${padded}")
+    else
+      hex="${ICON_ESCAPED#\\u}"
+      ICON=$(printf "\\u${hex}")
+    fi
+  fi
 fi
 
 PILL_COLOR="0xff${COLOR#\#}"

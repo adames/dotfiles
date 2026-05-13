@@ -103,6 +103,7 @@ phase_configs() {
   install_file "$CONFIGS_DIR/sketchybar/plugins/recenter.sh"        "$HOME/.config/sketchybar/plugins/recenter.sh"        755
   install_file "$CONFIGS_DIR/sketchybar/plugins/per-display-pills.sh" "$HOME/.config/sketchybar/plugins/per-display-pills.sh" 755
   install_file "$CONFIGS_DIR/sketchybar/plugins/notch-detect.sh"    "$HOME/.config/sketchybar/plugins/notch-detect.sh"    755
+  install_file "$CONFIGS_DIR/sketchybar/plugins/ssh-chip.sh"        "$HOME/.config/sketchybar/plugins/ssh-chip.sh"        755
   install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"               "$HOME/.config/sketchybar/bootstrap.sh"               755
 
   # Workspace-awareness layer: yabai signal handler + rename flow.
@@ -135,8 +136,31 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/reconcile-displays.sh" "$HOME/.config/workspace/reconcile-displays.sh" 755
   install_file "$CONFIGS_DIR/workspace/laptop-uuid-init.sh" "$HOME/.config/workspace/laptop-uuid-init.sh" 755
   install_file "$CONFIGS_DIR/workspace/rename.sh"         "$HOME/.config/workspace/rename.sh" 755
+  install_file "$CONFIGS_DIR/workspace/borders-refresh.sh" "$HOME/.config/workspace/borders-refresh.sh" 755
+  install_file "$CONFIGS_DIR/workspace/lib/resolve-config.sh" "$HOME/.config/workspace/lib/resolve-config.sh"
+  install_file "$CONFIGS_DIR/workspace/sketchybar-tuning.env" "$HOME/.config/workspace/sketchybar-tuning.env"
+  install_file "$CONFIGS_DIR/workspace/hooks/post-mutate.sh" "$HOME/.config/workspace/hooks/post-mutate.sh" 755
   install_file "$CONFIGS_DIR/borders/bordersrc"           "$HOME/.config/borders/bordersrc" 755
   bash "$CONFIGS_DIR/workspace/install.sh"
+
+  # Native display-topology helper (ws-topology / ws-topologyd). Source
+  # tree is vendored under configs/workspace/topology/. The package's own
+  # install.sh builds + symlinks the binaries into ~/.local/bin and loads
+  # the LaunchAgent. swift toolchain is required (ships with Command Line
+  # Tools); if absent, the shell adapters fall back to legacy heuristics.
+  if [[ -d "$CONFIGS_DIR/workspace/topology" ]]; then
+    step "syncing topology Swift package source"
+    rsync -a --delete-after \
+      --exclude='.build' --exclude='Package.resolved' --exclude='.swiftpm' --exclude='.DS_Store' \
+      "$CONFIGS_DIR/workspace/topology/" "$HOME/.config/workspace/topology/"
+    if command -v swift >/dev/null 2>&1; then
+      bash "$HOME/.config/workspace/topology/install.sh" || \
+        warn "topology install.sh failed (binaries may be stale)"
+    else
+      warn "swift toolchain not found — topology daemon will not be built;"
+      warn "  install via 'xcode-select --install', then re-run this bootstrap"
+    fi
+  fi
 
   # Editor — lazy.nvim self-installs on first nvim launch
   install_file "$CONFIGS_DIR/nvim-init.lua"              "$HOME/.config/nvim/init.lua"

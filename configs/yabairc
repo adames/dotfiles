@@ -58,6 +58,16 @@ yabai -m signal --add \
   label=ws_space_changed \
   action="\"$HOME/.config/workspace/on-space-changed.sh\""
 
+# window_focused → re-assert borders' active_color from the cached
+# MACOS_SPACE_COLOR. Defends against state drift between space_changed
+# events (new windows in the focused space, borders daemon restarts).
+# Cheap: ~3ms bash invocation, no jq, no yabai query.
+yabai -m signal --remove ws_borders_window_focused 2>/dev/null || true
+yabai -m signal --add \
+  event=window_focused \
+  label=ws_borders_window_focused \
+  action="\"$HOME/.config/workspace/borders-refresh.sh\""
+
 # Display reconciliation: keep slot 1 ("core") locked to the laptop
 # panel; exile slots 2..10 to the external display when one is attached.
 # Resolves laptop identity by stable UUID (captured by laptop-uuid-init.sh)
@@ -83,7 +93,16 @@ yabai -m signal --add \
 # Sync sketchybar pill set with yabai's per-display assignment whenever
 # a display attaches/detaches or its index changes. per-display-pills.sh
 # is idempotent + silent-on-absence, so safe to fire freely.
-for ev in display_added display_removed display_changed space_changed; do
+#
+# Deliberately NOT subscribed to space_changed: per-pill display
+# assignment and padding don't change on space focus (only the active-
+# pill highlight does, which space.sh handles via the workspace_changed
+# event from on-space-changed.sh). Re-running per-display-pills.sh on
+# every space switch caused a visible "paint to right then snap" pulse
+# because recenter.sh's two-pass write briefly placed every pill at the
+# default gap before overriding the anchor + cross-notch pads.
+yabai -m signal --remove ws_pills_space_changed 2>/dev/null || true
+for ev in display_added display_removed display_changed; do
   yabai -m signal --remove "ws_pills_${ev}" 2>/dev/null || true
   yabai -m signal --add \
     event=$ev \
@@ -106,20 +125,14 @@ fi
 [ -x "$HOME/.config/workspace/on-space-changed.sh" ] && \
   "$HOME/.config/workspace/on-space-changed.sh" >/dev/null 2>&1 || true
 
-# Workspace-awareness: every space switch / display change refreshes
-# ~/.cache/workspace/current.env, pushes vars into tmux global env, and
-# triggers the Hammerspoon OSD. Handler is flock-guarded and silent on
-# subsystem absence — safe to fire even if hs or tmux isn't running.
-# Re-labeled so reloads of this file don't pile up duplicate handlers.
+# Removed: workspace_on_space_change and workspace_on_display_change
+# previously duplicated ws_space_changed (above). The cascade was firing
+# on-space-changed.sh twice per event — atomic mv races, double tmux
+# writes, double JankyBorders updates. The single ws_space_changed
+# registration is sufficient. display_changed is handled by
+# ws_reconcile_display_changed → reconcile-displays.sh, which calls
+# on-space-changed.sh itself when display work completes.
 yabai -m signal --remove workspace_on_space_change   2>/dev/null || true
 yabai -m signal --remove workspace_on_display_change 2>/dev/null || true
-yabai -m signal --add \
-  event=space_changed \
-  label=workspace_on_space_change \
-  action="\"$HOME/.config/workspace/on-space-changed.sh\""
-yabai -m signal --add \
-  event=display_changed \
-  label=workspace_on_display_change \
-  action="\"$HOME/.config/workspace/on-space-changed.sh\""
 
 echo "yabai configuration loaded"
