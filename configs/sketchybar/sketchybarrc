@@ -122,22 +122,6 @@ sketchybar --add item workspace.paint left \
               script="$PLUGIN_DIR/paint-all.sh" \
            --subscribe workspace.paint workspace_changed
 
-##### right-side context items ###############################################
-# SSH presence chip. Visible only when there's at least one outbound ssh
-# session (lsof detects ESTABLISHED TCP owned by the `ssh` command).
-# Polled every 30s; click handles in plugins/ssh-chip.sh.
-sketchybar --add item ctx.ssh right \
-           --set ctx.ssh \
-              script="$PLUGIN_DIR/ssh-chip.sh" \
-              update_freq=30 \
-              icon="" \
-              icon.padding_left=8 \
-              icon.padding_right=4 \
-              label.drawing=on \
-              label.padding_right=8 \
-              drawing=off \
-           --subscribe ctx.ssh mouse.clicked
-
 ##### init paint + per-display assignment ####################################
 # Order matters: per-display-pills.sh creates the workspace.name.<D>
 # chips and assigns display=<N> to every item, THEN trigger the paint
@@ -145,4 +129,3 @@ sketchybar --add item ctx.ssh right \
 sketchybar --update
 [[ -x "$PLUGIN_DIR/per-display-pills.sh" ]] && "$PLUGIN_DIR/per-display-pills.sh"
 sketchybar --trigger workspace_changed
-[[ -x "$PLUGIN_DIR/ssh-chip.sh" ]] && NAME=ctx.ssh "$PLUGIN_DIR/ssh-chip.sh"
