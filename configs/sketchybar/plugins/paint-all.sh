@@ -16,9 +16,13 @@
 #
 # Pills carry no labels. Each display's leftmost item is a
 # workspace.name.<D> chip showing the workspace that's currently
-# *visible* on display D (per yabai), painted in that space's color.
-# The chip items themselves are created by per-display-pills.sh; this
-# script only updates their text + color.
+# *visible* on display D (per yabai). Chip styling:
+#   focused display  → workspace-color background fill, dark fg
+#   unfocused display → muted gray text, no background
+# Only one chip is "lit" at a time — whichever display has keyboard
+# focus (MACOS_SPACE_DISPLAY from current.env). The chip items
+# themselves are created by per-display-pills.sh with a fixed
+# `width=140`, so chip text length never shifts the pill chain.
 #
 # `<ident>` is the slot's digit for slot index ≤ 10 (hotkey-reachable
 # via Hyper+1..0), or U+2022 BULLET for higher indices.
@@ -59,10 +63,12 @@ command -v sketchybar >/dev/null 2>&1 || exit 0
 [[ -r "$CONFIG" ]] || exit 0
 
 ACTIVE_SID=0
+ACTIVE_DISPLAY=0
 if [[ -r "$CACHE" ]]; then
   # shellcheck source=/dev/null
   source "$CACHE" 2>/dev/null || true
   ACTIVE_SID="${MACOS_SPACE_INDEX:-0}"
+  ACTIVE_DISPLAY="${MACOS_SPACE_DISPLAY:-0}"
 fi
 
 DOT_GLYPH=$'\xe2\x80\xa2'   # U+2022 BULLET (UTF-8 bytes). Used for slot > 10.
@@ -159,20 +165,41 @@ done < <(jq -r --arg sep "$SEP" '
 
 # Per-display workspace name chip update. For each yabai display, find
 # the currently visible space and set workspace.name.<display>'s label
-# to that space's name + color from spaces.json. The chip items are
-# created by per-display-pills.sh; this loop just rewrites their text.
-# Silently no-ops on machines without yabai (the chips simply stay
-# blank — non-fatal).
+# to that space's name. The chip items are created by per-display-
+# pills.sh (with a fixed `width=140` so this update can never shift
+# the pill chain geometry); this loop only rewrites text + colors.
+#
+# Highlight rule:
+#   d_idx == $ACTIVE_DISPLAY  → focused display, full-color chip
+#                              (workspace-color background fill, dark fg)
+#   otherwise                  → unfocused display, muted gray text,
+#                              no background. Single chip is "lit" at
+#                              any time, regardless of how many monitors
+#                              are attached — fast "where is keyboard
+#                              focus" cue across the whole multi-monitor
+#                              setup.
+# Silently no-ops on machines without yabai (chips stay blank).
 if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
   while IFS="$SEP" read -r d_idx s_idx s_name s_color; do
     [[ -z "$d_idx" || -z "$s_idx" ]] && continue
     [[ -z "$s_name" ]] && s_name="ws$s_idx"
     [[ -z "$s_color" ]] && s_color="#cdd6f4"
-    args+=(
-      --set "workspace.name.$d_idx"
-      label="$s_name"
-      label.color="0xff${s_color#\#}"
-    )
+    if [[ "$d_idx" == "$ACTIVE_DISPLAY" ]]; then
+      args+=(
+        --set "workspace.name.$d_idx"
+        label="$s_name"
+        label.color="$ACTIVE_FG"
+        background.drawing=on
+        background.color="0xff${s_color#\#}"
+      )
+    else
+      args+=(
+        --set "workspace.name.$d_idx"
+        label="$s_name"
+        label.color="$INACTIVE_LABEL"
+        background.drawing=off
+      )
+    fi
   done < <(
     # Visible-per-display from yabai → join with spaces.json metadata.
     # One jq pipeline: ingests the two JSON sources via $cfg, emits
