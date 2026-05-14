@@ -70,7 +70,7 @@ done
 #
 #    `width=140` pins the chip's geometry: the pill chain to the right
 #    of the chip doesn't shift when the focused-workspace name changes
-#    length (home → uplink → ridiculouslylongname). Set at --add time,
+#    length (home → ridiculouslylongname). Set at --add time,
 #    never updated by paint-all.sh, so focus events stay geometry-stable.
 #
 #    Centering math: sketchybar's `label.align=center` only centers text

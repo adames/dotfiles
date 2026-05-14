@@ -92,21 +92,16 @@ When in doubt about where a new binding belongs, ask: does it *move* state
 
 ## Workspace control modes (lives in skhd, not Karabiner)
 
-Karabiner doesn't grab any of these keys — they're plain skhd modes:
+Karabiner doesn't grab any of these keys — they're plain skhd modes,
+entered via Caps-derived chords on `space` / `return`:
 
-- `Caps + W` (Hyper+W)          → `focus` mode (digit focuses slot, n/p cycle)
-- `Ctrl + Space` (no Caps)      → `send`  mode (digit sends focused window + follow)
-- `Caps + Shift + W` (Mod+W)    → `manage` mode (`a` add, `r` rename, `i` info,
-                                   `l` list, `Shift+D` destroy)
-- `Caps + Esc`                  → panic exit from any mode
+- `Caps + space`           (Hyper+Space)        → `focus`  mode (digit focuses slot, n/p/tab cycle)
+- `Caps + return`          (Hyper+Return)       → `send`   mode (digit sends focused window + follow, n/p)
+- `Caps + Shift + return`  (Mod+Return)         → `manage` mode (`a` add, `r` rename, `i` info,
+                                                   `l` list, `Shift+D` destroy)
+- `Caps + Esc`             (Hyper+Esc)          → panic exit from any mode
 
-`Ctrl + Space` is a plain Ctrl chord, not a Caps-derived chord — Karabiner
-does not see it. macOS's default Input Source shortcut on `Ctrl+Space` must
-be disabled in System Settings → Keyboard → Keyboard Shortcuts → Input
-Sources or it fires alongside the send-mode entry.
-
-## Hyper+Space → tmux prefix (Ghostty only)
-
-Karabiner does not bind `Hyper+Space`. Ghostty's own keybind config sends
-`\x01` (Ctrl-A, the tmux prefix) when Ghostty is focused. Outside Ghostty
-the chord remains unbound.
+The entry chords use `return` and `space` because they're easier to hit
+than the previous letter-based chords and group semantically:
+`return` for slot-targeted ops (send, manage), `space` for the
+navigation mode (focus).
