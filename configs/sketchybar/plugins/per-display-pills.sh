@@ -48,8 +48,13 @@ current_displays=$(echo "$displays_json" | jq -r '.[].index' | sort -n)
 
 # Existing items, classified by name pattern.
 all_items=$(sketchybar --query bar 2>/dev/null | jq -r '.items[]' || true)
-existing_pills=$(echo "$all_items" | sed -n 's/^space\.\([0-9]\+\)$/\1/p' | sort -n)
-existing_chips=$(echo "$all_items" | sed -n 's/^workspace\.name\.\([0-9]\+\)$/\1/p' | sort -n)
+# NOTE: `-E` (ERE) is required so `+` is a quantifier. BSD sed on macOS
+# treats `\+` as a literal plus sign — the GNU BRE convention silently
+# matches zero items, leaving existing_pills/existing_chips empty.
+# That made the remove-stale loops below into no-ops, so orphan
+# pills from a now-smaller yabai never got cleaned up.
+existing_pills=$(echo "$all_items" | sed -nE 's/^space\.([0-9]+)$/\1/p' | sort -n)
+existing_chips=$(echo "$all_items" | sed -nE 's/^workspace\.name\.([0-9]+)$/\1/p' | sort -n)
 legacy_nav=$(echo "$all_items" | grep -E '^nav\.(prev|next)\.[0-9]+$' || true)
 
 # 1. One-time cleanup: legacy nav.prev.* / nav.next.* items.
