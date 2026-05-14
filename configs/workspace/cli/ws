@@ -203,6 +203,20 @@ _validate_color() {
   [[ "$1" =~ ^#[0-9a-fA-F]{6}$ ]] || { err "color must be #RRGGBB (got: $1)"; exit 2; }
 }
 
+# Reject a name that starts with a digit. The ws-prompt overlay uses
+# "first key is a digit → commit slot N" as its single-digit fast
+# path; an all-numeric query (reachable via backspace-erasure) is
+# resolved as a literal slot index. That contract only holds if names
+# can never begin with a digit, so we enforce it at write time.
+_validate_name_format() {
+  local name="$1"
+  [[ -n "$name" ]] || { err "name cannot be empty"; exit 2; }
+  [[ ! "$name" =~ ^[0-9] ]] || {
+    err "name cannot start with a digit (reserved for slot indices)"
+    exit 2
+  }
+}
+
 # Reject a name that is already in use on another slot. `add` calls this
 # with no exclude. `name` passes the slot being renamed so the rename is
 # allowed to keep its own value. Why: _resolve_slot fails closed on
@@ -445,6 +459,7 @@ cmd_name() {
   _require_config
   [[ $# -eq 2 ]] || { err "usage: ws name <SLOT_OR_NAME> <NEW_NAME>"; exit 2; }
   local slot; slot=$(_resolve_slot "$1") || exit $?
+  _validate_name_format "$2"
   _validate_name_unique "$2" "$slot"
   _ensure_slot "$slot"
   _write '.spaces[$k] = ((.spaces[$k] // {}) + {name: $v})' --arg k "$slot" --arg v "$2"
@@ -838,6 +853,7 @@ cmd_add() {
   fi
   [[ -z "$color" ]] && color="#cdd6f4"
   _validate_color "$color"
+  _validate_name_format "$name"
   _validate_name_unique "$name"
 
   # Build a v2 iconSpec scaffold. The fallbackText is the first two chars

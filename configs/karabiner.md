@@ -90,18 +90,20 @@ The two layers carry a consistent split — useful when adding new bindings:
 When in doubt about where a new binding belongs, ask: does it *move* state
 (Mod) or *show* state (Hyper)?
 
-## Workspace control modes (lives in skhd, not Karabiner)
+## Workspace control prompts (lives in ws-prompt, dispatched by skhd)
 
-Karabiner doesn't grab any of these keys — they're plain skhd modes,
-entered via Caps-derived chords on `space` / `return`:
+Karabiner doesn't grab any of these keys. skhd binds the three chords
+directly to `ws-prompt <mode>`, a SwiftUI overlay that captures
+keystrokes itself and exits on commit / cancel / blur. There are no
+sticky skhd modes anywhere in the system anymore.
 
-- `Caps + space`           (Hyper+Space)        → `focus`  mode (digit focuses slot, n/p/tab cycle)
-- `Caps + return`          (Hyper+Return)       → `send`   mode (digit sends focused window + follow, n/p)
-- `Caps + Shift + return`  (Mod+Return)         → `manage` mode (`a` add, `r` rename, `i` info,
-                                                   `l` list, `Shift+D` destroy)
-- `Caps + Esc`             (Hyper+Esc)          → panic exit from any mode
+- `Caps + space`           (Hyper+Space)        → focus prompt  (digit commits · letters fuzzy-match name + ↵)
+- `Caps + return`          (Hyper+Return)       → send prompt   (digit commits + follow · letters fuzzy-match name + ↵)
+- `Caps + Shift + return`  (Mod+Return)         → manage prompt (`a` add, `r` rename, `i` info, `l` list, `Shift+D` destroy)
+- `Esc` / click-elsewhere  (inside overlay)     → cancel
+- `Caps + Esc`             (Hyper+Esc)          → no-op (preserved for muscle memory; nothing to escape)
 
 The entry chords use `return` and `space` because they're easier to hit
-than the previous letter-based chords and group semantically:
-`return` for slot-targeted ops (send, manage), `space` for the
-navigation mode (focus).
+than letter-based chords and group semantically: `return` for
+slot-targeted ops (send, manage), `space` for the navigation prompt
+(focus).

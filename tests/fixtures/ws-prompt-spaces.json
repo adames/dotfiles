@@ -1,0 +1,8 @@
+{
+  "palette": "catppuccin-mocha",
+  "spaces": {
+    "1":  { "name": "home",     "color": "#a6e3a1" },
+    "3":  { "name": "docs",     "color": "#89b4fa" },
+    "11": { "name": "archives", "color": "#f9e2af" }
+  }
+}
