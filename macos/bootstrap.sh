@@ -140,15 +140,21 @@ phase_configs() {
   rm -f "$HOME/.config/sketchybar/plugins/notch-detect.sh"
   rm -f "$HOME/.config/sketchybar/plugins/ssh-chip.sh"
 
-  # Workspace-awareness layer: yabai signal handler + rename flow.
+  # Workspace-awareness layer: yabai signal handler + window staging.
   # spaces.json is NOT install_file'd because that would clobber the
   # user's renames; workspace/install.sh below seeds it only when missing.
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
   install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
   install_file "$CONFIGS_DIR/workspace/stage-window.sh"       "$HOME/.config/workspace/stage-window.sh"       755
-  install_file "$CONFIGS_DIR/workspace/rename.sh"             "$HOME/.config/workspace/rename.sh"             755
   install_file "$CONFIGS_DIR/workspace/install.sh"          "$HOME/.config/workspace/install.sh"          755
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
+  # Retired: rename.sh / ws-info / ws-destroy-current were dispatch
+  # targets for the original (broken) manage palette. The new ws-prompt
+  # manage overlay calls `ws name` / `ws remove` / `ws doctor` directly,
+  # so the shims are dead. Clean up older deploys.
+  rm -f "$HOME/.config/workspace/rename.sh"
+  rm -f "$HOME/.local/bin/ws-info"
+  rm -f "$HOME/.local/bin/ws-destroy-current"
 
   # Terminal + shell
   install_file "$CONFIGS_DIR/ghostty-config"             "$HOME/.config/ghostty/config"
@@ -167,14 +173,11 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
   ln -sf "ws" "$HOME/.local/bin/workspace"
   install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
-  # skhd mode helpers (Caps+space focus, Caps+return send,
-  # Caps+Shift+return manage). Wrap raw yabai calls with existence
-  # checks + loud failure notifications so the new modes never
-  # silently no-op.
+  # ws-prompt overlay helpers (Caps+space focus, Caps+return send).
+  # Wrap raw yabai calls with existence checks + loud failure
+  # notifications so the focus/send prompts never silently no-op.
   install_file "$CONFIGS_DIR/workspace/cli/ws-focus"            "$HOME/.local/bin/ws-focus"            755
   install_file "$CONFIGS_DIR/workspace/cli/ws-send-follow"      "$HOME/.local/bin/ws-send-follow"      755
-  install_file "$CONFIGS_DIR/workspace/cli/ws-destroy-current"  "$HOME/.local/bin/ws-destroy-current"  755
-  install_file "$CONFIGS_DIR/workspace/cli/ws-info"             "$HOME/.local/bin/ws-info"             755
   # Shell completions for `ws` (and the `workspace` alias). zshrc adds
   # ~/.config/zsh/completions to fpath; bashrc (if present) sources
   # ~/.config/bash/completions/ws.bash.
@@ -188,7 +191,6 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
   install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
-  install_file "$CONFIGS_DIR/workspace/rename.sh"         "$HOME/.config/workspace/rename.sh" 755
   # Retired: borders-refresh.sh — JankyBorders removed. Clean up if
   # present from older deploys.
   rm -f "$HOME/.config/workspace/borders-refresh.sh"
