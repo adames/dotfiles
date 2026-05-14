@@ -48,9 +48,7 @@
         ["caps + t",  "new terminal  (auto: Ghostty / iTerm / …; $WS_TERMINAL_APP override)"],
         ["caps + b",  "new browser  (auto: Brave / Arc / … / Safari; $WS_BROWSER_APP override)"],
         ["caps + o",  "new Finder window  (o = open)"],
-        ["caps + s",  "System Settings"],
-        ["caps + c",  "Claude"],
-        ["caps + m",  "Spotify"]
+        ["caps + s",  "System Settings"]
       ]
     },
 

@@ -88,8 +88,3 @@ cmd + alt + ctrl + shift - b : "$HOME/.local/bin/ws-launch-browser" >/dev/null 2
 # Hyper+S → activate macOS System Settings.
 cmd + alt + ctrl + shift - o : osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - s : open -a "System Settings"
-
-# --- app launchers (just activate; no new-window semantics) ------------
-cmd + alt + ctrl + shift - c : open -a "Claude"
-cmd + alt + ctrl + shift - m : open -a "Spotify"
-
