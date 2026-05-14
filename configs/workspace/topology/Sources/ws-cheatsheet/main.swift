@@ -129,7 +129,6 @@ NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
     // 53 = kVK_Escape
     if event.keyCode == 53 {
         terminate()
-        return nil
     }
     return event
 }
