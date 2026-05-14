@@ -148,8 +148,12 @@ case .focus, .send:
     manageController = nil
     window.contentView = NSHostingView(rootView: PromptView(vm: vm))
 case .manage:
+    // Capture the focused space index once, so rename/destroy default to
+    // "act on the workspace I'm already on". Nil-tolerant — yabai not
+    // responding just means the picker starts at index 0.
+    let focusedIndex = WorkspaceLoader.queryFocusedSpaceIndex(yabaiBinary: yabai)
     let vm = ManageViewModel(workspaces: workspaces)
-    let ctl = ManageController(workspaces: workspaces)
+    let ctl = ManageController(workspaces: workspaces, focusedIndex: focusedIndex)
     manageVM = vm
     manageController = ctl
     promptVM = nil
