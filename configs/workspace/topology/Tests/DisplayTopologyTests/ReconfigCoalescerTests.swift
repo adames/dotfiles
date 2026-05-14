@@ -1,41 +1,39 @@
 import DisplayTopology
-import XCTest
+import Foundation
+import Testing
 
-final class ReconfigCoalescerTests: XCTestCase {
-    func test_two_bumps_within_window_produce_one_emission() {
-        let exp = expectation(description: "single emission")
-        exp.expectedFulfillmentCount = 1
-        exp.assertForOverFulfill = true
-        let coalescer = ReconfigCoalescer(trailingWindow: 0.05) {
-            exp.fulfill()
+/// Validates the trailing-edge debounce on `ReconfigCoalescer`. Each test
+/// installs the callback inside Swift Testing's `confirmation { }`
+/// scope, drives the coalescer, then awaits a window long enough for
+/// the trailing fire (or its absence) to be observable.
+@Suite("ReconfigCoalescer trailing-edge debounce")
+struct ReconfigCoalescerTests {
+
+    @Test func two_bumps_within_window_produce_one_emission() async {
+        await confirmation("single emission", expectedCount: 1) { confirm in
+            let coalescer = ReconfigCoalescer(trailingWindow: 0.05) { confirm() }
+            coalescer.bump()
+            coalescer.bump()
+            try? await Task.sleep(nanoseconds: 400_000_000)   // 0.4 s
         }
-        coalescer.bump()
-        coalescer.bump()
-        wait(for: [exp], timeout: 0.4)
     }
 
-    func test_two_bumps_far_apart_produce_two_emissions() {
-        let exp = expectation(description: "two emissions")
-        exp.expectedFulfillmentCount = 2
-        exp.assertForOverFulfill = true
-        let coalescer = ReconfigCoalescer(trailingWindow: 0.03) {
-            exp.fulfill()
+    @Test func two_bumps_far_apart_produce_two_emissions() async {
+        await confirmation("two emissions", expectedCount: 2) { confirm in
+            let coalescer = ReconfigCoalescer(trailingWindow: 0.03) { confirm() }
+            coalescer.bump()
+            try? await Task.sleep(nanoseconds: 150_000_000)   // wider than the window
+            coalescer.bump()
+            try? await Task.sleep(nanoseconds: 500_000_000)
         }
-        coalescer.bump()
-        // Sleep longer than the trailing window.
-        Thread.sleep(forTimeInterval: 0.15)
-        coalescer.bump()
-        wait(for: [exp], timeout: 1.0)
     }
 
-    func test_cancel_prevents_emission() {
-        let exp = expectation(description: "no emission")
-        exp.isInverted = true
-        let coalescer = ReconfigCoalescer(trailingWindow: 0.05) {
-            exp.fulfill()
+    @Test func cancel_prevents_emission() async {
+        await confirmation("no emission", expectedCount: 0) { confirm in
+            let coalescer = ReconfigCoalescer(trailingWindow: 0.05) { confirm() }
+            coalescer.bump()
+            coalescer.cancel()
+            try? await Task.sleep(nanoseconds: 200_000_000)
         }
-        coalescer.bump()
-        coalescer.cancel()
-        wait(for: [exp], timeout: 0.2)
     }
 }

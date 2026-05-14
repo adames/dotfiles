@@ -1,38 +1,39 @@
+import Testing
 import WorkspaceState
-import XCTest
 
-final class IconCodepointTests: XCTestCase {
-    func test_decode_roundtrip_bmp() {
-        let escaped = "\\uf0b1"
-        let scalar = IconCodepoint.decode(escaped)
-        XCTAssertNotNil(scalar)
-        XCTAssertEqual(scalar?.value, 0xF0B1)
-        XCTAssertEqual(IconCodepoint.encode(scalar!), "\\uf0b1")
+@Suite("IconCodepoint encode / decode")
+struct IconCodepointTests {
+
+    @Test func decode_roundtrip_bmp() {
+        let scalar = IconCodepoint.decode("\\uf0b1")
+        #expect(scalar != nil)
+        #expect(scalar?.value == 0xF0B1)
+        #expect(IconCodepoint.encode(scalar!) == "\\uf0b1")
     }
 
-    func test_decode_supplementary_pua() {
-        let escaped = "\\u{F0001}"
-        let scalar = IconCodepoint.decode(escaped)
-        XCTAssertNotNil(scalar)
-        XCTAssertEqual(scalar?.value, 0xF0001)
-        XCTAssertTrue(IconCodepoint.isPrivateUseArea(scalar!))
+    @Test func decode_supplementary_pua() {
+        let scalar = IconCodepoint.decode("\\u{F0001}")
+        #expect(scalar != nil)
+        #expect(scalar?.value == 0xF0001)
+        #expect(IconCodepoint.isPrivateUseArea(scalar!))
     }
 
-    func test_decode_malformed_returns_nil() {
-        XCTAssertNil(IconCodepoint.decode(""))
-        XCTAssertNil(IconCodepoint.decode("f0b1"))
-        XCTAssertNil(IconCodepoint.decode("\\unotaherx"))
-        XCTAssertNil(IconCodepoint.decode("\\u{}"))
+    @Test func decode_malformed_returns_nil() {
+        #expect(IconCodepoint.decode("")          == nil)
+        #expect(IconCodepoint.decode("f0b1")      == nil)
+        #expect(IconCodepoint.decode("\\unotaherx") == nil)
+        #expect(IconCodepoint.decode("\\u{}")     == nil)
     }
 }
 
-final class IconResolverTests: XCTestCase {
-    let fontsWithNerd: Set<String> = ["JetBrainsMono Nerd Font"]
+@Suite("IconResolver — surface + override + fallback chain")
+struct IconResolverTests {
+    let fontsWithNerd: Set<String>    = ["JetBrainsMono Nerd Font"]
     let fontsWithoutNerd: Set<String> = ["Helvetica"]
 
-    func sfExists(_ name: String) -> Bool { return name != "missing.symbol" }
+    func sfExists(_ name: String) -> Bool { name != "missing.symbol" }
 
-    func test_override_wins_when_kind_resolves_on_surface() {
+    @Test func override_wins_when_kind_resolves_on_surface() {
         let spec = IconSpec(
             kind: .sfSymbol,
             symbolName: "star.fill",
@@ -45,11 +46,11 @@ final class IconResolverTests: XCTestCase {
             targetSurface: .nativeAppKit,
             sfSymbolExists: sfExists(_:)
         )
-        XCTAssertEqual(r.kind, .sfSymbol)
-        XCTAssertEqual(r.value, "star.fill")
+        #expect(r.kind  == .sfSymbol)
+        #expect(r.value == "star.fill")
     }
 
-    func test_native_prefers_sf_symbol() {
+    @Test func native_prefers_sf_symbol() {
         let spec = IconSpec(
             kind: .sfSymbol,
             symbolName: "play.fill",
@@ -61,11 +62,11 @@ final class IconResolverTests: XCTestCase {
             targetSurface: .nativeAppKit,
             sfSymbolExists: sfExists(_:)
         )
-        XCTAssertEqual(r.kind, .sfSymbol)
-        XCTAssertEqual(r.value, "play.fill")
+        #expect(r.kind  == .sfSymbol)
+        #expect(r.value == "play.fill")
     }
 
-    func test_font_driven_renders_nerd_glyph_when_font_present() {
+    @Test func font_driven_renders_nerd_glyph_when_font_present() {
         let spec = IconSpec(
             kind: .nerdFont,
             codepoint: "\\uf0b1",
@@ -78,12 +79,13 @@ final class IconResolverTests: XCTestCase {
             targetSurface: .fontDriven,
             sfSymbolExists: sfExists(_:)
         )
-        XCTAssertEqual(r.kind, .glyph)
-        let expected = String(Unicode.Scalar(0xF0B1)!)
-        XCTAssertEqual(r.value, expected)
+        #expect(r.kind == .glyph)
+        #expect(r.value == String(Unicode.Scalar(0xF0B1)!))
     }
 
-    func test_missing_font_falls_through_to_fallback_text() {
+    @Test func missing_font_falls_through_to_fallback_text() {
+        // Font missing → direct resolve fails → fallbackSfSymbol skipped
+        // (font-driven surface can't render SF Symbols) → fallbackText.
         let spec = IconSpec(
             kind: .nerdFont,
             codepoint: "\\uf0b1",
@@ -97,13 +99,12 @@ final class IconResolverTests: XCTestCase {
             targetSurface: .fontDriven,
             sfSymbolExists: sfExists(_:)
         )
-        // Font missing → direct resolve fails → fallbackSfSymbol skipped (font-driven
-        // surface can't render SF Symbols) → fallbackText.
-        XCTAssertEqual(r.kind, .text)
-        XCTAssertEqual(r.value, "ST")
+        #expect(r.kind  == .text)
+        #expect(r.value == "ST")
     }
 
-    func test_invalid_codepoint_falls_back_through_chain() {
+    @Test func invalid_codepoint_falls_back_through_chain() {
+        // Native surface: invalid codepoint → fallback SF symbol resolves.
         let spec = IconSpec(
             kind: .nerdFont,
             codepoint: "\\unothex",  // malformed
@@ -117,12 +118,11 @@ final class IconResolverTests: XCTestCase {
             targetSurface: .nativeAppKit,
             sfSymbolExists: sfExists(_:)
         )
-        // Native surface: invalid codepoint → fallback SF symbol resolves.
-        XCTAssertEqual(r.kind, .sfSymbol)
-        XCTAssertEqual(r.value, "play.fill")
+        #expect(r.kind  == .sfSymbol)
+        #expect(r.value == "play.fill")
     }
 
-    func test_none_kind_returns_empty() {
+    @Test func none_kind_returns_empty() {
         let spec = IconSpec(kind: .none)
         let r = IconResolver.resolve(
             spec: spec,
@@ -130,6 +130,6 @@ final class IconResolverTests: XCTestCase {
             targetSurface: .nativeAppKit,
             sfSymbolExists: sfExists(_:)
         )
-        XCTAssertEqual(r.kind, .empty)
+        #expect(r.kind == .empty)
     }
 }
