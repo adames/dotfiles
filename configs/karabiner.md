@@ -92,18 +92,21 @@ When in doubt about where a new binding belongs, ask: does it *move* state
 
 ## Workspace control prompts (lives in ws-prompt, dispatched by skhd)
 
-Karabiner doesn't grab any of these keys. skhd binds the two chords
+Karabiner doesn't grab any of these keys. skhd binds the three chords
 directly to `ws-prompt <mode>`, a SwiftUI overlay that captures
 keystrokes itself and exits on commit / cancel / blur. There are no
 sticky skhd modes anywhere in the system anymore.
 
-- `Caps + space`          (Hyper+Space)    → focus prompt (digit commits · letters fuzzy-match name + ↵)
-- `Caps + return`         (Hyper+Return)   → send prompt  (digit commits + follow · letters fuzzy-match name + ↵)
-- `Esc` / click-elsewhere (inside overlay) → cancel
+- `Caps + space`          (Hyper+Space)    → focus prompt  (digit commits · letters fuzzy-match name + ↵)
+- `Caps + return`         (Hyper+Return)   → send prompt   (digit commits + follow · letters fuzzy-match name + ↵)
+- `Caps + Shift + return` (Mod+Return)     → manage prompt (verb-picker → multi-stage flow):
+                                              a add · r rename · d destroy
+                                              ⇧L layout save/load/delete
+                                              v verify · ? doctor
+- `Esc` / click-elsewhere (inside overlay) → cancel (manage backs up one stage; verb-picker cancels)
 - `Caps + Esc`            (Hyper+Esc)      → no-op (preserved for muscle memory; nothing to escape)
 
-Workspace lifecycle (add / rename / destroy) is CLI-only: `ws add`,
-`ws name N <new>`, `ws remove N`. There used to be a
-`Caps + Shift + return` manage palette wired to in-overlay dispatch,
-but its add / info / list / destroy paths were unreliable enough that
-the whole chord was retired in favour of typing the explicit CLI.
+The manage flow shells out to the `ws` CLI directly and surfaces
+stdout + stderr in an in-overlay result panel — no AppleScript
+dialogs, no helper shell shims. An earlier manage palette dispatched
+into broken intermediaries and was retired; this one is the rebuild.

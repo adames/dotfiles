@@ -31,25 +31,27 @@ cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 
 # --- workspace prompts --------------------------------------------------
-# Workspace focus / send are dispatched to a SwiftUI overlay (ws-prompt),
-# not skhd modes. The overlay captures keystrokes itself and exits on
+# Workspace focus / send / manage are dispatched to a SwiftUI overlay
+# (ws-prompt). The overlay captures keystrokes itself and exits on
 # commit / cancel / blur — so skhd never enters or holds a workspace
 # mode. No mode declarations, no sticky-state worry.
 #
-#   focus  caps+space   → digit (1..0) commits instantly · letters fuzzy-match
-#                         workspace name + Enter
-#   send   caps+return  → digit commits + follow · letters fuzzy-match
-#
-# Workspace lifecycle (add / rename / destroy) lives in the `ws` CLI
-# itself — `ws add`, `ws name N <new>`, `ws remove N`. The previous
-# Caps+Shift+Return manage palette was unreliable enough that we removed
-# the whole keybinding rather than patching it.
+#   focus   caps+space        → digit (1..0) commits instantly · letters
+#                               fuzzy-match workspace name + Enter
+#   send    caps+return       → digit commits + follow · letters fuzzy-match
+#   manage  caps+shift+return → verb-picker overlay:
+#                                 a add   r rename   d destroy
+#                                 ⇧L layout (save / load / delete)
+#                                 v verify   ? doctor
+#                               Each verb runs `ws` directly, captures
+#                               output, and shows a result panel.
 #
 # Caps+Esc is preserved as a no-op so users who built muscle memory
 # around the old panic-exit still see "nothing happened" (rather than
 # the chord leaking into the foreground app).
-cmd + alt + ctrl + shift - space  : "$HOME/.local/bin/ws-prompt" focus >/dev/null 2>&1 &
-cmd + alt + ctrl + shift - return : "$HOME/.local/bin/ws-prompt" send  >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - space  : "$HOME/.local/bin/ws-prompt" focus  >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - return : "$HOME/.local/bin/ws-prompt" send   >/dev/null 2>&1 &
+cmd + alt + ctrl - return         : "$HOME/.local/bin/ws-prompt" manage >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - escape : :
 
 # --- displays -----------------------------------------------------------
