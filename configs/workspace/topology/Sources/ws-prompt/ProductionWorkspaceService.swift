@@ -26,18 +26,49 @@ final class ProductionWorkspaceService: WorkspaceService {
     // MARK: - Sync reads
 
     func loadWorkspaces() -> [Workspace] {
-        let count = querySpaceCount()
+        // Single yabai query for both the slot count AND the per-slot
+        // display index. The display info is what lets the manage
+        // overlay's optimistic pre-paint short-circuit without an
+        // extra RPC at chord-commit time.
+        let displayBySlot = querySpaceDisplays()
+        let count = displayBySlot.keys.max() ?? 0
         let identities = readIdentities()
         return (1...max(count, 0)).map { idx in
             let id = identities[idx]
             return Workspace(
                 index: idx,
+                display: displayBySlot[idx] ?? 1,
                 name: id?.name ?? "ws\(idx)",
                 color: id?.color ?? "#7f8c8d",
                 icon: id?.icon,
                 iconKind: id?.iconKind ?? .none
             )
         }
+    }
+
+    /// Parse `yabai -m query --spaces` into a `[slot index → display
+    /// index]` map. Empty when yabai is unreachable; the caller treats
+    /// that as "no spaces" and renders an empty list.
+    private func querySpaceDisplays() -> [Int: Int] {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: paths.yabaiBinary)
+        task.arguments = ["-m", "query", "--spaces"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = Pipe()
+        do { try task.run(); task.waitUntilExit() } catch { return [:] }
+        guard task.terminationStatus == 0 else { return [:] }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        else { return [:] }
+        var out: [Int: Int] = [:]
+        for entry in arr {
+            guard let idx = entry["index"] as? Int,
+                  let display = entry["display"] as? Int
+            else { continue }
+            out[idx] = display
+        }
+        return out
     }
 
     func focusedSpaceIndex() -> Int? {
@@ -128,6 +159,26 @@ final class ProductionWorkspaceService: WorkspaceService {
 
     func spawnFocus(slot: Int) { spawnHelper(name: "ws-focus", arg: String(slot)) }
     func spawnSend(slot: Int)  { spawnHelper(name: "ws-send-follow", arg: String(slot)) }
+
+    func fireOptimisticPrePaint(newSlot: Int, oldSlot: Int, display: Int) {
+        // Don't bother if it's a no-op (target == current).
+        guard newSlot != oldSlot else { return }
+        // Probe sketchybar via Homebrew paths — same shape as
+        // resolveYabaiBinary. If sketchybar isn't on disk, we silently
+        // skip; ws-focus will fire the same trigger later as a backstop.
+        let sketchybar = ["/opt/homebrew/bin/sketchybar", "/usr/local/bin/sketchybar"]
+            .first(where: { FileManager.default.isExecutableFile(atPath: $0) })
+        guard let bin = sketchybar else { return }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: bin)
+        task.arguments = [
+            "--trigger", "workspace_changed",
+            "WS_OPTIMISTIC_SID=\(newSlot)",
+            "WS_OPTIMISTIC_OLD_SID=\(oldSlot)",
+            "WS_OPTIMISTIC_DISPLAY=\(display)"
+        ]
+        do { try task.run() } catch { /* fall through; bash backstop fires later */ }
+    }
 
     // MARK: - Internals
 
