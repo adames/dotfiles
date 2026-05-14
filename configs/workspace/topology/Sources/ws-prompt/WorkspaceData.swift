@@ -74,6 +74,29 @@ enum WorkspaceLoader {
         return arr.count
     }
 
+    /// Currently-focused space index (1-based). Nil if yabai isn't
+    /// responding. Used by the manage overlay to default rename/destroy
+    /// pickers onto "this workspace" so Enter-without-typing is the
+    /// fast path for "act on what I'm looking at".
+    static func queryFocusedSpaceIndex(yabaiBinary: String? = nil) -> Int? {
+        let binary = yabaiBinary ?? resolveYabaiBinary()
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: binary)
+        task.arguments = ["-m", "query", "--spaces", "--space"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = Pipe()
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let idx = obj["index"] as? Int
+        else { return nil }
+        return idx
+    }
+
     // Locating yabai: skhd dispatches via /opt/homebrew/bin/yabai but the
     // ws-prompt binary inherits the launchd-agent PATH, which is minimal.
     // Probe the well-known install paths so the overlay works on both

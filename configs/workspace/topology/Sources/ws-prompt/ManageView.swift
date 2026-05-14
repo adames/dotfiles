@@ -108,9 +108,9 @@ struct ManageView: View {
         case .verbPicker:                              verbPickerView
         case .addName(let buf):                        textEntry(prompt: "new workspace name", buffer: buf)
         case .addIcon(_, let buf):                     textEntry(prompt: "icon (single glyph, Enter to skip)", buffer: buf)
-        case .renameTarget(let f, let s):              targetPicker(filter: f, sel: s)
+        case .renameTarget(let f, let s, _):           targetPicker(filter: f, sel: s)
         case .renameNewName(_, let nm, let buf):       textEntry(prompt: "rename \"\(nm)\" →", buffer: buf)
-        case .destroyTarget(let f, let s):             targetPicker(filter: f, sel: s)
+        case .destroyTarget(let f, let s, _):          targetPicker(filter: f, sel: s)
         case .destroyConfirm(let i, let nm):           destroyConfirmView(slot: i, name: nm)
         case .layoutVerb:                              layoutVerbView
         case .layoutSaveName(let buf):                 textEntry(prompt: "layout name (letters / digits / . _ -)", buffer: buf)
@@ -388,9 +388,9 @@ struct ManageView: View {
         case .verbPicker:        return "pick a verb · esc cancels"
         case .addName:           return "type a name (no leading digit) · esc backs out"
         case .addIcon:           return "type one glyph (Nerd Font / SF Symbol) or ↵ to skip · esc backs out"
-        case .renameTarget:      return "digit = slot · letters fuzzy-match · tab cycles · ↵ picks · esc backs out"
+        case .renameTarget:      return "↵ renames focused · digit = slot · letters fuzzy-match · tab cycles · esc backs out"
         case .renameNewName:     return "type a new name · ↵ commits · esc backs out"
-        case .destroyTarget:     return "digit = slot · letters fuzzy-match · ↵ picks · esc backs out"
+        case .destroyTarget:     return "↵ destroys focused · digit = slot · letters fuzzy-match · esc backs out"
         case .destroyConfirm:    return "press d / y / ↵ to confirm · esc backs out"
         case .layoutVerb:        return "s save · l load · x delete · esc backs out"
         case .layoutSaveName:    return "name your snapshot · ↵ commits · esc backs out"
