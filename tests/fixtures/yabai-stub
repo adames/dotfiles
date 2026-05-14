@@ -53,11 +53,15 @@ case "$domain $action" in
       if [[ -n "${YABAI_STUB_SPACES_JSON:-}" ]]; then
         printf '%s\n' "$YABAI_STUB_SPACES_JSON"
       else
-        # Default: 10 spaces.
+        # Default: 10 spaces, focus on YABAI_STUB_FOCUSED_SPACE (or 1).
+        # `has-focus` mirrors real yabai's per-space shape — required
+        # by ws-focus / ws-send-follow's combined-query path.
+        focused="${YABAI_STUB_FOCUSED_SPACE:-1}"
         printf '['
         for i in 1 2 3 4 5 6 7 8 9 10; do
           [[ $i -gt 1 ]] && printf ','
-          printf '{"index":%d,"display":1}' "$i"
+          hf=false; [[ "$i" == "$focused" ]] && hf=true
+          printf '{"index":%d,"display":1,"has-focus":%s}' "$i" "$hf"
         done
         printf ']\n'
       fi

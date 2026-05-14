@@ -38,4 +38,11 @@ protocol WorkspaceService {
     // MARK: Fire-and-forget helpers (focus/send don't show a panel)
     func spawnFocus(slot: Int)
     func spawnSend(slot: Int)
+
+    /// Fire sketchybar's optimistic-pre-paint trigger. Called from the
+    /// overlay the instant a focus/send chord commits, so the pill
+    /// updates before yabai's transition animation even starts. Pure
+    /// fire-and-forget; ws-focus / ws-send-follow's bash-side trigger
+    /// is the redundant fallback for direct CLI invocations.
+    func fireOptimisticPrePaint(newSlot: Int, oldSlot: Int, display: Int)
 }

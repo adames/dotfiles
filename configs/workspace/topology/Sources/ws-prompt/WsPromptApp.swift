@@ -25,6 +25,8 @@ final class WsPromptApp {
     // Strong refs so the runtime keeps everything alive.
     private let promptController: PromptController?
     private let manageController: ManageController?
+    private let workspaces: [Workspace]
+    private let focusedIndex: Int?
     private var eventMonitorToken: Any?
     private var windowDelegate: WindowDelegate?
     private var signalSource: DispatchSourceSignal?
@@ -36,6 +38,14 @@ final class WsPromptApp {
             .appendingPathComponent(".cache/workspace/ws-prompt.\(mode.rawValue).pid")
 
         let workspaces = service.loadWorkspaces()
+        // Snapshot the focused slot once at overlay open. Used by
+        // dispatchFocusOrSend to fire sketchybar's optimistic pre-paint
+        // trigger the instant the chord commits — no extra yabai RPC
+        // at commit time.
+        let focusedIndex = service.focusedSpaceIndex()
+        self.workspaces = workspaces
+        self.focusedIndex = focusedIndex
+
         let screen: NSScreen = NSScreen.main ?? NSScreen.screens.first!
         let win = PromptWindow(
             contentRect: screen.frame,
@@ -59,9 +69,8 @@ final class WsPromptApp {
             self.manageController = nil
             win.contentView = NSHostingView(rootView: PromptView(controller: ctl))
         case .manage:
-            let focused = service.focusedSpaceIndex()
             let ctl = ManageController(
-                workspaces: workspaces, focusedIndex: focused, service: service
+                workspaces: workspaces, focusedIndex: focusedIndex, service: service
             )
             self.manageController = ctl
             self.promptController = nil
@@ -149,9 +158,29 @@ final class WsPromptApp {
         switch ctl.handle(key) {
         case .idle, .refilter:           return
         case .cancel:                    terminate()
-        case .commitFocus(let slot):     service.spawnFocus(slot: slot); terminate()
-        case .commitSend(let slot):      service.spawnSend(slot: slot);  terminate()
+        case .commitFocus(let slot):
+            firePrePaint(targetSlot: slot)
+            service.spawnFocus(slot: slot)
+            terminate()
+        case .commitSend(let slot):
+            firePrePaint(targetSlot: slot)
+            service.spawnSend(slot: slot)
+            terminate()
         }
+    }
+
+    /// Optimistic pre-paint. Fires the sketchybar trigger with the
+    /// target SID + OLD SID + target display before we even spawn the
+    /// bash helper. Removes the helper's subprocess fork + yabai-RPC
+    /// cost (~30–40 ms) from the chord-to-pill latency. Helper still
+    /// fires the same trigger as a defensive backstop when invoked
+    /// from the CLI directly.
+    private func firePrePaint(targetSlot: Int) {
+        guard let oldSlot = focusedIndex, oldSlot != targetSlot else { return }
+        guard let target = workspaces.first(where: { $0.index == targetSlot }) else { return }
+        service.fireOptimisticPrePaint(newSlot: targetSlot,
+                                       oldSlot: oldSlot,
+                                       display: target.display)
     }
 
     private func dispatchManage(_ key: PromptKey) {

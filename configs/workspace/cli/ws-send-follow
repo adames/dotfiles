@@ -29,8 +29,8 @@ fi
 
 # Resolve next/prev to a literal index up front. Computing it from the
 # already-queried `cur` avoids the race where `window --space next`
-# moves the window, then `space --focus next` resolves "next" against
-# the now-different focused space.
+# moves the window before `space --focus next` is evaluated.
+
 case "$target" in
   next) target=$(( cur % count + 1 )) ;;
   prev) target=$(( (cur - 2 + count) % count + 1 )) ;;
@@ -46,19 +46,19 @@ if ! yabai -m window --space "$target" 2>/dev/null; then
   exit 1
 fi
 
-# Optimistic pre-paint (same pattern as ws-focus): tell sketchybar the
-# new active SID + DISPLAY before yabai's transition lands, so the pill
-# snaps the instant the chord commits. The cascade fires the same
-# paint redundantly after space_changed; no flicker. Best-effort —
-# sketchybar missing falls back to legacy cascade timing.
-if command -v sketchybar >/dev/null 2>&1; then
-  disp=$(yabai -m query --spaces 2>/dev/null \
-         | jq -r --arg t "$target" \
-             '.[] | select((.index|tostring) == $t) | .display' 2>/dev/null)
-  if [[ -n "${disp:-}" ]]; then
+# Look up the target's display for the optimistic pre-paint (separate
+# yabai query because we don't know the display until after the
+# resolve-next/prev step above). Skipped when sketchybar isn't running
+# or the target is the current slot (no pill change needed).
+if command -v sketchybar >/dev/null 2>&1 && [[ "$cur" != "$target" ]]; then
+  target_disp=$(yabai -m query --spaces 2>/dev/null \
+                | jq -r --arg t "$target" \
+                    '.[] | select((.index|tostring) == $t) | .display' 2>/dev/null)
+  if [[ -n "${target_disp:-}" ]]; then
     sketchybar --trigger workspace_changed \
       WS_OPTIMISTIC_SID="$target" \
-      WS_OPTIMISTIC_DISPLAY="$disp" >/dev/null 2>&1 || true
+      WS_OPTIMISTIC_OLD_SID="$cur" \
+      WS_OPTIMISTIC_DISPLAY="$target_disp" >/dev/null 2>&1 || true
   fi
 fi
 
