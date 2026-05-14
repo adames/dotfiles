@@ -21,11 +21,14 @@ cmd + alt + ctrl - l : yabai -m window --swap east
 # Floating-staged windows have three exits:
 #   1. caps + return → digit  — send to another workspace (send mode)
 #   2. ⌘W                     — close
-#   3. caps + shift + f       — toggle float (unfloat = commit to tiling)
-cmd + alt + ctrl + shift - f      : yabai -m window --toggle zoom-fullscreen
+#   3. caps + f               — toggle float (unfloat = commit to tiling)
+#
+# No zoom-fullscreen binding: BSP + plenty of workspaces means covering
+# the whole screen with one tile is rarely the right move — send the
+# window to its own workspace instead.
+cmd + alt + ctrl + shift - f      : yabai -m window --toggle float
 cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
-cmd + alt + ctrl - f              : yabai -m window --toggle float
 
 # --- workspace modes ----------------------------------------------------
 # Three transient submodes, all capturing (@) so unbound keys don't leak

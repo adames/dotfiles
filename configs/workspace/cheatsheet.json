@@ -16,8 +16,7 @@
       "rows": [
         ["caps + hjkl",          "focus window  ←  ↓  ↑  →"],
         ["caps + shift + hjkl",  "swap window  ←  ↓  ↑  →"],
-        ["caps + f",             "zoom fullscreen (toggle)"],
-        ["caps + shift + f",     "toggle float / unfloat  (unfloat = commit staged window to tiling)"],
+        ["caps + f",             "toggle float / unfloat  (unfloat = commit staged window to tiling)"],
         ["caps + e",             "balance space"],
         ["caps + r",             "rotate space 90°"],
         ["caps + tab",           "focus next display"],
