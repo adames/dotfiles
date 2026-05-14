@@ -6,14 +6,14 @@ import Foundation
 // MARK: - ws-snap
 //
 // Absolute window snaps for yabai-unmanaged windows (floating windows
-// like System Settings, or Ghostty when a tile rule excludes it). These
-// are bound to Mod+arrows in skhd. Hyper layer keeps hjkl/yabai;
-// Mod keeps arrows/manual snaps — the layer split documented in
-// docs/architecture.md.
+// like System Settings, or Ghostty when a tile rule excludes it).
+// Not bound to a chord today — the common new-window case is handled
+// by configs/workspace/stage-window.sh from yabai's window_created
+// signal. ws-snap remains as a manual CLI for one-off absolute snaps.
 //
-// Replaces the snap() block in configs/hammerspoon-init.lua. We use
-// the Accessibility API directly because yabai's CLI only affects
-// managed windows, and we explicitly want to move floating ones.
+// We use the Accessibility API directly because yabai's CLI only
+// affects managed windows, and we explicitly want to move floating
+// ones.
 //
 // Usage:
 //   ws-snap left | right | max | center

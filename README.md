@@ -66,8 +66,9 @@ Ghostty doesn't break zsh's line editor.
 | Caps → Hyper / Mod / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
 | Persistent workspace pill strip (always-visible per-display indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
-| Hyper/Mod hotkeys → yabai · terminal · app launchers · cheatsheet · snaps | skhd | [`skhdrc`](configs/skhdrc) |
-| Mod+arrow snaps for floating windows (AX) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
+| Hyper/Mod hotkeys → yabai · terminal · app launchers · cheatsheet | skhd | [`skhdrc`](configs/skhdrc) |
+| Stage every new window (cross-space migrate · center if floating · focus) | yabai `window_created` signal + bash | [`workspace/stage-window.sh`](configs/workspace/stage-window.sh) |
+| AX absolute-snap CLI (left/right/max/center; not bound to a chord, available for manual use) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
 | skhd-mode helpers: focus / send+follow / destroy / info (loud-fail wrappers around yabai) | bash | [`workspace/cli/ws-focus`](configs/workspace/cli/ws-focus) · [`ws-send-follow`](configs/workspace/cli/ws-send-follow) · [`ws-destroy-current`](configs/workspace/cli/ws-destroy-current) · [`ws-info`](configs/workspace/cli/ws-info) |
 | SketchyBar per-display autohide (cursor poller, LaunchAgent) | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
@@ -75,7 +76,7 @@ Ghostty doesn't break zsh's line editor.
 | Per-slot workspace identity (color + icon + name → tmux + prompt + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) |
 | Hyper app launchers (browser, terminal, Finder, Settings, Claude, Spotify) | skhd | [`skhdrc`](configs/skhdrc) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
-| `C-a` prefix (Hyper+Space in Ghostty too) · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
+| `C-a` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
 | zsh: vi-mode · starship · direnv · autosuggestions · syntax-highlighting | zsh | [`zshrc`](configs/zshrc) |
 | `Ctrl-R/T`, `Alt-C` (fd-backed) | fzf | wired in `zshrc` |
 | `z foo` jump to frecent dir | zoxide | wired in `zshrc` |
@@ -93,31 +94,28 @@ Full reference is `Hyper+;`. Layer split: **Hyper = navigate, Mod (Caps+Shift) =
 ```
 Caps tap                      → Esc
 
-# Hyper — navigate / open
+# Hyper — navigate / open / commit (single-chord ops)
 Caps + hjkl                   → focus window
-Caps + w  → digit             → focus mode: focus slot N (0 = slot 10, n/p cycle)
-Caps + return / e / r         → fullscreen / balance / rotate
+Caps + space → digit          → focus mode: focus slot N (0 = slot 10, n/p/tab cycle)
+Caps + return → digit         → send mode: send focused window to slot N + follow (n/p)
+Caps + f                      → toggle float / unfloat (unfloat = commit staged float to BSP tiling)
+Caps + e / r                  → balance / rotate space
 Caps + t                      → new terminal window (auto-detect)
 Caps + b                      → new browser window (auto-detect)
-Caps + f                      → new Finder window
+Caps + o                      → new Finder window  (o = open)
 Caps + s                      → System Settings
 Caps + c / m                  → Claude / Spotify
 Caps + ;                      → toggle cheatsheet
+Caps + tab / Shift + tab      → focus next / prev display
 Caps + Esc                    → panic exit (returns to default from any mode)
 
-# Mod — modify
+# Mod — modify (destructive / lifecycle)
 Caps + Shift + hjkl           → swap window
-Caps + Shift + w → a/r/i/l/D  → manage mode: add / rename / info / list / Shift+D destroy
-Caps + Shift + f              → float / unfloat window
-Caps + Shift + ←→↑↓           → manual snap for floats / non-yabai windows
-
-# Send window (left-hand chord, no Caps hold)
-Ctrl + Space  → digit         → send mode: send focused window to slot N + follow (n/p next/prev)
+Caps + Shift + return → a/r/i/l/D  → manage mode: add / rename / info / list / Shift+D destroy
 
 # Terminal
 C-a  hjkl / v / s / z         → tmux pane nav / split / zoom        (prefix = C-a)
 C-a  f                        → fzf project sessionizer
-Caps + Space                  → emits C-a inside Ghostty (alt entry to tmux prefix)
 
 # Neovim
 <leader>ff / fg / fb          → fzf files / live-grep / buffers
@@ -141,12 +139,12 @@ A fresh install ships an empty `spaces.json` (no slot identities).
 Pills render as bare gray `ws1`, `ws2`, … until you customize one:
 
 ```sh
-ws name 1 work            # rename slot 1
+ws name 1 home            # rename slot 1
 ws icon 1 code            # set an SF Symbol icon (auto-maps to Nerd Font)
 ws color 1 "#a6e3a1"      # any hex
 ```
 
-The slot count is whatever yabai has — `Caps+W → digit` focuses slot N,
+The slot count is whatever yabai has — `Caps+space → digit` focuses slot N,
 loudly notifies if N doesn't exist. Mission Control's `+` / `×` Space
 gestures keep the bar in lock-step (yabai's `space_created` /
 `space_destroyed` signals are wired to per-display-pills.sh and
@@ -199,7 +197,7 @@ reorder. Use `workspace color N #HEX` to change a slot's colour
 directly.
 
 **Visible-pill cap (notch-aware).** Notched MacBook Pros cap visible
-pills at 10 on the built-in display (matches the `Caps+W → 1..0` focus
+pills at 10 on the built-in display (matches the `Caps+space → 1..0` focus
 range and the geometric constraint of the camera notch). Non-notched
 displays (externals, MBAir / 13" Pro built-in) show all assigned
 pills, centered between the left and right edges. Notch detection
@@ -247,8 +245,9 @@ macOS gates it behind SIP. Procedure:
    otherwise the SA silently stops auto-loading.
 
 Don't use macOS green-button (⛶) fullscreen on apps you want yabai to
-manage — it creates a native fullscreen space yabai cannot touch. Use
-`Caps + Return` for yabai-managed zoom instead.
+manage — it creates a native fullscreen space yabai cannot touch. If
+you want a window to fill the screen, send it to its own workspace
+slot (`Caps + return → digit`).
 
 ### Customizing workspaces — the `ws` CLI
 
@@ -266,8 +265,7 @@ ws doctor                  # validate schema
 ws verify                  # run end-to-end test harness
 
 # point edits
-ws name 3 lab              # rename slot 3
-ws name 1 work            # … or address it by current name (after you set one)
+ws name 3 home             # rename slot 3 (first arg accepts index OR current name)
 ws color 3 "#ffaabb"       # recolor slot 3
 ws icon 3 play.fill        # set icon via SF Symbol name (→ )
 ws icon 3 ""              # … or paste a literal Nerd Font glyph
@@ -320,9 +318,9 @@ slot indices. Use `ws color N #HEX` to change a slot's color directly.
 (Orange always means slot 2, regardless of what's currently named
 there.)
 
-**Hotkey remove / add.** Both live inside the `Mod+W` manage mode —
-`Mod+W → Shift+D` destroys the current slot (with an osascript
-confirm dialog), and `Mod+W → a` calls `yabai -m space --create`
+**Hotkey remove / add.** Both live inside the `Caps + Shift + return`
+manage mode — `manage → Shift+D` destroys the current slot (with an
+osascript confirm dialog), and `manage → a` calls `yabai -m space --create`
 (needs the scripting addition; falls back to a notification if SA
 isn't loaded). Subcommands and slot identifiers tab-complete in zsh
 and bash when the completion file is sourced (handled by `zshrc` /
@@ -346,10 +344,10 @@ Canonical palettes shipped by bootstrap: `catppuccin-mocha` (default),
 **Slot count is flexible.** The CLI derives the current count from
 yabai rather than hardcoding 10. `add` / `remove` are first-class, and
 the default post-mutate hook keeps the SketchyBar pill count in sync.
-Slot-focus is digit-keyed inside the `Hyper+W` focus mode (`1..9` and
-`0` = slot 10) — the 10-cap is a digit-keyboard hardware limit. Slots
-beyond 10 are reachable via the mode's `n`/`p` cycle (which wraps
-through every existing slot) or via yabai's own CLI.
+Slot-focus is digit-keyed inside the `Caps + space` focus mode (`1..9`
+and `0` = slot 10) — the 10-cap is a digit-keyboard hardware limit.
+Slots beyond 10 are reachable via the mode's `n`/`p` cycle (which
+wraps through every existing slot) or via yabai's own CLI.
 
 **Per-host overlay.** Need different slot identities on your laptop vs
 desktop? `workspace host init` forks the shared `spaces.json` into
@@ -483,9 +481,8 @@ and re-links them. Tmux: `prefix + r`.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | "Karabiner installed but `.app` missing" | `installer -pkg` was interrupted; bootstrap re-runs the staged installer when TTY is present, or `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
-| `Ctrl+Space` switches input source instead of entering send mode | macOS's "Select previous input source" is still enabled. System Settings → Keyboard → Keyboard Shortcuts → Input Sources, uncheck both rows. (Or `/usr/libexec/PlistBuddy -c "Set :AppleSymbolicHotKeys:60:enabled false" ~/Library/Preferences/com.apple.symbolichotkeys.plist` and re-log.) |
 | Stuck in a skhd mode | Press `Caps + Esc` (panic exit, bound at default level and inside every mode). If that fails, `skhd --reload`. |
-| `Caps + W` / `Ctrl + Space` / `Caps + Shift + W` does nothing | Helpers missing — `ls ~/.local/bin/ws-{focus,send-follow,destroy-current,info}`. Re-run `macos/bootstrap.sh`. |
+| `Caps + space` / `Caps + return` / `Caps + Shift + return` does nothing | Helpers missing — `ls ~/.local/bin/ws-{focus,send-follow,destroy-current,info}`. Re-run `macos/bootstrap.sh`. |
 | `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — re-run `~/.config/workspace/topology/install.sh` |
 | Workspace pills missing from menu/bottom bar | `sketchybar` not installed or service dead — `brew install FelixKratz/formulae/sketchybar` then `brew services restart sketchybar`. Pills painted but blank glyphs → Nerd Font not installed (`brew install --cask font-jetbrains-mono-nerd-font`) or wrong family name in `sketchybarrc` (must be `"JetBrainsMono Nerd Font"`). Verify with `osascript -e 'use framework "AppKit"' -e 'return (current application'\''s NSFontManager'\''s sharedFontManager'\''s availableFontFamilies()) as list'` and grep for JetBrains. |
 | Workspace pill doesn't update on space switch | `on-space-changed.sh` ran but sketchybar trigger silent — `sketchybar --trigger workspace_changed` to repaint; if that does nothing, `brew services restart sketchybar` |
