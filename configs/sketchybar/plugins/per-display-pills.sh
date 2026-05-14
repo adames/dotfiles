@@ -72,23 +72,30 @@ done
 #    of the chip doesn't shift when the focused-workspace name changes
 #    length (home → uplink → ridiculouslylongname). Set at --add time,
 #    never updated by paint-all.sh, so focus events stay geometry-stable.
-#    label.align=left so short names don't get centered inside the
-#    fixed-width slot. ~140pt fits ~11 chars at 12pt bold; longer names
-#    truncate (acceptable trade vs. geometry instability).
+#    label.align=center horizontally centers the name in the fixed
+#    140pt slot; symmetric label padding keeps the centering visually
+#    true (asymmetric padding would shift the apparent center).
+#    ~140pt fits ~11 chars at 12pt bold; longer names truncate
+#    (acceptable trade vs. geometry instability).
 for d in $current_displays; do
   if ! grep -qx "$d" <<<"$existing_chips"; then
-    sketchybar --add item "workspace.name.$d" left \
-               --set "workspace.name.$d" \
-                  icon.drawing=off \
-                  label.drawing=on \
-                  label.align=left \
-                  label.padding_left=8 \
-                  label.padding_right=12 \
-                  width=140 \
-                  display="$d" \
-                  drawing=on \
-               >/dev/null 2>&1 || true
+    sketchybar --add item "workspace.name.$d" left >/dev/null 2>&1 || true
   fi
+  # Apply the chip's fixed geometric contract unconditionally (not just
+  # at --add time) so existing chips from earlier deployments pick up
+  # any tweaks — and to defend against property drift if some other
+  # plugin ever touches these. paint-all.sh stays the sole writer of
+  # label.value and label.color.
+  sketchybar --set "workspace.name.$d" \
+    icon.drawing=off \
+    label.drawing=on \
+    label.align=center \
+    label.padding_left=8 \
+    label.padding_right=8 \
+    width=140 \
+    display="$d" \
+    drawing=on \
+    >/dev/null 2>&1 || true
 done
 for d in $existing_chips; do
   if ! grep -qx "$d" <<<"$current_displays"; then
