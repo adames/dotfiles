@@ -66,17 +66,14 @@ Shift+Caps case and the 3-mod Mod would never fire.
 
 ## App launchers live in skhd, not here
 
-The Karabiner config has only the two rules above. Everything else
-that fires on a Hyper chord — including `Caps + B` (browser),
-`Caps + C` (Claude), `Caps + M` (Spotify), `Caps + S` (System
-Settings), `Caps + T` (terminal), `Caps + F` (Finder), and `Caps + ;`
-(cheatsheet HUD) — is bound in [`skhdrc`](skhdrc). Karabiner's job
-ends at re-emitting the Hyper/Mod modifier set; skhd does the
-dispatch.
+The Karabiner config has only the two rules above. Every Hyper chord
+— `Caps + T` (terminal), `Caps + B` (browser), `Caps + O` (Finder),
+`Caps + S` (System Settings), `Caps + ;` (cheatsheet) — is bound in
+[`skhdrc`](skhdrc). Karabiner's job ends at re-emitting the
+Hyper/Mod modifier set; skhd dispatches.
 
-`Caps + g` and `Caps + v` are currently unbound (in either layer)
-and available for future use; `Caps + v` was historically reserved
-for a clipboard manager (Maccy, Raycast clipboard) if one ever lands.
+`Caps + g`, `Caps + v`, `Caps + c`, `Caps + m` are unbound and
+available.
 
 ## Layer semantic: Hyper = navigate, Mod = modify
 
@@ -108,5 +105,4 @@ sticky skhd modes anywhere in the system anymore.
 
 The manage flow shells out to the `ws` CLI directly and surfaces
 stdout + stderr in an in-overlay result panel — no AppleScript
-dialogs, no helper shell shims. An earlier manage palette dispatched
-into broken intermediaries and was retired; this one is the rebuild.
+dialogs, no helper shell shims.
