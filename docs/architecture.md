@@ -199,14 +199,15 @@ See [`wizard.md`](wizard.md).
 The workspace identity (default: empty seed — yabai's slots render as
 bare `ws1`, `ws2`, … until you `ws name N <name>`) is a single piece
 of state (`~/.config/workspace/spaces.json`) read by five subsystems.
-Mutations go through one of two entry points (the `ws` CLI —
-`workspace` is kept as a compat symlink — or `workspace/rename.sh`
-for the AppleScript flow) and fan out via the cascade.
+Mutations all go through the `ws` CLI (`workspace` is kept as a compat
+symlink) — either directly from the terminal or via the manage overlay
+(`ws-prompt manage`), which shells out to `ws` and yabai. The CLI's
+atomic write fans out via the cascade.
 
 ```mermaid
 graph LR
   CLI[ws CLI] -->|atomic write| JSON[(spaces.json v2)]
-  Rename[rename.sh AppleScript] --> CLI
+  Overlay[ws-prompt manage] --> CLI
   JSON --> Hook[post-mutate.sh hook]
   JSON --> Cascade[on-space-changed.sh]
   yabai[yabai space_changed] --> Cascade
@@ -352,7 +353,6 @@ the bar's `padding_left=8` handles the corner margin.
     │   ├── themes/*.json                  # canonical palettes
     │   ├── spaces.default.json            # fresh-install seed (v2)
     │   ├── on-space-changed.sh            # cascade (v2 only)
-    │   ├── rename.sh                      # AppleScript wrapper
     │   ├── cheatsheet.json                # ws-cheatsheet content (hand-editable)
     │   ├── hooks/post-mutate.sh           # user-owned extension point
     │   ├── lib/resolve-config.sh          # per-host overlay resolution

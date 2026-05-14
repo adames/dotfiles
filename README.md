@@ -69,12 +69,12 @@ Ghostty doesn't break zsh's line editor.
 | Hyper/Mod hotkeys → yabai · terminal · app launchers · cheatsheet | skhd | [`skhdrc`](configs/skhdrc) |
 | Stage every new window (cross-space migrate · center if floating · focus) | yabai `window_created` signal + bash | [`workspace/stage-window.sh`](configs/workspace/stage-window.sh) |
 | AX absolute-snap CLI (left/right/max/center; not bound to a chord, available for manual use) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
-| skhd-mode helpers: focus / send+follow / destroy / info (loud-fail wrappers around yabai) | bash | [`workspace/cli/ws-focus`](configs/workspace/cli/ws-focus) · [`ws-send-follow`](configs/workspace/cli/ws-send-follow) · [`ws-destroy-current`](configs/workspace/cli/ws-destroy-current) · [`ws-info`](configs/workspace/cli/ws-info) |
+| ws-prompt overlay helpers: focus / send+follow (loud-fail wrappers around yabai) | bash | [`workspace/cli/ws-focus`](configs/workspace/cli/ws-focus) · [`ws-send-follow`](configs/workspace/cli/ws-send-follow) |
 | SketchyBar per-display autohide (cursor poller, LaunchAgent) | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Cross-display topology + per-display layout policy (notch-aware) | ws-topologyd (LaunchAgent) | [`workspace/topology/`](configs/workspace/topology) |
 | Per-slot workspace identity (color + icon + name → tmux + prompt + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) |
-| Hyper app launchers (browser, terminal, Finder, Settings, Claude, Spotify) | skhd | [`skhdrc`](configs/skhdrc) |
+| Hyper app launchers (terminal, browser, Finder, Settings) | skhd | [`skhdrc`](configs/skhdrc) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-a` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
 | zsh: vi-mode · starship · direnv · autosuggestions · syntax-highlighting | zsh | [`zshrc`](configs/zshrc) |
@@ -522,8 +522,7 @@ and re-links them. Tmux: `prefix + r`.
     │   ├── spaces.default.json   #  · empty seed (yabai owns existence; identity is opt-in)
     │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + sketchybar)
     │   ├── on-space-destroyed.sh #  · prune orphan slot from spaces.json after yabai destroys a space
-    │   ├── rename.sh             #  · osascript-prompted slot rename
-    │   ├── topology/             #  · Swift package: ws-topology(d), ws-cheatsheet, ws-snap, ws-autohide
+    │   ├── topology/             #  · Swift package: ws-topology(d), ws-cheatsheet, ws-prompt, ws-snap, ws-autohide
     │   └── install.sh            #  · seeds + restarts daemons
     ├── sketchybar/               # persistent workspace pill strip
     │   ├── sketchybarrc          #  · bar geometry + space items + workspace.paint sentinel
