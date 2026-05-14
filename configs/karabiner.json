@@ -14,7 +14,7 @@
       "complex_modifications": {
         "rules": [
           {
-            "description": "Caps Lock+Shift -> Meh (Ctrl+Opt+Cmd) so Hyper+Shift+key is distinguishable in skhd",
+            "description": "Caps Lock+Shift -> Mod (Ctrl+Opt+Cmd) so Hyper+Shift+key is distinguishable in skhd",
             "manipulators": [
               {
                 "type": "basic",

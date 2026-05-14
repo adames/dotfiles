@@ -91,7 +91,7 @@ phase_configs() {
   install_file "$CONFIGS_DIR/yabai-ensure-spaces.sh"     "$HOME/.config/yabai/ensure-spaces.sh" 755
   # Hammerspoon is retired. ws-autohide (configs/workspace/topology/Sources/
   # ws-autohide) is the launchd-managed SketchyBar autohide poller, ws-snap
-  # is the Meh+arrows floating-window snap, and skhd owns the rest of what
+  # is the Mod+arrows floating-window snap, and skhd owns the rest of what
   # used to live in hammerspoon-init.lua. The cheatsheet HUD is the SwiftUI
   # ws-cheatsheet — all reachable via the topology Swift package below.
 
