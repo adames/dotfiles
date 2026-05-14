@@ -87,14 +87,32 @@ _assert "slot 0 exits 1" 1 "$HELPER" 0
 # and exercise the helper's "yabai unavailable" branch.
 YABAI_STUB_SPACES_JSON='not json' _assert "yabai unavailable exits 1" 1 "$HELPER" 3
 
-# ── non-numeric slot (e.g. focus-mode `next` is handled directly by skhd, not here) ──
-# ws-focus only receives literal integers from skhdrc — verify it
-# accepts them only as integers. Pass a string; the regex check
-# (`[[ "$target" =~ ^[0-9]+$ ]]`) skips the range check and falls
-# through to yabai. We accept either outcome (exit 0 if yabai
-# accepts it, exit 1 if yabai rejects), but the helper must not
-# crash.
+# ── non-numeric target (literal junk) shouldn't crash ──
+# ws-focus accepts numeric slots OR `next`/`prev` (handled below). A
+# random string falls through to yabai, which either accepts or
+# rejects; either outcome is fine as long as the helper doesn't crash.
 _assert "non-numeric target does not crash" 0 "$HELPER" foo
+
+# ── next/prev wrap with the default 10-space stub ──
+# Focused space defaults to 1. `next` resolves to 2; `prev` wraps to 10.
+_assert        "next from 1 → 2 exits 0"     0 "$HELPER" next
+_assert_called "next from 1 sends to slot 2" "space --focus 2"
+
+YABAI_STUB_FOCUSED_SPACE=10 _assert        "next from 10 wraps to 1"     0 "$HELPER" next
+YABAI_STUB_FOCUSED_SPACE=10 _assert_called "next from 10 sends to slot 1" "space --focus 1"
+
+YABAI_STUB_FOCUSED_SPACE=1 _assert        "prev from 1 wraps to last"    0 "$HELPER" prev
+YABAI_STUB_FOCUSED_SPACE=1 _assert_called "prev from 1 sends to slot 10" "space --focus 10"
+
+YABAI_STUB_FOCUSED_SPACE=5 _assert        "prev from 5 → 4"              0 "$HELPER" prev
+YABAI_STUB_FOCUSED_SPACE=5 _assert_called "prev from 5 sends to slot 4"  "space --focus 4"
+
+# ── next/prev on a one-space configuration → wraps to itself, exits 0 ──
+SINGLE_SPACE='[{"index":1,"display":1,"has-focus":true}]'
+YABAI_STUB_SPACES_JSON="$SINGLE_SPACE" YABAI_STUB_FOCUSED_SPACE=1 \
+  _assert "next with count=1 wraps to self" 0 "$HELPER" next
+YABAI_STUB_SPACES_JSON="$SINGLE_SPACE" YABAI_STUB_FOCUSED_SPACE=1 \
+  _assert_called "wrap-1 next still sends to slot 1" "space --focus 1"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 (( fail == 0 ))
