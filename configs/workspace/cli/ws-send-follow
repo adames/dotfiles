@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# ws-send-follow <SLOT|next|prev> — send focused window to target
+# space and follow it. Loud failure if no window is focused or the
+# target slot doesn't exist. Replaces the old silent Mod+digit chord
+# bound directly to `yabai -m window --space N && yabai -m space --focus N`.
+set -u
+
+target="${1:-}"
+[[ -n "$target" ]] || {
+  osascript -e 'display notification "ws-send-follow: missing slot arg" with title "ws"'
+  exit 2
+}
+
+# Refuse to act if there is no focused window — `window --space N` is
+# a silent no-op in that case, which lets users think they sent a
+# window when they didn't.
+win=$(yabai -m query --windows --window 2>/dev/null | jq -r '.id // empty' 2>/dev/null)
+if [[ -z "$win" ]]; then
+  osascript -e 'display notification "no focused window" with title "ws"'
+  exit 1
+fi
+
+count=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null)
+cur=$(yabai -m query --spaces --space 2>/dev/null | jq -r '.index' 2>/dev/null)
+if [[ -z "${count:-}" || ! "$count" =~ ^[0-9]+$ || -z "${cur:-}" || "$cur" == "null" ]]; then
+  osascript -e 'display notification "yabai unavailable" with title "ws"'
+  exit 1
+fi
+
+# Resolve next/prev to a literal index up front. Computing it from the
+# already-queried `cur` avoids the race where `window --space next`
+# moves the window, then `space --focus next` resolves "next" against
+# the now-different focused space.
+case "$target" in
+  next) target=$(( cur % count + 1 )) ;;
+  prev) target=$(( (cur - 2 + count) % count + 1 )) ;;
+esac
+
+if [[ "$target" =~ ^[0-9]+$ ]] && (( target < 1 || target > count )); then
+  osascript -e "display notification \"slot $target does not exist (have $count)\" with title \"ws\""
+  exit 1
+fi
+
+if ! yabai -m window --space "$target" 2>/dev/null; then
+  osascript -e "display notification \"send to slot $target failed\" with title \"ws\""
+  exit 1
+fi
+yabai -m space --focus "$target" 2>/dev/null
