@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Where the manage overlay is in its multi-step flow. Each stage owns
 /// the data it needs to render and to transition forward. Esc always
@@ -26,36 +27,30 @@ enum ManageStage: Equatable {
     case result(title: String, body: String, success: Bool)
 }
 
-/// What ManageController.handle returns. The caller (main.swift) executes
-/// the side-effect cases, captures the result, and feeds it back via
-/// `applyCommandResult(...)`. `.idle` means the view should re-render
-/// but no side effect runs. `.terminate` closes the overlay.
-///
-/// Two binaries get invoked from the manage flow:
-///
-///   ws    — identity layer over spaces.json (`ws name`, `ws layout`,
-///           `ws verify`, `ws doctor`). Output goes to the result panel.
-///   yabai — the actual macOS Space lifecycle (`--create`, `--destroy`).
-///           Requires the scripting-addition to be loaded.
-///
-/// `runAdd` is a composite: create the yabai space first, then attach
-/// identity via `ws name <new_index>`. main.swift drives the sequence so
-/// the state machine doesn't have to model two-stage execution.
+/// What ManageController.handle returns. `.idle` means the view should
+/// re-render but no further action is required from the host. `.terminate`
+/// closes the overlay. Command execution is no longer surfaced through
+/// this enum — the controller drives commands directly via its injected
+/// `WorkspaceService` and re-renders when their completions land.
 enum ManageAction: Equatable {
     case idle
-    case runWs(verb: String, args: [String])
-    case runYabai(verb: String, args: [String])
-    case runAdd(name: String, icon: String?)
     case terminate
 }
 
-/// Multi-stage state machine for the manage overlay. The actual command
-/// dispatch (Process.run) lives in main.swift so this stays unit-testable
-/// and side-effect-free.
-final class ManageController {
-    private(set) var stage: ManageStage = .verbPicker
-    private(set) var workspaces: [Workspace]
-    private let wsBinary: String
+/// Multi-stage state machine for the manage overlay.
+///
+/// Holds its own state (`stage`) as a `@Published` so SwiftUI views bind
+/// directly to the controller — no separate view-model. Side effects
+/// (yabai create / destroy, `ws name` / `ws layout`, …) are dispatched
+/// through the injected `WorkspaceService`, which lets tests pin every
+/// transition with no Process spawning. Once a command completes the
+/// controller flips itself to `.result(...)` on the main queue and the
+/// view re-renders.
+final class ManageController: ObservableObject {
+    @Published private(set) var stage: ManageStage = .verbPicker
+
+    let workspaces: [Workspace]
+    private let service: WorkspaceService
 
     /// Yabai's currently-focused space index, captured once at overlay
     /// open. Used to default the rename/destroy target pickers to "act
@@ -69,11 +64,10 @@ final class ManageController {
 
     init(workspaces: [Workspace],
          focusedIndex: Int? = nil,
-         wsBinary: String = FileManager.default.homeDirectoryForCurrentUser
-             .appendingPathComponent(".local/bin/ws").path) {
+         service: WorkspaceService) {
         self.workspaces = workspaces
         self.focusedIndex = focusedIndex
-        self.wsBinary = wsBinary
+        self.service = service
     }
 
     /// Position of the focused workspace within `workspaces` (0-based),
@@ -88,65 +82,40 @@ final class ManageController {
 
     // MARK: - Event handling
 
-    /// Drive the state machine. One key in, one Action out.
+    /// Drive the state machine. One key in, one Action out. Side effects
+    /// are scheduled via `service` — the action only reports whether the
+    /// host should terminate or just re-render.
     func handle(_ key: PromptKey) -> ManageAction {
         switch stage {
-        case .verbPicker:                       return atVerbPicker(key)
-        case .addName(let buf):                 return atAddName(key, buf: buf)
-        case .addIcon(let n, let buf):          return atAddIcon(key, name: n, buf: buf)
+        case .verbPicker:                       return handleVerbPicker(key)
+        case .addName(let buf):                 return handleAddName(key, buf: buf)
+        case .addIcon(let n, let buf):          return handleAddIcon(key, name: n, buf: buf)
         case .renameTarget(let f, let s, let q):
-            return atRenameTarget(key, filter: f, sel: s, inQueryMode: q)
+            return handleRenameTarget(key, filter: f, sel: s, inQueryMode: q)
         case .renameNewName(let i, let nm, let buf):
-            return atRenameNewName(key, slot: i, slotName: nm, buf: buf)
+            return handleRenameNewName(key, slot: i, slotName: nm, buf: buf)
         case .destroyTarget(let f, let s, let q):
-            return atDestroyTarget(key, filter: f, sel: s, inQueryMode: q)
-        case .destroyConfirm(let i, let nm):    return atDestroyConfirm(key, slot: i, slotName: nm)
-        case .layoutVerb:                       return atLayoutVerb(key)
-        case .layoutSaveName(let buf):          return atLayoutSaveName(key, buf: buf)
+            return handleDestroyTarget(key, filter: f, sel: s, inQueryMode: q)
+        case .destroyConfirm(let i, let nm):    return handleDestroyConfirm(key, slot: i, slotName: nm)
+        case .layoutVerb:                       return handleLayoutVerb(key)
+        case .layoutSaveName(let buf):          return handleLayoutSaveName(key, buf: buf)
         case .layoutLoadPick(let snaps, let f, let s):
-            return atLayoutPick(key, snapshots: snaps, filter: f, sel: s, mode: .load)
+            return handleLayoutPick(key, snapshots: snaps, filter: f, sel: s, mode: .load)
         case .layoutDeletePick(let snaps, let f, let s):
-            return atLayoutPick(key, snapshots: snaps, filter: f, sel: s, mode: .delete)
-        case .layoutDeleteConfirm(let name):    return atLayoutDeleteConfirm(key, name: name)
-        case .running:                          return .idle    // ignore input while command in flight
-        case .result:                           return .terminate   // any key dismisses
+            return handleLayoutPick(key, snapshots: snaps, filter: f, sel: s, mode: .delete)
+        case .layoutDeleteConfirm(let name):    return handleLayoutDeleteConfirm(key, name: name)
+        case .running:                          return .idle    // ignore input mid-command
+        case .result:                           return .terminate // any key dismisses
         }
     }
 
-    /// main.swift calls this after running a `.runCommand` to surface the
-    /// result. Transitions the stage to `.result(...)`. The view re-renders;
-    /// the next keystroke (handled in `.result`) terminates the overlay.
-    func applyCommandResult(verb: String, success: Bool, output: String) {
-        let title = success ? "\(verb): ok" : "\(verb): failed"
-        let body = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        stage = .result(title: title, body: body, success: success)
-    }
+    // MARK: - Verb picker
 
-    /// Read the layout-snapshot list lazily. main.swift calls this when
-    /// entering layout load/delete so the picker has names to show.
-    func loadSnapshots() -> [String] {
-        if let cached = snapshotCache { return cached }
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: wsBinary)
-        task.arguments = ["layout", "list"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe()
-        do { try task.run(); task.waitUntilExit() } catch { return [] }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let out = String(data: data, encoding: .utf8) ?? ""
-        let snaps = out.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        snapshotCache = snaps
-        return snaps
-    }
-
-    // MARK: - Stage handlers
-
-    private func atVerbPicker(_ key: PromptKey) -> ManageAction {
+    private func handleVerbPicker(_ key: PromptKey) -> ManageAction {
         switch key {
-        case .escape:        return .terminate
-        case .char("a"), .char("A"):  stage = .addName(buffer: "");        return .idle
+        case .escape:                return .terminate
+        case .char("a"), .char("A"):
+            stage = .addName(buffer: "");           return .idle
         case .char("r"), .char("R"):
             stage = .renameTarget(filter: "", selection: focusedSelection, inQueryMode: false)
             return .idle
@@ -154,21 +123,25 @@ final class ManageController {
             stage = .destroyTarget(filter: "", selection: focusedSelection, inQueryMode: false)
             return .idle
         case .char("L"):              // capital L only (Shift+L), avoids clashing with destroy 'd'
-            stage = .layoutVerb;       return .idle
+            stage = .layoutVerb
+            return .idle
         case .char("v"), .char("V"):
-            stage = .running(verb: "verify")
-            return .runWs(verb: "verify", args: ["verify"])
+            dispatch(verb: "verify") { [weak self] in self?.service.runWs(args: ["verify"], completion: $0) }
+            return .idle
         case .char("?"):
-            stage = .running(verb: "doctor")
-            return .runWs(verb: "doctor", args: ["doctor"])
-        default:             return .idle
+            dispatch(verb: "doctor") { [weak self] in self?.service.runWs(args: ["doctor"], completion: $0) }
+            return .idle
+        default:                     return .idle
         }
     }
 
-    private func atAddName(_ key: PromptKey, buf: String) -> ManageAction {
+    // MARK: - Add
+
+    private func handleAddName(_ key: PromptKey, buf: String) -> ManageAction {
         switch key {
         case .escape:                stage = .verbPicker; return .idle
-        case .backspace:             stage = .addName(buffer: String(buf.dropLast())); return .idle
+        case .backspace:
+            stage = .addName(buffer: String(buf.dropLast())); return .idle
         case .enter:
             let name = buf.trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty else { return .idle }
@@ -181,9 +154,8 @@ final class ManageController {
             stage = .addIcon(name: name, buffer: "")
             return .idle
         case .char(let c):
-            // Refuse the first digit explicitly — `ws name` would reject
-            // it on commit anyway, but stopping it here makes the
-            // restriction visible while typing.
+            // Reject a leading digit early so the rule is visible while
+            // typing — `ws name` would reject on commit anyway.
             if buf.isEmpty, c.isNumber {
                 stage = .result(title: "add: rejected",
                                 body: "name cannot start with a digit",
@@ -196,78 +168,37 @@ final class ManageController {
         }
     }
 
-    private func atAddIcon(_ key: PromptKey, name: String, buf: String) -> ManageAction {
+    private func handleAddIcon(_ key: PromptKey, name: String, buf: String) -> ManageAction {
         switch key {
-        case .escape:        stage = .addName(buffer: name); return .idle
-        case .backspace:     stage = .addIcon(name: name, buffer: String(buf.dropLast())); return .idle
+        case .escape:                stage = .addName(buffer: name); return .idle
+        case .backspace:
+            stage = .addIcon(name: name, buffer: String(buf.dropLast())); return .idle
         case .enter:
             // Icon resolution policy: empty → no icon (CLI default).
             // Single character → assume the user typed a Nerd Font glyph
-            // directly; pass through. Multi-char → must exist in the
-            // SF Symbol → Nerd Font map, otherwise silently drop it so
-            // the workspace is created cleanly rather than with a
-            // placeholder glyph (which the CLI would warn about).
-            //
-            // Composite execution: main.swift runs `yabai space --create`
-            // first to actually allocate the macOS Space, then attaches
-            // identity via `ws name <new_index> NAME [ICON]`. Without
-            // the yabai step the slot would be an orphan in spaces.json
-            // (the failure mode the CLI's `ws add` had on its own).
-            let icon: String? = (!buf.isEmpty && Self.iconResolvable(buf)) ? buf : nil
-            stage = .running(verb: "add")
-            return .runAdd(name: name, icon: icon)
-        case .char(let c):
-            stage = .addIcon(name: name, buffer: buf + String(c))
+            // directly. Multi-char → must exist in the SF Symbol → Nerd
+            // Font map, otherwise silently drop it so the workspace is
+            // created cleanly rather than with a placeholder glyph.
+            let icon = (!buf.isEmpty && service.iconResolvable(buf)) ? buf : nil
+            dispatch(verb: "add") { [weak self] completion in
+                self?.service.runAdd(name: name, icon: icon, completion: completion)
+            }
             return .idle
-        case .tab, .backTab: return .idle
+        case .char(let c):
+            stage = .addIcon(name: name, buffer: buf + String(c)); return .idle
+        case .tab, .backTab:         return .idle
         }
     }
 
-    // MARK: - Icon resolvability
-    //
-    // Pre-flight check against ~/.config/workspace/lib/sf-to-nerd.json so
-    // the manage flow doesn't have to surface the CLI's "no mapping →
-    // placeholder" warning. The map is loaded lazily once per overlay
-    // session; small (~80 entries) and there's no point re-reading it on
-    // every keystroke.
+    // MARK: - Rename
 
-    private static var cachedIconMap: Set<String>?
-    private static let iconMapPath = FileManager.default
-        .homeDirectoryForCurrentUser
-        .appendingPathComponent(".config/workspace/lib/sf-to-nerd.json")
-
-    private static func iconMap() -> Set<String> {
-        if let cached = cachedIconMap { return cached }
-        guard let data = try? Data(contentsOf: iconMapPath),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else {
-            cachedIconMap = []
-            return []
-        }
-        // Documentation keys start with `_` (e.g. `_doc`) — exclude them.
-        let keys = Set(obj.keys.filter { !$0.hasPrefix("_") })
-        cachedIconMap = keys
-        return keys
-    }
-
-    /// True when `icon` is something the CLI can render without falling
-    /// back to a placeholder: a single typed glyph, or a known SF Symbol
-    /// name with a Nerd Font mapping.
-    static func iconResolvable(_ icon: String) -> Bool {
-        guard !icon.isEmpty else { return false }
-        if icon.unicodeScalars.count == 1 { return true }
-        return iconMap().contains(icon)
-    }
-
-    private func atRenameTarget(_ key: PromptKey, filter: String, sel: Int,
-                                inQueryMode: Bool) -> ManageAction {
+    private func handleRenameTarget(_ key: PromptKey, filter: String, sel: Int,
+                                    inQueryMode: Bool) -> ManageAction {
         switch key {
         case .escape: stage = .verbPicker; return .idle
         case .enter:
-            // Enter on empty filter → commit the focused workspace (the
-            // initial selection points at it). Otherwise pick the
-            // currently-highlighted match. All-numeric query while in
-            // query mode resolves to a literal slot (the path to 11+).
+            // Enter on empty filter → commit focused workspace.
+            // All-numeric query while in query mode → literal slot (11+).
             if inQueryMode, let target = digitTarget(filter: filter) {
                 return commitRename(slot: target)
             }
@@ -294,10 +225,9 @@ final class ManageController {
                                   selection: 0, inQueryMode: inQueryMode)
             return .idle
         case .char(let c):
-            // First-keystroke digit → commit that slot directly. Slot 0
-            // is a stand-in for 10, mirroring focus/send.
+            // First-keystroke digit → commit that slot directly. 0 = 10.
             if !inQueryMode, c.isASCII, c.isNumber {
-                let slot: Int = (c == "0") ? 10 : Int(String(c)) ?? -1
+                let slot = (c == "0") ? 10 : Int(String(c))!
                 return commitRename(slot: slot)
             }
             stage = .renameTarget(filter: filter + String(c).lowercased(),
@@ -306,9 +236,6 @@ final class ManageController {
         }
     }
 
-    /// Helper for the digit + all-numeric-query paths. Validates the slot
-    /// exists; if not, transitions to a result panel so the failure is
-    /// visible rather than silently dropping the keystroke.
     private func commitRename(slot: Int) -> ManageAction {
         guard let ws = workspaces.first(where: { $0.index == slot }) else {
             stage = .result(title: "rename: rejected",
@@ -319,14 +246,15 @@ final class ManageController {
         return .idle
     }
 
-    private func atRenameNewName(_ key: PromptKey, slot: Int, slotName: String,
-                                 buf: String) -> ManageAction {
+    private func handleRenameNewName(_ key: PromptKey, slot: Int, slotName: String,
+                                     buf: String) -> ManageAction {
         switch key {
         case .escape:
             stage = .renameTarget(filter: "", selection: focusedSelection, inQueryMode: false)
             return .idle
-        case .backspace:     stage = .renameNewName(slot: slot, slotName: slotName,
-                                                   buffer: String(buf.dropLast())); return .idle
+        case .backspace:
+            stage = .renameNewName(slot: slot, slotName: slotName,
+                                   buffer: String(buf.dropLast())); return .idle
         case .enter:
             let new = buf.trimmingCharacters(in: .whitespaces)
             guard !new.isEmpty else { return .idle }
@@ -335,17 +263,21 @@ final class ManageController {
                                 body: "name cannot start with a digit", success: false)
                 return .idle
             }
-            stage = .running(verb: "name")
-            return .runWs(verb: "name", args: ["name", String(slot), new])
+            dispatch(verb: "name") { [weak self] completion in
+                self?.service.runWs(args: ["name", String(slot), new], completion: completion)
+            }
+            return .idle
         case .char(let c):
             stage = .renameNewName(slot: slot, slotName: slotName, buffer: buf + String(c))
             return .idle
-        case .tab, .backTab: return .idle
+        case .tab, .backTab:         return .idle
         }
     }
 
-    private func atDestroyTarget(_ key: PromptKey, filter: String, sel: Int,
-                                 inQueryMode: Bool) -> ManageAction {
+    // MARK: - Destroy
+
+    private func handleDestroyTarget(_ key: PromptKey, filter: String, sel: Int,
+                                     inQueryMode: Bool) -> ManageAction {
         switch key {
         case .escape: stage = .verbPicker; return .idle
         case .enter:
@@ -376,7 +308,7 @@ final class ManageController {
             return .idle
         case .char(let c):
             if !inQueryMode, c.isASCII, c.isNumber {
-                let slot: Int = (c == "0") ? 10 : Int(String(c)) ?? -1
+                let slot = (c == "0") ? 10 : Int(String(c))!
                 return commitDestroy(slot: slot)
             }
             stage = .destroyTarget(filter: filter + String(c).lowercased(),
@@ -395,30 +327,30 @@ final class ManageController {
         return .idle
     }
 
-    private func atDestroyConfirm(_ key: PromptKey, slot: Int,
-                                  slotName: String) -> ManageAction {
+    private func handleDestroyConfirm(_ key: PromptKey, slot: Int,
+                                      slotName: String) -> ManageAction {
         switch key {
         case .escape:                return .terminate
         case .char("d"), .char("D"), .char("y"), .char("Y"), .enter:
-            // Destroy the actual macOS Space. yabai's space_destroyed
-            // signal fires the cascade (on-space-destroyed.sh), which
-            // prunes the slot from spaces.json on its own — so we don't
-            // need a follow-up `ws remove`. Requires yabai's scripting
-            // addition to be loaded; failure surfaces in the result
-            // panel ("cannot destroy space due to an error with the
-            // scripting-addition.").
-            stage = .running(verb: "destroy")
-            return .runYabai(verb: "destroy",
-                             args: ["-m", "space", "--destroy", String(slot)])
+            // yabai's space_destroyed signal fires the cascade
+            // (on-space-destroyed.sh) which prunes spaces.json on its
+            // own — no follow-up `ws remove` needed.
+            dispatch(verb: "destroy") { [weak self] completion in
+                self?.service.runYabai(args: ["-m", "space", "--destroy", String(slot)],
+                                       completion: completion)
+            }
+            return .idle
         default:
             stage = .destroyTarget(filter: "", selection: focusedSelection, inQueryMode: false)
             return .idle
         }
     }
 
-    private func atLayoutVerb(_ key: PromptKey) -> ManageAction {
+    // MARK: - Layout
+
+    private func handleLayoutVerb(_ key: PromptKey) -> ManageAction {
         switch key {
-        case .escape:        stage = .verbPicker; return .idle
+        case .escape:                stage = .verbPicker; return .idle
         case .char("s"), .char("S"): stage = .layoutSaveName(buffer: ""); return .idle
         case .char("l"), .char("L"):
             let snaps = loadSnapshots()
@@ -443,45 +375,49 @@ final class ManageController {
         }
     }
 
-    private func atLayoutSaveName(_ key: PromptKey, buf: String) -> ManageAction {
+    private func handleLayoutSaveName(_ key: PromptKey, buf: String) -> ManageAction {
         switch key {
-        case .escape:        stage = .layoutVerb; return .idle
-        case .backspace:     stage = .layoutSaveName(buffer: String(buf.dropLast())); return .idle
+        case .escape:                stage = .layoutVerb; return .idle
+        case .backspace:
+            stage = .layoutSaveName(buffer: String(buf.dropLast())); return .idle
         case .enter:
             let name = buf.trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty else { return .idle }
-            stage = .running(verb: "layout save")
-            return .runWs(verb: "layout save", args: ["layout", "save", name])
+            dispatch(verb: "layout save") { [weak self] completion in
+                self?.service.runWs(args: ["layout", "save", name], completion: completion)
+            }
+            return .idle
         case .char(let c):
-            // Layout name validator (matches the CLI's [A-Za-z0-9._-]+).
-            // Reject invalid chars early so the user sees the rule.
-            let allowed = c.isLetter || c.isNumber || c == "." || c == "_" || c == "-"
-            guard allowed else { return .idle }
+            // CLI validator matches [A-Za-z0-9._-]+. Reject early so the
+            // rule is visible.
+            guard c.isLetter || c.isNumber || c == "." || c == "_" || c == "-"
+            else { return .idle }
             stage = .layoutSaveName(buffer: buf + String(c))
             return .idle
-        case .tab, .backTab: return .idle
+        case .tab, .backTab:         return .idle
         }
     }
 
     enum LayoutPickMode { case load, delete }
 
-    private func atLayoutPick(_ key: PromptKey, snapshots: [String], filter: String,
-                              sel: Int, mode: LayoutPickMode) -> ManageAction {
+    private func handleLayoutPick(_ key: PromptKey, snapshots: [String], filter: String,
+                                  sel: Int, mode: LayoutPickMode) -> ManageAction {
         let matches = FuzzyMatch.filter(snapshots, query: filter, keyPath: { $0 })
         switch key {
-        case .escape:        stage = .layoutVerb; return .idle
+        case .escape:                stage = .layoutVerb; return .idle
         case .enter:
             guard !matches.isEmpty else { return .idle }
             let pick = matches[sel.clamped(to: 0...(matches.count - 1))]
             switch mode {
             case .load:
-                stage = .running(verb: "layout load")
-                return .runWs(verb: "layout load",
-                              args: ["layout", "load", pick, "-y"])
+                dispatch(verb: "layout load") { [weak self] completion in
+                    self?.service.runWs(args: ["layout", "load", pick, "-y"],
+                                        completion: completion)
+                }
             case .delete:
                 stage = .layoutDeleteConfirm(name: pick)
-                return .idle
             }
+            return .idle
         case .tab:
             stage = layoutPickStage(mode: mode, snaps: snapshots, filter: filter,
                                     sel: cycle(sel, count: matches.count, by: +1))
@@ -501,20 +437,52 @@ final class ManageController {
         }
     }
 
-    private func atLayoutDeleteConfirm(_ key: PromptKey, name: String) -> ManageAction {
+    private func handleLayoutDeleteConfirm(_ key: PromptKey, name: String) -> ManageAction {
         switch key {
         case .escape:                return .terminate
         case .char("d"), .char("D"), .char("y"), .char("Y"), .enter:
-            stage = .running(verb: "layout delete")
-            return .runWs(verb: "layout delete",
-                          args: ["layout", "delete", name, "-y"])
+            dispatch(verb: "layout delete") { [weak self] completion in
+                self?.service.runWs(args: ["layout", "delete", name, "-y"],
+                                    completion: completion)
+            }
+            return .idle
         default:
             stage = .layoutVerb
             return .idle
         }
     }
 
+    // MARK: - Command dispatch
+
+    /// Transition to `.running(verb:)`, kick off the side effect, and
+    /// flip to `.result(...)` when it completes. `runner` is whichever
+    /// of `service.runWs / runYabai / runAdd` makes sense for this
+    /// verb — the controller just composes the dispatch contract here
+    /// so every verb shares the running → result transition.
+    private func dispatch(verb: String,
+                          runner: (@escaping (CommandResult) -> Void) -> Void) {
+        stage = .running(verb: verb)
+        runner { [weak self] result in
+            // Completion already fires on the main queue (the service
+            // contract); SwiftUI doesn't care which queue published the
+            // change, but @Published-driven view updates have to be on
+            // main.
+            self?.stage = .result(
+                title: result.success ? "\(verb): ok" : "\(verb): failed",
+                body: result.output.trimmingCharacters(in: .whitespacesAndNewlines),
+                success: result.success
+            )
+        }
+    }
+
     // MARK: - Helpers
+
+    private func loadSnapshots() -> [String] {
+        if let cached = snapshotCache { return cached }
+        let snaps = service.listSnapshots()
+        snapshotCache = snaps
+        return snaps
+    }
 
     private func layoutPickStage(mode: LayoutPickMode, snaps: [String],
                                  filter: String, sel: Int) -> ManageStage {
@@ -524,17 +492,15 @@ final class ManageController {
         }
     }
 
-    /// Same broad subsequence match focus/send use — `arc` matches
-    /// `archives`, `hm` matches `home-mgmt`. Substring-only was too
-    /// restrictive for the manage target pickers, where you usually
-    /// remember a couple of letters rather than a contiguous prefix.
     func filteredWorkspaces(filter: String) -> [Workspace] {
         FuzzyMatch.filter(workspaces, query: filter, keyPath: { $0.name })
     }
 
-    /// If `filter` is purely numeric, parse it as a slot index. Used by
-    /// rename/destroy target pickers to keep the "digit = slot N" shortcut
-    /// alive that focus/send already have.
+    /// All-numeric filter buffer → literal slot index. Used by the
+    /// rename/destroy target pickers' enter key after an explicit
+    /// query-mode entry (backspace-erasure of a leading letter is the
+    /// only way to get an all-numeric buffer; the first-keystroke digit
+    /// fast path commits before query mode opens).
     private func digitTarget(filter: String) -> Int? {
         guard !filter.isEmpty, filter.allSatisfy({ $0.isNumber }) else { return nil }
         return Int(filter)
@@ -543,11 +509,5 @@ final class ManageController {
     private func cycle(_ sel: Int, count: Int, by delta: Int) -> Int {
         guard count > 0 else { return 0 }
         return ((sel + delta) % count + count) % count
-    }
-}
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
     }
 }
