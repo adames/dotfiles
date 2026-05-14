@@ -16,14 +16,12 @@
       "rows": [
         ["caps + hjkl",          "focus window  ←  ↓  ↑  →"],
         ["caps + shift + hjkl",  "swap window  ←  ↓  ↑  →"],
-        ["caps + return",        "zoom fullscreen (toggle)"],
-        ["caps + shift + f",     "float / unfloat window"],
+        ["caps + f",             "zoom fullscreen (toggle)"],
+        ["caps + shift + f",     "float mode → f toggle · hjkl snap (left · center · max · right) · esc exits"],
         ["caps + e",             "balance space"],
         ["caps + r",             "rotate space 90°"],
         ["caps + tab",           "focus next display"],
-        ["caps + shift + tab",   "focus prev display"],
-        ["caps + shift + ← →",   "snap ½-left / ½-right  (for floats)"],
-        ["caps + shift + ↑ ↓",   "maximise / centre 50%  (for floats)"]
+        ["caps + shift + tab",   "focus prev display"]
       ]
     },
     {
@@ -31,11 +29,11 @@
       "color": "#60a5fa",
       "title": "Workspace · Slots",
       "sub": "number = stable selector · names/icons are cosmetic",
-      "idea": "Three modes — focus (caps+w), send (ctrl+space), manage (caps+shift+w). Pick a digit; the slot is the handle.",
+      "idea": "Three modes — focus (caps+space), send (caps+return), manage (caps+shift+return). Pick a digit; the slot is the handle.",
       "rows": [
-        ["caps + w",             "focus mode → digit (focus slot) · n/p/tab cycle · esc exits"],
-        ["ctrl + space",         "send mode → digit (send window + follow) · n/p next/prev · esc exits"],
-        ["caps + shift + w",     "manage mode → a add · r rename · i info · l list · shift+d destroy"],
+        ["caps + space",         "focus mode → digit (focus slot) · n/p/tab cycle · esc exits"],
+        ["caps + return",        "send mode → digit (send window + follow) · n/p next/prev · esc exits"],
+        ["caps + shift + return","manage mode → a add · r rename · i info · l list · shift+d destroy"],
         ["caps + shift + esc",   "panic exit from any mode"],
         ["—",                    "modes are sticky (esc/return/q exits) · slot 1 sticks to laptop; 2..N migrate to external"]
       ]
@@ -49,7 +47,7 @@
       "rows": [
         ["caps + t",  "new terminal  (auto: Ghostty / iTerm / …; $WS_TERMINAL_APP override)"],
         ["caps + b",  "new browser  (auto: Brave / Arc / … / Safari; $WS_BROWSER_APP override)"],
-        ["caps + f",  "new Finder window"],
+        ["caps + o",  "new Finder window  (o = open)"],
         ["caps + s",  "System Settings"],
         ["caps + c",  "Claude"],
         ["caps + m",  "Spotify"]
@@ -60,7 +58,7 @@
       "family": "terminal",
       "color": "#34d399",
       "title": "Tmux",
-      "sub": "prefix = C-a  ·  caps+space in Ghostty also fires prefix",
+      "sub": "prefix = C-a",
       "idea": "C-a is your prefix. Everything after it is one keystroke — pane, window, or session.",
       "rows": [
         ["C-a  hjkl",   "select pane  ←  ↓  ↑  →"],
