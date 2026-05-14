@@ -1,8 +1,8 @@
 import Foundation
 
-/// Three prompts the overlay can render. Picked from the first CLI arg.
+/// Two prompts the overlay can render. Picked from the first CLI arg.
 enum PromptMode: String {
-    case focus, send, manage
+    case focus, send
 }
 
 /// A single input event the controller understands. Modeled as a closed
@@ -15,22 +15,16 @@ enum PromptKey: Equatable {
     case tab
     case backTab           // Shift+Tab
     case backspace
-    case shiftD            // manage-mode destroy
 }
 
 /// Outcome of a key. The UI re-renders on every event; the binary
 /// dispatches the side-effect helpers on `.commit*`.
 enum PromptAction: Equatable {
-    case idle                                   // no-op (unknown key in manage mode, etc.)
+    case idle
     case refilter(query: String, matches: [Int])// new query → updated match list (Workspace indices)
     case commitFocus(slot: Int)
     case commitSend(slot: Int)
-    case commitManage(action: ManageAction)
     case cancel
-}
-
-enum ManageAction: String, Equatable {
-    case add, rename, info, list, destroy
 }
 
 /// Pure state machine. Owns no NSEvent / NSApp — feed it `PromptKey`,
@@ -63,51 +57,6 @@ final class PromptController {
 
     /// Drive the state machine. One key in, one Action out.
     func handle(_ key: PromptKey) -> PromptAction {
-        if case .escape = key { return .cancel }
-
-        switch mode {
-        case .manage:
-            return handleManage(key)
-        case .focus, .send:
-            return handleFocusOrSend(key)
-        }
-    }
-
-    /// Pure helper for tests. Folds a list of keys through `handle`,
-    /// returning the final non-idle action (or `.idle` if every key was
-    /// idle, or `.cancel` if no commit happened by end-of-input).
-    func simulate(_ keys: [PromptKey]) -> PromptAction {
-        var last: PromptAction = .idle
-        for key in keys {
-            let action = handle(key)
-            switch action {
-            case .commitFocus, .commitSend, .commitManage, .cancel:
-                return action
-            case .refilter:
-                last = action
-            case .idle:
-                continue
-            }
-        }
-        return last
-    }
-
-    // MARK: - Manage palette
-
-    private func handleManage(_ key: PromptKey) -> PromptAction {
-        switch key {
-        case .char("a"), .char("A"):     return .commitManage(action: .add)
-        case .char("r"), .char("R"):     return .commitManage(action: .rename)
-        case .char("i"), .char("I"):     return .commitManage(action: .info)
-        case .char("l"), .char("L"):     return .commitManage(action: .list)
-        case .shiftD:                    return .commitManage(action: .destroy)
-        default:                          return .idle
-        }
-    }
-
-    // MARK: - Focus / send
-
-    private func handleFocusOrSend(_ key: PromptKey) -> PromptAction {
         switch key {
         case .escape:
             return .cancel
@@ -124,9 +73,26 @@ final class PromptController {
             return .refilter(query: query, matches: currentMatches().map(\.index))
         case .char(let c):
             return absorb(c)
-        case .shiftD:
-            return .idle   // not a manage prompt
         }
+    }
+
+    /// Pure helper for tests. Folds a list of keys through `handle`,
+    /// returning the final non-idle action (or `.idle` if every key was
+    /// idle, or `.cancel` if no commit happened by end-of-input).
+    func simulate(_ keys: [PromptKey]) -> PromptAction {
+        var last: PromptAction = .idle
+        for key in keys {
+            let action = handle(key)
+            switch action {
+            case .commitFocus, .commitSend, .cancel:
+                return action
+            case .refilter:
+                last = action
+            case .idle:
+                continue
+            }
+        }
+        return last
     }
 
     /// Digit fast-path: a single-digit FIRST key commits immediately.

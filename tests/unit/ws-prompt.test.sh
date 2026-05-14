@@ -94,24 +94,6 @@ _run "caps+space <ESC> cancels" 1 "action=cancel" \
   focus --simulate-keys "<ESC>"
 _run "caps+return <ESC> cancels" 1 "action=cancel" \
   send --simulate-keys "<ESC>"
-_run "caps+shift+return <ESC> cancels" 1 "action=cancel" \
-  manage --simulate-keys "<ESC>"
-
-# ── manage palette → existing helpers ───────────────────────────────────
-_run "caps+shift+return a → yabai space --create" 0 "helper=yabai arg=space --create" \
-  manage --simulate-keys "a"
-_run "caps+shift+return r → rename.sh"            0 "helper=rename.sh" \
-  manage --simulate-keys "r"
-_run "caps+shift+return i → ws-info"              0 "helper=ws-info" \
-  manage --simulate-keys "i"
-_run "caps+shift+return l → ws-cheatsheet"        0 "helper=ws-cheatsheet arg=--toggle" \
-  manage --simulate-keys "l"
-_run "caps+shift+return <S-D> → ws-destroy-current" 0 "helper=ws-destroy-current" \
-  manage --simulate-keys "<S-D>"
-
-# ── manage: unknown key is idle (no commit, prompt stays open) ──────────
-_run "caps+shift+return x is idle" 0 "action=idle" \
-  manage --simulate-keys "x"
 
 # ── structural: no sticky skhd modes remain (only `default` is allowed) ─
 if grep -E '^::' "$REPO_ROOT/configs/skhdrc" | grep -vE '^:: default\b' | grep -q .; then
@@ -121,6 +103,22 @@ if grep -E '^::' "$REPO_ROOT/configs/skhdrc" | grep -vE '^:: default\b' | grep -
 else
   pass=$((pass + 1))
   printf 'ok   skhdrc has no sticky workspace modes\n'
+fi
+
+# ── structural: manage prompt fully retired (no skhd binding, rejected by binary) ─
+if grep -q 'ws-prompt.*manage' "$REPO_ROOT/configs/skhdrc"; then
+  fail=$((fail + 1))
+  printf 'FAIL skhdrc still references ws-prompt manage\n'
+else
+  pass=$((pass + 1))
+  printf 'ok   skhdrc has no ws-prompt manage binding\n'
+fi
+if "$BIN" manage --simulate-keys "a" >/dev/null 2>&1; then
+  fail=$((fail + 1))
+  printf 'FAIL ws-prompt accepts manage as a mode (should be rejected)\n'
+else
+  pass=$((pass + 1))
+  printf 'ok   ws-prompt rejects manage mode\n'
 fi
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
