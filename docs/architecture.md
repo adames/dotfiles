@@ -72,9 +72,7 @@ transient skhd modes rather than direct number-row chords:
 | `Hyper+Esc` | — | global panic exit from any mode |
 
 Workspace **numbers** stay the stable selector; `spaces.json`
-names/icons are display-only metadata. The old `Hyper+1..0` /
-`Mod+1..0` chords are kept in a `DEPRECATED` block in skhdrc through
-2026-06-13 for muscle-memory transition.
+names/icons are display-only metadata.
 
 This is why the SIP-safe arrow snaps live on **Mod+arrows** rather than
 Hyper+arrows — snapping is "manually move this window," which belongs in
@@ -166,11 +164,12 @@ See [`wizard.md`](wizard.md).
 
 ## Workspace identity cascade
 
-The workspace identity (factory: 2 slots — home, code — but extensible) is a single piece of state
-(`~/.config/workspace/spaces.json`) read by five subsystems. Mutations
-go through one of two entry points (the `ws` CLI — `workspace` is kept
-as a compat symlink — or `workspace/rename.sh` for the AppleScript
-flow) and fan out via the cascade.
+The workspace identity (default: empty seed — yabai's slots render as
+bare `ws1`, `ws2`, … until you `ws name N <name>`) is a single piece
+of state (`~/.config/workspace/spaces.json`) read by five subsystems.
+Mutations go through one of two entry points (the `ws` CLI —
+`workspace` is kept as a compat symlink — or `workspace/rename.sh`
+for the AppleScript flow) and fan out via the cascade.
 
 ```mermaid
 graph LR
@@ -218,12 +217,13 @@ ones.
   icon / theme / add / remove / swap / move / rotate / reverse / reorder /
   layout / edit / reset / doctor. Every mutation is atomic (mktemp + jq
   + mv) and fires the cascade. Slot count is derived dynamically; the
-  system tolerates any count ≥ 1 even though skhd hotkeys only bind
-  1..10. Any subcommand that takes a slot accepts either a numeric
-  index or a unique slot name. `ws remove` is bound to Hyper+Shift+- so
-  the bar can shrink without a terminal round-trip; the companion `ws
-  add` hotkey was removed because the Ghostty-spawn-then-keystroke
-  pattern proved unreliable.
+  system tolerates any count ≥ 1 even though the digit keys inside
+  `Hyper+W` focus mode address slots 1..10 directly (use `n`/`p` to
+  cycle beyond that). Any subcommand that takes a slot accepts either
+  a numeric index or a unique slot name. Slot add/destroy are bound
+  inside the `Mod+W` manage mode (`a` adds, `Shift+D` destroys with a
+  confirm dialog) so the bar can grow/shrink without a terminal
+  round-trip.
 - **Positional colors.** Reordering operations (`swap`, `move`,
   `rotate`, `reverse`, `reorder`) permute only the (name, icon) tuples
   — color stays anchored to slot index. This preserves muscle-memory

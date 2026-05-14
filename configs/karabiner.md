@@ -64,29 +64,19 @@ Shift+Caps case and the 3-mod Mod would never fire.
 - **macOS shortcut conflicts** — Cmd+Q, Cmd+W, etc. still work normally
   because the user is pressing them without Caps Lock.
 
-## Rule 3 — Hyper app launchers
+## App launchers live in skhd, not here
 
-```
-from: <key> with mandatory cmd+opt+ctrl+shift   (the 4-mod Hyper)
-to:   shell_command "open -a '<App>'"
-```
+The Karabiner config has only the two rules above. Everything else
+that fires on a Hyper chord — including `Caps + B` (browser),
+`Caps + C` (Claude), `Caps + M` (Spotify), `Caps + S` (System
+Settings), `Caps + T` (terminal), `Caps + F` (Finder), and `Caps + ;`
+(cheatsheet HUD) — is bound in [`skhdrc`](skhdrc). Karabiner's job
+ends at re-emitting the Hyper/Mod modifier set; skhd does the
+dispatch.
 
-Karabiner re-evaluates emitted modifier keys, so the Caps→Hyper rule
-fires first, then this rule sees the resulting `Hyper+<key>` and runs the
-shell. Currently bound:
-
-| Key | App |
-|---|---|
-| `b` | Brave Browser (designated browser slot) |
-| `c` | Claude |
-
-Only one browser gets a launcher slot, by design — Brave is the daily
-driver, Chrome / Safari open via the dock or Spotlight on the rare
-occasion they're needed. `Caps + g` and `Caps + s` are intentionally
-unbound and available for future use.
-
-`Caps + v` is intentionally unbound — reserved for a clipboard-manager
-binding (Maccy, Raycast clipboard, etc.) if one is ever installed.
+`Caps + g` and `Caps + v` are currently unbound (in either layer)
+and available for future use; `Caps + v` was historically reserved
+for a clipboard manager (Maccy, Raycast clipboard) if one ever lands.
 
 ## Layer semantic: Hyper = navigate, Mod = modify
 
