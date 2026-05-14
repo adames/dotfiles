@@ -14,24 +14,30 @@ cmd + alt + ctrl - j : yabai -m window --swap south
 cmd + alt + ctrl - k : yabai -m window --swap north
 cmd + alt + ctrl - l : yabai -m window --swap east
 
-# --- layout / float ------------------------------------------------------
-cmd + alt + ctrl + shift - return : yabai -m window --toggle zoom-fullscreen
+# --- layout --------------------------------------------------------------
+# Zoom-fullscreen lives on Hyper+F (single-key chord, easy hit). The
+# previous Hyper+Return slot is now the send-mode entry. Toggle-float
+# and floating-window snaps live inside the float submode (see below).
+cmd + alt + ctrl + shift - f      : yabai -m window --toggle zoom-fullscreen
 cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 
-# Hyper+F is "open Finder" (see below). Toggle-float lives on Mod+F:
-# Mod is the "modify" layer (Hyper = navigate, Mod = modify), so
-# changing a window's tiled/floating state belongs here next to swap.
-cmd + alt + ctrl - f              : yabai -m window --toggle float
-
-# --- workspace modes (replaces old Hyper+digit / Mod+digit chords) -------
-# Three transient submodes, all capturing (@) so unbound keys don't leak
+# --- workspace + window modes -------------------------------------------
+# Four transient submodes, all capturing (@) so unbound keys don't leak
 # to the foreground app while a mode is active:
 #
-#   focus    Hyper+W → digit (focus space), n/p/tab (cycle next/prev).
-#   send     C-Space → digit (send window+follow), n/p (next/prev).
-#   manage   Mod+W   → a (add), r (rename), i (info), l (list),
-#                      shift+d (destroy with osascript confirm).
+#   focus    caps+space        → digit (focus space), n/p/tab cycle.
+#   send     caps+return       → digit (send window+follow), n/p.
+#   manage   caps+shift+return → a (add), r (rename), i (info),
+#                                l (list), shift+d (destroy).
+#   float    caps+shift+f      → f (toggle float), hjkl (snap left,
+#                                center, max, right). hjkl mirrors the
+#                                focus/swap directional grammar so
+#                                muscle memory carries over.
+#
+# Entry chords use return/space because they're easier to hit than the
+# old w/ctrl-space chords, and they group naturally: return for
+# slot-targeted ops (send/manage), space for the navigation mode (focus).
 #
 # Why each mode declares `: true` on entry: skhd has a documented
 # mode-transition race (koekeishiya/skhd #34, #102) where the first
@@ -43,24 +49,20 @@ cmd + alt + ctrl - f              : yabai -m window --toggle float
 # `: command` and `; mode` mutually exclusive — a single line cannot
 # both run a command AND switch back to default. Modes therefore stay
 # sticky after an action; press escape / return / q to leave.
-#
-# C-Space as the send-mode entry: this chord was previously the tmux
-# prefix, reclaimed in the tmux-prefix → C-a migration. macOS's
-# default "Select previous input source" shortcut on Ctrl+Space must
-# be disabled (System Settings → Keyboard → Keyboard Shortcuts →
-# Input Sources) or it will fire alongside this binding.
 
 :: focus  @ : true
 :: send   @ : true
 :: manage @ : true
+:: float  @ : true
 
 # Mode entries (no shell command — `; mode` and `: command` cannot
 # coexist on one line). Hyper+Esc is the global panic-exit; bound to
 # `; default` both at default level and inside every mode so it always
 # returns you home, even if focus gets stuck.
-cmd + alt + ctrl + shift - w      ; focus
-ctrl                       - space ; send
-cmd + alt + ctrl           - w    ; manage
+cmd + alt + ctrl + shift - space  ; focus
+cmd + alt + ctrl + shift - return ; send
+cmd + alt + ctrl - return         ; manage
+cmd + alt + ctrl - f              ; float
 cmd + alt + ctrl + shift - escape ; default
 
 # focus mode --------------------------------------------------------------
@@ -117,6 +119,24 @@ manage < return ; default
 manage < q      ; default
 manage < cmd + alt + ctrl + shift - escape ; default
 
+# float mode --------------------------------------------------------------
+# Float ops are infrequent and grouped — a mode amortises the entry chord
+# across multiple actions and keeps the default layer uncluttered. `f`
+# toggles regardless of current state, so the user never needs to know
+# whether the window is currently floating before entering the mode.
+#
+# Snap commands invoke ws-snap (AX-based absolute positioning). Calling
+# them on a tiled window is harmless — yabai re-tiles immediately.
+float < f      : yabai -m window --toggle float
+float < h      : "$HOME/.local/bin/ws-snap" left
+float < l      : "$HOME/.local/bin/ws-snap" right
+float < k      : "$HOME/.local/bin/ws-snap" max
+float < j      : "$HOME/.local/bin/ws-snap" center
+float < escape ; default
+float < return ; default
+float < q      ; default
+float < cmd + alt + ctrl + shift - escape ; default
+
 # --- displays -----------------------------------------------------------
 # Cycle focus between monitors. Scales past 10 spaces — useful with 3+
 # displays where digit-row bindings stop making sense.
@@ -146,21 +166,13 @@ cmd + alt + ctrl + shift - t : "$HOME/.local/bin/ws-launch-terminal" >/dev/null 
 cmd + alt + ctrl + shift - b : "$HOME/.local/bin/ws-launch-browser" >/dev/null 2>&1 &
 
 # --- open Finder / Settings --------------------------------------------
-# Hyper+F → open a new Finder window. AppleScript dictionary (no
-# Accessibility permission required).
+# Hyper+O → open a new Finder window (o = open). AppleScript dictionary
+# (no Accessibility permission required). Hyper+F is now zoom-fullscreen.
 # Hyper+S → activate macOS System Settings.
-cmd + alt + ctrl + shift - f : osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - o : osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - s : open -a "System Settings"
 
 # --- app launchers (just activate; no new-window semantics) ------------
 cmd + alt + ctrl + shift - c : open -a "Claude"
 cmd + alt + ctrl + shift - m : open -a "Spotify"
 
-# --- floating-window snaps (Mod+arrows) ---------------------------------
-# SIP-safe absolute snaps for yabai-unmanaged windows (System Settings,
-# floating Ghostty). Hyper layer keeps hjkl/yabai; Mod keeps arrows as
-# manual snaps — see docs/architecture.md "Hyper = navigate, Mod = modify".
-cmd + alt + ctrl - left  : $HOME/.local/bin/ws-snap left
-cmd + alt + ctrl - right : $HOME/.local/bin/ws-snap right
-cmd + alt + ctrl - up    : $HOME/.local/bin/ws-snap max
-cmd + alt + ctrl - down  : $HOME/.local/bin/ws-snap center
