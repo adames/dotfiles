@@ -189,7 +189,10 @@ phase_configs() {
   # (recenter.sh) is gone — nothing reads it now. Idempotent.
   rm -f "$HOME/.config/workspace/sketchybar-tuning.env"
   install_file "$CONFIGS_DIR/borders/bordersrc"           "$HOME/.config/borders/bordersrc" 755
-  bash "$CONFIGS_DIR/workspace/install.sh"
+  # (workspace/install.sh runs once at the end of this phase from the
+  # deployed copy — see "configuring workspace-awareness layer" below.
+  # Earlier this block called it twice, which printed every reload
+  # banner twice.)
 
   # Native display-topology helper (ws-topology / ws-topologyd). Source
   # tree is vendored under configs/workspace/topology/. The package's own
