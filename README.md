@@ -90,14 +90,17 @@ Ghostty doesn't break zsh's line editor.
 ## Daily-driver keymap
 
 Full reference is `Hyper+;`. Layer split: **Hyper = navigate, Mod (Caps+Shift) = modify.**
+Window ops are direct chords; workspace ops go through a one-shot SwiftUI
+overlay (`ws-prompt`) — digit (1..0) commits instantly, letters fuzzy-search
+names + Enter, Esc and click-elsewhere always cancel. No sticky modes.
 
 ```
 Caps tap                      → Esc
 
 # Hyper — navigate / open / commit (single-chord ops)
 Caps + hjkl                   → focus window
-Caps + space → digit          → focus mode: focus slot N (0 = slot 10, n/p/tab cycle)
-Caps + return → digit         → send mode: send focused window to slot N + follow (n/p)
+Caps + space → digit | name+↵ → focus workspace (overlay)
+Caps + return → digit | name+↵ → send window to workspace + follow (overlay)
 Caps + f                      → toggle float / unfloat (unfloat = commit staged float to BSP tiling)
 Caps + e / r                  → balance / rotate space
 Caps + t                      → new terminal window (auto-detect)
@@ -107,11 +110,11 @@ Caps + s                      → System Settings
 Caps + c / m                  → Claude / Spotify
 Caps + ;                      → toggle cheatsheet
 Caps + tab / Shift + tab      → focus next / prev display
-Caps + Esc                    → panic exit (returns to default from any mode)
+Caps + Esc                    → no-op (preserved as muscle-memory panic key)
 
 # Mod — modify (destructive / lifecycle)
 Caps + Shift + hjkl           → swap window
-Caps + Shift + return → a/r/i/l/D  → manage mode: add / rename / info / list / Shift+D destroy
+Caps + Shift + return → a/r/i/l/⇧D → manage workspace (overlay): add / rename / info / list / destroy
 
 # Terminal
 C-a  hjkl / v / s / z         → tmux pane nav / split / zoom        (prefix = C-a)
@@ -144,11 +147,13 @@ ws icon 1 code            # set an SF Symbol icon (auto-maps to Nerd Font)
 ws color 1 "#a6e3a1"      # any hex
 ```
 
-The slot count is whatever yabai has — `Caps+space → digit` focuses slot N,
-loudly notifies if N doesn't exist. Mission Control's `+` / `×` Space
-gestures keep the bar in lock-step (yabai's `space_created` /
-`space_destroyed` signals are wired to per-display-pills.sh and
-on-space-destroyed.sh).
+The slot count is whatever yabai has — `Caps+space → digit` focuses slot N
+through the overlay, loudly notifies if N doesn't exist. Names are
+constrained to start with a non-digit so the overlay can resolve an
+all-numeric query (e.g. `11`) as a literal slot index without ambiguity.
+Mission Control's `+` / `×` Space gestures keep the bar in lock-step
+(yabai's `space_created` / `space_destroyed` signals are wired to
+per-display-pills.sh and on-space-destroyed.sh).
 
 Seed file (intentionally empty):
 [`configs/workspace/spaces.default.json`](configs/workspace/spaces.default.json).

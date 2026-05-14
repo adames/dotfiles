@@ -16,6 +16,8 @@ graph LR
   skhd -->|"yabai -m ..."| yabai
   skhd -->|Hyper+T osascript| Ghostty
   skhd -->|Hyper+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
+  skhd -->|Caps+Space / Caps+Return / Caps+Shift+Return| WSPrompt[ws-prompt · SwiftUI overlay]
+  WSPrompt -->|ws-focus / ws-send-follow / ws-info / yabai| yabai
   yabai -->|window_created signal| WSStage[stage-window.sh]
 
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
@@ -61,22 +63,28 @@ The two layers carry a consistent semantic split:
 | **Hyper** | navigate / read-only | focus window (`hjkl`), focus mode (`w` → digit), focus display (`tab`), new terminal (`t`), launch app (`b`/`c`), cheatsheet (`;`), panic-exit (`esc`) |
 | **Mod**   | modify / destructive | swap window (`hjkl`), manage mode entry (`return`), focus prev display (`tab`) |
 
-Workspace targeting (focus and send-window-and-follow) lives in three
-transient skhd modes rather than direct number-row chords:
+Workspace targeting (focus, send-window-and-follow, manage) goes through
+a one-shot SwiftUI overlay (`ws-prompt`) rather than sticky skhd modes.
+The overlay captures keystrokes itself and exits on commit / cancel /
+blur / Esc — so skhd never holds workspace state:
 
-| Trigger | Mode | What |
+| Trigger | Prompt | What |
 |---|---|---|
-| `Caps + space`         | focus  | digit focuses slot N · `n`/`p`/`tab` cycle · `esc` exit |
-| `Caps + return`        | send   | digit sends focused window to slot N + follow · `n`/`p` next/prev · `esc` exit |
-| `Caps + Shift + return`| manage | `a` add · `r` rename · `i` info · `l` list · `Shift+D` destroy (confirm) · `esc` exit |
-| `Caps + Esc`           | —      | global panic exit from any mode |
+| `Caps + space`         | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
+| `Caps + return`        | send   | digit commits + follow · letters fuzzy-match name + Enter |
+| `Caps + Shift + return`| manage | `a` add · `r` rename · `i` info · `l` list · `Shift+D` destroy (confirm) |
+| `Esc` / click-elsewhere | —     | cancels any prompt |
+| `Caps + Esc`           | —      | no-op (preserved as muscle-memory panic key) |
 
 Entry chords use `return` and `space` because they're easier to hit
 than letter-based chords and group naturally: `return` for slot-targeted
-ops (send, manage), `space` for the navigation mode (focus).
+ops (send, manage), `space` for the navigation prompt (focus).
 
 Workspace **numbers** stay the stable selector; `spaces.json`
-names/icons are display-only metadata.
+names/icons are display-only metadata. Names are constrained to start
+with a non-digit (enforced by `ws name`/`ws add`) so the overlay can
+unambiguously resolve an all-numeric query as a literal slot index —
+this is the path to slot 11+ via numeric input.
 
 New windows are auto-staged centered on the focused space by a yabai
 `window_created` signal ([stage-window.sh](../configs/workspace/stage-window.sh))
@@ -92,6 +100,7 @@ the user wants a staged floating window committed to the BSP tiling.
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
 | Hyper/Mod hotkey dispatch (windows, spaces, app launchers, terminal, cheatsheet trigger) | skhd | `skhdrc` |
+| Workspace focus / send / manage prompts (one-shot SwiftUI overlay) | ws-prompt (topology package) | `configs/workspace/topology/Sources/ws-prompt/` |
 | New-window staging (center if floating, focus, cross-space migrate) | bash + yabai `window_created` signal | `configs/workspace/stage-window.sh` |
 | AX absolute-snap CLI (manual use; no chord bound) | ws-snap (topology package, AX) | `configs/workspace/topology/Sources/ws-snap/` |
 | SketchyBar per-display autohide | ws-autohide (LaunchAgent, Swift) | `configs/workspace/topology/Sources/ws-autohide/` |
@@ -116,6 +125,10 @@ the user wants a staged floating window committed to the BSP tiling.
     Accessibility API. Not bound to a chord today (kept as a manual
     CLI for advanced use); the staging signal does the common case.
   - **ws-cheatsheet** is the SwiftUI HUD (Hyper+;).
+  - **ws-prompt** is the SwiftUI overlay for workspace focus / send /
+    manage (Caps+Space, Caps+Return, Caps+Shift+Return). One-shot,
+    captures keys itself, exits on commit/cancel/blur — no skhd mode
+    state involved.
   - **ws-autohide** is the only long-running helper — a launchd-managed
     cursor poller that hides each display's SketchyBar pills when the
     cursor approaches its top edge.
