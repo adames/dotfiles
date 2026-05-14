@@ -143,6 +143,7 @@ phase_configs() {
   # user's renames; workspace/install.sh below seeds it only when missing.
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
   install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
+  install_file "$CONFIGS_DIR/workspace/stage-window.sh"       "$HOME/.config/workspace/stage-window.sh"       755
   install_file "$CONFIGS_DIR/workspace/rename.sh"             "$HOME/.config/workspace/rename.sh"             755
   install_file "$CONFIGS_DIR/workspace/install.sh"          "$HOME/.config/workspace/install.sh"          755
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"

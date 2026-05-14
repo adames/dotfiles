@@ -61,17 +61,27 @@ yabai -m rule --add app="^Install( |$)"          manage=off sub-layer=above
 yabai -m rule --add app="^Installer$"            manage=off sub-layer=above
 yabai -m rule --add app="^Software Update$"      manage=off sub-layer=above
 
-# Safety net: when a tile-managed app pops a child window with no AX
-# subrole hint (e.g. some apps' "About" / preference panels), the rules
-# above miss it. window_created fires for every new NSWindow; we raise
-# any window that yabai already classifies as floating, which is cheap
-# (a single yabai call) and idempotent. Skipped for managed windows so
-# tile focus behaviour is unchanged.
-yabai -m signal --remove ws_float_raise 2>/dev/null || true
+# Stage every new window: migrate to the user's currently focused space,
+# center it iff yabai/app rules already have it floating, and focus it.
+# Tile-vs-float is left to yabai's app rules / subrole rules — the
+# helper never toggles float. Supersedes the older ws_float_raise
+# signal (which only raised already-floating windows; the focus call
+# below covers that).
+#
+# Three behaviours, each independently gated in stage-window.sh:
+#   - cross-space migrate (always)
+#   - center @ 50% grid (only if already floating)
+#   - focus (always)
+#
+# Skips non-AXWindow roles and AXDialog/AXSheet/AXSystem* subroles so
+# modal sheets stay attached and system overlays stay put. Silent on
+# vanish for quick-flash windows.
+yabai -m signal --remove ws_float_raise   2>/dev/null || true
+yabai -m signal --remove ws_stage_window  2>/dev/null || true
 yabai -m signal --add \
   event=window_created \
-  label=ws_float_raise \
-  action='yabai -m query --windows --window "$YABAI_WINDOW_ID" 2>/dev/null | grep -q "\"is-floating\":true" && yabai -m window "$YABAI_WINDOW_ID" --raise || true'
+  label=ws_stage_window \
+  action="\"\$HOME/.config/workspace/stage-window.sh\""
 
 # Ghostty: yabai-managed. The old "halve-on-Cmd+T" bug is fixed at the
 # source — Ghostty's config rebinds cmd+t and cmd+n to new_window so each
