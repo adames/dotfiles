@@ -1197,7 +1197,9 @@ cmd_doctor() {
   # Schema invariants:
   #   - slot keys are contiguous 1..count
   #   - name (string) + color (#RRGGBB string)
-  #   - iconSpec (object) with kind ∈ {sfSymbol, nerdFont, none}
+  #   - iconSpec is optional; when absent it is read as {kind: "none"}.
+  #     Present-but-malformed (wrong type, unknown kind, missing
+  #     codepoint/symbolName) is still flagged.
   #   - kind=nerdFont implies codepoint (string)
   #   - kind=sfSymbol implies symbolName (string)
   #   - userOverridden is boolean
@@ -1221,21 +1223,27 @@ cmd_doctor() {
         | select((.value.color // "") | test("^#[0-9a-fA-F]{6}$") | not)
         | "slot \(.key): color \"\(.value.color)\" is not #RRGGBB"
       ] + [
+        # iconSpec is optional. Flag only when it is present AND not an
+        # object — missing iconSpec is implicit kind=none.
         $s | to_entries[]
-        | select((.value.iconSpec | type) != "object")
-        | "slot \(.key): iconSpec missing or not an object"
+        | select(.value.iconSpec != null and (.value.iconSpec | type) != "object")
+        | "slot \(.key): iconSpec is present but not an object"
       ] + [
         $s | to_entries[]
         | select(.value.iconSpec | type == "object")
         | select((.value.iconSpec.kind // "") as $k | $k != "sfSymbol" and $k != "nerdFont" and $k != "none")
         | "slot \(.key): iconSpec.kind \"\(.value.iconSpec.kind)\" must be sfSymbol|nerdFont|none"
       ] + [
+        # Object-type guard prevents jq from erroring on indexing a
+        # non-object iconSpec (which is already reported above).
         $s | to_entries[]
+        | select((.value.iconSpec | type) == "object")
         | select(.value.iconSpec.kind == "nerdFont")
         | select((.value.iconSpec.codepoint // "") == "" or (.value.iconSpec.codepoint | type) != "string")
         | "slot \(.key): kind=nerdFont but codepoint missing"
       ] + [
         $s | to_entries[]
+        | select((.value.iconSpec | type) == "object")
         | select(.value.iconSpec.kind == "sfSymbol")
         | select((.value.iconSpec.symbolName // "") == "" or (.value.iconSpec.symbolName | type) != "string")
         | "slot \(.key): kind=sfSymbol but symbolName missing"
@@ -1262,6 +1270,20 @@ cmd_doctor() {
     while IFS= read -r name; do
       warn "duplicate name: $name"
     done <<<"$dups"
+  fi
+  # Drift check: spaces.json should never have more slots than yabai has
+  # spaces. on-space-destroyed.sh truncates on every yabai destroy, but
+  # if it ever misses an event (yabai down at destroy time, signal-storm
+  # races, older deploys without the handler), orphans accumulate and
+  # silently block `ws name` uniqueness checks against ghost slots.
+  if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
+    local yabai_n json_n
+    yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+    json_n=$(jq '.spaces | length' "$WS_CONFIG" 2>/dev/null || echo 0)
+    if (( json_n > yabai_n )); then
+      warn "drift: spaces.json has $json_n slots, yabai has $yabai_n. Orphan slots $((yabai_n + 1))..$json_n won't render but will block name-uniqueness. Fix with: ws remove $((yabai_n + 1))..$json_n  (or rerun yabai's space_destroyed cascade)"
+      bad=1
+    fi
   fi
   if (( bad )); then
     return 1
