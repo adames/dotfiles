@@ -15,7 +15,16 @@ phase_sudo() {
   fi
   step "caching sudo (one prompt for the run)"
   sudo -v
-  ( while true; do sudo -n true; sleep 50; kill -0 "$$" 2>/dev/null || exit; done ) &
+  # Keepalive: refresh the sudo ticket every 50s so phases that shell out
+  # to long-running tools (swift build, brew autoupdate) don't re-prompt.
+  # `sudo -nv` is "validate or fail silently"; stderr is suppressed so
+  # the "password is required" line from an expired ticket can't bleed
+  # into concurrent build output. The loop exits cleanly once validation
+  # starts failing — better to drop the keepalive than to spam errors.
+  ( while sudo -nv 2>/dev/null; do
+      sleep 50
+      kill -0 "$$" 2>/dev/null || exit
+    done ) &
   trap 'kill '"$!"' 2>/dev/null' EXIT
   ok "sudo cached"
 }
@@ -205,11 +214,18 @@ phase_configs() {
       --exclude='.build' --exclude='Package.resolved' --exclude='.swiftpm' --exclude='.DS_Store' \
       "$CONFIGS_DIR/workspace/topology/" "$HOME/.config/workspace/topology/"
     if command -v swift >/dev/null 2>&1; then
-      bash "$HOME/.config/workspace/topology/install.sh" || \
-        warn "topology install.sh failed (binaries may be stale)"
+      # Capture the exit code so the permissions wizard can adjust its
+      # ws-snap prompt and print a follow-up block at the end. install.sh
+      # exits 2 specifically for "CLT version-skewed" — both that and any
+      # other build failure mean ws-snap (et al.) won't exist on this run.
+      if ! bash "$HOME/.config/workspace/topology/install.sh"; then
+        warn "topology install.sh failed (binaries may be stale or missing)"
+        export BOOTSTRAP_TOPOLOGY_FAILED=1
+      fi
     else
       warn "swift toolchain not found — topology daemon will not be built;"
       warn "  install via 'xcode-select --install', then re-run this bootstrap"
+      export BOOTSTRAP_TOPOLOGY_FAILED=1
     fi
   fi
 

@@ -73,9 +73,16 @@ missing_accessibility() {
   mac_karabiner_accessibility_ok    || echo "    • Karabiner-Elements"
   # ws-snap doesn't have a fast launchctl probe; just always remind on
   # first-pass installs (the line is suppressed silently once all
-  # other items pass, since TCC grants survive across reboots).
+  # other items pass, since TCC grants survive across reboots). When
+  # bootstrap.sh already saw the topology build fail, swap the hint to
+  # point at the follow-up block — the toggle is useless without the
+  # binary, so "build the topology package first" would be misleading.
   if [[ ! -x "$HOME/.local/bin/ws-snap" ]]; then
-    echo "    • ws-snap (build the topology package first)"
+    if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" ]]; then
+      echo "    • ws-snap (topology build failed — see follow-up below)"
+    else
+      echo "    • ws-snap (build the topology package first)"
+    fi
   fi
 }
 missing_input_monitoring() {
@@ -146,6 +153,22 @@ ${se:-    • Karabiner-DriverKit-VirtualHIDDevice}"
     kick_services
   fi
   maybe_logout
+
+  # Surface anything bootstrap.sh deferred. Today only the topology build
+  # uses this channel; if other phases ever need to bubble up follow-ups,
+  # extend this block rather than scattering print logic across phases.
+  if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" ]]; then
+    section "Follow-up required"
+    err "topology Swift package did not build — ws-snap and the workspace daemons are missing"
+    printf '\n  Most common cause: Command Line Tools went version-skewed\n'
+    printf '  (PackageDescription was built against an older swift major).\n\n'
+    printf '  Fix one of these, then re-run ./bootstrap.sh:\n\n'
+    printf '    A. Reinstall CLT (fast; recommended):\n'
+    printf '         sudo rm -rf /Library/Developer/CommandLineTools\n'
+    printf '         xcode-select --install\n\n'
+    printf '    B. Install full Xcode (larger; only needed if you build other Swift apps):\n'
+    printf '         https://apps.apple.com/app/xcode/id497799835\n\n'
+  fi
 
   if [[ -z "$need_kick" ]]; then
     banner "All permissions already in place" "no panes opened — re-run with --force to re-verify"
