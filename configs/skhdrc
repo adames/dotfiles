@@ -30,96 +30,28 @@ cmd + alt + ctrl + shift - f      : yabai -m window --toggle float
 cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 
-# --- workspace modes ----------------------------------------------------
-# Three transient submodes, all capturing (@) so unbound keys don't leak
-# to the foreground app while a mode is active:
+# --- workspace prompts --------------------------------------------------
+# Workspace focus / send / manage are dispatched to a SwiftUI overlay
+# (ws-prompt), not skhd modes. The overlay captures keystrokes itself
+# and exits on commit / cancel / blur — so skhd never enters or holds
+# a workspace mode. No mode declarations, no sticky-state worry.
 #
-#   focus    caps+space        → digit (focus space), n/p/tab cycle.
-#   send     caps+return       → digit (send window+follow), n/p.
-#   manage   caps+shift+return → a (add), r (rename), i (info),
-#                                l (list), shift+d (destroy).
+#   focus   caps+space        → digit (1..0) commits instantly · letters
+#                              fuzzy-match workspace name + Enter
+#   send    caps+return       → digit commits + follow · letters fuzzy-match
+#   manage  caps+shift+return → a add · r rename · i info · l list · ⇧D destroy
 #
-# Entry chords use return/space because they're easier to hit than the
-# old w/ctrl-space chords, and they group naturally: return for
-# slot-targeted ops (send/manage), space for the navigation mode (focus).
+# Entry chords use return / space for the same reasons as before:
+# easier to hit than letter chords, and grouping naturally — return
+# for slot-targeted ops (send/manage), space for navigation (focus).
 #
-# Why each mode declares `: true` on entry: skhd has a documented
-# mode-transition race (koekeishiya/skhd #34, #102) where the first
-# keystroke after entry can be dropped at high typing speeds. A trivial
-# on-enter command forces a synchronous flush of the dispatcher's event
-# queue and eliminates the drop.
-#
-# Why modes don't auto-exit on action: skhd's binding grammar makes
-# `: command` and `; mode` mutually exclusive — a single line cannot
-# both run a command AND switch back to default. Modes therefore stay
-# sticky after an action; press escape / return / q to leave.
-
-:: focus  @ : true
-:: send   @ : true
-:: manage @ : true
-
-# Mode entries (no shell command — `; mode` and `: command` cannot
-# coexist on one line). Hyper+Esc is the global panic-exit; bound to
-# `; default` both at default level and inside every mode so it always
-# returns you home, even if focus gets stuck.
-cmd + alt + ctrl + shift - space  ; focus
-cmd + alt + ctrl + shift - return ; send
-cmd + alt + ctrl - return         ; manage
-cmd + alt + ctrl + shift - escape ; default
-
-# focus mode --------------------------------------------------------------
-focus < 1 : "$HOME/.local/bin/ws-focus" 1
-focus < 2 : "$HOME/.local/bin/ws-focus" 2
-focus < 3 : "$HOME/.local/bin/ws-focus" 3
-focus < 4 : "$HOME/.local/bin/ws-focus" 4
-focus < 5 : "$HOME/.local/bin/ws-focus" 5
-focus < 6 : "$HOME/.local/bin/ws-focus" 6
-focus < 7 : "$HOME/.local/bin/ws-focus" 7
-focus < 8 : "$HOME/.local/bin/ws-focus" 8
-focus < 9 : "$HOME/.local/bin/ws-focus" 9
-focus < 0 : "$HOME/.local/bin/ws-focus" 10
-focus < n         : yabai -m space --focus next || yabai -m space --focus first
-focus < p         : yabai -m space --focus prev || yabai -m space --focus last
-focus < tab       : yabai -m space --focus next || yabai -m space --focus first
-focus < shift - tab : yabai -m space --focus prev || yabai -m space --focus last
-focus < escape ; default
-focus < return ; default
-focus < q      ; default
-focus < cmd + alt + ctrl + shift - escape ; default
-
-# send mode ---------------------------------------------------------------
-send < 1 : "$HOME/.local/bin/ws-send-follow" 1
-send < 2 : "$HOME/.local/bin/ws-send-follow" 2
-send < 3 : "$HOME/.local/bin/ws-send-follow" 3
-send < 4 : "$HOME/.local/bin/ws-send-follow" 4
-send < 5 : "$HOME/.local/bin/ws-send-follow" 5
-send < 6 : "$HOME/.local/bin/ws-send-follow" 6
-send < 7 : "$HOME/.local/bin/ws-send-follow" 7
-send < 8 : "$HOME/.local/bin/ws-send-follow" 8
-send < 9 : "$HOME/.local/bin/ws-send-follow" 9
-send < 0 : "$HOME/.local/bin/ws-send-follow" 10
-send < n : "$HOME/.local/bin/ws-send-follow" next
-send < p : "$HOME/.local/bin/ws-send-follow" prev
-send < escape ; default
-send < return ; default
-send < q      ; default
-send < cmd + alt + ctrl + shift - escape ; default
-
-# manage mode -------------------------------------------------------------
-# `a` (add) may fail without yabai's scripting-addition + SIP off — the
-# fallback notification keeps the failure loud. `d` bare is intentionally
-# bound to a "press Shift+D" notification rather than left unbound: a
-# silent-eat would violate the system's fail-loudly principle.
-manage < a         : yabai -m space --create 2>/dev/null || osascript -e 'display notification "space create failed (needs SA + SIP off, or use Mission Control +)" with title "ws"'
-manage < r         : "$HOME/.config/workspace/rename.sh"
-manage < i         : "$HOME/.local/bin/ws-info"
-manage < l         : "$HOME/.local/bin/ws-cheatsheet" --toggle >/dev/null 2>&1 &
-manage < d         : osascript -e 'display notification "Press Shift+D to destroy this workspace" with title "ws"'
-manage < shift - d : "$HOME/.local/bin/ws-destroy-current"
-manage < escape ; default
-manage < return ; default
-manage < q      ; default
-manage < cmd + alt + ctrl + shift - escape ; default
+# Caps+Esc is preserved as a no-op so users who built muscle memory
+# around the old panic-exit still see "nothing happened" (rather than
+# the chord leaking into the foreground app).
+cmd + alt + ctrl + shift - space  : "$HOME/.local/bin/ws-prompt" focus  >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - return : "$HOME/.local/bin/ws-prompt" send   >/dev/null 2>&1 &
+cmd + alt + ctrl - return         : "$HOME/.local/bin/ws-prompt" manage >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - escape : :
 
 # --- displays -----------------------------------------------------------
 # Cycle focus between monitors. Scales past 10 spaces — useful with 3+

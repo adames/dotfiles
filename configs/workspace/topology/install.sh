@@ -17,7 +17,7 @@ LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 
 # Binaries we build + symlink. CLIs come first (no LaunchAgent), daemons
 # follow with their matching plist files.
-BINARIES=(ws-topology ws-topologyd ws-cheatsheet ws-autohide ws-snap)
+BINARIES=(ws-topology ws-topologyd ws-cheatsheet ws-prompt ws-autohide ws-snap)
 AGENT_LABELS=(com.adames.workspace.topologyd com.adames.workspace.autohide)
 
 step() { printf '\033[36m==>\033[0m %s\n' "$*"; }

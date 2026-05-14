@@ -28,13 +28,13 @@
       "color": "#60a5fa",
       "title": "Workspace · Slots",
       "sub": "number = stable selector · names/icons are cosmetic",
-      "idea": "Three modes — focus (caps+space), send (caps+return), manage (caps+shift+return). Pick a digit; the slot is the handle.",
+      "idea": "Three one-shot prompts. Digit (1..0) commits instantly; type letters to fuzzy-search names + Enter. Esc and click-elsewhere always cancel.",
       "rows": [
-        ["caps + space",         "focus mode → digit (focus slot) · n/p/tab cycle · esc exits"],
-        ["caps + return",        "send mode → digit (send window + follow) · n/p next/prev · esc exits"],
-        ["caps + shift + return","manage mode → a add · r rename · i info · l list · shift+d destroy"],
-        ["caps + shift + esc",   "panic exit from any mode"],
-        ["—",                    "modes are sticky (esc/return/q exits) · slot 1 sticks to laptop; 2..N migrate to external"]
+        ["caps + space",         "focus prompt → digit (commit) · letters → name search + ↵"],
+        ["caps + return",        "send prompt → digit (commit + follow) · letters → name + ↵"],
+        ["caps + shift + return","manage prompt → a add · r rename · i info · l list · ⇧d destroy"],
+        ["esc / click-elsewhere","cancel any prompt"],
+        ["—",                    "names cannot start with a digit · all-numeric query = slot index (11+)"]
       ]
     },
     {
