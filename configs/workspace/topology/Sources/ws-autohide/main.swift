@@ -101,12 +101,15 @@ final class AutohideDaemon {
         let offset = hidden ? hiddenYOffset : shownYOffset
         guard let yabai = yabaiPath, let sketchybar = sketchybarPath else { return }
         // Bulk update: one shell pipeline yielding one sketchybar call per
-        // pill on this display. The redirect avoids any stray output the
+        // space.* pill on this display, then a final set for the
+        // workspace.name.<yidx> chip so it hides/shows in lockstep with
+        // the pills it labels. The redirect avoids any stray output the
         // launchd log might capture.
         let cmd = """
         \(yabai) -m query --spaces \
         | /usr/bin/jq -r '.[] | select(.display == \(yidx)) | .index' \
         | while read sid; do \(sketchybar) --set "space.$sid" y_offset=\(offset) >/dev/null 2>&1; done
+        \(sketchybar) --set "workspace.name.\(yidx)" y_offset=\(offset) >/dev/null 2>&1
         """
         runShell(cmd)
     }
