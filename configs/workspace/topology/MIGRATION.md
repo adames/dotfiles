@@ -1,9 +1,13 @@
-# spaces.json v1 → v2 migration
+# spaces.json v1 → v2 migration (historical / import-only)
 
-This document is historical. The system is v2-only now. The migrator
-is kept as importer infrastructure: if you ever paste in a legacy v1
-`spaces.json` (or a `spaces.default.json` from an old commit), running
-`ws-topology migrate --apply` will rewrite it in place to v2 shape.
+**This document is historical.** The system has been v2-only since well
+before the keybinding/mode redesign in 2026-05; fresh installs ship
+v2 directly. The migrator is kept around solely as importer
+infrastructure for the rare case where someone pastes a legacy v1
+`spaces.json` (or a `spaces.default.json` from an old commit) on top
+of their config — running `ws-topology migrate --apply` rewrites it
+in place. Cascade readers do NOT fall back to legacy `.icon`, so
+always `--apply` before reloading.
 
 ## What changed
 
