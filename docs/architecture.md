@@ -16,10 +16,9 @@ graph LR
   skhd -->|"yabai -m ..."| yabai
   skhd -->|Hyper+T osascript| Ghostty
   skhd -->|Hyper+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
-  skhd -->|Caps+Space / Caps+Return| WSPrompt[ws-prompt · SwiftUI overlay]
-  WSPrompt -->|ws-focus / ws-send-follow| yabai
+  skhd -->|Caps+Space / Caps+Return / Caps+Shift+Return| WSPrompt[ws-prompt · SwiftUI overlay]
+  WSPrompt -->|ws-focus / ws-send-follow / ws / yabai| yabai
   yabai -->|window_created signal| WSStage[stage-window.sh]
-
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
   WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
   WorkspaceHandler -->|set-environment| tmux
@@ -33,13 +32,13 @@ graph LR
   zsh --> fzf & zoxide & direnv & starship
 ```
 
-Caps Lock is intercepted by Karabiner, which re-emits one of three things
-depending on what's held with it. **skhd** listens for those re-emitted
-modifier sets and dispatches each hotkey — either to **yabai** for tiling
-or to a tiny Swift CLI (**ws-snap**, **ws-cheatsheet**) for the cases
-where logic is required. Inside the terminal, **tmux** + **zsh** +
-**Neovim** form the dev surface — every layer reusing the same vim-style
-hjkl + leader-key mental model.
+Karabiner intercepts Caps Lock and re-emits one of three things
+depending on what's held with it. **skhd** dispatches each Hyper/Mod
+chord to **yabai** (for tiling) or to a small Swift binary
+(**ws-prompt**, **ws-cheatsheet**, **ws-snap**) where logic is needed.
+Inside the terminal, **tmux** + **zsh** + **Neovim** form the dev
+surface — every layer reusing the same vim-style hjkl + leader-key
+mental model.
 
 ## The two Hyper levels
 
@@ -49,61 +48,40 @@ hjkl + leader-key mental model.
 | Caps Lock held | **Hyper** | `⌃⌥⌘⇧` (4) |
 | Caps Lock + Shift held | **Mod** | `⌃⌥⌘` (3, Shift consumed) |
 
-Why two levels: if Hyper itself contained Shift, then `Hyper + Shift + H`
-would collapse to `Hyper + H`. By making Caps+Shift emit a *different*
-combo (Mod), skhd binds them as separate shortcuts. JSON specifics in
-[`configs/karabiner.md`](../configs/karabiner.md).
+Why two levels: if Hyper contained Shift, `Hyper + Shift + H` would
+collapse to `Hyper + H` — indistinguishable. By making `Caps + Shift`
+emit a *different* combo (Mod), skhd binds them as separate chords.
+JSON specifics in [`configs/karabiner.md`](../configs/karabiner.md).
 
 ### Hyper = navigate, Mod = modify
 
-The two layers carry a consistent semantic split:
-
 | Layer | Role | Examples |
 |---|---|---|
-| **Hyper** | navigate / read-only | focus window (`hjkl`), focus mode (`w` → digit), focus display (`tab`), new terminal (`t`), launch app (`b`/`c`), cheatsheet (`;`), panic-exit (`esc`) |
-| **Mod**   | modify / destructive | swap window (`hjkl`), focus prev display (`tab`), manage-workspace overlay (`return`) |
+| **Hyper** | navigate / read-only | focus window (`hjkl`), focus workspace (`space`), focus display (`tab`), open app (`t`/`b`/`o`/`s`), cheatsheet (`;`) |
+| **Mod**   | modify / destructive | swap window (`hjkl`), manage workspace (`return`) |
 
-Workspace operations all go through a one-shot SwiftUI overlay
-(`ws-prompt`) rather than sticky skhd modes. The overlay captures
-keystrokes itself and exits on commit / cancel / blur / Esc — so skhd
-never holds workspace state:
+All workspace operations go through `ws-prompt`, a one-shot SwiftUI
+overlay that captures keystrokes itself and exits on
+commit / cancel / blur / Esc — skhd never holds workspace state:
 
 | Trigger | Prompt | What |
 |---|---|---|
 | `Caps + space`          | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
 | `Caps + return`         | send   | digit commits + follow · letters fuzzy-match name + Enter |
 | `Caps + Shift + return` | manage | verb-picker: `a` add · `r` rename · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
-| `Esc` / click-elsewhere | —      | cancels any prompt |
-| `Caps + Esc`            | —      | no-op (preserved as muscle-memory panic key) |
 
 The manage overlay is a multi-stage state machine (verb → target /
-payload → confirm → result). All commits shell out to the `ws` CLI
-directly — `ws add`, `ws name N <new>`, `ws remove N -y`,
-`ws layout save|load|delete`, `ws verify`, `ws doctor`. The flow
-captures stdout + stderr and renders it in an in-overlay result panel,
-so errors are surfaced rather than silently swallowed. An earlier
-attempt at a manage palette dispatched into AppleScript dialogs and a
-fan-out of small shims (rename.sh / ws-info / ws-destroy-current) that
-each had their own bugs; this version calls the well-tested CLI
-end-to-end instead.
+payload → confirm → result). Commits shell straight out to the `ws`
+CLI and yabai; stdout + stderr surface in an in-overlay result panel.
+Names are constrained to start with a non-digit (enforced by `ws
+name`/`ws add`) so an all-numeric query unambiguously addresses a
+slot index — the path to slot 11+ via numeric input.
 
-Entry chords use `return` and `space` because they're easier to hit
-than letter-based chords and group naturally: `return` for the
-slot-targeted send-and-follow + manage ops, `space` for the navigation
-prompt (focus).
-
-Workspace **numbers** stay the stable selector; `spaces.json`
-names/icons are display-only metadata. Names are constrained to start
-with a non-digit (enforced by `ws name`/`ws add`) so the overlay can
-unambiguously resolve an all-numeric query as a literal slot index —
-this is the path to slot 11+ via numeric input.
-
-New windows are auto-staged centered on the focused space by a yabai
-`window_created` signal ([stage-window.sh](../configs/workspace/stage-window.sh))
-— so the previous Mod+arrow manual snap chords have been removed.
-Tile-vs-float remains the app/rule decision; the staging script
-centers + focuses only, and `Caps+f` toggles float for the case where
-the user wants a staged floating window committed to the BSP tiling.
+New windows are auto-staged centered on the focused space by yabai's
+`window_created` signal
+([stage-window.sh](../configs/workspace/stage-window.sh)). Tile-vs-float
+is the app/rule decision; staging just centers + focuses, and `Caps+f`
+toggles float to commit a staged window into the BSP tiling.
 
 ## Who owns what
 
@@ -111,51 +89,43 @@ the user wants a staged floating window committed to the BSP tiling.
 |---|---|---|
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
-| Hyper/Mod hotkey dispatch (windows, spaces, app launchers, terminal, cheatsheet trigger) | skhd | `skhdrc` |
-| Workspace focus / send / manage overlays (SwiftUI; manage is a multi-stage state machine that drives `ws` CLI) | ws-prompt (topology package) | `configs/workspace/topology/Sources/ws-prompt/` |
-| New-window staging (center if floating, focus, cross-space migrate) | bash + yabai `window_created` signal | `configs/workspace/stage-window.sh` |
-| AX absolute-snap CLI (manual use; no chord bound) | ws-snap (topology package, AX) | `configs/workspace/topology/Sources/ws-snap/` |
-| SketchyBar per-display autohide | ws-autohide (LaunchAgent, Swift) | `configs/workspace/topology/Sources/ws-autohide/` |
-| Cheatsheet HUD (SwiftUI) | ws-cheatsheet (topology package) | `configs/workspace/cheatsheet.json` + `configs/workspace/topology/Sources/ws-cheatsheet/` |
-| Cross-display topology (notch + aux geometry + per-display layout policy) | ws-topologyd (LaunchAgent, Swift) | `configs/workspace/topology/` |
-| Workspace pill strip (persistent per-display indicator) | SketchyBar | `sketchybar/sketchybarrc` · `sketchybar/plugins/paint-all.sh` |
-| Terminal app config | Ghostty | `ghostty-config` |
-| Pane nav, sessionizer | tmux | `tmux.conf` + `tmux-sessionizer` |
-| Shell layer | zsh | `zshrc` |
-| ripgrep defaults | ripgrep | `ripgreprc` |
-| Git pager | git + delta | `gitconfig` |
-| Editor + plugins + LSP + DAP | Neovim + Lazy + Mason | `nvim-init.lua` |
-| Plugin version pin | lazy.nvim | `nvim-lazy-lock.json` |
+| Hyper/Mod hotkey dispatch | skhd | `skhdrc` |
+| Workspace focus / send / manage overlays | ws-prompt (SwiftUI; manage = multi-stage state machine over `ws`) | `configs/workspace/topology/Sources/ws-prompt/` |
+| New-window staging | bash + yabai signal | `configs/workspace/stage-window.sh` |
+| AX absolute-snap CLI (manual use) | ws-snap | `configs/workspace/topology/Sources/ws-snap/` |
+| SketchyBar per-display autohide | ws-autohide (LaunchAgent) | `configs/workspace/topology/Sources/ws-autohide/` |
+| Cheatsheet HUD | ws-cheatsheet | `configs/workspace/cheatsheet.json` + `configs/workspace/topology/Sources/ws-cheatsheet/` |
+| Cross-display topology (notch + per-display layout) | ws-topologyd (LaunchAgent) | `configs/workspace/topology/` |
+| Workspace pill strip | SketchyBar | `configs/sketchybar/` |
+| Terminal · tmux · zsh · nvim | Ghostty + tmux + zsh + Neovim/Mason | respective configs |
 
 ## Why skhd plus small Swift CLIs?
 
-- **skhd** uses `CGEventTap` to forward keystrokes. Fast, stateless, but it
-  only knows how to fire shell commands — no AppKit, no AX, no logic.
-- Anything that needs macOS API access is its own one-shot binary, shipped
-  by the Swift package under `configs/workspace/topology/`:
-  - **ws-snap** moves floating / yabai-unmanaged windows via the
-    Accessibility API. Not bound to a chord today (kept as a manual
-    CLI for advanced use); the staging signal does the common case.
-  - **ws-cheatsheet** is the SwiftUI HUD (Hyper+;).
-  - **ws-prompt** is the SwiftUI overlay for workspace focus / send /
-    manage (Caps+Space, Caps+Return, Caps+Shift+Return). One-shot,
-    captures keys itself, exits on commit/cancel/blur. Manage is a
-    multi-stage state machine that shells out to the `ws` CLI and
-    surfaces the captured output in an in-overlay result panel.
-  - **ws-autohide** is the only long-running helper — a launchd-managed
-    cursor poller that hides each display's SketchyBar pills when the
-    cursor approaches its top edge.
-- Terminal launching (Hyper+T) is skhd → `osascript` invoking Ghostty's
-  File→New Window menu, which bypasses keyboard state (strict apps drop
-  Hyper+Cmd+T while Caps is held).
+**skhd** forwards keystrokes via `CGEventTap` — fast, stateless, but
+it only knows how to fire shell commands. Anything that needs macOS
+API access is its own one-shot binary, shipped by the Swift package
+under `configs/workspace/topology/`:
 
-This is a smaller surface than the old skhd + Hammerspoon split — no Lua
-runtime, no extra Accessibility-permissioned daemon, and no AppKit
-Console window fighting AppKit's saved-state.
+- **ws-prompt** — SwiftUI overlay for Caps+Space / Caps+Return /
+  Caps+Shift+Return. Captures keys itself; exits on commit / cancel /
+  blur. Manage is a multi-stage state machine that shells out to `ws`
+  and yabai and surfaces captured output in a result panel.
+- **ws-cheatsheet** — SwiftUI HUD (Hyper+;). Single-instance toggle
+  via PID file.
+- **ws-snap** — AX-based absolute snap CLI for floating windows. Not
+  bound to a chord; manual use only.
+- **ws-autohide** — only long-running helper. LaunchAgent-managed
+  cursor poller (100 ms) that hides each display's SketchyBar pills
+  when the cursor approaches its top edge. Yabai display indices are
+  cached and invalidated on `didChangeScreenParameters`; popup-menu
+  detection is gated on the cursor being near an unhide boundary.
+
+Smaller surface than the old skhd + Hammerspoon split — no Lua
+runtime, no extra Accessibility-permissioned daemon.
 
 ## In-terminal layers
 
-Once you're in the terminal, the same hjkl + leader-key model continues:
+Once you're in the terminal the same hjkl + leader-key model continues:
 
 | Layer | Prefix / leader | Owns |
 |---|---|---|
@@ -163,23 +133,18 @@ Once you're in the terminal, the same hjkl + leader-key model continues:
 | **zsh**    | (vi-mode `Esc`) | Vi normal-mode editing on the command line; fzf widgets `Ctrl-R/T`/`Alt-C`; zoxide `z` |
 | **Neovim** | `Space`         | LSP (`gd`/`K`/`gr`/`<leader>ca`/`<leader>rn`), find (`<leader>f*`), debug (`<leader>d*`), test (`<leader>t*`) |
 
-This works because **modifier sets the scope**: a bare `h` moves the cursor
-in vim, `C-a + h` moves the tmux pane focus, `Caps + h` moves the OS
-window focus. Same letter, four contexts, no overlap.
+Modifier sets the scope: bare `h` moves the cursor in vim, `C-a + h`
+moves the tmux pane focus, `Caps + h` moves the OS window focus. Same
+letter, four contexts, no overlap.
 
 ## Python dev path
 
-After bootstrap:
-
-1. Open any `.py` file in nvim.
-2. **Pyright** (types, definitions, hover) and **Ruff** (lint, format) attach.
-3. Save the file → Ruff auto-formats via `BufWritePre`.
-4. `<leader>db` to set a breakpoint, `<leader>tn` to run the nearest test.
-5. `<leader>td` runs the nearest test under the debugger (debugpy).
-6. `<leader>ts` toggles the neotest summary panel.
-
-All servers (Pyright, Ruff, debugpy) come from Mason / mason-tool-installer,
-pinned via `lazy-lock.json` so machines stay in lockstep.
+After bootstrap, open any `.py` file in nvim. **Pyright** (types,
+definitions, hover) and **Ruff** (lint, format) attach. Save → Ruff
+auto-formats via `BufWritePre`. `<leader>tn` runs the nearest test;
+`<leader>td` runs it under debugpy; `<leader>ts` toggles the neotest
+summary. Servers come from Mason / mason-tool-installer, pinned via
+`lazy-lock.json`.
 
 ## Permission gates
 
@@ -191,18 +156,18 @@ pinned via `lazy-lock.json` so machines stay in lockstep.
 | Spaces "Displays have separate Spaces" | yabai | bootstrap sets `defaults` — **logout required** |
 | sudo (one-shot) | brew cask `installer -pkg` | `sudo -v` at start |
 
-The wizard opens each pane and waits for ↵. Three panes, ~5 minutes total.
-See [`wizard.md`](wizard.md).
+The wizard opens each pane and waits for ↵. Three panes, ~5 minutes
+total. Probes first via [`lib/macos-tcc.sh`](../lib/macos-tcc.sh) so a
+working machine finishes in ~2 seconds. See [`wizard.md`](wizard.md).
 
 ## Workspace identity cascade
 
-The workspace identity (default: empty seed — yabai's slots render as
-bare `ws1`, `ws2`, … until you `ws name N <name>`) is a single piece
-of state (`~/.config/workspace/spaces.json`) read by five subsystems.
-Mutations all go through the `ws` CLI (`workspace` is kept as a compat
-symlink) — either directly from the terminal or via the manage overlay
-(`ws-prompt manage`), which shells out to `ws` and yabai. The CLI's
-atomic write fans out via the cascade.
+Workspace identity (default: empty seed; slots render as bare
+`ws1`, `ws2`, … until you `ws name N <name>`) is a single piece of
+state — `~/.config/workspace/spaces.json` — read by five subsystems.
+Mutations go through the `ws` CLI, either directly from the terminal
+or via `ws-prompt manage` (which shells out to `ws` and yabai). The
+CLI's atomic write fans out via the cascade.
 
 ```mermaid
 graph LR
@@ -223,163 +188,83 @@ graph LR
 ```
 
 Two parallel cache lines: `current.env` is keyed on focused space
-(consumed by tmux / starship / `paint-all.sh`), and
-`layout.env` is keyed on display (consumed by the sketchybar layout
-plugins). They never overlap — the postmortem's "one source per render
-hot path" rule holds.
+(consumed by tmux / starship / `paint-all.sh`), and `layout.env` is
+keyed on display (consumed by the sketchybar layout plugins). They
+never overlap — one source per render hot path.
 
-**Sketchybar pill rendering uses a sentinel-subscriber pattern.** The
-custom `workspace_changed` event is fired from four places — yabai's
-`space_changed` signal (via `on-space-changed.sh`), `sketchybarrc`
-init, `per-display-pills.sh` (after lazy add/remove on display events),
-and `ws-topologyd` (on display reconfig). All four trigger sites
-deliver to one hidden item (`workspace.paint` in `sketchybarrc`),
-whose `script=` points at `plugins/paint-all.sh`. That plugin reads
-`spaces.json` once via a single `jq` invocation, decides per-slot
-state (bare vs customized, active vs inactive, digit vs dot for slots
-> 10), and emits one batched `sketchybar --set …` transaction for
-every pill. Pills themselves carry no per-item script and no event
-subscription, so a focus change is one atomic redraw, not N staggered
+**Sentinel-subscriber pill rendering.** The custom `workspace_changed`
+event is fired from four places — yabai's `space_changed` signal (via
+`on-space-changed.sh`), sketchybarrc init, `per-display-pills.sh` (on
+display events), and `ws-topologyd` (on display reconfig). All four
+deliver to one hidden item (`workspace.paint`) whose `script=` points
+at `plugins/paint-all.sh`. That plugin reads `spaces.json` once,
+decides per-slot state (bare vs customized, active vs inactive,
+digit vs dot for slots > 10), and emits one batched `sketchybar --set`
+transaction for every pill + name chip. Pills themselves carry no
+per-item script — a focus change is one atomic redraw, not N staggered
 ones.
 
-- **Source of truth**: `spaces.json` is per-machine, in `$HOME`, never
-  committed. Bootstrap seeds it from `spaces.default.json` only when
-  missing; user edits survive `bootstrap.sh` re-runs.
-- **The CLI** (`~/.local/bin/ws`, plus `workspace` kept as a compat
-  symlink) is the public mutation API. Subcommands cover name / color /
-  icon / theme / add / remove / swap / move / rotate / reverse / reorder /
-  layout / edit / reset / doctor / verify. Every mutation is atomic
-  (mktemp + jq + mv) and fires the cascade. Slot count is derived
-  dynamically; the system tolerates any count ≥ 1 even though digit
-  keys in the `Caps + space` focus prompt address slots 1..10 directly
-  (type a name + Enter to reach 11+, or `<letter><BS>11<CR>` to
-  address it numerically). Any subcommand that takes a slot accepts
-  either a numeric index or a unique slot name. Workspace lifecycle
-  (add / rename / destroy / layout / verify / doctor) is both available
-  as a chord (`Caps + Shift + return` manage overlay) and directly on
-  the CLI; the overlay just shells out to the CLI under the hood.
-- **Positional colors.** Reordering operations (`swap`, `move`,
-  `rotate`, `reverse`, `reorder`) permute only the (name, icon) tuples
-  — color stays anchored to slot index. This preserves muscle-memory
-  ("orange always means slot 2") across reorderings. To change a
-  slot's color, use `workspace color N #HEX` directly.
-- **`on-space-changed.sh`** is the cascade entry point — called by the
-  yabai `space_changed` signal *and* by every CLI mutation. It writes
-  `current.env` atomically, pushes env into tmux, triggers sketchybar,
-  and re-pushes env to tmux. Silent-on-absence per subsystem so Ubuntu
-  and partial setups Just Work.
+- **Source of truth.** `spaces.json` is per-machine, in `$HOME`,
+  never committed. Bootstrap seeds it from `spaces.default.json` only
+  when missing; user edits survive bootstrap re-runs. yabai owns
+  EXISTENCE (which spaces, on which display); `spaces.json` layers
+  optional IDENTITY (name, color, icon) on top.
+- **The CLI** (`~/.local/bin/ws`; `workspace` kept as a compat
+  symlink) is the public mutation API. Subcommands cover name /
+  color / icon / theme / add / remove / swap / move / rotate /
+  reverse / reorder / layout / edit / reset / doctor / verify.
+  Every mutation is atomic (mktemp + jq + mv) and fires the cascade.
+  Slot count is derived dynamically from yabai. Any subcommand that
+  takes a slot accepts either a numeric index or a unique slot name.
+  Workspace lifecycle is also available through the manage overlay,
+  which shells out to the same CLI.
+- **Positional colors.** Reordering ops (`swap`/`move`/`rotate`/
+  `reverse`/`reorder`) permute only the `(name, icon)` tuples — color
+  stays anchored to slot index. Muscle memory: "orange always means
+  slot 2." Change a slot's color directly with `ws color N #HEX`.
+- **`on-space-changed.sh`** is the cascade entry point — called by
+  yabai's `space_changed` signal *and* by every CLI mutation. Writes
+  `current.env` atomically, pushes env into tmux, triggers sketchybar.
+  Silent-on-absence per subsystem so Ubuntu and partial setups work.
 - **`hooks/post-mutate.sh`** is a user-owned extension point. The
-  shipped default keeps SketchyBar's pill set in sync with spaces.json
-  on `add` / `remove` (other mutations just need a repaint, which the
-  cascade already fires). It receives `(subcommand, slot_indices...)`
-  after every successful mutation and is gitconfig.local-style — never
-  clobbered by bootstrap.
-- **Source of truth.** yabai owns space EXISTENCE (which spaces, on
-  which display). Mission Control's `+` / `×` is the canonical way to
-  add/remove. `spaces.json` layers optional IDENTITY (name, color, icon)
-  on top — entries are looked up by yabai's space index. Missing entry
-  → bare gray `wsN` pill. The old `lib/colors.sh` WORKSPACE_LABELS array,
-  `reconcile-displays.sh`, `yabai-ensure-spaces.sh`,
-  and `laptop-uuid-init.sh` are all retired — they manipulated yabai
-  state in service of a fixed per-slot layout that fought macOS's
-  Mission Control instead of working with it.
+  shipped default keeps SketchyBar's pill set in sync on
+  `add` / `remove`. Receives `(subcommand, slot_indices...)` after
+  every mutation. Per-machine; never clobbered.
+- **Per-host overlay.** `ws host init` forks the shared `spaces.json`
+  into `spaces.<hostname>.json`; cascade and CLI both prefer the host
+  file when present. `ws host reset` removes the overlay.
 
 ## SketchyBar coexistence with the macOS menu bar
 
 Layers cooperate so the pill strip shares space with the system menu
-bar without replacing it, and so each display gets its own per-monitor
+bar without replacing it, and each display gets its own per-monitor
 pill set:
 
 | Layer | Setting | Effect |
 |---|---|---|
-| macOS | `_HIHideMenuBar=1` | Menu bar hides by default; reveals when cursor at top of its display |
-| SketchyBar | `topmost=off`, `y_offset=7` | Strip draws behind the menu bar; vertically centered in the y=0..40 band |
-| SketchyBar items | `display=<N>` per pill | Each pill is visible only on its owning yabai display |
-| yabai | `external_bar all:26:0` | BSP-tiled windows never enter the top 26px on any display |
-| ws-autohide | [`Sources/ws-autohide/`](../configs/workspace/topology/Sources/ws-autohide) | LaunchAgent-managed 100ms cursor poller; toggles each pill's per-item `y_offset` based on the cursor's display-relative y; PER-DISPLAY (only the strip on the cursor's current display hides) |
+| macOS | `_HIHideMenuBar=1` | Menu bar hides by default; reveals when cursor at top |
+| SketchyBar | `topmost=off`, `y_offset=7` | Strip draws behind the menu bar; vertically centered in y=0..40 |
+| SketchyBar items | `display=<N>` per pill | Each pill visible only on its owning yabai display |
+| yabai | `external_bar all:26:0` | BSP-tiled windows never enter the top 26px |
+| ws-autohide | LaunchAgent | 100 ms cursor poller; toggles each pill's `y_offset` based on per-display cursor.y |
 
-The result: cursor at the very top of display N → display N's pills
-slide off-screen, the macOS menu bar on display N reveals. Cursor
-elsewhere → that display's strip stays put. Other displays are
-unaffected.
+Result: cursor at the very top of display N → display N's pills slide
+off-screen, the macOS menu bar reveals on N. Cursor elsewhere → that
+display's strip stays put. Other displays are unaffected.
 
-**Per-display pill assignment + name chip.**
-[`plugins/per-display-pills.sh`](../configs/sketchybar/plugins/per-display-pills.sh)
-queries `yabai -m query --spaces` and sets `display=<idx>` on each pill
-(`space.N`); it also creates one `workspace.name.<D>` chip per display
-(the always-visible "you are here" label sitting at the leftmost slot
-of each display's strip). It adds missing items / removes orphans so
-the sketchybar item set tracks yabai exactly. Re-fires from the yabai
-signals `display_added` / `display_removed` / `display_changed` only —
-*not* on `space_changed`, because per-pill display assignment doesn't
-change on space focus. A previous iteration subscribed it to
-`space_changed` and produced a "paint to right then snap" pulse on
-every space switch; the fix is documented in
-`configs/workspace/topology/README.md`.
+**Per-display pill assignment + name chip** is owned by
+[`plugins/per-display-pills.sh`](../configs/sketchybar/plugins/per-display-pills.sh).
+It queries yabai, sets `display=<idx>` on each pill, creates one
+`workspace.name.<D>` chip per display (the always-visible "you are
+here" label), and adds/removes items so the sketchybar set tracks
+yabai exactly. Re-fires from yabai's `display_added` / `removed` /
+`changed` signals — *not* `space_changed`, because per-pill display
+assignment doesn't change on focus.
 
 **Notch detection + visible cap.**
 [`plugins/notch-detect.sh`](../configs/sketchybar/plugins/notch-detect.sh)
-sources `~/.cache/workspace/layout.env`, written by `ws-topologyd` from
-`NSScreen.safeAreaInsets` — the authoritative runtime API for camera
-housing geometry. On a notched laptop's built-in display, visible
-pills are capped at 10 (or `WS_MAX_VISIBLE_SLOTS_<id>` when published
-by ws-topologyd). Past that cap, pills slide under the camera housing
-and become unclickable; the cap prevents that. Non-notched displays
-show all assigned pills with no cap.
-
-**Per-display horizontal layout.** Items anchored `left` lay out from
-the screen corner toward the center. SketchyBar handles notched
-displays automatically: `left`-anchored items land in the left aux
-region between the screen corner and the camera. There is no
-centering math, no notch-split, no per-pill padding rewrite — each
-display's strip is just `[ workspace.name.<D>, space.1, space.2, … ]`
-in that order. `padding_left=2` per pill provides the inter-pill gap;
-the bar's `padding_left=8` handles the corner margin.
-## File map
-
-```
-~/dotfiles/
-├── bootstrap.sh
-├── lib/common.sh                 # logging + install_file
-├── macos/
-│   ├── bootstrap.sh              # 5 phases
-│   └── permissions-wizard.sh     # opens 3 TCC panes
-├── ubuntu/bootstrap.sh           # 6 phases
-├── docs/                         # this file + wizard.md
-└── configs/                      # source-of-truth dotfiles
-    ├── workspace/
-    │   ├── cli/ws                         # CLI binary (→ ~/.local/bin/ws; `workspace` symlink for compat)
-    │   ├── cli/test-cascade.sh            # `ws verify` harness
-    │   ├── themes/*.json                  # canonical palettes
-    │   ├── spaces.default.json            # fresh-install seed (v2)
-    │   ├── on-space-changed.sh            # cascade (v2 only)
-    │   ├── cheatsheet.json                # ws-cheatsheet content (hand-editable)
-    │   ├── hooks/post-mutate.sh           # user-owned extension point
-    │   ├── lib/resolve-config.sh          # per-host overlay resolution
-    │   ├── lib/sf-to-nerd.json            # SF Symbol → Nerd Font codepoint map (~113)
-    │   ├── topology/                      # native helper, Swift Package
-    │   │   ├── Package.swift              # .macOS(.v14), Swift 5.10+
-    │   │   ├── Sources/DisplayTopology/   # NSScreen + CGDisplay enumeration, debouncer
-    │   │   ├── Sources/LayoutPolicy/      # pure [snapshot] → [policy] per display
-    │   │   ├── Sources/WorkspaceState/    # IconSpec + v1→v2 Migration
-    │   │   ├── Sources/AdaptersAppKit/    # NSWindow delegate + AX probe
-    │   │   ├── Sources/ws-topology/       # one-shot CLI
-    │   │   ├── Sources/ws-topologyd/      # launchd agent (reconfig callback)
-    │   │   ├── Sources/ws-cheatsheet/     # SwiftUI HUD (replaces cheatsheet.lua)
-    │   │   ├── Sources/ws-autohide/       # SketchyBar per-display cursor-y auto-hide (launchd)
-    │   │   ├── Sources/ws-snap/           # AX absolute snap CLI (manual use; not currently bound)
-    │   │   ├── Tests/                     # XCTest (full Xcode required)
-    │   │   ├── launchd/*.plist            # LaunchAgents (topologyd + autohide)
-    │   │   └── install.sh                 # builds + symlinks + load
-    │   └── install.sh                     # workspace-system bootstrapper
-    └── sketchybar/
-        ├── sketchybarrc                       # bar geometry + pill loop (left-aligned)
-        ├── colors.sh                          # palette constants
-        ├── plugins/paint-all.sh               # batched all-pill + chip repaint (sentinel-subscribed)
-        ├── plugins/per-display-pills.sh       # per-display item lifecycle + display=<N> assignment
-        ├── plugins/notch-detect.sh            # is-laptop-notched? (gates the visible-pill cap)
-        └── bootstrap.sh                       # brew services start
-```
-
-`install_file` byte-compares src vs dst and skips no-ops, so editing
-`configs/foo` then running `bootstrap.sh` re-deploys exactly the diff.
+sources `~/.cache/workspace/layout.env`, written by `ws-topologyd`
+from `NSScreen.safeAreaInsets` — the authoritative API for camera
+housing geometry. On notched laptops' built-in displays, visible pills
+are capped at 10 (or `WS_MAX_VISIBLE_SLOTS_<id>` when published).
+Non-notched displays show all assigned pills.
