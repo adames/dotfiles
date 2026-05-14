@@ -1,217 +1,231 @@
 {
-  "_doc": "Cheatsheet content for ws-cheatsheet (Caps+; overlay). Edit freely; the binary reads this on every toggle so no rebuild needed. Sections render left→right, top→bottom in a responsive grid.",
+  "_doc": "Cheatsheet content for ws-cheatsheet (Caps+; overlay). Schema v2: each section has a `family` (system|terminal|vim|nvim|git) that drives both color and band placement, plus an `idea` mental-model caption and optional `customLayout`. Edit freely — the binary reads this on every toggle so no rebuild needed. Sections render inside family bands, top→bottom.",
   "banner": [
-    {"k": "caps", "v": "tap → Esc"},
-    {"k": "caps", "v": "hold → Hyper (⌃⌥⌘⇧)"},
-    {"k": "caps + shift", "v": "hold → Mod (⌃⌥⌘)"},
-    {"k": "leader", "v": "space"}
+    {"k": "caps",        "v": "tap → Esc"},
+    {"k": "caps + …",    "v": "Hyper (⌃⌥⌘⇧)  ·  +shift = Mod"},
+    {"k": "C-a …",       "v": "Tmux prefix"},
+    {"k": "⟨leader⟩ …",  "v": "space · Neovim leader"}
   ],
   "sections": [
     {
+      "family": "system",
       "color": "#60a5fa",
       "title": "Windows · Spaces",
-      "sub": "Hyper navigate · Mod modify  (yabai · skhd · ws-snap)",
+      "sub": "yabai · skhd · ws-snap",
+      "idea": "Hyper navigates; Mod modifies. yabai keeps the chord in lockstep with what you see.",
       "rows": [
-        ["caps + hjkl", "focus window  ←  ↓  ↑  →"],
-        ["caps + shift + hjkl", "swap window  ←  ↓  ↑  →"],
-        ["caps + return", "zoom fullscreen (toggle)"],
-        ["caps + shift + f", "float / unfloat window"],
-        ["caps + e", "balance space"],
-        ["caps + r", "rotate space 90°"],
-        ["caps + tab", "focus next display"],
-        ["caps + shift + tab", "focus prev display"],
-        ["caps + shift + ← →", "snap ½-left / ½-right  (manual, for floats)"],
-        ["caps + shift + ↑ ↓", "maximise / centre 50%  (manual, for floats)"],
-        ["caps + ;", "toggle this cheatsheet"],
-        ["—", "⚠ avoid macOS green-button fullscreen — use caps+return so yabai keeps managing the window"]
+        ["caps + hjkl",          "focus window  ←  ↓  ↑  →"],
+        ["caps + shift + hjkl",  "swap window  ←  ↓  ↑  →"],
+        ["caps + return",        "zoom fullscreen (toggle)"],
+        ["caps + shift + f",     "float / unfloat window"],
+        ["caps + e",             "balance space"],
+        ["caps + r",             "rotate space 90°"],
+        ["caps + tab",           "focus next display"],
+        ["caps + shift + tab",   "focus prev display"],
+        ["caps + shift + ← →",   "snap ½-left / ½-right  (for floats)"],
+        ["caps + shift + ↑ ↓",   "maximise / centre 50%  (for floats)"]
       ]
     },
     {
-      "color": "#cba6f7",
-      "title": "Workspace · slots",
-      "sub": "number = stable selector · names/icons = display only",
+      "family": "system",
+      "color": "#60a5fa",
+      "title": "Workspace · Slots",
+      "sub": "number = stable selector · names/icons are cosmetic",
+      "idea": "Three modes — focus (caps+w), send (ctrl+space), manage (caps+shift+w). Pick a digit; the slot is the handle.",
       "rows": [
-        ["caps + w", "focus mode → digit (focus slot) · n/p/tab (cycle) · esc to exit"],
-        ["ctrl + space", "send mode → digit (send window + follow) · n/p (next/prev) · esc to exit"],
-        ["caps + shift + w", "manage mode → a add · r rename · i info · l list · shift+d destroy · esc to exit"],
-        ["caps + shift + esc", "panic exit from any mode"],
-        ["—", "modes are sticky: press esc / return / q after the action to exit back to default"],
-        ["—", "slot count tracks yabai; Mission Control + / × also updates the bar"],
-        ["—", "slot 1 sticks to laptop; 2..N migrate to external when attached"]
+        ["caps + w",             "focus mode → digit (focus slot) · n/p/tab cycle · esc exits"],
+        ["ctrl + space",         "send mode → digit (send window + follow) · n/p next/prev · esc exits"],
+        ["caps + shift + w",     "manage mode → a add · r rename · i info · l list · shift+d destroy"],
+        ["caps + shift + esc",   "panic exit from any mode"],
+        ["—",                    "modes are sticky (esc/return/q exits) · slot 1 sticks to laptop; 2..N migrate to external"]
       ]
     },
     {
-      "color": "#a78bfa",
+      "family": "system",
+      "color": "#60a5fa",
       "title": "Launch",
       "sub": "skhd · auto-detected apps",
+      "idea": "Each chord spawns a new window of an auto-detected app. Override the choice with $WS_* env vars.",
       "rows": [
-        ["caps + t", "new terminal window  (auto-detect: Ghostty / iTerm / …; $WS_TERMINAL_APP override)"],
-        ["caps + b", "new browser window  (auto-detect: Brave / Arc / … / Safari; $WS_BROWSER_APP override)"],
-        ["caps + f", "new Finder window"],
-        ["caps + s", "System Settings"],
-        ["caps + c", "Claude"],
-        ["caps + m", "Spotify"]
+        ["caps + t",  "new terminal  (auto: Ghostty / iTerm / …; $WS_TERMINAL_APP override)"],
+        ["caps + b",  "new browser  (auto: Brave / Arc / … / Safari; $WS_BROWSER_APP override)"],
+        ["caps + f",  "new Finder window"],
+        ["caps + s",  "System Settings"],
+        ["caps + c",  "Claude"],
+        ["caps + m",  "Spotify"]
       ]
     },
+
     {
+      "family": "terminal",
       "color": "#34d399",
       "title": "Tmux",
-      "sub": "prefix = ctrl-a  ·  caps+space in Ghostty also fires prefix",
+      "sub": "prefix = C-a  ·  caps+space in Ghostty also fires prefix",
+      "idea": "C-a is your prefix. Everything after it is one keystroke — pane, window, or session.",
       "rows": [
-        ["C-a  hjkl", "select pane  ←  ↓  ↑  →"],
-        ["C-a  v / s", "split right / below  (mirrors vim Ctrl-w)"],
-        ["C-a  z", "zoom pane (toggle)"],
-        ["C-a  d", "detach session"],
-        ["C-a  r", "reload tmux.conf"],
-        ["C-a  [", "copy / scroll mode  (q to exit)"],
-        ["C-a  f", "sessionizer — fzf pick → switch/create session"],
-        ["C-a  c", "new window"],
-        ["C-a  n / p", "next / prev window"],
-        ["C-a  0…9", "go to window N"],
-        ["C-a  x", "kill pane  (no confirmation)"],
-        ["C-a  &", "kill window  (no confirmation)"],
-        ["C-a  $", "rename current session"],
-        ["C-a  C-a", "send literal C-a to program"]
+        ["C-a  hjkl",   "select pane  ←  ↓  ↑  →"],
+        ["C-a  v / s",  "split right / below  (mirrors vim C-w)"],
+        ["C-a  z",      "zoom pane (toggle)"],
+        ["C-a  d",      "detach session"],
+        ["C-a  r",      "reload tmux.conf"],
+        ["C-a  [",      "copy / scroll mode  (q to exit)"],
+        ["C-a  f",      "sessionizer — fzf pick → switch/create session"],
+        ["C-a  c",      "new window"],
+        ["C-a  n / p",  "next / prev window"],
+        ["C-a  0…9",    "go to window N"],
+        ["C-a  x",      "kill pane  (no confirmation)"],
+        ["C-a  &",      "kill window  (no confirmation)"],
+        ["C-a  $",      "rename current session"],
+        ["C-a  C-a",    "send literal C-a to program"]
       ]
     },
     {
-      "color": "#fb923c",
-      "title": "Vim · Motion",
-      "sub": "neovim · cursor & jumps",
-      "rows": [
-        ["h j k l", "← ↓ ↑ →"],
-        ["w  b  e", "word: next start / prev start / next end"],
-        ["0  ^  $", "line: start / first nonblank / end"],
-        ["gg  G", "file: top / bottom"],
-        ["{  }", "paragraph: back / forward"],
-        ["f⟨x⟩  F⟨x⟩", "find char in line: forward / back"],
-        ["t⟨x⟩  T⟨x⟩", "till char in line: forward / back"],
-        ["%", "matching ( [ {"],
-        ["/pat   n / N", "search forward · next / prev match"],
-        ["*  #", "search word under cursor: fwd / back"],
-        ["ctrl-o  ctrl-i", "jumplist: back / forward"],
-        ["m⟨a-z⟩   '⟨a-z⟩", "set mark / jump to mark line"]
-      ]
-    },
-    {
-      "color": "#f97316",
-      "title": "Vim · Edit",
-      "sub": "neovim · change & yank",
-      "rows": [
-        ["i  a   I  A", "insert: before / after / line-start / line-end"],
-        ["o  O", "open line: below / above"],
-        ["cc  dd  yy", "change / delete / yank whole line"],
-        ["ci⟨x⟩  ca⟨x⟩", "change inside / around  (\" ' ( [ { t p)"],
-        ["p  P", "paste: after / before"],
-        ["\"0p", "paste last yank  (skip delete register)"],
-        ["u   ctrl-r", "undo / redo"],
-        [".", "repeat last change"],
-        ["ctrl-a  ctrl-x", "increment / decrement number"],
-        ["q⟨x⟩ … q     @⟨x⟩", "record macro / replay"],
-        [":%s/foo/bar/g", "replace all in buffer  (add c for confirm)"],
-        ["> >    < <", "indent / dedent line"]
-      ]
-    },
-    {
-      "color": "#f472b6",
-      "title": "Neovim · LSP & Find",
-      "sub": "leader = space  ·  pyright + ruff attach to *.py",
-      "rows": [
-        ["gd   gr", "go to definition / references"],
-        ["K", "hover docs"],
-        ["⟨leader⟩ ca", "code action"],
-        ["⟨leader⟩ rn", "rename symbol"],
-        ["⟨leader⟩ =", "format buffer  (auto-runs ruff on :w for *.py)"],
-        ["⟨leader⟩ ff", "fzf files"],
-        ["⟨leader⟩ fg", "fzf live grep"],
-        ["⟨leader⟩ fb", "fzf buffers"],
-        ["]d   [d", "next / prev diagnostic"],
-        ["ctrl-w  v / s", "split right / below"],
-        ["ctrl-w  hjkl", "navigate splits"]
-      ]
-    },
-    {
-      "color": "#38bdf8",
-      "title": "Neovim · Files & Buffers",
-      "sub": "harpoon · oil · :b*",
-      "rows": [
-        ["-", "open parent dir (oil — edit names like text)"],
-        ["⟨leader⟩ ha", "harpoon: add file"],
-        ["⟨leader⟩ hh", "harpoon: toggle quick menu"],
-        ["⟨leader⟩ 1…4", "harpoon: jump to pinned slot N"],
-        ["⟨leader⟩ bn  bp", "buffer: next / prev"],
-        ["⟨leader⟩ bd", "buffer: delete current"],
-        ["⟨leader⟩ bo", "buffer: close others"],
-        [":bn  :bp  :bd", "buffer: next / prev / delete (cmdline)"]
-      ]
-    },
-    {
-      "color": "#fb7185",
-      "title": "Neovim · Git",
-      "sub": "gitsigns · fzf-lua git_status  (lazygit runs from a terminal)",
-      "rows": [
-        ["] c   [ c", "next / prev hunk"],
-        ["⟨leader⟩ gs", "git status (fzf picker)"],
-        ["⟨leader⟩ gh", "stage hunk"],
-        ["⟨leader⟩ gp", "preview hunk"],
-        ["⟨leader⟩ gr", "reset hunk"],
-        ["⟨leader⟩ gb", "blame line (full)"],
-        ["⟨leader⟩ gd", "diff this buffer"]
-      ]
-    },
-    {
-      "color": "#facc15",
-      "title": "Python · Debug & Test",
-      "sub": "nvim-dap (debugpy)  ·  neotest (pytest)",
-      "rows": [
-        ["⟨leader⟩ db", "toggle breakpoint"],
-        ["⟨leader⟩ dc", "continue"],
-        ["⟨leader⟩ do", "step over"],
-        ["⟨leader⟩ di", "step into"],
-        ["⟨leader⟩ du", "step out"],
-        ["⟨leader⟩ dr", "open REPL"],
-        ["⟨leader⟩ dx", "terminate session"],
-        ["⟨leader⟩ dU", "toggle DAP UI"],
-        ["⟨leader⟩ tn", "test nearest"],
-        ["⟨leader⟩ tf", "test file"],
-        ["⟨leader⟩ tl", "run last test"],
-        ["⟨leader⟩ ts", "toggle test summary panel"],
-        ["⟨leader⟩ to", "open test output"],
-        ["⟨leader⟩ td", "debug nearest test  (drops to dap)"]
-      ]
-    },
-    {
+      "family": "terminal",
       "color": "#22d3ee",
       "title": "Shell",
       "sub": "zsh · vi mode · fzf · zoxide",
+      "idea": "fzf, zoxide and vi-mode turn the shell into a navigable surface, not a typewriter.",
       "rows": [
-        ["ctrl-r", "fzf history search"],
-        ["ctrl-t", "fzf file picker (insert path)"],
-        ["alt-c", "fzf cd into subdir"],
-        ["⟨pat⟩**<tab>", "fzf completion on the current word"],
-        ["esc", "enter vi-mode normal (then hjkl, /, w, b, …)"],
-        ["z ⟨pat⟩", "zoxide: jump to most-frecent matching dir"],
-        ["zi", "zoxide: interactive picker"],
-        ["rg ⟨pat⟩", "ripgrep — uses ~/.ripgreprc defaults"],
-        ["fd ⟨pat⟩", "fd — fast find replacement"],
-        ["direnv allow", "trust this dir's .envrc on first entry"]
+        ["ctrl-r",         "fzf history search"],
+        ["ctrl-t",         "fzf file picker (insert path)"],
+        ["alt-c",          "fzf cd into subdir"],
+        ["⟨pat⟩**<tab>",   "fzf completion on the current word"],
+        ["esc",            "enter vi-mode normal (then hjkl, /, w, b, …)"],
+        ["z ⟨pat⟩",        "zoxide: jump to most-frecent matching dir"],
+        ["zi",             "zoxide: interactive picker"],
+        ["rg ⟨pat⟩",       "ripgrep — uses ~/.ripgreprc defaults"],
+        ["fd ⟨pat⟩",       "fd — fast find replacement"],
+        ["direnv allow",   "trust this dir's .envrc on first entry"]
+      ]
+    },
+
+    {
+      "family": "vim",
+      "color": "#fb923c",
+      "title": "Vim · Motion",
+      "sub": "neovim · cursor & jumps",
+      "idea": "Every motion is a noun. Pair it with a verb (c · d · y) to describe an edit.",
+      "customLayout": "keyboard",
+      "rows": [
+        ["0  ^  $",         "line: start / first nonblank / end"],
+        ["gg  G",           "file: top / bottom"],
+        ["{  }",            "paragraph: back / forward"],
+        ["f / F  ·  t / T", "find / till char in line  ·  uppercase = backwards"],
+        ["%",               "matching ( [ {"],
+        ["/pat   n / N",    "search forward · next / prev match"],
+        ["*  #",            "search word under cursor: fwd / back"],
+        ["ctrl-o  ctrl-i",  "jumplist: back / forward"],
+        ["m⟨a-z⟩  '⟨a-z⟩",  "set mark / jump to mark line"]
       ]
     },
     {
-      "color": "#fb7185",
-      "title": "Git",
-      "sub": "aliases · delta pager · gh CLI · lazygit TUI",
+      "family": "vim",
+      "color": "#f97316",
+      "title": "Vim · Edit",
+      "sub": "neovim · change & yank",
+      "idea": "Verb + motion = composable change. The . key replays your last verb on the next thing.",
       "rows": [
-        ["gs  ga  gc", "status / add / commit  (zsh aliases)"],
-        ["gp  gpl", "push / pull"],
+        ["i  a   I  A",            "insert: before / after / line-start / line-end"],
+        ["o  O",                   "open line: below / above"],
+        ["cc  dd  yy",             "change / delete / yank whole line"],
+        ["ci⟨x⟩  ca⟨x⟩",           "change inside / around  (\" ' ( [ { t p)"],
+        ["p  P",                   "paste: after / before"],
+        ["u   ctrl-r",             "undo / redo"],
+        [".",                      "repeat last change"],
+        ["ctrl-a  ctrl-x",         "increment / decrement number"],
+        ["q⟨x⟩ … q     @⟨x⟩",      "record macro to x / replay x"],
+        [":%s/foo/bar/g",          "replace all in buffer  (add c for confirm)"]
+      ]
+    },
+
+    {
+      "family": "nvim",
+      "color": "#f472b6",
+      "title": "Neovim · LSP & Find",
+      "sub": "leader = space  ·  pyright + ruff attach to *.py",
+      "idea": "Leader is your nvim command palette. Most LSP and fzf actions live one chord away.",
+      "rows": [
+        ["gd   gr",         "go to definition / references"],
+        ["K",               "hover docs"],
+        ["⟨leader⟩ ca",     "code action"],
+        ["⟨leader⟩ rn",     "rename symbol"],
+        ["⟨leader⟩ =",      "format buffer  (auto-runs ruff on :w for *.py)"],
+        ["⟨leader⟩ ff",     "fzf files"],
+        ["⟨leader⟩ fg",     "fzf live grep"],
+        ["⟨leader⟩ fb",     "fzf buffers"],
+        ["]d   [d",         "next / prev diagnostic"],
+        ["ctrl-w  v / s",   "split right / below"],
+        ["ctrl-w  hjkl",    "navigate splits"]
+      ]
+    },
+    {
+      "family": "nvim",
+      "color": "#38bdf8",
+      "title": "Neovim · Files & Buffers",
+      "sub": "harpoon · oil · :b*",
+      "idea": "Harpoon pins four files; oil edits the filesystem as text; buffers are everything else.",
+      "rows": [
+        ["-",                "open parent dir (oil — edit names like text)"],
+        ["⟨leader⟩ ha",      "harpoon: add file"],
+        ["⟨leader⟩ hh",      "harpoon: toggle quick menu"],
+        ["⟨leader⟩ 1…4",     "harpoon: jump to pinned slot N"],
+        ["⟨leader⟩ bn  bp",  "buffer: next / prev"],
+        ["⟨leader⟩ bd",      "buffer: delete current"],
+        ["⟨leader⟩ bo",      "buffer: close others"]
+      ]
+    },
+    {
+      "family": "nvim",
+      "color": "#fb7185",
+      "title": "Git · Hunks (editor)",
+      "sub": "gitsigns · fzf-lua git_status",
+      "idea": "Line-level git lives in the editor. Stage, preview, reset — one hunk at a time.",
+      "rows": [
+        ["] c   [ c",       "next / prev hunk"],
+        ["⟨leader⟩ gs",     "git status (fzf picker)"],
+        ["⟨leader⟩ gh",     "stage hunk"],
+        ["⟨leader⟩ gp",     "preview hunk"],
+        ["⟨leader⟩ gr",     "reset hunk"],
+        ["⟨leader⟩ gb",     "blame line (full)"],
+        ["⟨leader⟩ gd",     "diff this buffer"]
+      ]
+    },
+    {
+      "family": "nvim",
+      "color": "#facc15",
+      "title": "Python · Debug & Test",
+      "sub": "nvim-dap (debugpy)  ·  neotest (pytest)",
+      "idea": "DAP drives execution (d* bindings). neotest drives pytest (t* bindings). Same mental shape.",
+      "rows": [
+        ["⟨leader⟩ db",              "toggle breakpoint"],
+        ["⟨leader⟩ dc",              "continue"],
+        ["⟨leader⟩ do",              "step over"],
+        ["⟨leader⟩ di",              "step into"],
+        ["⟨leader⟩ du",              "step out"],
+        ["⟨leader⟩ dr",              "open REPL"],
+        ["⟨leader⟩ dx",              "terminate session"],
+        ["⟨leader⟩ dU",              "toggle DAP UI"],
+        ["⟨leader⟩ tn",              "test nearest"],
+        ["⟨leader⟩ t{f, l, s, o}",   "test: file · last · summary · output"],
+        ["⟨leader⟩ td",              "debug nearest test  (drops to dap)"]
+      ]
+    },
+
+    {
+      "family": "git",
+      "color": "#fb7185",
+      "title": "Git · Workflow (shell)",
+      "sub": "aliases · delta pager · gh CLI · lazygit TUI",
+      "idea": "Workflow-level git lives in the shell. Aliases for the daily five; gh and lazygit for the rest.",
+      "rows": [
+        ["gs  ga  gc",            "status / add / commit  (zsh aliases)"],
+        ["gp  gpl",               "push / pull"],
         ["git diff / log / show", "delta-rendered, side-by-side off"],
-        ["n / N  (in pager)", "delta: next / prev section"],
-        ["q       (in pager)", "exit pager"],
-        ["gh pr create", "open PR for current branch"],
-        ["gh pr checkout ⟨n⟩", "check out PR by number"],
-        ["gh pr view --web", "open PR in browser"],
-        ["gh run watch", "tail latest workflow run"],
-        ["lazygit", "full-screen TUI for git (faster than gh for staging / branching)"]
+        ["gh pr create",          "open PR for current branch"],
+        ["gh pr checkout ⟨n⟩",    "check out PR by number"],
+        ["gh pr view --web",      "open PR in browser"],
+        ["gh run watch",          "tail latest workflow run"],
+        ["lazygit",               "full-screen TUI for git (faster than gh for staging / branching)"]
       ]
     }
   ]
