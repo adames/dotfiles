@@ -69,7 +69,8 @@ sketchybar --default \
   background.padding_right=8 \
   icon.font="JetBrainsMono NF:Bold:12.0" \
   icon.padding_left=8 \
-  icon.padding_right=8
+  icon.padding_right=8 \
+  label.font="JetBrainsMono NF:Bold:12.0"
 
 ##### space items (per-display, yabai-driven) ################################
 # Yabai is the source of truth for "what spaces exist and which display
