@@ -109,9 +109,13 @@ struct PromptView: View {
     }
 
     private var title: String {
+        // PromptView is only instantiated for focus/send; manage uses
+        // ManageView. The .manage arms here exist only to satisfy
+        // exhaustiveness — they're never rendered.
         switch vm.mode {
         case .focus:  return "focus workspace"
         case .send:   return "send window"
+        case .manage: return ""
         }
     }
 
@@ -133,12 +137,14 @@ struct PromptView: View {
         switch vm.mode {
         case .focus:  return "FOCUS"
         case .send:   return "SEND"
+        case .manage: return ""
         }
     }
     private var modeChipColor: Color {
         switch vm.mode {
         case .focus:  return Catppuccin.blue   // navigate → blue (matches Hyper family)
         case .send:   return Catppuccin.green  // move-and-follow → green
+        case .manage: return Catppuccin.maroon // unused (ManageView renders manage)
         }
     }
 

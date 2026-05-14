@@ -1,8 +1,11 @@
 import Foundation
 
-/// Two prompts the overlay can render. Picked from the first CLI arg.
+/// Three prompts the overlay can render. Picked from the first CLI arg.
+/// focus/send share the PromptController state machine here; manage has
+/// its own multi-stage controller (ManageController) since the flow is
+/// substantially richer (verb → target → payload → confirm → result).
 enum PromptMode: String {
-    case focus, send
+    case focus, send, manage
 }
 
 /// A single input event the controller understands. Modeled as a closed

@@ -105,20 +105,26 @@ else
   printf 'ok   skhdrc has no sticky workspace modes\n'
 fi
 
-# ── structural: manage prompt fully retired (no skhd binding, rejected by binary) ─
-if grep -q 'ws-prompt.*manage' "$REPO_ROOT/configs/skhdrc"; then
-  fail=$((fail + 1))
-  printf 'FAIL skhdrc still references ws-prompt manage\n'
-else
+# ── manage mode is wired up (chord present, accepted by binary) ─────────
+if grep -qE '^cmd \+ alt \+ ctrl - return.*ws-prompt.*manage' "$REPO_ROOT/configs/skhdrc"; then
   pass=$((pass + 1))
-  printf 'ok   skhdrc has no ws-prompt manage binding\n'
+  printf 'ok   skhdrc binds Caps+Shift+Return to ws-prompt manage\n'
+else
+  fail=$((fail + 1))
+  printf 'FAIL skhdrc missing Caps+Shift+Return → ws-prompt manage binding\n'
 fi
-if "$BIN" manage --simulate-keys "a" >/dev/null 2>&1; then
-  fail=$((fail + 1))
-  printf 'FAIL ws-prompt accepts manage as a mode (should be rejected)\n'
-else
+# Manage mode is live-only (multi-stage state machine + Process exec).
+# Smoke test: binary accepts the mode as an arg without crashing. Use
+# --simulate-keys to exercise the arg-parse path; manage rejects the
+# flag explicitly, which is the documented contract.
+manage_out=$("$BIN" manage --simulate-keys "a" 2>&1)
+manage_exit=$?
+if [[ "$manage_exit" == "2" ]] && grep -qF 'not supported in manage mode' <<<"$manage_out"; then
   pass=$((pass + 1))
-  printf 'ok   ws-prompt rejects manage mode\n'
+  printf 'ok   ws-prompt manage mode accepted (simulate-keys rejected as expected)\n'
+else
+  fail=$((fail + 1))
+  printf 'FAIL ws-prompt manage mode arg parse broken\n  exit=%s out=%s\n' "$manage_exit" "$manage_out"
 fi
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
