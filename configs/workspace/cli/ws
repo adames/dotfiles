@@ -661,24 +661,11 @@ _host_list() {
       done
 }
 
-# Optional sourcing of WORKSPACE_LABELS for default add names.
-_label_for_slot() {
-  local slot="$1"
-  local labels_src=""
-  if [[ -r "$DOTFILES_DIR/lib/colors.sh" ]]; then
-    labels_src="$DOTFILES_DIR/lib/colors.sh"
-  elif [[ -r "$HOME/.config/workspace/lib/colors.sh" ]]; then
-    labels_src="$HOME/.config/workspace/lib/colors.sh"
-  fi
-  if [[ -n "$labels_src" ]]; then
-    # shellcheck source=/dev/null
-    ( . "$labels_src"
-      if (( slot >= 1 && slot <= ${#WORKSPACE_LABELS[@]} )); then
-        printf '%s' "${WORKSPACE_LABELS[$((slot-1))]}"
-      fi
-    )
-  fi
-}
+# Default name for a newly-added slot. The old WORKSPACE_LABELS array
+# (core / forge / codex / …) is retired — yabai owns existence and we
+# don't pre-name slots. Return empty so cmd_add's "ws$slot" fallback
+# kicks in; the user names the slot themselves via `ws name N <new>`.
+_label_for_slot() { : ; }
 
 cmd_add() {
   _require_config
@@ -797,15 +784,14 @@ cmd_add() {
     --arg cp "$_ICON_ESCAPED" --arg sf "$_ICON_SF_NAME"
   _fire_post add "$new_slot"
   _fire_cascade
-  # Best-effort: keep yabai's space count in sync. Silent on absence and
-  # on failure (e.g., scripting-addition not loaded). Disable with
-  # WS_ADD_GROW_YABAI=0.
+  # Ask yabai to create one more space. Silent on absence (Linux,
+  # headless) and on failure (scripting-addition not loaded). The
+  # space_created signal subscribed in yabairc will fire
+  # per-display-pills.sh, which adds the matching sketchybar pill.
+  # Disable with WS_ADD_GROW_YABAI=0 — useful for tests that don't
+  # want to actually touch yabai state.
   if [[ "${WS_ADD_GROW_YABAI:-1}" == 1 ]] && have yabai && pgrep -x yabai >/dev/null 2>&1; then
-    local ensure="$HOME/.config/workspace/yabai-ensure-spaces.sh"
-    [[ -x "$ensure" ]] || ensure="$DOTFILES_DIR/configs/yabai-ensure-spaces.sh"
-    if [[ -x "$ensure" ]]; then
-      ( "$ensure" "$new_slot" >/dev/null 2>&1 & ) 2>/dev/null
-    fi
+    yabai -m space --create >/dev/null 2>&1 || true
   fi
 }
 

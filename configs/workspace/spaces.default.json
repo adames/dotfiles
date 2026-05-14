@@ -1,32 +1,5 @@
 {
-  "_doc_icon": "Icons use nerd-font private-use glyphs (nf-fa-* set). Requires JetBrains Mono NF or any Nerd Font — installed via: brew install --cask font-jetbrains-mono-nerd-font",
+  "_doc_icon": "Optional per-slot identity overlay (name / color / icon). yabai owns space EXISTENCE — this file just adds optional metadata on top. Empty by default: bar renders bare pills for whatever yabai has, named ws1, ws2, … in INACTIVE_LABEL gray. Customize a slot with `ws name N <name>`, `ws icon N <glyph>`, `ws color N <#hex>`. Icons use Nerd Font private-use codepoints; install via: brew install --cask font-jetbrains-mono-nerd-font",
   "palette": "catppuccin-mocha",
-  "spaces": {
-    "1": {
-      "color": "#a6e3a1",
-      "iconSpec": {
-        "fallbackSfSymbol": "house.fill",
-        "fallbackText": "HM",
-        "kind": "nerdFont",
-        "codepoint": "\\uf015",
-        "fontFamily": "JetBrainsMono Nerd Font",
-        "userOverridden": false
-      },
-      "name": "home",
-      "stableLogicalLabel": "home"
-    },
-    "2": {
-      "color": "#cba6f7",
-      "iconSpec": {
-        "fallbackSfSymbol": "terminal.fill",
-        "fallbackText": "TM",
-        "kind": "nerdFont",
-        "codepoint": "\\uf120",
-        "fontFamily": "JetBrainsMono Nerd Font",
-        "userOverridden": false
-      },
-      "name": "code",
-      "stableLogicalLabel": "code"
-    }
-  }
+  "spaces": {}
 }

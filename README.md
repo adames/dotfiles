@@ -70,7 +70,7 @@ Ghostty doesn't break zsh's line editor.
 | SketchyBar per-display autohide (cursor poller, LaunchAgent) | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Cross-display topology + per-display layout policy (notch-aware) | ws-topologyd (LaunchAgent) | [`workspace/topology/`](configs/workspace/topology) |
-| Per-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
+| Per-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) |
 | Hyper app launchers (browser, terminal, Finder, Settings, Claude, Spotify) | skhd | [`skhdrc`](configs/skhdrc) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
@@ -128,22 +128,26 @@ C-Space  f                    → fzf project sessionizer
 
 ## Workspace identity
 
-Factory default: **2 slots** — `home` (laptop) and `code` (terminal /
-external). Use `ws add` to grow as needed; macOS auto-creates a yabai
-space when a new monitor is attached and the bar renders it gracefully
-as a bare pill until you customize it.
+**yabai owns space existence. `spaces.json` owns optional identity.**
+We don't manipulate yabai — Mission Control + / × is how spaces are
+created and destroyed; the bar reflects whatever yabai reports.
 
-| # | Slot | Color (Catppuccin) | Hotkey | Purpose |
-|---|---|---|---|---|
-| 1 | **home** |  green  | `Caps+1` | Laptop-locked default |
-| 2 | **code** |  mauve  | `Caps+2` | Dev workspace |
+A fresh install ships an empty `spaces.json` (no slot identities).
+Pills render as bare gray `ws1`, `ws2`, … until you customize one:
 
-Slot count tracks yabai live — `Caps+0` focuses slot 10 if you have
-that many. Mission Control's `+` / `×` Space gestures stay in sync
-with the bar (yabai's `space_created` / `space_destroyed` signals are
-wired to per-display-pills.sh).
+```sh
+ws name 1 work            # rename slot 1
+ws icon 1 code            # set an SF Symbol icon (auto-maps to Nerd Font)
+ws color 1 "#a6e3a1"      # any hex
+```
 
-Defined in
+The slot count is whatever yabai has — `Caps+1..0` focuses slot N,
+silently no-ops if N doesn't exist. Mission Control's `+` / `×` Space
+gestures keep the bar in lock-step (yabai's `space_created` /
+`space_destroyed` signals are wired to per-display-pills.sh and
+on-space-destroyed.sh).
+
+Seed file (intentionally empty):
 [`configs/workspace/spaces.default.json`](configs/workspace/spaces.default.json).
 
 Identity surfaces:
@@ -200,21 +204,15 @@ uses [`plugins/notch-detect.sh`](configs/sketchybar/plugins/notch-detect.sh)
 (model identifier match against MacBookPro18,*, Mac14-20,*); override
 with `WS_LAPTOP_HAS_NOTCH=yes|no` in the environment.
 
-**Display lock**: when a monitor is attached, slot 1 (`core`) stays on
-the laptop screen and slots 2..10 migrate to the external. Single-display
-mode keeps everything on the laptop. The reconciliation logic lives in
-[`workspace/reconcile-displays.sh`](configs/workspace/reconcile-displays.sh)
-and runs on `display_added`/`removed`/`changed`. **One-time setup**:
-plug only the laptop in and run `~/.config/workspace/laptop-uuid-init.sh`
-to capture the built-in panel's UUID — the reconciler uses it to identify
-the laptop across plug/unplug events. The first bootstrap run does this
-automatically if exactly one display is attached.
+**Display assignment**: yabai owns it. Each space lives on a display
+because macOS/yabai puts it there; we don't move spaces around at boot
+or on display events. Drag spaces between monitors in Mission Control
+to lay them out the way you like — yabai persists the assignment.
 
-[`yabai-ensure-spaces.sh`](configs/yabai-ensure-spaces.sh) is called at
-yabai startup and rebound to the `display_added` signal in
-[`yabairc`](configs/yabairc); it ensures exactly 10 spaces total and
-applies the slot labels. Installing the SA is a one-time multi-reboot
-dance because macOS gates it behind SIP. Procedure:
+**`yabai -m space --create` / `--destroy` need the scripting addition.**
+Mission Control's `+` / `×` buttons don't (those go through macOS
+directly). Installing the SA is a one-time multi-reboot dance because
+macOS gates it behind SIP. Procedure:
 
 1. **Disable SIP from Recovery** (this is the part you have to do by hand):
    ```
@@ -259,24 +257,24 @@ as a compat symlink, so existing muscle-memory keeps working.
 ```
 # inspection
 ws status                  # all slots with color swatches
-ws get core                # one slot as JSON (accepts name OR index)
+ws get 1                # one slot as JSON (accepts name OR index)
 ws count                   # current slot count
 ws doctor                  # validate schema
 ws verify                  # run end-to-end test harness
 
 # point edits
 ws name 3 lab              # rename slot 3
-ws name core kernel        # … or address it by current name
+ws name 1 work            # … or address it by current name (after you set one)
 ws color 3 "#ffaabb"       # recolor slot 3
 ws icon 3 play.fill        # set icon via SF Symbol name (→ )
 ws icon 3 ""              # … or paste a literal Nerd Font glyph
 ws icon search lock        # discover SF names that have Nerd Font mappings
 
 # reordering ergonomics (positional colors: only name + icon move)
-ws swap core scope         # exchange two slots' name & icon
-ws move codex 1            # codex → slot 1; others shift
-ws move codex before forge # natural-language adjacency
-ws move codex after lex
+ws swap 1 2         # exchange two slots' name & icon
+ws move 3 1            # slot 3 → slot 1; others shift
+ws move 3 before 2     # natural-language adjacency
+ws move 3 after 4
 ws rotate 1                # shift all (name, icon) right by 1
 ws rotate -1               # shift left
 ws reverse                 # mirror the slot order
@@ -329,7 +327,7 @@ file is sourced (handled by `zshrc` / `bashrc`).
 
 **Slot identifiers.** Anywhere a slot is expected — `name`, `color`,
 `icon`, `get`, `remove`, `swap`, `move` — you can pass either a numeric
-index OR a unique slot name. `workspace move codex before forge`.
+index OR a unique slot name. `ws move 3 before 2`.
 
 **Per-machine, not committed.** `~/.config/workspace/spaces.json`,
 saved layouts in `~/.config/workspace/layouts/`, and any custom themes
@@ -473,7 +471,7 @@ and re-links them. Tmux: `prefix + r`.
 | Workspace pills missing from menu/bottom bar | `sketchybar` not installed or service dead — `brew install FelixKratz/formulae/sketchybar` then `brew services restart sketchybar`. Pills painted but blank glyphs → wrong font family in `sketchybarrc` (must be `"JetBrainsMono NF"` with the space) |
 | Workspace pill doesn't update on space switch | `on-space-changed.sh` ran but sketchybar trigger silent — `sketchybar --trigger workspace_changed` to repaint; if that does nothing, `brew services restart sketchybar` |
 | Workspace chip missing from prompt / tmux | yabai signal didn't fire yet — `~/.config/workspace/on-space-changed.sh` to prime; check `~/.cache/workspace/current.env` populated |
-| Slot 1 lands on the monitor instead of the laptop | UUID capture missed or wrong — `~/.config/workspace/laptop-uuid-init.sh --force` with only the built-in panel attached |
+| Slot 1 lands on the wrong display | yabai owns space-to-display assignment. Drag the space in Mission Control to where you want it — yabai persists the assignment across reboots. |
 | Neovim plugins missing | First-launch install in progress; open `nvim`, wait or `:Lazy sync` then `:MasonToolsInstall` |
 | `pyright` doesn't attach to `*.py` | `:Mason` → `i` to install, or `:MasonToolsInstall` |
 | SSH'ing into a fresh Ubuntu VPS from Ghostty: double characters, backspace inserts space | `TERM=xterm-ghostty` not in remote's terminfo. **From a local terminal:** `infocmp -x xterm-ghostty \| ssh user@host -- tic -x -`. Or run `~/dotfiles/bootstrap.sh` on the VPS once — phase 1 installs the entry to `~/.terminfo`. Extracting from Ghostty's bundle locally: `TERMINFO_DIRS=/Applications/Ghostty.app/Contents/Resources/terminfo infocmp -x xterm-ghostty` |
@@ -496,16 +494,14 @@ and re-links them. Tmux: `prefix + r`.
 └── configs/
     ├── karabiner.{json,md}       # Caps remap + JSON explainer
     ├── yabairc                   # BSP tiling + workspace + display signals
-    ├── yabai-ensure-spaces.sh    # ensures 10 BSP spaces total + applies labels
     ├── skhdrc                    # Hyper/Mod bindings → yabai · ws-snap · ws-cheatsheet · apps
-    ├── workspace/                # workspace identity layer (factory: 2 slots, extensible)
-    │   ├── spaces.default.json   #  · slot → name/color/icon defaults
+    ├── workspace/                # workspace identity layer (optional name/color/icon per yabai space)
+    │   ├── spaces.default.json   #  · empty seed (yabai owns existence; identity is opt-in)
     │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + borders + sketchybar)
-    │   ├── reconcile-displays.sh #  · slot 1 → laptop, 2..10 → monitor
-    │   ├── laptop-uuid-init.sh   #  · captures built-in display UUID
+    │   ├── on-space-destroyed.sh #  · prune orphan slot from spaces.json after yabai destroys a space
     │   ├── rename.sh             #  · osascript-prompted slot rename
     │   ├── topology/             #  · Swift package: ws-topology(d), ws-cheatsheet, ws-snap, ws-autohide
-    │   └── install.sh            #  · seeds + migrates + restarts daemons
+    │   └── install.sh            #  · seeds + restarts daemons
     ├── borders/bordersrc         # JankyBorders launch script + defaults
     ├── sketchybar/               # persistent workspace pill strip
     │   ├── sketchybarrc          #  · bar geometry + space items + workspace.paint sentinel

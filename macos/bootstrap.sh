@@ -88,7 +88,12 @@ phase_configs() {
   install_file "$CONFIGS_DIR/karabiner.json"             "$HOME/.config/karabiner/karabiner.json"
   install_file "$CONFIGS_DIR/skhdrc"                     "$HOME/.skhdrc"
   install_file "$CONFIGS_DIR/yabairc"                    "$HOME/.yabairc"             755
-  install_file "$CONFIGS_DIR/yabai-ensure-spaces.sh"     "$HOME/.config/yabai/ensure-spaces.sh" 755
+  # Clean up retired manipulation scripts. yabai-ensure-spaces.sh,
+  # reconcile-displays.sh, laptop-uuid-init.sh, and lib/colors.sh
+  # all enforced a fixed slot count + per-display routing via labels.
+  # Retired: yabai owns existence (Mission Control runs it), spaces.json
+  # owns optional identity. Idempotent: no-op once gone.
+  rm -f "$HOME/.config/yabai/ensure-spaces.sh"
   # Hammerspoon is retired. ws-autohide (configs/workspace/topology/Sources/
   # ws-autohide) is the launchd-managed SketchyBar autohide poller, ws-snap
   # is the Mod+arrows floating-window snap, and skhd owns the rest of what
@@ -153,15 +158,21 @@ phase_configs() {
   install_file "$CONFIGS_DIR/completions/_ws"               "$HOME/.config/zsh/completions/_ws"
   install_file "$CONFIGS_DIR/completions/ws.bash"           "$HOME/.config/bash/completions/ws.bash"
 
-  # Workspace identity layer (factory: 2 slots — home, code; extensible)
-  install_file "$DOTFILES_DIR/lib/colors.sh"              "$HOME/.config/workspace/lib/colors.sh"
+  # Workspace identity layer. yabai owns existence (which spaces, on
+  # which display) via macOS / Mission Control; spaces.json layers
+  # optional name/color/icon on top. Default ships empty — pills show
+  # bare "ws1", "ws2", etc. until you `ws name N <name>`.
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
   install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
-  install_file "$CONFIGS_DIR/workspace/reconcile-displays.sh" "$HOME/.config/workspace/reconcile-displays.sh" 755
-  install_file "$CONFIGS_DIR/workspace/laptop-uuid-init.sh" "$HOME/.config/workspace/laptop-uuid-init.sh" 755
   install_file "$CONFIGS_DIR/workspace/rename.sh"         "$HOME/.config/workspace/rename.sh" 755
   install_file "$CONFIGS_DIR/workspace/borders-refresh.sh" "$HOME/.config/workspace/borders-refresh.sh" 755
+  # Retired with the "yabai owns existence" refactor — cleanup if
+  # present from older deploys.
+  rm -f "$HOME/.config/workspace/lib/colors.sh"
+  rm -f "$HOME/.config/workspace/reconcile-displays.sh"
+  rm -f "$HOME/.config/workspace/laptop-uuid-init.sh"
+  rm -f "$HOME/.config/workspace/laptop.uuid"
   install_file "$CONFIGS_DIR/workspace/lib/resolve-config.sh" "$HOME/.config/workspace/lib/resolve-config.sh"
   install_file "$CONFIGS_DIR/workspace/lib/icon-decode.sh"  "$HOME/.config/workspace/lib/icon-decode.sh"
   install_file "$CONFIGS_DIR/workspace/lib/hex-ansi.sh"     "$HOME/.config/workspace/lib/hex-ansi.sh"

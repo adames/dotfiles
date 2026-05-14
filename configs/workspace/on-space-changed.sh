@@ -132,12 +132,11 @@ if command -v tmux >/dev/null 2>&1 && tmux list-sessions >/dev/null 2>&1; then
   tmux refresh-client -S 2>/dev/null || true
 fi
 
-# Note: the yabai space LABEL is intentionally NOT updated here. Labels
-# are the stable slot *identity* (core / forge / codex / …) set once by
-# yabai-ensure-spaces.sh; the JSON NAME is the mutable display string.
-# Mirroring rename → label would break reconcile-displays.sh, which uses
-# the default labels to address slots. Renames live in tmux/starship/
-# borders only.
+# Note: the yabai space LABEL is intentionally NOT updated here. yabai
+# owns existence; spaces.json owns the optional display name. We don't
+# write labels back — Mission Control + / × is how spaces come and go,
+# and labels would just be a stale parallel state. Renames live in
+# tmux / starship / borders only.
 
 # JankyBorders: paint the active-window border in the slot's colour.
 # Borders takes 0xAARRGGBB; strip the leading '#' from COLOR. Daemon
