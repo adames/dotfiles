@@ -108,8 +108,10 @@ phase_configs() {
   rm -f "$HOME/.config/yabai/ensure-spaces.sh"
   # Hammerspoon is retired. ws-autohide (configs/workspace/topology/Sources/
   # ws-autohide) is the launchd-managed SketchyBar autohide poller, ws-snap
-  # is the Mod+arrows floating-window snap, and skhd owns the rest of what
-  # used to live in hammerspoon-init.lua. The cheatsheet HUD is the SwiftUI
+  # is an AX absolute-snap CLI (not bound to a chord today; new windows
+  # are auto-staged via stage-window.sh from the yabai window_created
+  # signal), and skhd owns the rest of what used to live in
+  # hammerspoon-init.lua. The cheatsheet HUD is the SwiftUI
   # ws-cheatsheet — all reachable via the topology Swift package below.
 
   # Cheatsheet HUD content (hand-editable). ws-cheatsheet reads this on
@@ -165,9 +167,10 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
   ln -sf "ws" "$HOME/.local/bin/workspace"
   install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
-  # skhd mode helpers (Hyper+W focus, C-Space send, Mod+W manage).
-  # Wrap raw yabai calls with existence checks + loud failure
-  # notifications so the new modes never silently no-op.
+  # skhd mode helpers (Caps+space focus, Caps+return send,
+  # Caps+Shift+return manage). Wrap raw yabai calls with existence
+  # checks + loud failure notifications so the new modes never
+  # silently no-op.
   install_file "$CONFIGS_DIR/workspace/cli/ws-focus"            "$HOME/.local/bin/ws-focus"            755
   install_file "$CONFIGS_DIR/workspace/cli/ws-send-follow"      "$HOME/.local/bin/ws-send-follow"      755
   install_file "$CONFIGS_DIR/workspace/cli/ws-destroy-current"  "$HOME/.local/bin/ws-destroy-current"  755
@@ -203,7 +206,7 @@ phase_configs() {
   # ws-launch-terminal / ws-launch-browser: auto-detect the user's
   # preferred terminal / browser and open a new window. No hardcoded
   # app names; override with $WS_TERMINAL_APP / $WS_BROWSER_APP.
-  # Wired to Hyper+T / Hyper+0 (terminal) and Hyper+B (browser) in skhdrc.
+  # Wired to Caps+t (terminal) and Caps+b (browser) in skhdrc.
   install_file "$CONFIGS_DIR/workspace/launch-terminal.sh"  "$HOME/.local/bin/ws-launch-terminal"             755
   install_file "$CONFIGS_DIR/workspace/launch-browser.sh"   "$HOME/.local/bin/ws-launch-browser"              755
   # Clean up the notch-padding tuning env retired by the left-aligned
