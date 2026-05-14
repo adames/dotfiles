@@ -32,11 +32,16 @@ if [[ -z "$WS_BIN" ]]; then
 fi
 
 # Don't grow yabai during tests — we're only exercising the JSON layer.
-export WS_ADD_GROW_YABAI=0
+# WS_GROW_YABAI_ON_ADD controls whether `ws add` calls
+# `yabai -m space --create` to create a real macOS space alongside the
+# JSON slot. Tests set 0 to keep the harness side-effect-free.
+export WS_GROW_YABAI_ON_ADD=0
 # The harness intentionally grows the JSON past yabai's space count to
-# give positional tests headroom. WS_SKIP_YABAI_BOUND disables every
-# yabai-derived bound in `ws` (validator, doctor drift, count view).
-export WS_SKIP_YABAI_BOUND=1
+# give positional tests headroom. WS_SKIP_YABAI_SLOT_CHECK=1 tells the
+# `ws` CLI to skip every yabai-derived slot-count check (the validator,
+# the doctor's drift check, and the count subcommand) so the JSON-side
+# tests can exercise slots that don't correspond to real yabai spaces.
+export WS_SKIP_YABAI_SLOT_CHECK=1
 
 red()   { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
