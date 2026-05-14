@@ -46,6 +46,40 @@ full default set.
    yabai isn't running, prompts to log out (yabai re-reads the value on
    fresh login only).
 
+## Manual step the wizard can't do: free up `Ctrl+Space`
+
+macOS binds `Ctrl+Space` to "Select the previous input source" by
+default. The skhd `send` mode (Ctrl+Space → digit to send the focused
+window to slot N + follow) collides with it — every send-mode entry
+also rotates input sources unless the macOS shortcut is disabled.
+
+The wizard does not script this because the underlying plist
+(`com.apple.symbolichotkeys`, entries 60/61) is owned by the
+WindowServer and edits require either a logout/login cycle or a
+private API the wizard avoids. Do it once by hand:
+
+1. System Settings → Keyboard → Keyboard Shortcuts → Input Sources.
+2. Uncheck both "Select the previous input source" and "Select next
+   source in Input menu".
+
+Or, equivalently, from the shell + a logout:
+
+```sh
+/usr/libexec/PlistBuddy -c "Set :AppleSymbolicHotKeys:60:enabled false" \
+  ~/Library/Preferences/com.apple.symbolichotkeys.plist
+/usr/libexec/PlistBuddy -c "Set :AppleSymbolicHotKeys:61:enabled false" \
+  ~/Library/Preferences/com.apple.symbolichotkeys.plist
+# Then log out and back in for WindowServer to re-read the plist.
+```
+
+To verify:
+
+```sh
+defaults read com.apple.symbolichotkeys AppleSymbolicHotKeys 2>/dev/null \
+  | awk '/^ *(60|61) =/{id=$1} id && /enabled/{print "shortcut "id" = "$0; id=0}'
+# Both lines should report `enabled = 0;`.
+```
+
 ## Run
 
 ```sh
