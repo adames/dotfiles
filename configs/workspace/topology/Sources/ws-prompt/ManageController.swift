@@ -18,6 +18,8 @@ enum ManageStage: Equatable {
     case renameNewName(slot: Int, slotName: String, buffer: String)
     case destroyTarget(filter: String, selection: Int, inQueryMode: Bool)
     case destroyConfirm(slot: Int, slotName: String)
+    case iconTarget(filter: String, selection: Int, inQueryMode: Bool)
+    case iconPick(slot: Int, slotName: String, filter: String, selection: Int)
     case layoutVerb
     case layoutSaveName(buffer: String)
     case layoutLoadPick(snapshots: [String], filter: String, selection: Int)
@@ -97,6 +99,10 @@ final class ManageController: ObservableObject {
         case .destroyTarget(let f, let s, let q):
             return handleDestroyTarget(key, filter: f, sel: s, inQueryMode: q)
         case .destroyConfirm(let i, let nm):    return handleDestroyConfirm(key, slot: i, slotName: nm)
+        case .iconTarget(let f, let s, let q):
+            return handleIconTarget(key, filter: f, sel: s, inQueryMode: q)
+        case .iconPick(let i, let nm, let f, let s):
+            return handleIconPick(key, slot: i, slotName: nm, filter: f, sel: s)
         case .layoutVerb:                       return handleLayoutVerb(key)
         case .layoutSaveName(let buf):          return handleLayoutSaveName(key, buf: buf)
         case .layoutLoadPick(let snaps, let f, let s):
@@ -121,6 +127,9 @@ final class ManageController: ObservableObject {
             return .idle
         case .char("d"), .char("D"):
             stage = .destroyTarget(filter: "", selection: focusedSelection, inQueryMode: false)
+            return .idle
+        case .char("i"), .char("I"):
+            stage = .iconTarget(filter: "", selection: focusedSelection, inQueryMode: false)
             return .idle
         case .char("L"):              // capital L only (Shift+L), avoids clashing with destroy 'd'
             stage = .layoutVerb
@@ -342,6 +351,113 @@ final class ManageController: ObservableObject {
             return .idle
         default:
             stage = .destroyTarget(filter: "", selection: focusedSelection, inQueryMode: false)
+            return .idle
+        }
+    }
+
+    // MARK: - Icon
+    //
+    // Two stages: pick a target slot (mirrors rename/destroy target
+    // pickers — digit fast-path, fuzzy name, focused-default), then
+    // fuzzy-pick an icon from the SF Symbol → Nerd Font catalog.
+    // Commit dispatches `ws icon SLOT NAME`.
+
+    private func handleIconTarget(_ key: PromptKey, filter: String, sel: Int,
+                                  inQueryMode: Bool) -> ManageAction {
+        switch key {
+        case .escape: stage = .verbPicker; return .idle
+        case .enter:
+            if inQueryMode, let target = digitTarget(filter: filter) {
+                return commitIconTarget(slot: target)
+            }
+            let matches = filteredWorkspaces(filter: filter)
+            guard !matches.isEmpty else { return .idle }
+            let pick = matches[sel.clamped(to: 0...(matches.count - 1))]
+            stage = .iconPick(slot: pick.index, slotName: pick.name,
+                              filter: "", selection: 0)
+            return .idle
+        case .tab:
+            let matches = filteredWorkspaces(filter: filter)
+            stage = .iconTarget(filter: filter,
+                                selection: cycle(sel, count: matches.count, by: +1),
+                                inQueryMode: inQueryMode)
+            return .idle
+        case .backTab:
+            let matches = filteredWorkspaces(filter: filter)
+            stage = .iconTarget(filter: filter,
+                                selection: cycle(sel, count: matches.count, by: -1),
+                                inQueryMode: inQueryMode)
+            return .idle
+        case .backspace:
+            if filter.isEmpty { return .idle }
+            stage = .iconTarget(filter: String(filter.dropLast()),
+                                selection: 0, inQueryMode: inQueryMode)
+            return .idle
+        case .char(let c):
+            if !inQueryMode, c.isASCII, c.isNumber {
+                let slot = (c == "0") ? 10 : Int(String(c))!
+                return commitIconTarget(slot: slot)
+            }
+            stage = .iconTarget(filter: filter + String(c).lowercased(),
+                                selection: 0, inQueryMode: true)
+            return .idle
+        }
+    }
+
+    private func commitIconTarget(slot: Int) -> ManageAction {
+        guard let ws = workspaces.first(where: { $0.index == slot }) else {
+            stage = .result(title: "icon: rejected",
+                            body: "slot \(slot) does not exist", success: false)
+            return .idle
+        }
+        stage = .iconPick(slot: ws.index, slotName: ws.name, filter: "", selection: 0)
+        return .idle
+    }
+
+    /// Catalog snapshot loaded once on first entry to the picker so
+    /// keystroke handling — and the SwiftUI body's per-render fuzzy
+    /// filter — don't re-read the JSON each tab.
+    private var catalogCache: [IconCatalogEntry]?
+    private func catalog() -> [IconCatalogEntry] {
+        if let c = catalogCache { return c }
+        let c = service.iconCatalog()
+        catalogCache = c
+        return c
+    }
+    /// Public accessor for the view-side fuzzy filter.
+    var iconCatalogCached: [IconCatalogEntry] { catalog() }
+
+    private func handleIconPick(_ key: PromptKey, slot: Int, slotName: String,
+                                filter: String, sel: Int) -> ManageAction {
+        let matches = FuzzyMatch.filter(catalog(), query: filter, keyPath: { $0.sfName })
+        switch key {
+        case .escape:
+            stage = .iconTarget(filter: "", selection: focusedSelection, inQueryMode: false)
+            return .idle
+        case .enter:
+            guard !matches.isEmpty else { return .idle }
+            let pick = matches[sel.clamped(to: 0...(matches.count - 1))]
+            dispatch(verb: "icon") { [weak self] completion in
+                self?.service.runWs(args: ["icon", String(slot), pick.sfName],
+                                    completion: completion)
+            }
+            return .idle
+        case .tab:
+            stage = .iconPick(slot: slot, slotName: slotName, filter: filter,
+                              selection: cycle(sel, count: matches.count, by: +1))
+            return .idle
+        case .backTab:
+            stage = .iconPick(slot: slot, slotName: slotName, filter: filter,
+                              selection: cycle(sel, count: matches.count, by: -1))
+            return .idle
+        case .backspace:
+            if filter.isEmpty { return .idle }
+            stage = .iconPick(slot: slot, slotName: slotName,
+                              filter: String(filter.dropLast()), selection: 0)
+            return .idle
+        case .char(let c):
+            stage = .iconPick(slot: slot, slotName: slotName,
+                              filter: filter + String(c).lowercased(), selection: 0)
             return .idle
         }
     }

@@ -92,6 +92,26 @@ final class ProductionWorkspaceService: WorkspaceService {
         return iconMap().contains(name)
     }
 
+    private var cachedIconCatalog: [IconCatalogEntry]?
+
+    func iconCatalog() -> [IconCatalogEntry] {
+        if let cached = cachedIconCatalog { return cached }
+        guard let data = try? Data(contentsOf: paths.iconMap),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { cachedIconCatalog = []; return [] }
+
+        var entries: [IconCatalogEntry] = []
+        for (name, value) in obj where !name.hasPrefix("_") {
+            guard let codepointStr = value as? String,
+                  let glyph = Self.decodeCodepoint(codepointStr)
+            else { continue }
+            entries.append(IconCatalogEntry(sfName: name, glyph: glyph))
+        }
+        entries.sort { $0.sfName < $1.sfName }
+        cachedIconCatalog = entries
+        return entries
+    }
+
     // MARK: - Async commands
 
     func runWs(args: [String], completion: @escaping (CommandResult) -> Void) {

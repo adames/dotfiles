@@ -97,7 +97,7 @@ sticky skhd modes anywhere in the system anymore.
 - `Caps + space`          (Hyper+Space)    → focus prompt  (digit commits · letters fuzzy-match name + ↵)
 - `Caps + return`         (Hyper+Return)   → send prompt   (digit commits + follow · letters fuzzy-match name + ↵)
 - `Caps + Shift + return` (Mod+Return)     → manage prompt (verb-picker → multi-stage flow):
-                                              a add · r rename · d destroy
+                                              a add · r rename · i icon · d destroy
                                               ⇧L layout save/load/delete
                                               v verify · ? doctor
 - `Esc` / click-elsewhere (inside overlay) → cancel (manage backs up one stage; verb-picker cancels)

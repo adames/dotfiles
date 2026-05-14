@@ -40,7 +40,7 @@ cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 #                               fuzzy-match workspace name + Enter
 #   send    caps+return       → digit commits + follow · letters fuzzy-match
 #   manage  caps+shift+return → verb-picker overlay:
-#                                 a add   r rename   d destroy
+#                                 a add   r rename   i icon   d destroy
 #                                 ⇧L layout (save / load / delete)
 #                                 v verify   ? doctor
 #                               Each verb runs `ws` directly, captures

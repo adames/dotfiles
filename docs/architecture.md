@@ -68,7 +68,7 @@ commit / cancel / blur / Esc — skhd never holds workspace state:
 |---|---|---|
 | `Caps + space`          | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
 | `Caps + return`         | send   | digit commits + follow · letters fuzzy-match name + Enter |
-| `Caps + Shift + return` | manage | verb-picker: `a` add · `r` rename · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
+| `Caps + Shift + return` | manage | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
 
 The manage overlay is a multi-stage state machine (verb → target /
 payload → confirm → result). Commits shell straight out to the `ws`
