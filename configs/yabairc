@@ -89,6 +89,23 @@ yabai -m signal --add \
   label=ws_space_changed \
   action="\"$HOME/.config/workspace/on-space-changed.sh\""
 
+# display_changed → also refresh the cascade. Empirically, focus
+# transitions across monitors (mouse click on a window on the other
+# display, some app-launch interactions) do not always trip the
+# space_changed signal even though the focused space index DOES change.
+# That left current.env stale and downstream consumers (tmux statusline,
+# starship prompt, sketchybar chip color) pointing at the old display.
+# Wiring the same cascade to display_changed closes the gap; the
+# handler is idempotent and silent-on-absence, so the extra firings
+# on display reconfig are harmless. paint-all.sh queries yabai directly
+# for chip color, so this is belt-and-suspenders for the OTHER cached
+# consumers.
+yabai -m signal --remove ws_cascade_display_changed 2>/dev/null || true
+yabai -m signal --add \
+  event=display_changed \
+  label=ws_cascade_display_changed \
+  action="\"$HOME/.config/workspace/on-space-changed.sh\""
+
 # Retired: ws_borders_window_focused — JankyBorders was removed.
 yabai -m signal --remove ws_borders_window_focused 2>/dev/null || true
 
