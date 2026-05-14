@@ -3,7 +3,7 @@
 Keyboard-first dev environment. Three rules:
 
 1. **Caps Lock is the centre.** Tap = `Esc`, hold = `Hyper` (⌃⌥⌘⇧),
-   hold + Shift = `Meh` (⌃⌥⌘). Karabiner remaps once; every layer
+   hold + Shift = `Mod` (⌃⌥⌘). Karabiner remaps once; every layer
    below — yabai, tmux, Neovim — uses the same modifier-sets-scope model.
 2. **One bootstrap, two platforms.** `bootstrap.sh` detects macOS or
    Ubuntu and dispatches. Idempotent.
@@ -19,7 +19,7 @@ Keyboard-first dev environment. Three rules:
                   │ Karabiner       │
                   │  • tap → Esc    │
                   │  • hold → Hyper │
-                  │  • +Shift → Meh │
+                  │  • +Shift → Mod │
                   └────────┬────────┘
                            │
                            │
@@ -28,7 +28,7 @@ Keyboard-first dev environment. Three rules:
               ┌────────────┼────────────┐
               ▼            ▼            ▼
             yabai       Terminal    Cheatsheet
-         (BSP tiler)    Cmd+T/N    Hyper+/ HUD
+         (BSP tiler)    Cmd+T/N    Hyper+; HUD
                        (osascript) (ws-cheatsheet)
         │
         ▼
@@ -61,17 +61,17 @@ Ghostty doesn't break zsh's line editor.
 
 | Layer | Tool | Source |
 |---|---|---|
-| Caps → Hyper / Meh / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
+| Caps → Hyper / Mod / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
 | Neon window borders (per-workspace colour) | JankyBorders | [`borders/bordersrc`](configs/borders/bordersrc) |
 | Persistent workspace pill strip (always-visible per-display indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
-| Hyper/Meh hotkeys → yabai · terminal · app launchers · cheatsheet · snaps | skhd | [`skhdrc`](configs/skhdrc) |
-| Meh+arrow snaps for floating windows (AX) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
+| Hyper/Mod hotkeys → yabai · terminal · app launchers · cheatsheet · snaps | skhd | [`skhdrc`](configs/skhdrc) |
+| Mod+arrow snaps for floating windows (AX) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
 | SketchyBar per-display autohide (cursor poller, LaunchAgent) | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Cross-display topology + per-display layout policy (notch-aware) | ws-topologyd (LaunchAgent) | [`workspace/topology/`](configs/workspace/topology) |
 | Per-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) · [`lib/colors.sh`](lib/colors.sh) |
-| Hyper app launchers (Brave, Claude) | Karabiner shell_command | [`karabiner.json`](configs/karabiner.json) |
+| Hyper app launchers (browser, terminal, Finder, Settings, Claude, Spotify) | skhd | [`skhdrc`](configs/skhdrc) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
 | zsh: vi-mode · starship · direnv · autosuggestions · syntax-highlighting | zsh | [`zshrc`](configs/zshrc) |
@@ -79,30 +79,35 @@ Ghostty doesn't break zsh's line editor.
 | `z foo` jump to frecent dir | zoxide | wired in `zshrc` |
 | `rg` with sensible globs | ripgrep | [`ripgreprc`](configs/ripgreprc) |
 | Side-by-side syntax-highlighted git diffs | git-delta | [`gitconfig`](configs/gitconfig) |
-| Neovim 0.12+ · Lazy + 16 plugins (incl. harpoon, oil, lazygit) | nvim | [`nvim-init.lua`](configs/nvim-init.lua) |
+| Neovim 0.12+ · Lazy + 23 plugins (incl. harpoon, oil, gitsigns) | nvim | [`nvim-init.lua`](configs/nvim-init.lua) |
 | Python: Pyright + Ruff (LSP) · debugpy (DAP) · pytest (neotest) | Mason | same |
 | Git TUI (run `lazygit` from a terminal / tmux pane) | lazygit | brew formula |
 | Docker / Compose / Kubernetes (~1s cold start, native Apple Silicon) | OrbStack | brew cask · replaces Docker Desktop |
 
 ## Daily-driver keymap
 
-Full reference is `Hyper+/`. Layer split: **Hyper = navigate, Meh (Caps+Shift) = modify.**
+Full reference is `Hyper+;`. Layer split: **Hyper = navigate, Mod (Caps+Shift) = modify.**
 
 ```
 Caps tap                      → Esc
 
-# Hyper — navigate
+# Hyper — navigate / open
 Caps + hjkl                   → focus window
-Caps + 1, 2, …               → focus slot N (factory: home, code; extend via `ws add`)
-Caps + 0                      → focus "code" + spawn new terminal window
-Caps + return / f / e / r     → fullscreen / float / balance / rotate
-Caps + t                      → new terminal window (current workspace)
-Caps + b / c                  → Brave (browser) / Claude
-Caps + /                      → toggle cheatsheet
+Caps + 1..9, 0                → focus slot N (0 = slot 10)
+Caps + return / e / r         → fullscreen / balance / rotate
+Caps + t                      → new terminal window (auto-detect)
+Caps + b                      → new browser window (auto-detect)
+Caps + f                      → new Finder window
+Caps + s                      → System Settings
+Caps + c / m                  → Claude / Spotify
+Caps + ;                      → toggle cheatsheet
 
-# Meh — modify
+# Mod — modify
 Caps + Shift + hjkl           → swap window
-Caps + Shift + 1…9, 0         → send window to slot N (and follow)
+Caps + Shift + 1..9, 0        → send window to slot N (and follow)
+Caps + Shift + f              → float / unfloat window
+Caps + Shift + r              → rename current workspace
+Caps + Shift + -              → remove current workspace
 Caps + Shift + ←→↑↓           → manual snap for floats / non-yabai windows
 
 # Terminal
@@ -131,11 +136,12 @@ as a bare pill until you customize it.
 | # | Slot | Color (Catppuccin) | Hotkey | Purpose |
 |---|---|---|---|---|
 | 1 | **home** |  green  | `Caps+1` | Laptop-locked default |
-| 2 | **code** |  mauve  | `Caps+0` (also `Caps+2`) | Dev workspace — `Caps+0` also spawns a new terminal window |
+| 2 | **code** |  mauve  | `Caps+2` | Dev workspace |
 
-`Caps+0` opens a new terminal in the `code` workspace. The terminal app
-is auto-detected (Ghostty preferred; falls back through iTerm,
-Alacritty, kitty, WezTerm, Terminal). Override with `$WS_TERMINAL_APP`.
+Slot count tracks yabai live — `Caps+0` focuses slot 10 if you have
+that many. Mission Control's `+` / `×` Space gestures stay in sync
+with the bar (yabai's `space_created` / `space_destroyed` signals are
+wired to per-display-pills.sh).
 
 Defined in
 [`configs/workspace/spaces.default.json`](configs/workspace/spaces.default.json).
@@ -430,7 +436,7 @@ nvim --headless -c 'edit /tmp/x.py' -c 'sleep 3' \
      -c 'lua print(#vim.lsp.get_clients({bufnr=0}))' -c qall   # → 2
 ```
 
-Cheatsheet: `Caps + /` (live overlay; nothing on disk).
+Cheatsheet: `Caps + ;` (live overlay; nothing on disk).
 
 ## Re-running
 
@@ -462,7 +468,7 @@ and re-links them. Tmux: `prefix + r`.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | "Karabiner installed but `.app` missing" | `installer -pkg` was interrupted; bootstrap re-runs the staged installer when TTY is present, or `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
-| `Caps + /` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — re-run `~/.config/workspace/topology/install.sh` |
+| `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — re-run `~/.config/workspace/topology/install.sh` |
 | Window borders missing | `borders` not installed or daemon dead — `brew install FelixKratz/formulae/borders` then `~/.config/borders/bordersrc &` |
 | Workspace pills missing from menu/bottom bar | `sketchybar` not installed or service dead — `brew install FelixKratz/formulae/sketchybar` then `brew services restart sketchybar`. Pills painted but blank glyphs → wrong font family in `sketchybarrc` (must be `"JetBrainsMono NF"` with the space) |
 | Workspace pill doesn't update on space switch | `on-space-changed.sh` ran but sketchybar trigger silent — `sketchybar --trigger workspace_changed` to repaint; if that does nothing, `brew services restart sketchybar` |
@@ -491,7 +497,7 @@ and re-links them. Tmux: `prefix + r`.
     ├── karabiner.{json,md}       # Caps remap + JSON explainer
     ├── yabairc                   # BSP tiling + workspace + display signals
     ├── yabai-ensure-spaces.sh    # ensures 10 BSP spaces total + applies labels
-    ├── skhdrc                    # Hyper/Meh bindings → yabai · ws-snap · ws-cheatsheet · apps
+    ├── skhdrc                    # Hyper/Mod bindings → yabai · ws-snap · ws-cheatsheet · apps
     ├── workspace/                # workspace identity layer (factory: 2 slots, extensible)
     │   ├── spaces.default.json   #  · slot → name/color/icon defaults
     │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + borders + sketchybar)
