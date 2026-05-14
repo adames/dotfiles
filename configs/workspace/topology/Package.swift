@@ -1,5 +1,45 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.0
+//
+// The manifest is Swift 6.0 so we can declare Swift Testing test
+// targets, but `swiftLanguageModes: [.v5]` keeps the rest of the code
+// out of Swift 6's strict concurrency checking — that's a separate,
+// much larger migration. Test targets opt themselves into Swift Testing
+// just by `import Testing`.
+//
+// Running tests requires full Xcode, not Command Line Tools.
+// CLT 26.5 ships the Testing.framework + lib_TestingInterop.dylib
+// (so the test bundle compiles) and a `swiftpm-testing-helper` binary,
+// but the helper silently no-ops on Swift Testing bundles — invoking
+// the test entry point is something Xcode's test runner does and CLT
+// doesn't. `swift build -c release` works fine on CLT; only `swift
+// test` is blocked.
 import PackageDescription
+
+// Framework search path + explicit link + runtime rpath for Swift
+// Testing under Command Line Tools. swiftc doesn't add CLT's
+// Frameworks dir to its default search path, the linker doesn't pull
+// Testing in without `-framework Testing`, and dyld doesn't know
+// where to find Testing.framework at runtime without an rpath. All
+// three are pinned to the same CLT Frameworks directory.
+//
+// Harmless when CLT isn't installed — swiftc / ld silently skip
+// nonexistent `-F` and `-rpath` paths.
+let cltFrameworksPath  = "/Library/Developer/CommandLineTools/Library/Developer/Frameworks"
+let cltTestingLibPath  = "/Library/Developer/CommandLineTools/Library/Developer/usr/lib"
+let swiftTestingSettings: [SwiftSetting] = [
+    .unsafeFlags(["-F", cltFrameworksPath])
+]
+let swiftTestingLinkerSettings: [LinkerSetting] = [
+    .unsafeFlags([
+        "-F", cltFrameworksPath,
+        "-framework", "Testing",
+        // dyld rpaths: Testing.framework lives in CLT's Frameworks dir,
+        // its companion lib_TestingInterop.dylib lives in CLT's
+        // Developer/usr/lib dir. Both rpaths are needed at runtime.
+        "-Xlinker", "-rpath", "-Xlinker", cltFrameworksPath,
+        "-Xlinker", "-rpath", "-Xlinker", cltTestingLibPath
+    ])
+]
 
 let package = Package(
     name: "WorkspaceTopology",
@@ -84,25 +124,40 @@ let package = Package(
             name: "ws-snap",
             path: "Sources/ws-snap"
         ),
+        // Test targets use Swift Testing (`import Testing`) rather than
+        // XCTest. The framework ships with the Swift toolchain, but
+        // swiftc doesn't add Command Line Tools' Frameworks directory
+        // to its default search path — so we have to point at it
+        // explicitly. The path is harmless when not present (e.g. on a
+        // box that uses Xcode rather than CLT for its toolchain).
         .testTarget(
             name: "DisplayTopologyTests",
             dependencies: ["DisplayTopology"],
-            path: "Tests/DisplayTopologyTests"
+            path: "Tests/DisplayTopologyTests",
+            swiftSettings: swiftTestingSettings,
+            linkerSettings: swiftTestingLinkerSettings
         ),
         .testTarget(
             name: "LayoutPolicyTests",
             dependencies: ["LayoutPolicy", "DisplayTopology"],
-            path: "Tests/LayoutPolicyTests"
+            path: "Tests/LayoutPolicyTests",
+            swiftSettings: swiftTestingSettings,
+            linkerSettings: swiftTestingLinkerSettings
         ),
         .testTarget(
             name: "WorkspaceStateTests",
             dependencies: ["WorkspaceState"],
-            path: "Tests/WorkspaceStateTests"
+            path: "Tests/WorkspaceStateTests",
+            swiftSettings: swiftTestingSettings,
+            linkerSettings: swiftTestingLinkerSettings
         ),
         .testTarget(
             name: "UITests",
             dependencies: ["AdaptersAppKit", "DisplayTopology", "LayoutPolicy"],
-            path: "Tests/UITests"
+            path: "Tests/UITests",
+            swiftSettings: swiftTestingSettings,
+            linkerSettings: swiftTestingLinkerSettings
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )
