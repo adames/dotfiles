@@ -22,7 +22,32 @@ if [[ "$target" =~ ^[0-9]+$ ]] && (( target < 1 || target > count )); then
   exit 1
 fi
 
+# Optimistic pre-paint: tell sketchybar the new active SID + DISPLAY
+# *before* yabai's transition animation, so the pill snaps the instant
+# the user commits the chord. paint-all.sh honors the env vars and
+# overrides its yabai query; the eventual space_changed cascade fires
+# this same paint with the now-real values, no visible flicker.
+#
+# Best-effort — sketchybar missing, or a different display layout than
+# spaces.json knows about, falls through to the legacy "wait for the
+# cascade" path with no UX regression.
+if command -v sketchybar >/dev/null 2>&1; then
+  disp=$(yabai -m query --spaces 2>/dev/null \
+         | jq -r --arg t "$target" \
+             '.[] | select((.index|tostring) == $t) | .display' 2>/dev/null)
+  if [[ -n "${disp:-}" ]]; then
+    sketchybar --trigger workspace_changed \
+      WS_OPTIMISTIC_SID="$target" \
+      WS_OPTIMISTIC_DISPLAY="$disp" >/dev/null 2>&1 || true
+  fi
+fi
+
 yabai -m space --focus "$target" 2>/dev/null || {
+  # On failure restore correct state — re-trigger without the
+  # optimistic env vars so paint-all.sh falls back to yabai's real
+  # active SID.
+  command -v sketchybar >/dev/null 2>&1 \
+    && sketchybar --trigger workspace_changed >/dev/null 2>&1 || true
   osascript -e "display notification \"yabai focus failed for $target\" with title \"ws\""
   exit 1
 }
