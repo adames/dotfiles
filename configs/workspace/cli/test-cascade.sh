@@ -33,10 +33,10 @@ fi
 
 # Don't grow yabai during tests — we're only exercising the JSON layer.
 export WS_ADD_GROW_YABAI=0
-# Doctor's drift check compares spaces.json count to yabai's real space
-# count. The harness intentionally grows the JSON past yabai's count to
-# give positional tests headroom, so skip that check.
-export WS_DOCTOR_SKIP_DRIFT=1
+# The harness intentionally grows the JSON past yabai's space count to
+# give positional tests headroom. WS_SKIP_YABAI_BOUND disables every
+# yabai-derived bound in `ws` (validator, doctor drift, count view).
+export WS_SKIP_YABAI_BOUND=1
 
 red()   { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
