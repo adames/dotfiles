@@ -8,7 +8,6 @@ import Foundation
 ///   <TAB>                    →  .tab
 ///   <S-TAB>                  →  .backTab
 ///   <BS>                     →  .backspace
-///   <S-D>                    →  .shiftD
 ///
 /// Anything else falls through as a literal char. Designed for the bash
 /// test harness, which builds key strings like "home<CR>" or "x<BS>11<CR>".
@@ -26,7 +25,6 @@ enum KeySequenceParser {
                     case "TAB":   out.append(.tab)
                     case "S-TAB": out.append(.backTab)
                     case "BS":    out.append(.backspace)
-                    case "S-D":   out.append(.shiftD)
                     default:
                         // Unknown token — emit the literal "<token>" so a
                         // typo is loud rather than silently dropped.
@@ -59,20 +57,6 @@ enum SimulateReporter {
             return 0
         case .commitSend(let slot):
             Swift.print("action=commit mode=send helper=ws-send-follow arg=\(slot)")
-            return 0
-        case .commitManage(let manage):
-            switch manage {
-            case .add:
-                Swift.print("action=commit mode=manage helper=yabai arg=space --create")
-            case .rename:
-                Swift.print("action=commit mode=manage helper=rename.sh")
-            case .info:
-                Swift.print("action=commit mode=manage helper=ws-info")
-            case .list:
-                Swift.print("action=commit mode=manage helper=ws-cheatsheet arg=--toggle")
-            case .destroy:
-                Swift.print("action=commit mode=manage helper=ws-destroy-current")
-            }
             return 0
         case .cancel:
             Swift.print("action=cancel mode=\(mode.rawValue)")
