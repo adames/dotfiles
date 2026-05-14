@@ -1,0 +1,61 @@
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # tmux is required so we can parse-check configs/tmux.conf with a
+      # short-lived isolated server. bash + jq are pre-installed on
+      # ubuntu-latest, so no other deps needed.
+      - name: install tmux
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq tmux
+
+      - name: shell syntax (bash -n) on every script
+        run: |
+          find . -type f \( -name '*.sh' -o -name 'skhdrc' -o -name 'yabairc' -o -name 'zshrc' -o -name 'bashrc' \) \
+                 -not -path '*/.git/*' -not -path '*/.build/*' \
+                 -print0 \
+            | xargs -0 -n1 bash -n
+
+      - name: JSON syntax on every config
+        run: |
+          find . -type f -name '*.json' \
+                 -not -path '*/.git/*' -not -path '*/.build/*' \
+                 -print0 \
+            | xargs -0 -n1 jq -e . >/dev/null
+
+      # Structural invariants on karabiner.json — guards against a
+      # fictional Rule 3 (or any other shape drift) silently landing.
+      # Both rules must be present and described as expected; the docs
+      # explainer in configs/karabiner.md describes exactly two rules.
+      - name: karabiner.json structural lint
+        run: |
+          jq -e '
+            .profiles[0].complex_modifications.rules
+            | length == 2
+            and (.[0].description | test("Caps Lock\\+Shift -> Mod"))
+            and (.[1].description | test("Caps Lock -> Hyper"))
+          ' configs/karabiner.json >/dev/null
+
+      - name: bash unit tests
+        run: tests/run-all.sh
+
+      # Parse-check tmux.conf in an isolated server so the host's
+      # ~/.tmux.conf (if any) doesn't interfere. -L gives a unique
+      # socket namespace; kill-server cleans up immediately.
+      - name: tmux config parses
+        run: |
+          tmux -f configs/tmux.conf -L ci-probe start-server \; \
+               new-session -d -s probe \; \
+               kill-server
