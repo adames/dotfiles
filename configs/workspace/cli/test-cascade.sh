@@ -33,6 +33,10 @@ fi
 
 # Don't grow yabai during tests — we're only exercising the JSON layer.
 export WS_ADD_GROW_YABAI=0
+# Doctor's drift check compares spaces.json count to yabai's real space
+# count. The harness intentionally grows the JSON past yabai's count to
+# give positional tests headroom, so skip that check.
+export WS_DOCTOR_SKIP_DRIFT=1
 
 red()   { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
@@ -49,15 +53,30 @@ if [[ ! -r "$WS_CONFIG" ]]; then
   exit 1
 fi
 
-SNAP=$(mktemp) || { red "mktemp failed"; exit 1; }
-cp "$WS_CONFIG" "$SNAP"
+# USER_SNAP: pristine user config; ONLY used by the trap for final restore.
+# SNAP: post-growth test baseline; what tests reset to mid-run.
+USER_SNAP=$(mktemp) || { red "mktemp failed"; exit 1; }
+SNAP=$(mktemp)      || { red "mktemp failed"; rm -f "$USER_SNAP"; exit 1; }
+cp "$WS_CONFIG" "$USER_SNAP"
 
 restore() {
-  cp -f "$SNAP" "$WS_CONFIG" 2>/dev/null || true
+  cp -f "$USER_SNAP" "$WS_CONFIG" 2>/dev/null || true
   [[ -x "$WS_HANDLER" ]] && "$WS_HANDLER" >/dev/null 2>&1 || true
-  rm -f "$SNAP"
+  rm -f "$SNAP" "$USER_SNAP"
 }
 trap restore EXIT INT TERM
+
+# Grow to a deterministic floor so positional tests (slots 3,5,6,7) have
+# headroom regardless of the user's actual slot count. The factory default
+# is empty; the harness needs ≥7 to exercise all positional assertions.
+MIN_SLOTS=7
+while (( $("$WS_BIN" count) < MIN_SLOTS )); do
+  next=$(( $("$WS_BIN" count) + 1 ))
+  "$WS_BIN" add "verify-slot-$next" "#888888" "" >/dev/null \
+    || { red "harness setup: ws add failed at slot $next"; exit 1; }
+done
+
+cp "$WS_CONFIG" "$SNAP"
 
 assert() {
   # assert <msg> <expected> <actual>
@@ -280,8 +299,9 @@ cp -f "$SNAP" "$WS_CONFIG"
 # Each mutation overwrites the iconSpec wholesale so the test result
 # doesn't depend on what fields a user-customized $SNAP carries.
 baseline_spec='{"fallbackSfSymbol":"circle.fill","fallbackText":"CO","userOverridden":false}'
+# Missing iconSpec is implicit kind=none (per cmd_doctor) — should stay green.
 jq '.spaces["1"] |= del(.iconSpec)' "$SNAP" > "$WS_CONFIG"
-assert_false "doctor red on missing iconSpec" "$WS_BIN" doctor
+assert_true "doctor green on missing iconSpec (implicit kind=none)" "$WS_BIN" doctor
 jq --argjson b "$baseline_spec" '.spaces["1"].iconSpec = ($b + {kind: "nerdFont"})' "$SNAP" > "$WS_CONFIG"
 assert_false "doctor red on kind=nerdFont without codepoint" "$WS_BIN" doctor
 jq --argjson b "$baseline_spec" '.spaces["1"].iconSpec = ($b + {kind: "sfSymbol"})' "$SNAP" > "$WS_CONFIG"

@@ -1276,7 +1276,12 @@ cmd_doctor() {
   # if it ever misses an event (yabai down at destroy time, signal-storm
   # races, older deploys without the handler), orphans accumulate and
   # silently block `ws name` uniqueness checks against ghost slots.
-  if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
+  # WS_DOCTOR_SKIP_DRIFT=1 bypasses the yabai-vs-json drift check. Used by
+  # the verify harness, which intentionally grows the JSON beyond yabai's
+  # real space count to give positional tests headroom without touching
+  # yabai state.
+  if [[ "${WS_DOCTOR_SKIP_DRIFT:-0}" != "1" ]] \
+       && command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
     local yabai_n json_n
     yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
     json_n=$(jq '.spaces | length' "$WS_CONFIG" 2>/dev/null || echo 0)
