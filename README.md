@@ -1,5 +1,7 @@
 # dotfiles
 
+[![lint](https://github.com/adames/dotfiles/actions/workflows/lint.yml/badge.svg)](https://github.com/adames/dotfiles/actions/workflows/lint.yml)
+
 Keyboard-first dev environment. Three rules:
 
 1. **Caps Lock is the centre.** Tap = `Esc`, hold = `Hyper` (⌃⌥⌘⇧),
@@ -434,6 +436,22 @@ nvim --headless -c 'edit /tmp/x.py' -c 'sleep 3' \
 ```
 
 Cheatsheet: `Caps + ;` (live overlay; nothing on disk).
+
+## Testing
+
+```sh
+tests/run-all.sh        # ~1.5 s — every tests/unit/*.test.sh
+```
+
+Tests are pure-bash, stub yabai/osascript via `tests/fixtures/`, and
+touch no real state. CI runs `bash -n`, `jq -e`, a karabiner.json
+structural invariant, the unit tests, and a tmux config parse on every
+PR (`.github/workflows/lint.yml`, ~30-45 s, ubuntu-latest only).
+
+`ws verify` runs the end-to-end harness against a deployed install —
+it mutates your real `~/.config/workspace/spaces.json` under a
+trap-based restore, so safer to treat as a manual check than a hot
+inner-loop test.
 
 ## Re-running
 
