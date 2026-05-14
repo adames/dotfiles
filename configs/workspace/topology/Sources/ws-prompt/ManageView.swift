@@ -1,19 +1,11 @@
 import SwiftUI
 
-/// View-model bridge for the manage overlay. The view re-renders when
-/// `stage` changes; we publish the workspace list once at init since
-/// it's a snapshot for the lifetime of the prompt.
-final class ManageViewModel: ObservableObject {
-    @Published var stage: ManageStage = .verbPicker
-    let workspaces: [Workspace]
-
-    init(workspaces: [Workspace]) {
-        self.workspaces = workspaces
-    }
-}
-
+/// Binds directly to `ManageController`'s `@Published var stage`. No
+/// separate view-model — the controller is the model. Workspace list is
+/// a snapshot taken at overlay open (the controller's `workspaces` is a
+/// `let`), so the view reads it directly through the controller.
 struct ManageView: View {
-    @ObservedObject var vm: ManageViewModel
+    @ObservedObject var controller: ManageController
 
     var body: some View {
         ZStack {
@@ -73,7 +65,7 @@ struct ManageView: View {
     }
 
     private var stageLabel: String {
-        switch vm.stage {
+        switch controller.stage {
         case .verbPicker:         return "MENU"
         case .addName, .addIcon:  return "ADD"
         case .renameTarget, .renameNewName: return "RENAME"
@@ -88,7 +80,7 @@ struct ManageView: View {
     }
 
     private var stageColor: Color {
-        switch vm.stage {
+        switch controller.stage {
         case .verbPicker, .layoutVerb:        return Catppuccin.blue
         case .addName, .addIcon:               return Catppuccin.green
         case .renameTarget, .renameNewName:    return Catppuccin.blue
@@ -104,7 +96,7 @@ struct ManageView: View {
 
     @ViewBuilder
     private var stageBody: some View {
-        switch vm.stage {
+        switch controller.stage {
         case .verbPicker:                              verbPickerView
         case .addName(let buf):                        textEntry(prompt: "new workspace name", buffer: buf)
         case .addIcon(_, let buf):                     textEntry(prompt: "icon (single glyph, Enter to skip)", buffer: buf)
@@ -196,7 +188,7 @@ struct ManageView: View {
     // gets the slot-color fill. The filter behaves like focus/send.
 
     private func targetPicker(filter: String, sel: Int) -> some View {
-        let matches = FuzzyMatch.filter(vm.workspaces, query: filter, keyPath: { $0.name })
+        let matches = FuzzyMatch.filter(controller.workspaces, query: filter, keyPath: { $0.name })
         let clampedSel = max(0, min(sel, max(0, matches.count - 1)))
         return VStack(alignment: .leading, spacing: 8) {
             textEntry(prompt: "filter by name (digit = slot), ↵ picks", buffer: filter)
@@ -384,7 +376,7 @@ struct ManageView: View {
     }
 
     private var hintText: String {
-        switch vm.stage {
+        switch controller.stage {
         case .verbPicker:        return "pick a verb · esc cancels"
         case .addName:           return "type a name (no leading digit) · esc backs out"
         case .addIcon:           return "type one glyph (Nerd Font / SF Symbol) or ↵ to skip · esc backs out"
