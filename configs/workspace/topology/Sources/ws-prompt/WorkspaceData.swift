@@ -10,6 +10,7 @@ import Foundation
 /// here. This file is just the data shape.
 struct Workspace: Equatable {
     let index: Int          // yabai's 1-based slot index
+    let display: Int        // yabai's display index this slot lives on
     let name: String        // user-given name or "ws<index>" fallback
     let color: String       // "#RRGGBB"
     let icon: String?       // resolved glyph (Nerd Font codepoint or SF Symbol name)

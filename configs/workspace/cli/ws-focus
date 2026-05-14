@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ws-focus <SLOT> — focus space N if it exists, else notify.
-# Called from skhd `focus` mode (Hyper+W → digit). yabai's
-# `space --focus N` silently no-ops for nonexistent N (its stderr
-# message never surfaces), which is the existing UX bug we're fixing.
+# Called from ws-prompt's focus overlay (Caps+Space → digit/name).
+# yabai's `space --focus N` silently no-ops for nonexistent N (its
+# stderr message never surfaces), which is the existing UX bug
+# we're fixing.
 set -u
 
 target="${1:-}"
@@ -11,8 +12,22 @@ target="${1:-}"
   exit 2
 }
 
-count=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null)
-if [[ -z "${count:-}" || ! "$count" =~ ^[0-9]+$ ]]; then
+# One yabai RPC, three values extracted: total slot count, target's
+# display, current focused SID. Combining what used to be 2-3 separate
+# queries shaves ~30ms off the chord's perceived latency. `null` → ""
+# coerces missing fields without crashing on `set -u`.
+read -r count cur_sid target_disp < <(
+  yabai -m query --spaces 2>/dev/null \
+    | jq -r --arg t "$target" '
+        [ length,
+          ([.[] | select(."has-focus") | .index] | first // 0),
+          ([.[] | select((.index|tostring) == $t) | .display] | first // empty)
+        ] | @tsv
+      ' 2>/dev/null
+)
+count="${count:-}"; cur_sid="${cur_sid:-}"; target_disp="${target_disp:-}"
+
+if [[ -z "$count" || ! "$count" =~ ^[0-9]+$ ]]; then
   osascript -e 'display notification "yabai unavailable" with title "ws"'
   exit 1
 fi
@@ -22,24 +37,22 @@ if [[ "$target" =~ ^[0-9]+$ ]] && (( target < 1 || target > count )); then
   exit 1
 fi
 
-# Optimistic pre-paint: tell sketchybar the new active SID + DISPLAY
-# *before* yabai's transition animation, so the pill snaps the instant
-# the user commits the chord. paint-all.sh honors the env vars and
-# overrides its yabai query; the eventual space_changed cascade fires
-# this same paint with the now-real values, no visible flicker.
+# Optimistic pre-paint. Tell sketchybar the new active SID + OLD sid
+# *before* yabai's transition lands, so the pill snaps the instant
+# the chord commits. paint-all.sh has a minimal fast path (~15ms)
+# triggered by the presence of both SIDs — it just touches the two
+# pills that changed. The eventual space_changed cascade fires the
+# full paint redundantly without env vars; states match, no flicker.
 #
-# Best-effort — sketchybar missing, or a different display layout than
-# spaces.json knows about, falls through to the legacy "wait for the
-# cascade" path with no UX regression.
-if command -v sketchybar >/dev/null 2>&1; then
-  disp=$(yabai -m query --spaces 2>/dev/null \
-         | jq -r --arg t "$target" \
-             '.[] | select((.index|tostring) == $t) | .display' 2>/dev/null)
-  if [[ -n "${disp:-}" ]]; then
-    sketchybar --trigger workspace_changed \
-      WS_OPTIMISTIC_SID="$target" \
-      WS_OPTIMISTIC_DISPLAY="$disp" >/dev/null 2>&1 || true
-  fi
+# Best-effort — sketchybar missing, or a target slot whose display
+# yabai can't report, falls through to the legacy "wait for the
+# cascade" timing with no UX regression.
+if command -v sketchybar >/dev/null 2>&1 \
+   && [[ -n "$target_disp" && -n "$cur_sid" && "$cur_sid" != "$target" ]]; then
+  sketchybar --trigger workspace_changed \
+    WS_OPTIMISTIC_SID="$target" \
+    WS_OPTIMISTIC_OLD_SID="$cur_sid" \
+    WS_OPTIMISTIC_DISPLAY="$target_disp" >/dev/null 2>&1 || true
 fi
 
 yabai -m space --focus "$target" 2>/dev/null || {

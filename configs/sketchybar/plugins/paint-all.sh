@@ -72,18 +72,119 @@ command -v jq >/dev/null 2>&1 || exit 0
 command -v sketchybar >/dev/null 2>&1 || exit 0
 [[ -r "$CONFIG" ]] || exit 0
 
+# MARK: - Optimistic fast path
+#
+# ws-focus / ws-send-follow fire this trigger with the target SID +
+# OLD SID *before* invoking yabai's space --focus. Goal: the pill
+# snaps to the target the instant the user commits the chord, well
+# before yabai's transition animation + the space_changed cascade
+# would otherwise land.
+#
+# The full repaint below takes ~70ms (two yabai RPCs + multi-stage jq
+# + per-pill loop). For "instant feel" that's already too much. The
+# fast path here does the bare minimum: one jq into spaces.json to
+# decide bare-vs-customized for the old + new slots, then two batched
+# `sketchybar --set` calls for the two pills that changed. ~10–15ms
+# total. The eventual real cascade fires the full paint redundantly
+# and catches anything we missed (the chip label, multi-display state,
+# etc.). Render decisions here mirror the main loop exactly, so the
+# two paints land on the same state.
+if [[ -n "${WS_OPTIMISTIC_SID:-}" && -n "${WS_OPTIMISTIC_OLD_SID:-}" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/sketchybar/colors.sh" 2>/dev/null || true
+  : "${INACTIVE_FILL:=0xff45475a}"
+  : "${INACTIVE_LABEL:=0xff6c7086}"
+  : "${ACTIVE_FG:=0xff1e1e2e}"
+
+  # Per-host overlay (resolves WS_CONFIG to spaces.<hostname>.json when present).
+  if [[ -r "$HOME/.config/workspace/lib/resolve-config.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$HOME/.config/workspace/lib/resolve-config.sh"
+  fi
+  CFG="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
+  command -v jq >/dev/null 2>&1 || exit 0
+  [[ -r "$CFG" ]] || exit 0
+
+  # Single jq call → two rows for OLD and NEW slot indices. Build one
+  # batched `sketchybar --set ... --set ...` so the whole update lands
+  # as one sketchybar RPC. Also captures the NEW slot's name + colour
+  # for the chip update at the bottom.
+  args=()
+  new_name=""
+  new_slot_hex=""
+  while IFS=$'\t' read -r slot color codepoint user_overridden stable_label name; do
+    [[ -z "$slot" ]] && continue
+    slot_hex="0xff${color#\#}"
+    is_bare=0
+    [[ "$user_overridden" == "false" && "$name" == "$stable_label" && -z "$codepoint" ]] && is_bare=1
+
+    if [[ "$slot" == "$WS_OPTIMISTIC_SID" ]]; then
+      # New active pill: filled background, dark icon. Bare slots use
+      # INACTIVE_FILL as the muted "focused but no identity" fill.
+      new_name="$name"
+      new_slot_hex="$slot_hex"
+      if (( is_bare )); then
+        args+=(--set "space.$slot"
+               background.drawing=on background.color="$INACTIVE_FILL"
+               icon.color="$ACTIVE_FG")
+      else
+        args+=(--set "space.$slot"
+               background.drawing=on background.color="$slot_hex"
+               icon.color="$ACTIVE_FG")
+      fi
+    else
+      # Old active pill: clear background, slot-color icon (or
+      # INACTIVE_LABEL for bare).
+      if (( is_bare )); then
+        args+=(--set "space.$slot"
+               background.drawing=off
+               icon.color="$INACTIVE_LABEL")
+      else
+        args+=(--set "space.$slot"
+               background.drawing=off
+               icon.color="$slot_hex")
+      fi
+    fi
+  done < <(
+    jq -r --arg o "$WS_OPTIMISTIC_OLD_SID" --arg n "$WS_OPTIMISTIC_SID" '
+      . as $root
+      | [$o, $n][]
+      | . as $k
+      | ($root.spaces[$k] // {}) as $s
+      | [$k,
+         ($s.color                                 // "#9399b2"),
+         ($s.iconSpec.codepoint                    // ""),
+         (($s.iconSpec.userOverridden // false) | tostring),
+         ($s.stableLogicalLabel                    // ($s.name // "")),
+         ($s.name                                  // ("ws" + $k))]
+      | @tsv
+    ' "$CFG" 2>/dev/null
+  )
+
+  # Chip update on the target display — focused-display style: filled
+  # slot-color background, dark text. Same shape as the full repaint's
+  # chip loop. The eventual cascade redraws the same state.
+  if [[ -n "${WS_OPTIMISTIC_DISPLAY:-}" && -n "$new_slot_hex" ]]; then
+    [[ -z "$new_name" ]] && new_name="ws$WS_OPTIMISTIC_SID"
+    args+=(--set "workspace.name.$WS_OPTIMISTIC_DISPLAY"
+           label="$new_name"
+           label.color="$ACTIVE_FG"
+           background.drawing=on
+           background.color="$new_slot_hex"
+           background.border_width=2
+           background.border_color="$new_slot_hex")
+  fi
+
+  (( ${#args[@]} > 0 )) && sketchybar "${args[@]}" >/dev/null 2>&1
+  exit 0
+fi
+
 ACTIVE_SID=0
 ACTIVE_DISPLAY=0
-# Optimistic pre-paint override: ws-focus / ws-send-follow fire this
-# trigger with the target SID + DISPLAY *before* invoking yabai's
-# space --focus, so the pill snaps to the target the instant the user
-# commits the chord — well before yabai's transition animation + the
-# space_changed cascade would otherwise land. The cascade fires this
-# same paint again afterward with the now-real values from yabai; the
-# two paints land on the same state, so no visible flicker.
-#
-# Override is dropped on the second pass because the cascade trigger
-# from on-space-changed.sh doesn't propagate these env vars.
+# Optimistic override (no OLD sid): paint-all falls through to the
+# full repaint but with ACTIVE_SID forced to the optimistic target.
+# Slower than the fast path above (~70ms) but still beats the cascade
+# delay; used for the chip-update-on-cross-display case.
 if [[ -n "${WS_OPTIMISTIC_SID:-}" ]]; then
   ACTIVE_SID="$WS_OPTIMISTIC_SID"
   ACTIVE_DISPLAY="${WS_OPTIMISTIC_DISPLAY:-1}"
