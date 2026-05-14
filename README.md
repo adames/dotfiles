@@ -63,14 +63,13 @@ Ghostty doesn't break zsh's line editor.
 |---|---|---|
 | Caps → Hyper / Mod / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
-| Neon window borders (per-workspace colour) | JankyBorders | [`borders/bordersrc`](configs/borders/bordersrc) |
 | Persistent workspace pill strip (always-visible per-display indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
 | Hyper/Mod hotkeys → yabai · terminal · app launchers · cheatsheet · snaps | skhd | [`skhdrc`](configs/skhdrc) |
 | Mod+arrow snaps for floating windows (AX) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
 | SketchyBar per-display autohide (cursor poller, LaunchAgent) | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Cross-display topology + per-display layout policy (notch-aware) | ws-topologyd (LaunchAgent) | [`workspace/topology/`](configs/workspace/topology) |
-| Per-slot workspace identity (color + icon + name → tmux + prompt + borders + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) |
+| Per-slot workspace identity (color + icon + name → tmux + prompt + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) |
 | Hyper app launchers (browser, terminal, Finder, Settings, Claude, Spotify) | skhd | [`skhdrc`](configs/skhdrc) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
 | `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
@@ -152,15 +151,13 @@ Seed file (intentionally empty):
 
 Identity surfaces:
 
-- **Window borders** — focused window gets the slot's neon colour via
-  [JankyBorders](https://github.com/FelixKratz/JankyBorders).
 - **Tmux statusline** — left chip shows icon + name in slot colour.
 - **Starship prompt** — leftmost segment is the workspace chip.
 - **SketchyBar pill strip** — persistent row of catppuccin pills at
   the top of each display, showing ONLY the workspaces yabai assigns
   to that display. The active slot is filled; others show number +
   nerd-font glyph in the slot's colour. Pill metadata source of truth
-  is `~/.config/workspace/spaces.json` (drives tmux/starship/borders
+  is `~/.config/workspace/spaces.json` (drives tmux/starship
   too); per-display assignment is driven by `yabai -m query --spaces`
   via [`sketchybar/plugins/per-display-pills.sh`](configs/sketchybar/plugins/per-display-pills.sh)
   and pills repaint via a custom event fired from
@@ -250,8 +247,8 @@ manage — it creates a native fullscreen space yabai cannot touch. Use
 ### Customizing workspaces — the `ws` CLI
 
 `~/.local/bin/ws` wraps every spaces.json mutation with an atomic
-write and a re-fire of the cascade (tmux / starship / borders /
-sketchybar all repaint within ~50ms). The old `workspace` name remains
+write and a re-fire of the cascade (tmux / starship / sketchybar all
+repaint within ~50ms). The old `workspace` name remains
 as a compat symlink, so existing muscle-memory keeps working.
 
 ```
@@ -467,8 +464,7 @@ and re-links them. Tmux: `prefix + r`.
 | "Karabiner installed but `.app` missing" | `installer -pkg` was interrupted; bootstrap re-runs the staged installer when TTY is present, or `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
 | `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — re-run `~/.config/workspace/topology/install.sh` |
-| Window borders missing | `borders` not installed or daemon dead — `brew install FelixKratz/formulae/borders` then `~/.config/borders/bordersrc &` |
-| Workspace pills missing from menu/bottom bar | `sketchybar` not installed or service dead — `brew install FelixKratz/formulae/sketchybar` then `brew services restart sketchybar`. Pills painted but blank glyphs → wrong font family in `sketchybarrc` (must be `"JetBrainsMono NF"` with the space) |
+| Workspace pills missing from menu/bottom bar | `sketchybar` not installed or service dead — `brew install FelixKratz/formulae/sketchybar` then `brew services restart sketchybar`. Pills painted but blank glyphs → Nerd Font not installed (`brew install --cask font-jetbrains-mono-nerd-font`) or wrong family name in `sketchybarrc` (must be `"JetBrainsMono Nerd Font"`). Verify with `osascript -e 'use framework "AppKit"' -e 'return (current application'\''s NSFontManager'\''s sharedFontManager'\''s availableFontFamilies()) as list'` and grep for JetBrains. |
 | Workspace pill doesn't update on space switch | `on-space-changed.sh` ran but sketchybar trigger silent — `sketchybar --trigger workspace_changed` to repaint; if that does nothing, `brew services restart sketchybar` |
 | Workspace chip missing from prompt / tmux | yabai signal didn't fire yet — `~/.config/workspace/on-space-changed.sh` to prime; check `~/.cache/workspace/current.env` populated |
 | Slot 1 lands on the wrong display | yabai owns space-to-display assignment. Drag the space in Mission Control to where you want it — yabai persists the assignment across reboots. |
@@ -497,12 +493,11 @@ and re-links them. Tmux: `prefix + r`.
     ├── skhdrc                    # Hyper/Mod bindings → yabai · ws-snap · ws-cheatsheet · apps
     ├── workspace/                # workspace identity layer (optional name/color/icon per yabai space)
     │   ├── spaces.default.json   #  · empty seed (yabai owns existence; identity is opt-in)
-    │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + borders + sketchybar)
+    │   ├── on-space-changed.sh   #  · yabai signal handler (env file + tmux + sketchybar)
     │   ├── on-space-destroyed.sh #  · prune orphan slot from spaces.json after yabai destroys a space
     │   ├── rename.sh             #  · osascript-prompted slot rename
     │   ├── topology/             #  · Swift package: ws-topology(d), ws-cheatsheet, ws-snap, ws-autohide
     │   └── install.sh            #  · seeds + restarts daemons
-    ├── borders/bordersrc         # JankyBorders launch script + defaults
     ├── sketchybar/               # persistent workspace pill strip
     │   ├── sketchybarrc          #  · bar geometry + space items + workspace.paint sentinel
     │   ├── colors.sh             #  · catppuccin AARRGGBB constants

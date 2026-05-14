@@ -80,23 +80,17 @@ yabai -m signal --add \
 yabai -m signal --remove ghostty_tab_dance 2>/dev/null   # remove old approach if present
 
 # ── workspace identity signals ──────────────────────────────────────────
-# space_changed → repaint window borders, refresh tmux/shell env. Single
-# point of integration; everything else subscribes by reading
-# ~/.cache/workspace/current.env or env vars in tmux's global session.
+# space_changed → refresh tmux/shell env. Single point of integration;
+# everything else subscribes by reading ~/.cache/workspace/current.env
+# or env vars in tmux's global session.
 yabai -m signal --remove ws_space_changed 2>/dev/null || true
 yabai -m signal --add \
   event=space_changed \
   label=ws_space_changed \
   action="\"$HOME/.config/workspace/on-space-changed.sh\""
 
-# window_focused → re-assert borders' active_color from the cached
-# MACOS_SPACE_COLOR. Defends against state drift between space_changed
-# events (new windows in the focused space, borders daemon restarts).
+# Retired: ws_borders_window_focused — JankyBorders was removed.
 yabai -m signal --remove ws_borders_window_focused 2>/dev/null || true
-yabai -m signal --add \
-  event=window_focused \
-  label=ws_borders_window_focused \
-  action="\"$HOME/.config/workspace/borders-refresh.sh\""
 
 # Sync sketchybar pill set with yabai's per-display assignment whenever
 # a display attaches/detaches or its index changes. per-display-pills.sh
@@ -136,15 +130,6 @@ yabai -m signal --add \
   event=space_destroyed \
   label=ws_prune_space_destroyed \
   action="\"$HOME/.config/workspace/on-space-destroyed.sh\""
-
-# ── neon window borders (JankyBorders) ──────────────────────────────────
-# Per-space active colour is set by on-space-changed.sh on every
-# space_changed event. Static defaults (width, style, inactive colour)
-# live in ~/.config/borders/bordersrc, which is itself the launch script.
-# brew formula: FelixKratz/formulae/borders.
-if command -v borders >/dev/null 2>&1 && [ -x "$HOME/.config/borders/bordersrc" ]; then
-  pgrep -x borders >/dev/null 2>&1 || ( "$HOME/.config/borders/bordersrc" >/dev/null 2>&1 & )
-fi
 
 # Prime current.env so a fresh shell launched before any space switch
 # already has identity metadata. Cheap; fails silently if the workspace

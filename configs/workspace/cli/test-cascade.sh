@@ -341,12 +341,12 @@ else
 fi
 
 # 18 · optional-subsystem absence: run on-space-changed.sh with a stripped
-#      PATH so sketchybar/borders/tmux/yabai are absent. The handler must
+#      PATH so sketchybar/tmux/yabai are absent. The handler must
 #      still exit 0 and refresh current.env (silent-on-absence contract).
 if [[ -x "$WS_HANDLER" ]]; then
   cache_env="$HOME/.cache/workspace/current.env"
   if PATH="/usr/bin:/bin" WS_CONFIG="$WS_CONFIG" "$WS_HANDLER" >/dev/null 2>&1; then
-    pass "cascade exits 0 with stripped PATH (no sketchybar/borders/tmux/yabai)"
+    pass "cascade exits 0 with stripped PATH (no sketchybar/tmux/yabai)"
   else
     fail "cascade failed with stripped PATH"
   fi

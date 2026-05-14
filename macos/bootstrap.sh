@@ -53,13 +53,16 @@ phase_packages() {
   brew install --quiet koekeishiya/formulae/skhd  >/dev/null || true
   ok "yabai + skhd"
 
-  step "installing JankyBorders (FelixKratz tap) — neon window borders"
-  brew install --quiet FelixKratz/formulae/borders >/dev/null || true
-  ok "borders"
-
   step "installing SketchyBar (FelixKratz tap) — workspace pill strip"
   brew install --quiet FelixKratz/formulae/sketchybar >/dev/null || true
   ok "sketchybar"
+
+  # JetBrains Mono Nerd Font: required for the pill strip's PUA glyphs
+  # (registered Core Text family is "JetBrainsMono Nerd Font"). Without
+  # it, sketchybar falls back to a non-Nerd font and renders blank icons.
+  step "installing JetBrains Mono Nerd Font (cask)"
+  brew install --quiet --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1 || true
+  ok "font-jetbrains-mono-nerd-font"
 
   # orbstack replaces docker-desktop — leaner, native Apple Silicon, faster
   # cold start. If docker-desktop is installed, see the migration note in
@@ -175,7 +178,9 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
   install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
   install_file "$CONFIGS_DIR/workspace/rename.sh"         "$HOME/.config/workspace/rename.sh" 755
-  install_file "$CONFIGS_DIR/workspace/borders-refresh.sh" "$HOME/.config/workspace/borders-refresh.sh" 755
+  # Retired: borders-refresh.sh — JankyBorders removed. Clean up if
+  # present from older deploys.
+  rm -f "$HOME/.config/workspace/borders-refresh.sh"
   # Retired with the "yabai owns existence" refactor — cleanup if
   # present from older deploys.
   rm -f "$HOME/.config/workspace/lib/colors.sh"
@@ -197,7 +202,9 @@ phase_configs() {
   # navbar refactor. The file had user edits, but the only consumer
   # (recenter.sh) is gone — nothing reads it now. Idempotent.
   rm -f "$HOME/.config/workspace/sketchybar-tuning.env"
-  install_file "$CONFIGS_DIR/borders/bordersrc"           "$HOME/.config/borders/bordersrc" 755
+  # Retired: ~/.config/borders/ (JankyBorders removed). Clean up if
+  # present from older deploys.
+  rm -rf "$HOME/.config/borders"
   # (workspace/install.sh runs once at the end of this phase from the
   # deployed copy — see "configuring workspace-awareness layer" below.
   # Earlier this block called it twice, which printed every reload
