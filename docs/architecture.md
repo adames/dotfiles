@@ -58,8 +58,23 @@ The two layers carry a consistent semantic split:
 
 | Layer | Role | Examples |
 |---|---|---|
-| **Hyper** | navigate / read-only | focus window (`hjkl`), focus space (`1..8`), focus display (`tab`), new terminal (`t`), launch app (`b`/`c`), cheatsheet (`0`) |
-| **Mod**   | modify / destructive | swap window (`hjkl`), send-to-space (`1..8`), focus prev display (`tab`), manual snap (`arrows`) |
+| **Hyper** | navigate / read-only | focus window (`hjkl`), focus mode (`w` → digit), focus display (`tab`), new terminal (`t`), launch app (`b`/`c`), cheatsheet (`;`), panic-exit (`esc`) |
+| **Mod**   | modify / destructive | swap window (`hjkl`), manage mode (`w` → `a`/`r`/`i`/`l`/`Shift+D`), focus prev display (`tab`), manual snap (`arrows`) |
+
+Workspace targeting (focus and send-window-and-follow) lives in three
+transient skhd modes rather than direct number-row chords:
+
+| Trigger | Mode | What |
+|---|---|---|
+| `Hyper+W` | focus  | digit focuses slot N · `n`/`p`/`tab` cycle · `esc` exit |
+| `Ctrl+Space` (no Caps) | send | digit sends focused window to slot N + follow · `n`/`p` next/prev · `esc` exit |
+| `Mod+W` | manage | `a` add · `r` rename · `i` info · `l` list · `Shift+D` destroy (confirm) · `esc` exit |
+| `Hyper+Esc` | — | global panic exit from any mode |
+
+Workspace **numbers** stay the stable selector; `spaces.json`
+names/icons are display-only metadata. The old `Hyper+1..0` /
+`Mod+1..0` chords are kept in a `DEPRECATED` block in skhdrc through
+2026-06-13 for muscle-memory transition.
 
 This is why the SIP-safe arrow snaps live on **Mod+arrows** rather than
 Hyper+arrows — snapping is "manually move this window," which belongs in
@@ -114,12 +129,12 @@ Once you're in the terminal, the same hjkl + leader-key model continues:
 
 | Layer | Prefix / leader | Owns |
 |---|---|---|
-| **tmux**   | `C-Space`       | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
+| **tmux**   | `C-a` (also `Hyper+Space` inside Ghostty) | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
 | **zsh**    | (vi-mode `Esc`) | Vi normal-mode editing on the command line; fzf widgets `Ctrl-R/T`/`Alt-C`; zoxide `z` |
 | **Neovim** | `Space`         | LSP (`gd`/`K`/`gr`/`<leader>ca`/`<leader>rn`), find (`<leader>f*`), debug (`<leader>d*`), test (`<leader>t*`) |
 
 This works because **modifier sets the scope**: a bare `h` moves the cursor
-in vim, `C-Space + h` moves the tmux pane focus, `Caps + h` moves the OS
+in vim, `C-a + h` moves the tmux pane focus, `Caps + h` moves the OS
 window focus. Same letter, four contexts, no overlap.
 
 ## Python dev path
