@@ -168,7 +168,7 @@ log stream --predicate 'subsystem == "com.adames.workspace.topology"'
 
 | What | How |
 |---|---|
-| spaces.json edit | edit by hand or use `workspace name/color/icon` — every mutation atomic via `_NORMALIZE` |
+| spaces.json edit | edit by hand or use `workspace name/color/icon` — every mutation atomic via the `WS_NORMALIZE_JQ` filter |
 | Topology daemon | `launchctl bootout "gui/$(id -u)/com.adames.workspace.topologyd"` |
 | Per-host overlay | `workspace host reset` |
 | Notch padding | retired with the left-aligned refactor (no longer tunable / needed) |
