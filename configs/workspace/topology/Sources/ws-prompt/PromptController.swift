@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Three prompts the overlay can render. Picked from the first CLI arg.
 /// focus/send share the PromptController state machine here; manage has
@@ -30,16 +31,20 @@ enum PromptAction: Equatable {
     case cancel
 }
 
-/// Pure state machine. Owns no NSEvent / NSApp — feed it `PromptKey`,
-/// it tells the caller what to do. Spawning helpers is the caller's job.
-final class PromptController {
+/// State machine for the focus / send prompts. SwiftUI views bind to
+/// the controller directly via `@ObservedObject` — `@Published` props
+/// fan out re-renders on every mutation, so there's no separate
+/// view-model. The controller owns no NSEvent / NSApp; key events come
+/// in via `handle(_:)` and side effects (focus / send helpers) are the
+/// host's job once the controller emits a `commit*` action.
+final class PromptController: ObservableObject {
     let mode: PromptMode
-    private(set) var workspaces: [Workspace]
+    let workspaces: [Workspace]
 
     /// Empty before any input. First key decides whether we enter
     /// digit-fast-path (single digit commits immediately) or query mode
     /// (letters build a fuzzy filter; digits join the buffer afterward).
-    private(set) var query: String = ""
+    @Published private(set) var query: String = ""
 
     /// Sticky once we've entered query mode (first key was a letter, or
     /// the user explicitly opted in some other way). Backspace can empty
@@ -47,11 +52,11 @@ final class PromptController {
     /// query mode, always in query mode for the rest of this prompt's
     /// lifetime. This is what makes the documented "x<BS>11<CR>" path
     /// resolve to slot 11 rather than slot 1.
-    private(set) var inQueryMode: Bool = false
+    @Published private(set) var inQueryMode: Bool = false
 
     /// Index into `currentMatches()` for Tab cycling. Reset on every
     /// refilter.
-    private(set) var selection: Int = 0
+    @Published private(set) var selection: Int = 0
 
     init(mode: PromptMode, workspaces: [Workspace]) {
         self.mode = mode
@@ -115,11 +120,11 @@ final class PromptController {
     }
 
     private func commitDigit(_ c: Character) -> PromptAction {
-        let slot: Int = (c == "0") ? 10 : Int(String(c)) ?? -1
+        // Caller (`absorb`) has already gated on `c.isASCII && c.isNumber`,
+        // so the unwrap is total. `0` is the convention-mapped alias for
+        // slot 10 to keep the digit row visually contiguous.
+        let slot = (c == "0") ? 10 : Int(String(c))!
         guard slot >= 1, slot <= max(workspaces.last?.index ?? 0, 10) else {
-            // Out-of-range single digit: cancel rather than commit a
-            // bogus slot. The bash helpers would notify but we don't
-            // even try.
             return .cancel
         }
         return mode == .focus ? .commitFocus(slot: slot) : .commitSend(slot: slot)
@@ -157,11 +162,5 @@ final class PromptController {
     // first. Good enough for a list of <20 workspaces.
     func currentMatches() -> [Workspace] {
         FuzzyMatch.filter(workspaces, query: query, keyPath: { $0.name })
-    }
-}
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
     }
 }
