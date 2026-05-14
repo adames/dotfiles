@@ -150,7 +150,7 @@ ${se:-    • Karabiner-DriverKit-VirtualHIDDevice}"
   if [[ -z "$need_kick" ]]; then
     banner "All permissions already in place" "no panes opened — re-run with --force to re-verify"
   else
-    banner "Done" "press Caps + / to verify the ws-cheatsheet HUD"
+    banner "Done" "press Caps + ; to verify the ws-cheatsheet HUD"
   fi
 }
 

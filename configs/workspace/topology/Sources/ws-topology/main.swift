@@ -308,7 +308,7 @@ enum SkhdFragment {
             lines.append("cmd + alt + ctrl + shift - \(key) : yabai -m space --focus \(n)")
         }
         lines.append("")
-        lines.append("# Meh+digit: move focused window to space N and follow")
+        lines.append("# Mod+digit: move focused window to space N and follow")
         for n in 1...visible {
             let key = (n == 10) ? "0" : String(n)
             lines.append("cmd + alt + ctrl - \(key) : yabai -m window --space \(n) && yabai -m space --focus \(n)")

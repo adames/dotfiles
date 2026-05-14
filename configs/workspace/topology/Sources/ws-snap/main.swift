@@ -7,8 +7,8 @@ import Foundation
 //
 // Absolute window snaps for yabai-unmanaged windows (floating windows
 // like System Settings, or Ghostty when a tile rule excludes it). These
-// are bound to Meh+arrows in skhd. Hyper layer keeps hjkl/yabai;
-// Meh keeps arrows/manual snaps — the layer split documented in
+// are bound to Mod+arrows in skhd. Hyper layer keeps hjkl/yabai;
+// Mod keeps arrows/manual snaps — the layer split documented in
 // docs/architecture.md.
 //
 // Replaces the snap() block in configs/hammerspoon-init.lua. We use

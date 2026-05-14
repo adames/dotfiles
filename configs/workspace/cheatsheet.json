@@ -3,47 +3,50 @@
   "banner": [
     {"k": "caps", "v": "tap → Esc"},
     {"k": "caps", "v": "hold → Hyper (⌃⌥⌘⇧)"},
-    {"k": "caps + shift", "v": "hold → Meh (⌃⌥⌘)"},
+    {"k": "caps + shift", "v": "hold → Mod (⌃⌥⌘)"},
     {"k": "leader", "v": "space"}
   ],
   "sections": [
     {
       "color": "#60a5fa",
       "title": "Windows · Spaces",
-      "sub": "Hyper navigate · Meh modify  (yabai · skhd · ws-snap)",
+      "sub": "Hyper navigate · Mod modify  (yabai · skhd · ws-snap)",
       "rows": [
         ["caps + hjkl", "focus window  ←  ↓  ↑  →"],
-        ["caps + shift + hjkl", "swap  window  ←  ↓  ↑  →"],
+        ["caps + shift + hjkl", "swap window  ←  ↓  ↑  →"],
         ["caps + return", "zoom fullscreen (toggle)"],
-        ["caps + f", "float / unfloat window"],
+        ["caps + shift + f", "float / unfloat window"],
         ["caps + e", "balance space"],
         ["caps + r", "rotate space 90°"],
         ["caps + tab", "focus next display"],
         ["caps + shift + tab", "focus prev display"],
         ["caps + shift + ← →", "snap ½-left / ½-right  (manual, for floats)"],
         ["caps + shift + ↑ ↓", "maximise / centre 50%  (manual, for floats)"],
-        ["caps + t", "new yabai-tiled Ghostty window  (tmux for in-window splits)"],
         ["caps + ;", "toggle this cheatsheet"],
         ["—", "⚠ avoid macOS green-button fullscreen — use caps+return so yabai keeps managing the window"]
       ]
     },
     {
       "color": "#cba6f7",
-      "title": "Workspace · 10 slots",
-      "sub": "color = identity · rename via `workspace name <slot> <new>`",
+      "title": "Workspace · slots",
+      "sub": "color = identity · rename via `ws name <slot> <new>`",
       "rows": [
         ["caps + 1..0", "focus slot N  (0 = slot 10)"],
         ["caps + shift + 1..0", "send window to slot N + follow"],
-        ["caps + ; → search", "discover SF symbols / Nerd Font glyphs"],
-        ["—", "slot 1 locked to laptop; 2..10 migrate to external when attached"]
+        ["caps + shift + -", "remove current slot  (ws remove $i -y)"],
+        ["—", "slot count tracks yabai; Mission Control + / × also updates the bar"],
+        ["—", "slot 1 sticks to laptop; 2..N migrate to external when attached"]
       ]
     },
     {
       "color": "#a78bfa",
       "title": "Launch",
-      "sub": "skhd · open -a",
+      "sub": "skhd · auto-detected apps",
       "rows": [
-        ["caps + b", "Brave (browser)"],
+        ["caps + t", "new terminal window  (auto-detect: Ghostty / iTerm / …; $WS_TERMINAL_APP override)"],
+        ["caps + b", "new browser window  (auto-detect: Brave / Arc / … / Safari; $WS_BROWSER_APP override)"],
+        ["caps + f", "new Finder window"],
+        ["caps + s", "System Settings"],
         ["caps + c", "Claude"],
         ["caps + m", "Spotify"]
       ]
@@ -143,11 +146,10 @@
     {
       "color": "#fb7185",
       "title": "Neovim · Git",
-      "sub": "gitsigns · fzf-lua git_status · lazygit.nvim",
+      "sub": "gitsigns · fzf-lua git_status  (lazygit runs from a terminal)",
       "rows": [
         ["] c   [ c", "next / prev hunk"],
         ["⟨leader⟩ gs", "git status (fzf picker)"],
-        ["⟨leader⟩ gG", "LazyGit (floating TUI — full git surface)"],
         ["⟨leader⟩ gh", "stage hunk"],
         ["⟨leader⟩ gp", "preview hunk"],
         ["⟨leader⟩ gr", "reset hunk"],
@@ -196,7 +198,7 @@
     {
       "color": "#fb7185",
       "title": "Git",
-      "sub": "aliases · delta pager · gh CLI",
+      "sub": "aliases · delta pager · gh CLI · lazygit TUI",
       "rows": [
         ["gs  ga  gc", "status / add / commit  (zsh aliases)"],
         ["gp  gpl", "push / pull"],

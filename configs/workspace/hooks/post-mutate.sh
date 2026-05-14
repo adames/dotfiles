@@ -14,7 +14,7 @@ fi
 
 # NOTE: this hook used to regenerate ~/.config/skhd/spaces.skhdrc via
 # `ws-topology emit-skhd --write --reload` after every workspace
-# mutation. That fragment is gone — Hyper+digit / Meh+digit bindings
+# mutation. That fragment is gone — Hyper+digit / Mod+digit bindings
 # are now inlined directly in configs/skhdrc (skhd's `.load` directive
 # couldn't expand `~` reliably, and the bindings don't actually need to
 # vary by slot count: yabai is silent on `--space N --focus` for an
