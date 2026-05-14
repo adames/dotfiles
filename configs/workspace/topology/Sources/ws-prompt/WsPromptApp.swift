@@ -76,6 +76,11 @@ final class WsPromptApp {
             self.promptController = nil
             win.contentView = NSHostingView(rootView: ManageView(controller: ctl))
         }
+
+        // Wire the controller's "command succeeded" callback to the
+        // App's terminate path. Set after all stored properties exist
+        // so `self` is fully initialized when the closure captures it.
+        manageController?.onTerminate = { [weak self] in self?.terminate() }
     }
 
     // MARK: - Lifecycle
