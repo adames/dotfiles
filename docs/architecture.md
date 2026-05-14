@@ -20,7 +20,6 @@ graph LR
 
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
   WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
-  WorkspaceHandler -->|active_color=| Borders[JankyBorders]
   WorkspaceHandler -->|set-environment| tmux
 
   yabai --> Windows[(macOS Windows)]
@@ -165,22 +164,19 @@ graph LR
   JSON --> Hook[post-mutate.sh hook]
   JSON --> Cascade[on-space-changed.sh]
   yabai[yabai space_changed] --> Cascade
-  yabai_focus[yabai window_focused] --> BordersRefresh[borders-refresh.sh]
   CGCallback[CGDisplayRegisterReconfigurationCallback] --> Daemon[ws-topologyd]
   Daemon --> TopologyJSON[(~/.cache/workspace/topology.json)]
   Daemon --> LayoutEnv[(~/.cache/workspace/layout.env)]
   LayoutEnv --> SketchybarPlugins[per-display-pills.sh · notch-detect.sh]
   Cascade --> EnvFile[(~/.cache/workspace/current.env)]
   Cascade --> TmuxEnv[tmux global env]
-  Cascade --> Borders[JankyBorders]
-  BordersRefresh --> Borders
   Cascade --> Sketchybar[SketchyBar]
   EnvFile --> Starship
   EnvFile --> Zsh[zsh precmd]
 ```
 
 Two parallel cache lines: `current.env` is keyed on focused space
-(consumed by tmux / starship / borders / `paint-all.sh`), and
+(consumed by tmux / starship / `paint-all.sh`), and
 `layout.env` is keyed on display (consumed by the sketchybar layout
 plugins). They never overlap — the postmortem's "one source per render
 hot path" rule holds.
@@ -220,9 +216,9 @@ ones.
   slot's color, use `workspace color N #HEX` directly.
 - **`on-space-changed.sh`** is the cascade entry point — called by the
   yabai `space_changed` signal *and* by every CLI mutation. It writes
-  `current.env` atomically, pushes env into tmux, repaints borders,
-  triggers sketchybar, and re-pushes env to tmux. Silent-on-absence per
-  subsystem so Ubuntu and partial setups Just Work.
+  `current.env` atomically, pushes env into tmux, triggers sketchybar,
+  and re-pushes env to tmux. Silent-on-absence per subsystem so Ubuntu
+  and partial setups Just Work.
 - **`hooks/post-mutate.sh`** is a user-owned extension point. The
   shipped default keeps SketchyBar's pill set in sync with spaces.json
   on `add` / `remove` (other mutations just need a repaint, which the
@@ -309,7 +305,6 @@ the bar's `padding_left=8` handles the corner margin.
     │   ├── spaces.default.json            # fresh-install seed (v2)
     │   ├── on-space-changed.sh            # cascade (v2 only)
     │   ├── rename.sh                      # AppleScript wrapper
-    │   ├── borders-refresh.sh             # yabai window_focused → JankyBorders re-assert
     │   ├── cheatsheet.json                # ws-cheatsheet content (hand-editable)
     │   ├── hooks/post-mutate.sh           # user-owned extension point
     │   ├── lib/resolve-config.sh          # per-host overlay resolution

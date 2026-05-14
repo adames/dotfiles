@@ -22,7 +22,6 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; via skhd). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
 | **Floating-window snaps** | `ws-snap` (Mod+arrows via skhd). One-shot AX writes to move yabai-unmanaged windows. Replaces the Hammerspoon `setFrame` block — same geometry fractions, no Lua runtime. |
 | **SketchyBar autohide** | `ws-autohide` launchd agent. 100ms cursor poller: when the cursor enters the top 2px of any display, that display's pills slide off and the auto-hide menu bar reveals. Other displays unaffected. Replaces the Hammerspoon timer. |
-| **Side surfaces** | JankyBorders `active_color` re-asserted on `window_focused`. |
 
 ## File layout
 
@@ -58,7 +57,6 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 ├── spaces.json                               v2 — single source of truth
 ├── spaces.<hostname>.json                    optional per-host overlay
 ├── on-space-changed.sh                       cascade entry point
-├── borders-refresh.sh                        re-assert JankyBorders active_color on window_focused
 ├── lib/resolve-config.sh                     sources WS_CONFIG = host overlay if present
 └── hooks/post-mutate.sh                      regenerate skhd fragment, ping sketchybar
 ```
@@ -68,7 +66,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | File | Writer | Consumers | What's in it |
 |---|---|---|---|
 | `~/.config/workspace/spaces.json` (v2) | `workspace` CLI, `ws-topology migrate` | everyone | slot identity: `{name, color, iconSpec, stableLogicalLabel}` |
-| `~/.cache/workspace/current.env` | `on-space-changed.sh` (atomic mv) | tmux, starship, borders, `paint-all.sh` | focused-space `MACOS_SPACE_{INDEX,NAME,COLOR,ICON,DISPLAY,ANSI}` |
+| `~/.cache/workspace/current.env` | `on-space-changed.sh` (atomic mv) | tmux, starship, `paint-all.sh` | focused-space `MACOS_SPACE_{INDEX,NAME,COLOR,ICON,DISPLAY,ANSI}` |
 | `~/.cache/workspace/topology.json` | `ws-topologyd` (atomic mv) | future native bar, diagnostics | per-display snapshot + policy |
 | `~/.cache/workspace/layout.env` | `ws-topologyd` (atomic mv) | `notch-detect.sh`, `per-display-pills.sh` | `WS_LAPTOP_HAS_NOTCH`, `WS_LAPTOP_DISPLAY_ID`, `WS_MAX_VISIBLE_SLOTS_<id>` (active consumers); the daemon still publishes `WS_TOP_REGION_W_<id>` / `WS_NOTCH_X_<id>` / `WS_NOTCH_W_<id>` / `WS_PILL_AVG_WIDTH_PT_<id>` for diagnostics, but no shell consumer reads them after the left-aligned navbar refactor retired `recenter.sh`. |
 
@@ -175,7 +173,6 @@ log stream --predicate 'subsystem == "com.adames.workspace.topology"'
 | Topology daemon | `launchctl bootout "gui/$(id -u)/com.adames.workspace.topologyd"` |
 | Per-host overlay | `workspace host reset` |
 | Notch padding | retired with the left-aligned refactor (no longer tunable / needed) |
-| Border refresh signal | `yabai -m signal --remove ws_borders_window_focused` |
 | Plugin edits | `cd ~/dotfiles && git checkout configs/sketchybar configs/workspace` then re-run `macos/bootstrap.sh` |
 
 ## Out of scope / deferred

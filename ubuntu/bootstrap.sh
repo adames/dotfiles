@@ -118,8 +118,8 @@ phase_configs() {
   install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
 
   # Workspace CLI: cross-platform mutation tool for spaces.json. macOS-
-  # specific consumers (sketchybar, yabai, borders) are silent-on-absence
-  # here, but the CLI itself works for editing JSON state from Linux.
+  # specific consumers (sketchybar, yabai) are silent-on-absence here,
+  # but the CLI itself works for editing JSON state from Linux.
   # `ws` is the canonical name; `workspace` is kept as a compat symlink.
   install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
   ln -sf "ws" "$HOME/.local/bin/workspace"

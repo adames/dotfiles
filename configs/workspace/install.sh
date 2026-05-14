@@ -9,7 +9,7 @@
 #      user renames across bootstrap re-runs); MIGRATE existing v1 (1..8)
 #      configs by appending slots 9 & 10 from the new defaults
 #   3. capture laptop display UUID on a clean single-display run
-#   4. assert dependencies + minimum tmux version + JankyBorders presence
+#   4. assert dependencies + minimum tmux version
 #   5. nudge running yabai / skhd to pick up new signals
 
 set -u
@@ -108,13 +108,7 @@ if (( ${#missing[@]} )); then
   warn "missing: ${missing[*]} — install via brew or run macos/bootstrap.sh"
 fi
 
-# JankyBorders is a separate brew tap — don't fail without it (some
-# users may opt out), just warn so the missing border layer is obvious.
-if ! command -v borders >/dev/null 2>&1; then
-  warn "borders not installed — neon window borders disabled. Install: brew tap FelixKratz/formulae && brew install borders"
-fi
-
-# SketchyBar drives the workspace-pill strip. Optional like borders —
+# SketchyBar drives the workspace-pill strip. Optional —
 # system stays usable without it (on-space-changed.sh is silent on
 # absence), but the persistent indicator is gone until installed.
 if ! command -v sketchybar >/dev/null 2>&1; then
@@ -139,16 +133,6 @@ fi
 if pgrep -x skhd >/dev/null 2>&1; then
   step "reloading skhd (picking up new bindings)"
   skhd --reload >/dev/null 2>&1 || warn "skhd --reload failed"
-fi
-
-# Restart borders so it picks up bordersrc on next launch.
-if pgrep -x borders >/dev/null 2>&1; then
-  step "restarting borders daemon"
-  pkill -x borders 2>/dev/null || true
-  sleep 0.2
-fi
-if command -v borders >/dev/null 2>&1 && [[ -x "$HOME/.config/borders/bordersrc" ]]; then
-  ( "$HOME/.config/borders/bordersrc" >/dev/null 2>&1 & ) || true
 fi
 
 # Start (or restart) sketchybar via its brew service so the workspace
