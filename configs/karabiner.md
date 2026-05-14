@@ -95,7 +95,28 @@ The two layers carry a consistent split — useful when adding new bindings:
 - **Hyper** (Caps held)        — navigate / non-destructive
   (focus window/space, launch app, new terminal, open cheatsheet)
 - **Mod**   (Caps+Shift held)  — modify / destructive
-  (swap window, send window to space, manual snap)
+  (swap window, manage workspaces, manual snap)
 
 When in doubt about where a new binding belongs, ask: does it *move* state
 (Mod) or *show* state (Hyper)?
+
+## Workspace control modes (lives in skhd, not Karabiner)
+
+Karabiner doesn't grab any of these keys — they're plain skhd modes:
+
+- `Caps + W` (Hyper+W)          → `focus` mode (digit focuses slot, n/p cycle)
+- `Ctrl + Space` (no Caps)      → `send`  mode (digit sends focused window + follow)
+- `Caps + Shift + W` (Mod+W)    → `manage` mode (`a` add, `r` rename, `i` info,
+                                   `l` list, `Shift+D` destroy)
+- `Caps + Esc`                  → panic exit from any mode
+
+`Ctrl + Space` is a plain Ctrl chord, not a Caps-derived chord — Karabiner
+does not see it. macOS's default Input Source shortcut on `Ctrl+Space` must
+be disabled in System Settings → Keyboard → Keyboard Shortcuts → Input
+Sources or it fires alongside the send-mode entry.
+
+## Hyper+Space → tmux prefix (Ghostty only)
+
+Karabiner does not bind `Hyper+Space`. Ghostty's own keybind config sends
+`\x01` (Ctrl-A, the tmux prefix) when Ghostty is focused. Outside Ghostty
+the chord remains unbound.

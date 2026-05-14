@@ -164,6 +164,13 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
   ln -sf "ws" "$HOME/.local/bin/workspace"
   install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
+  # skhd mode helpers (Hyper+W focus, C-Space send, Mod+W manage).
+  # Wrap raw yabai calls with existence checks + loud failure
+  # notifications so the new modes never silently no-op.
+  install_file "$CONFIGS_DIR/workspace/cli/ws-focus"            "$HOME/.local/bin/ws-focus"            755
+  install_file "$CONFIGS_DIR/workspace/cli/ws-send-follow"      "$HOME/.local/bin/ws-send-follow"      755
+  install_file "$CONFIGS_DIR/workspace/cli/ws-destroy-current"  "$HOME/.local/bin/ws-destroy-current"  755
+  install_file "$CONFIGS_DIR/workspace/cli/ws-info"             "$HOME/.local/bin/ws-info"             755
   # Shell completions for `ws` (and the `workspace` alias). zshrc adds
   # ~/.config/zsh/completions to fpath; bashrc (if present) sources
   # ~/.config/bash/completions/ws.bash.
