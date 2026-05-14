@@ -21,8 +21,9 @@
 
 set -u
 
-# Optional space focus. yabai labels are stable identifiers
-# ("home", "code") set by yabai-ensure-spaces.sh.
+# Optional space focus. The arg can be any yabai space label (set
+# manually via `yabai -m space N --label foo` if you want stable
+# IDs across reboots) or just `<index>`.
 target="${1:-}"
 if [[ -n "$target" ]] && command -v yabai >/dev/null 2>&1; then
   yabai -m space --focus "$target" 2>/dev/null || true

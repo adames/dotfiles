@@ -26,9 +26,9 @@
 #   4. Reorder so each display's items are: chip, then pills in
 #      space-index order.
 #   5. Set display=<D> + drawing=on on every pill (no visibility cap —
-#      yabai-ensure-spaces.sh + the user's pill count are the source
-#      of truth; if pills overflow the aux region on a notched laptop
-#      that's expected behavior, not a bug).
+#      yabai is the source of truth for pill count; if pills overflow
+#      the aux region on a notched laptop that's expected behavior,
+#      not a bug).
 
 set -u
 
