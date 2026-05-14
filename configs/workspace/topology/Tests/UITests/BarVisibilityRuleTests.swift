@@ -1,22 +1,21 @@
-import XCTest
 import CoreGraphics
 import DisplayTopology
 import LayoutPolicy
+import Testing
 
 /// Validates that adapter-level visibility rules collapse mirrored displays
-/// into a single logical bar. Pure-Swift assertions, no UI host needed; this
-/// test is in `UITests` only because it overlaps the same domain as the
-/// host-app-driven tests. It runs whenever XCTest is available.
-final class BarVisibilityRuleTests: XCTestCase {
+/// into a single logical bar. Pure-Swift assertions, no UI host needed.
+@Suite("Bar visibility rules — mirror collapse")
+struct BarVisibilityRuleTests {
 
-    func test_mirror_secondary_marked_invisible_for_bar_adapters() throws {
+    @Test func mirror_secondary_marked_invisible_for_bar_adapters() {
         let master = Fixtures.notchedM3Max(id: 1)
         let mirror = Fixtures.mirrorSecondary(id: 2, masterID: 1)
         let set = LayoutPolicyEngine.policies(for: [master, mirror])
 
         let visiblePolicies = set.policies.filter { !$0.isCollapsedMirrorSecondary }
-        XCTAssertEqual(visiblePolicies.count, 1)
-        XCTAssertEqual(visiblePolicies.first?.displayID, 1)
+        #expect(visiblePolicies.count == 1)
+        #expect(visiblePolicies.first?.displayID == 1)
     }
 }
 

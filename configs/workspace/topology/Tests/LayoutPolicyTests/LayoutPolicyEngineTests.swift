@@ -1,80 +1,85 @@
 import CoreGraphics
 import DisplayTopology
 import LayoutPolicy
-import XCTest
+import Testing
 
-final class NotchedBuiltInTests: XCTestCase {
-    func test_notched_uses_auxiliary_top_areas() throws {
+@Suite("Notched built-in display policy")
+struct NotchedBuiltInTests {
+    @Test func notched_uses_auxiliary_top_areas() throws {
         let display = Fixtures.notchedM3Max()
         let set = LayoutPolicyEngine.policies(for: [display])
-        let policy = try XCTUnwrap(set.policies.first { $0.displayID == display.id })
+        let policy = try #require(set.policies.first { $0.displayID == display.id })
 
-        XCTAssertEqual(policy.layoutClass, .notchedBuiltIn)
-        XCTAssertTrue(policy.shouldUseAuxiliaryTopAreas)
-        XCTAssertEqual(policy.topOrnamentRegion, display.auxiliaryTopLeftArea)
-        XCTAssertEqual(policy.barHeightPoints, 26)
-        // 720pt aux width / ~38pt pill = ~18 visible slots possible. Should clamp ≥ 1.
-        XCTAssertGreaterThanOrEqual(policy.maxVisibleSlots, 1)
-        XCTAssertLessThanOrEqual(policy.maxVisibleSlots, 19)
+        #expect(policy.layoutClass == .notchedBuiltIn)
+        #expect(policy.shouldUseAuxiliaryTopAreas)
+        #expect(policy.topOrnamentRegion == display.auxiliaryTopLeftArea)
+        #expect(policy.barHeightPoints == 26)
+        // 720pt aux width / ~38pt pill = ~18 visible slots possible. Clamp ≥ 1.
+        #expect(policy.maxVisibleSlots >= 1)
+        #expect(policy.maxVisibleSlots <= 19)
     }
 }
 
-final class CompactBuiltInTests: XCTestCase {
-    func test_m1_13_uses_full_width_top_edge() throws {
+@Suite("Compact built-in display policy")
+struct CompactBuiltInTests {
+    @Test func m1_13_uses_full_width_top_edge() throws {
         let display = Fixtures.compactM1()
         let set = LayoutPolicyEngine.policies(for: [display])
-        let policy = try XCTUnwrap(set.policies.first { $0.displayID == display.id })
+        let policy = try #require(set.policies.first { $0.displayID == display.id })
 
-        XCTAssertEqual(policy.layoutClass, .compactBuiltIn)
-        XCTAssertFalse(policy.shouldUseAuxiliaryTopAreas)
-        XCTAssertEqual(policy.topOrnamentRegion.width, display.visibleFramePoints.width)
-        XCTAssertEqual(policy.barHeightPoints, 26)
+        #expect(policy.layoutClass == .compactBuiltIn)
+        #expect(!policy.shouldUseAuxiliaryTopAreas)
+        #expect(policy.topOrnamentRegion.width == display.visibleFramePoints.width)
+        #expect(policy.barHeightPoints == 26)
     }
 }
 
-final class ExternalRectangularTests: XCTestCase {
-    func test_external_4k_takes_full_top_edge() throws {
+@Suite("External rectangular display policy")
+struct ExternalRectangularTests {
+    @Test func external_4k_takes_full_top_edge() throws {
         let display = Fixtures.external4K()
         let set = LayoutPolicyEngine.policies(for: [display])
-        let policy = try XCTUnwrap(set.policies.first { $0.displayID == display.id })
+        let policy = try #require(set.policies.first { $0.displayID == display.id })
 
-        XCTAssertEqual(policy.layoutClass, .externalRectangular)
-        XCTAssertFalse(policy.shouldUseAuxiliaryTopAreas)
-        XCTAssertEqual(policy.topOrnamentRegion.width, display.visibleFramePoints.width)
+        #expect(policy.layoutClass == .externalRectangular)
+        #expect(!policy.shouldUseAuxiliaryTopAreas)
+        #expect(policy.topOrnamentRegion.width == display.visibleFramePoints.width)
         // 4K is midExternal density → 24pt bar.
-        XCTAssertEqual(policy.barHeightPoints, 24)
+        #expect(policy.barHeightPoints == 24)
     }
 }
 
-final class MirrorCollapseTests: XCTestCase {
-    func test_mirror_secondary_is_collapsed() throws {
+@Suite("Mirror secondary collapse")
+struct MirrorCollapseTests {
+    @Test func mirror_secondary_is_collapsed() throws {
         let primary   = Fixtures.notchedM3Max(id: 1)
         let secondary = Fixtures.mirrorSecondary(id: 2, masterID: 1)
         let set = LayoutPolicyEngine.policies(for: [primary, secondary])
 
-        let primaryPolicy = try XCTUnwrap(set.policies.first { $0.displayID == 1 })
-        let secondaryPolicy = try XCTUnwrap(set.policies.first { $0.displayID == 2 })
+        let primaryPolicy   = try #require(set.policies.first { $0.displayID == 1 })
+        let secondaryPolicy = try #require(set.policies.first { $0.displayID == 2 })
 
-        XCTAssertEqual(primaryPolicy.layoutClass, .notchedBuiltIn)
-        XCTAssertFalse(primaryPolicy.isCollapsedMirrorSecondary)
+        #expect(primaryPolicy.layoutClass == .notchedBuiltIn)
+        #expect(!primaryPolicy.isCollapsedMirrorSecondary)
 
-        XCTAssertEqual(secondaryPolicy.layoutClass, .mirrorSecondary)
-        XCTAssertTrue(secondaryPolicy.isCollapsedMirrorSecondary)
-        XCTAssertEqual(secondaryPolicy.maxVisibleSlots, 0)
+        #expect(secondaryPolicy.layoutClass == .mirrorSecondary)
+        #expect(secondaryPolicy.isCollapsedMirrorSecondary)
+        #expect(secondaryPolicy.maxVisibleSlots == 0)
     }
 }
 
-final class DisconnectFallbackTests: XCTestCase {
-    func test_fallback_id_resolves_to_primary_when_available() throws {
+@Suite("Disconnect fallback resolution")
+struct DisconnectFallbackTests {
+    @Test func fallback_id_resolves_to_primary_when_available() {
         let primary  = Fixtures.notchedM3Max(id: 7)
         let external = Fixtures.external4K(id: 8)
         let set = LayoutPolicyEngine.policies(for: [primary, external])
         for p in set.policies {
-            XCTAssertEqual(p.fallbackScreenIDOnDisconnect, 7)
+            #expect(p.fallbackScreenIDOnDisconnect == 7)
         }
     }
 
-    func test_fallback_id_falls_through_to_lowest_builtin() throws {
+    @Test func fallback_id_falls_through_to_lowest_builtin() {
         // No display is primary; engine should reach for the lowest-ID built-in.
         var nonPrimaryExternal = Fixtures.external4K(id: 99)
         nonPrimaryExternal = DisplaySnapshot(
@@ -111,7 +116,7 @@ final class DisconnectFallbackTests: XCTestCase {
         )
         let set = LayoutPolicyEngine.policies(for: [nonPrimaryExternal, builtIn])
         for p in set.policies {
-            XCTAssertEqual(p.fallbackScreenIDOnDisconnect, 42)
+            #expect(p.fallbackScreenIDOnDisconnect == 42)
         }
     }
 }
