@@ -164,39 +164,3 @@ cmd + alt + ctrl - left  : $HOME/.local/bin/ws-snap left
 cmd + alt + ctrl - right : $HOME/.local/bin/ws-snap right
 cmd + alt + ctrl - up    : $HOME/.local/bin/ws-snap max
 cmd + alt + ctrl - down  : $HOME/.local/bin/ws-snap center
-
-# ── DEPRECATED — remove after 2026-06-13 ────────────────────────────────
-# Direct Hyper+digit (focus), Mod+digit (send+follow), Mod+R (rename),
-# and Mod+Shift+- (remove) bindings. Superseded by:
-#   Hyper+W → focus mode
-#   C-Space → send mode
-#   Mod+W   → manage mode (r = rename, shift+d = destroy)
-# Kept temporarily so muscle memory has a graceful transition. After
-# 2026-06-13, delete this entire block.
-
-cmd + alt + ctrl + shift - 1 : yabai -m space --focus 1
-cmd + alt + ctrl + shift - 2 : yabai -m space --focus 2
-cmd + alt + ctrl + shift - 3 : yabai -m space --focus 3
-cmd + alt + ctrl + shift - 4 : yabai -m space --focus 4
-cmd + alt + ctrl + shift - 5 : yabai -m space --focus 5
-cmd + alt + ctrl + shift - 6 : yabai -m space --focus 6
-cmd + alt + ctrl + shift - 7 : yabai -m space --focus 7
-cmd + alt + ctrl + shift - 8 : yabai -m space --focus 8
-cmd + alt + ctrl + shift - 9 : yabai -m space --focus 9
-cmd + alt + ctrl + shift - 0 : yabai -m space --focus 10
-
-cmd + alt + ctrl - 1 : yabai -m window --space 1  && yabai -m space --focus 1
-cmd + alt + ctrl - 2 : yabai -m window --space 2  && yabai -m space --focus 2
-cmd + alt + ctrl - 3 : yabai -m window --space 3  && yabai -m space --focus 3
-cmd + alt + ctrl - 4 : yabai -m window --space 4  && yabai -m space --focus 4
-cmd + alt + ctrl - 5 : yabai -m window --space 5  && yabai -m space --focus 5
-cmd + alt + ctrl - 6 : yabai -m window --space 6  && yabai -m space --focus 6
-cmd + alt + ctrl - 7 : yabai -m window --space 7  && yabai -m space --focus 7
-cmd + alt + ctrl - 8 : yabai -m window --space 8  && yabai -m space --focus 8
-cmd + alt + ctrl - 9 : yabai -m window --space 9  && yabai -m space --focus 9
-cmd + alt + ctrl - 0 : yabai -m window --space 10 && yabai -m space --focus 10
-
-cmd + alt + ctrl - r : "$HOME/.config/workspace/rename.sh"
-
-# 0x1B = `-` on the standard ANSI macOS layout.
-cmd + alt + ctrl + shift - 0x1B : bash -c '[ -r "$HOME/.cache/workspace/current.env" ] && . "$HOME/.cache/workspace/current.env"; "$HOME/.local/bin/ws" remove "${MACOS_SPACE_INDEX:-1}" -y' >/dev/null 2>&1
