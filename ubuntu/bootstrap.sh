@@ -7,6 +7,21 @@ set -euo pipefail
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 . "$DOTFILES_DIR/lib/common.sh"
 
+# ─── phase 0 · sparse-checkout (idempotent, runs first) ─────────────────────
+# Prune the working tree of macOS-only paths (Karabiner, yabai, skhd,
+# sketchybar, the Swift topology package, etc.) so a Linux clone only
+# contains files this host actually uses. Manifest at lib/platform-
+# manifest.sh is the single source of truth — see ubuntu/sparse-checkout.sh.
+# Safe to run every bootstrap; no-ops when patterns are already current.
+phase_sparse_checkout() {
+  section "Phase 0/6 · sparse-checkout (prune macOS-only paths)"
+  if [[ -x "$DOTFILES_DIR/ubuntu/sparse-checkout.sh" ]]; then
+    "$DOTFILES_DIR/ubuntu/sparse-checkout.sh" || warn "sparse-checkout failed; continuing with full tree"
+  else
+    warn "ubuntu/sparse-checkout.sh missing or not executable — skipping prune"
+  fi
+}
+
 # ─── phase 1 · terminfo (idempotent, runs first) ────────────────────────────
 # When SSH'ing in from Ghostty, TERM=xterm-ghostty is forwarded. Ubuntu's
 # default terminfo database doesn't ship that entry, so zsh's line editor
@@ -163,6 +178,7 @@ main() {
   banner "Hyper-key dotfiles bootstrap" "Ubuntu · minerva dev env"
   export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 
+  phase_sparse_checkout
   phase_terminfo
   phase_system
   phase_shell
