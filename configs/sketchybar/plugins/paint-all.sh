@@ -5,24 +5,29 @@
 # of pill or display count. Replaces the per-pill space.sh subscriptions
 # that produced staggered repaints (visible flicker on space switches).
 #
-# Pill rendering matrix (slot_state × focus_state):
+# Pill rendering matrix:
 #
-#   bare    + inactive   icon=<ident>          (gray, no bg)
-#   bare    + active     icon=<ident>          (gray icon over muted gray
-#                        bg — subtle focus cue)
-#   custom  + inactive   icon=<ident> <glyph>  (assigned color, no bg)
-#   custom  + active     icon=<ident> <glyph>  (active fg over colored
-#                        bg fill)
+#   bare    icon=<ident>          (gray text, no background)
+#   custom  icon=<ident> <glyph>  (slot-color text, no background)
+#
+# Pills are STATIC IDENTIFIERS — they do not change appearance based on
+# focus. Each pill is pinned to its monitor by per-display-pills.sh and
+# pinned to its slot color by spaces.json; nothing in this render path
+# differentiates "the focused pill" from the others. The focus cue is
+# carried by the workspace.name.<D> chip (see below), which lights up
+# only on the focused monitor.
 #
 # Pills carry no labels. Each display's leftmost item is a
 # workspace.name.<D> chip showing the workspace that's currently
-# *visible* on display D (per yabai). Chip styling:
-#   focused display  → workspace-color background fill, dark fg
-#   unfocused display → muted gray text, no background
-# Only one chip is "lit" at a time — whichever display has keyboard
-# focus (MACOS_SPACE_DISPLAY from current.env). The chip items
-# themselves are created by per-display-pills.sh with a fixed
-# `width=140`, so chip text length never shifts the pill chain.
+# *visible* on display D (per yabai). Chip styling is an inversion:
+#   focused display    → slot-color fill, dark text
+#   unfocused display  → empty fill, slot-color text
+# In both states the chip carries a thin slot-color border (flush
+# against the fill — no inset). On the focused chip the border blends
+# into the fill; on the unfocused chip the border IS the chip's
+# silhouette. The chip items themselves are created by per-display-
+# pills.sh with a fixed `width=140`, so chip text length never shifts
+# the pill chain.
 #
 # `<ident>` is the slot's digit for slot index ≤ 10 (hotkey-reachable
 # via Hyper+1..0), or U+2022 BULLET for higher indices.
@@ -64,7 +69,21 @@ command -v sketchybar >/dev/null 2>&1 || exit 0
 
 ACTIVE_SID=0
 ACTIVE_DISPLAY=0
-if [[ -r "$CACHE" ]]; then
+# Authoritative focus from yabai. current.env is updated by
+# on-space-changed.sh, which fires on yabai's `space_changed`. Some
+# focus changes — particularly cross-display mouse clicks or non-yabai-
+# driven transitions — have empirically shipped without that signal,
+# leaving the cascade cache stale. paint-all.sh ran with the old cache
+# and lit the wrong chip. Querying yabai inside paint-all.sh makes the
+# chip self-correcting on every repaint regardless of cascade state.
+if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces --space >/dev/null 2>&1; then
+  read -r ACTIVE_SID ACTIVE_DISPLAY < <(
+    yabai -m query --spaces --space 2>/dev/null \
+      | jq -r '"\(.index) \(.display)"' 2>/dev/null
+  ) || true
+fi
+# Fallback for headless / pre-yabai / Ubuntu: use the cascade cache.
+if [[ "${ACTIVE_SID:-0}" == 0 ]] && [[ -r "$CACHE" ]]; then
   # shellcheck source=/dev/null
   source "$CACHE" 2>/dev/null || true
   ACTIVE_SID="${MACOS_SPACE_INDEX:-0}"
@@ -107,46 +126,25 @@ while IFS="$SEP" read -r idx name color codepoint user_overridden stable_label; 
 
   pill_color="0xff${color#\#}"
 
-  if [[ "$idx" == "$ACTIVE_SID" ]]; then
-    if (( is_bare )); then
-      # Bare-active: muted gray bg as a subtle focus cue. Icon stays
-      # gray. The workspace.name chip carries the explicit identity.
-      args+=(
-        --set "space.$idx"
-        background.drawing=on
-        background.color="$INACTIVE_FILL"
-        icon.color="$ACTIVE_FG"
-        label.drawing=off
-        icon="$icon_text"
-      )
-    else
-      args+=(
-        --set "space.$idx"
-        background.drawing=on
-        background.color="$pill_color"
-        icon.color="$ACTIVE_FG"
-        label.drawing=off
-        icon="$icon_text"
-      )
-    fi
+  # No focus branch: pills are static. Bare slots render in INACTIVE_LABEL
+  # gray; customized slots render in their assigned slot color. The
+  # workspace.name chip is the focus indicator, not the pills.
+  if (( is_bare )); then
+    args+=(
+      --set "space.$idx"
+      background.drawing=off
+      icon.color="$INACTIVE_LABEL"
+      label.drawing=off
+      icon="$icon_text"
+    )
   else
-    if (( is_bare )); then
-      args+=(
-        --set "space.$idx"
-        background.drawing=off
-        icon.color="$INACTIVE_LABEL"
-        label.drawing=off
-        icon="$icon_text"
-      )
-    else
-      args+=(
-        --set "space.$idx"
-        background.drawing=off
-        icon.color="$pill_color"
-        label.drawing=off
-        icon="$icon_text"
-      )
-    fi
+    args+=(
+      --set "space.$idx"
+      background.drawing=off
+      icon.color="$pill_color"
+      label.drawing=off
+      icon="$icon_text"
+    )
   fi
 done < <(
   # Drive the pill loop from yabai's spaces (source of truth for
@@ -214,20 +212,32 @@ if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; 
     [[ -z "$d_idx" || -z "$s_idx" ]] && continue
     [[ -z "$s_name" ]] && s_name="ws$s_idx"
     [[ -z "$s_color" ]] && s_color="#cdd6f4"
+    slot_hex="0xff${s_color#\#}"
     if [[ "$d_idx" == "$ACTIVE_DISPLAY" ]]; then
+      # Focused: slot-color fill, dark text. Border = slot color too;
+      # blends with the fill into a solid colored chip.
       args+=(
         --set "workspace.name.$d_idx"
         label="$s_name"
         label.color="$ACTIVE_FG"
         background.drawing=on
-        background.color="0xff${s_color#\#}"
+        background.color="$slot_hex"
+        background.border_width=2
+        background.border_color="$slot_hex"
       )
     else
+      # Unfocused: empty fill, slot-color text. Border = slot color and
+      # IS the visible silhouette of the chip. bg.drawing stays on so
+      # the border draws (sketchybar's bg.drawing=off would skip the
+      # border too); fill is rendered transparent.
       args+=(
         --set "workspace.name.$d_idx"
         label="$s_name"
-        label.color="$INACTIVE_LABEL"
-        background.drawing=off
+        label.color="$slot_hex"
+        background.drawing=on
+        background.color=0x00000000
+        background.border_width=2
+        background.border_color="$slot_hex"
       )
     fi
   done < <(
