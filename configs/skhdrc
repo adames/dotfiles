@@ -1,5 +1,5 @@
 # Hyper+key (cmd+alt+ctrl+shift) = focus.  Hyper+Shift+key (cmd+alt+ctrl) = swap.
-# Karabiner emits Hyper for Caps and Meh for Caps+Shift (Shift consumed).
+# Karabiner emits Hyper for Caps and Mod for Caps+Shift (Shift consumed).
 # yabai tiling config is in ~/.yabairc.
 
 # --- focus ---------------------------------------------------------------
@@ -19,12 +19,12 @@ cmd + alt + ctrl + shift - return : yabai -m window --toggle zoom-fullscreen
 cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 
-# Hyper+F is "open Finder" (see below). Toggle-float lives on Meh+F:
-# Meh is the "modify" layer (Hyper = navigate, Meh = modify), so
+# Hyper+F is "open Finder" (see below). Toggle-float lives on Mod+F:
+# Mod is the "modify" layer (Hyper = navigate, Mod = modify), so
 # changing a window's tiled/floating state belongs here next to swap.
 cmd + alt + ctrl - f              : yabai -m window --toggle float
 
-# --- spaces (Hyper+digit focus, Meh+digit send window) -----------------
+# --- spaces (Hyper+digit focus, Mod+digit send window) -----------------
 # Inlined for simplicity. yabai silently no-ops on `--space N --focus`
 # when space N doesn't exist, so binding 1..9 unconditionally is safe
 # regardless of the user's current slot count. Hyper+0 is intentionally
@@ -65,9 +65,9 @@ cmd + alt + ctrl - tab         : yabai -m display --focus prev
 
 # --- cheatsheet ---------------------------------------------------------
 # Hyper+; toggles the native SwiftUI HUD (ws-cheatsheet). The
-# previously-shipped Hyper+/ and Meh+; aliases were dropped — Hyper+/
+# previously-shipped Hyper+/ and Mod+; aliases were dropped — Hyper+/
 # never reliably fired (skhd binding never matched the key code on this
-# machine; long-standing issue, not worth debugging), and the Meh+;
+# machine; long-standing issue, not worth debugging), and the Mod+;
 # alias was redundant.
 # 0x29 = ; on US ANSI.
 cmd + alt + ctrl + shift - 0x29 : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/null 2>&1 &
@@ -96,18 +96,18 @@ cmd + alt + ctrl + shift - s : open -a "System Settings"
 cmd + alt + ctrl + shift - c : open -a "Claude"
 cmd + alt + ctrl + shift - m : open -a "Spotify"
 
-# --- floating-window snaps (Meh+arrows) ---------------------------------
+# --- floating-window snaps (Mod+arrows) ---------------------------------
 # SIP-safe absolute snaps for yabai-unmanaged windows (System Settings,
-# floating Ghostty). Hyper layer keeps hjkl/yabai; Meh keeps arrows as
-# manual snaps — see docs/architecture.md "Hyper = navigate, Meh = modify".
+# floating Ghostty). Hyper layer keeps hjkl/yabai; Mod keeps arrows as
+# manual snaps — see docs/architecture.md "Hyper = navigate, Mod = modify".
 cmd + alt + ctrl - left  : $HOME/.local/bin/ws-snap left
 cmd + alt + ctrl - right : $HOME/.local/bin/ws-snap right
 cmd + alt + ctrl - up    : $HOME/.local/bin/ws-snap max
 cmd + alt + ctrl - down  : $HOME/.local/bin/ws-snap center
 
 # --- workspace metadata --------------------------------------------------
-# Meh+R prompts to rename the current space via the osascript dialog in
-# workspace/rename.sh. (Hyper+R is `--rotate 90`; rename uses Meh+R to
+# Mod+R prompts to rename the current space via the osascript dialog in
+# workspace/rename.sh. (Hyper+R is `--rotate 90`; rename uses Mod+R to
 # avoid the collision — rename is much rarer than rotation.) The script
 # updates spaces.json and fires on-space-changed.sh to cascade the new
 # name into tmux env / starship / SketchyBar.

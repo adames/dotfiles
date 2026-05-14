@@ -5,7 +5,7 @@ explanation lives here.
 
 The config has **two complex modifications**, ordered intentionally:
 
-## Rule 1 — Caps Lock + Shift → Meh
+## Rule 1 — Caps Lock + Shift → Mod
 
 ```
 from: caps_lock with mandatory shift
@@ -15,7 +15,7 @@ to:   left_control + left_option + left_command   (NO shift)
 This rule fires when the user holds **Caps Lock together with Shift**. The
 `mandatory: ["shift"]` clause tells Karabiner to *consume* the shift modifier
 (remove it from the output), so the emitted combo is exactly
-`Ctrl+Opt+Cmd` — three modifiers. We call this the **Meh** key.
+`Ctrl+Opt+Cmd` — three modifiers. We call this the **Mod** key.
 
 **Why?** The whole Hyper scheme wants two distinct hotkey layers:
 
@@ -55,12 +55,12 @@ is present, so this rule covers all other cases.)
 
 Karabiner evaluates rules top-to-bottom. Rule 1 (with `mandatory shift`)
 must come first; otherwise Rule 2's `optional any` would consume the
-Shift+Caps case and the 3-mod Meh would never fire.
+Shift+Caps case and the 3-mod Mod would never fire.
 
 ## What this implies for tooling downstream
 
 - **skhd** sees keystrokes with modifier sets `cmd+alt+ctrl+shift` (Hyper)
-  or `cmd+alt+ctrl` (Meh) depending on whether Shift was held.
+  or `cmd+alt+ctrl` (Mod) depending on whether Shift was held.
 - **macOS shortcut conflicts** — Cmd+Q, Cmd+W, etc. still work normally
   because the user is pressing them without Caps Lock.
 
@@ -88,14 +88,14 @@ unbound and available for future use.
 `Caps + v` is intentionally unbound — reserved for a clipboard-manager
 binding (Maccy, Raycast clipboard, etc.) if one is ever installed.
 
-## Layer semantic: Hyper = navigate, Meh = modify
+## Layer semantic: Hyper = navigate, Mod = modify
 
 The two layers carry a consistent split — useful when adding new bindings:
 
 - **Hyper** (Caps held)        — navigate / non-destructive
   (focus window/space, launch app, new terminal, open cheatsheet)
-- **Meh**   (Caps+Shift held)  — modify / destructive
+- **Mod**   (Caps+Shift held)  — modify / destructive
   (swap window, send window to space, manual snap)
 
 When in doubt about where a new binding belongs, ask: does it *move* state
-(Meh) or *show* state (Hyper)?
+(Mod) or *show* state (Hyper)?

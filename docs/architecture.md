@@ -9,15 +9,15 @@ the rest of the keyboard into a coherent dev surface.
 graph LR
   CapsLock([Caps Lock]) --> Karabiner
   Karabiner -->|"⌃⌥⌘⇧"| Hyper((Hyper))
-  Karabiner -->|"⌃⌥⌘"| Meh((Meh))
+  Karabiner -->|"⌃⌥⌘"| Mod((Mod))
   Karabiner -->|tap| Esc((Esc))
 
   Hyper --> skhd
-  Meh --> skhd
+  Mod --> skhd
   skhd -->|"yabai -m ..."| yabai
   skhd -->|Hyper+T osascript| Ghostty
-  skhd -->|Meh+arrows| WSSnap[ws-snap · AX]
-  skhd -->|Hyper+;/Hyper+/| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
+  skhd -->|Mod+arrows| WSSnap[ws-snap · AX]
+  skhd -->|Hyper+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
 
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
   WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
@@ -47,23 +47,23 @@ hjkl + leader-key mental model.
 |---|---|---|
 | Caps Lock alone (tap) | `Escape` | — |
 | Caps Lock held | **Hyper** | `⌃⌥⌘⇧` (4) |
-| Caps Lock + Shift held | **Meh** | `⌃⌥⌘` (3, Shift consumed) |
+| Caps Lock + Shift held | **Mod** | `⌃⌥⌘` (3, Shift consumed) |
 
 Why two levels: if Hyper itself contained Shift, then `Hyper + Shift + H`
 would collapse to `Hyper + H`. By making Caps+Shift emit a *different*
-combo (Meh), skhd binds them as separate shortcuts. JSON specifics in
+combo (Mod), skhd binds them as separate shortcuts. JSON specifics in
 [`configs/karabiner.md`](../configs/karabiner.md).
 
-### Hyper = navigate, Meh = modify
+### Hyper = navigate, Mod = modify
 
 The two layers carry a consistent semantic split:
 
 | Layer | Role | Examples |
 |---|---|---|
 | **Hyper** | navigate / read-only | focus window (`hjkl`), focus space (`1..8`), focus display (`tab`), new terminal (`t`), launch app (`b`/`c`), cheatsheet (`0`) |
-| **Meh**   | modify / destructive | swap window (`hjkl`), send-to-space (`1..8`), focus prev display (`tab`), manual snap (`arrows`) |
+| **Mod**   | modify / destructive | swap window (`hjkl`), send-to-space (`1..8`), focus prev display (`tab`), manual snap (`arrows`) |
 
-This is why the SIP-safe arrow snaps live on **Meh+arrows** rather than
+This is why the SIP-safe arrow snaps live on **Mod+arrows** rather than
 Hyper+arrows — snapping is "manually move this window," which belongs in
 the modify layer next to swap and send-to-space. It keeps the
 hjkl-vs-arrows distinction coherent: `hjkl` is always yabai-managed
@@ -76,8 +76,8 @@ floating or unmanaged windows like Ghostty and System Settings).
 |---|---|---|
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
-| Hyper/Meh hotkey dispatch (windows, spaces, app launchers, terminal, cheatsheet trigger) | skhd | `skhdrc` |
-| Floating-window snaps (Meh+arrows) | ws-snap (topology package, AX) | `configs/workspace/topology/Sources/ws-snap/` |
+| Hyper/Mod hotkey dispatch (windows, spaces, app launchers, terminal, cheatsheet trigger) | skhd | `skhdrc` |
+| Floating-window snaps (Mod+arrows) | ws-snap (topology package, AX) | `configs/workspace/topology/Sources/ws-snap/` |
 | SketchyBar per-display autohide | ws-autohide (LaunchAgent, Swift) | `configs/workspace/topology/Sources/ws-autohide/` |
 | Cheatsheet HUD (SwiftUI) | ws-cheatsheet (topology package) | `configs/workspace/cheatsheet.json` + `configs/workspace/topology/Sources/ws-cheatsheet/` |
 | Cross-display topology (notch + aux geometry + per-display layout policy) | ws-topologyd (LaunchAgent, Swift) | `configs/workspace/topology/` |
@@ -97,7 +97,7 @@ floating or unmanaged windows like Ghostty and System Settings).
 - Anything that needs macOS API access is its own one-shot binary, shipped
   by the Swift package under `configs/workspace/topology/`:
   - **ws-snap** moves floating / yabai-unmanaged windows via the
-    Accessibility API (Meh+arrows). One process per keypress.
+    Accessibility API (Mod+arrows). One process per keypress.
   - **ws-cheatsheet** is the SwiftUI HUD (Hyper+;).
   - **ws-autohide** is the only long-running helper — a launchd-managed
     cursor poller that hides each display's SketchyBar pills when the
@@ -321,7 +321,7 @@ the bar's `padding_left=8` handles the corner margin.
     │   │   ├── Sources/ws-topologyd/      # launchd agent (reconfig callback)
     │   │   ├── Sources/ws-cheatsheet/     # SwiftUI HUD (replaces cheatsheet.lua)
     │   │   ├── Sources/ws-autohide/       # SketchyBar per-display cursor-y auto-hide (launchd)
-    │   │   ├── Sources/ws-snap/           # Meh+arrows floating-window snap (AX, skhd-driven)
+    │   │   ├── Sources/ws-snap/           # Mod+arrows floating-window snap (AX, skhd-driven)
     │   │   ├── Tests/                     # XCTest (full Xcode required)
     │   │   ├── launchd/*.plist            # LaunchAgents (topologyd + autohide)
     │   │   └── install.sh                 # builds + symlinks + load
