@@ -5,17 +5,22 @@
 # of pill or display count. Replaces the per-pill space.sh subscriptions
 # that produced staggered repaints (visible flicker on space switches).
 #
-# Pill rendering matrix:
+# Pill rendering matrix (slot_state × focus_state):
 #
-#   bare    icon=<ident>          (gray text, no background)
-#   custom  icon=<ident> <glyph>  (slot-color text, no background)
+#   bare    + inactive   icon=<ident>          (gray, no bg)
+#   bare    + active     icon=<ident>          (ACTIVE_FG icon over
+#                        INACTIVE_FILL muted-gray bg — subtle focus cue
+#                        for a slot with no assigned colour)
+#   custom  + inactive   icon=<ident> <glyph>  (slot-color text, no bg)
+#   custom  + active     icon=<ident> <glyph>  (ACTIVE_FG over slot-color
+#                        bg fill — the headline focus cue)
 #
-# Pills are STATIC IDENTIFIERS — they do not change appearance based on
-# focus. Each pill is pinned to its monitor by per-display-pills.sh and
-# pinned to its slot color by spaces.json; nothing in this render path
-# differentiates "the focused pill" from the others. The focus cue is
-# carried by the workspace.name.<D> chip (see below), which lights up
-# only on the focused monitor.
+# The focused pill AND the workspace.name.<D> chip both light up. The
+# pill says "this slot has keyboard focus"; the chip says "this is the
+# slot's name". Earlier iterations made pills static and let the chip
+# carry focus alone — but the highlighted pill is what makes the bar
+# scannable at a glance, so it's back. Each pill is still pinned to its
+# monitor by per-display-pills.sh and to its slot color by spaces.json.
 #
 # Pills carry no labels. Each display's leftmost item is a
 # workspace.name.<D> chip showing the workspace that's currently
@@ -126,25 +131,50 @@ while IFS="$SEP" read -r idx name color codepoint user_overridden stable_label; 
 
   pill_color="0xff${color#\#}"
 
-  # No focus branch: pills are static. Bare slots render in INACTIVE_LABEL
-  # gray; customized slots render in their assigned slot color. The
-  # workspace.name chip is the focus indicator, not the pills.
-  if (( is_bare )); then
-    args+=(
-      --set "space.$idx"
-      background.drawing=off
-      icon.color="$INACTIVE_LABEL"
-      label.drawing=off
-      icon="$icon_text"
-    )
+  # Focused pill (active): fill the background and switch icon to
+  # ACTIVE_FG (catppuccin base). Customized slots use their assigned
+  # colour for the fill; bare slots use INACTIVE_FILL (surface1) as a
+  # muted "in-focus but no identity" highlight.
+  # Unfocused pill (inactive): no background; icon coloured by slot
+  # identity (slot colour for customized, INACTIVE_LABEL gray for bare).
+  if [[ "$idx" == "$ACTIVE_SID" ]]; then
+    if (( is_bare )); then
+      args+=(
+        --set "space.$idx"
+        background.drawing=on
+        background.color="$INACTIVE_FILL"
+        icon.color="$ACTIVE_FG"
+        label.drawing=off
+        icon="$icon_text"
+      )
+    else
+      args+=(
+        --set "space.$idx"
+        background.drawing=on
+        background.color="$pill_color"
+        icon.color="$ACTIVE_FG"
+        label.drawing=off
+        icon="$icon_text"
+      )
+    fi
   else
-    args+=(
-      --set "space.$idx"
-      background.drawing=off
-      icon.color="$pill_color"
-      label.drawing=off
-      icon="$icon_text"
-    )
+    if (( is_bare )); then
+      args+=(
+        --set "space.$idx"
+        background.drawing=off
+        icon.color="$INACTIVE_LABEL"
+        label.drawing=off
+        icon="$icon_text"
+      )
+    else
+      args+=(
+        --set "space.$idx"
+        background.drawing=off
+        icon.color="$pill_color"
+        label.drawing=off
+        icon="$icon_text"
+      )
+    fi
   fi
 done < <(
   # Drive the pill loop from yabai's spaces (source of truth for
