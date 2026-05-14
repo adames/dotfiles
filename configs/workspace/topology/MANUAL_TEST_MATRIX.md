@@ -21,39 +21,38 @@ system settings to toggle. Re-run when validating a release.
 
 | # | Scenario | Setup | Expected |
 |---|---|---|---|
-| 11 | Missing Nerd Font | Temporarily disable `JetBrainsMono Nerd Font` in Font Book | `ws-topology resolve-icon 1 --surface=font` returns `kind=text`; SketchyBar shows the text fallback (`ST`, `HU`, …) |
-| 12 | Override survives rename | `workspace icon 1 ` then `workspace name 1 broadcast` | `iconSpec.codepoint` stays as ``, `iconSpec.userOverridden=true`; name updates to `broadcast` |
-| 13 | Legacy v1 config | If anyone hand-edits spaces.json back to v1 schema | `ws-topology migrate` dry-run prints expected v2 shape; cascade still functions via legacy `.icon` fallback in readers |
-| 14 | Migration rollback | `ws-topology migrate --rollback` | spaces.json restored from `spaces.v1.json`; cascade flips back to v1 reader path |
+| 10 | Missing Nerd Font | Temporarily disable `JetBrainsMono Nerd Font` in Font Book | `ws-topology resolve-icon 1 --surface=font` returns `kind=text`; SketchyBar shows the text fallback (`ST`, `HU`, …) |
+| 11 | Override survives rename | `workspace icon 1 ` then `workspace name 1 broadcast` | `iconSpec.codepoint` stays as ``, `iconSpec.userOverridden=true`; name updates to `broadcast` |
+| 12 | Legacy v1 config import | Paste a v1 spaces.json on top of `~/.config/workspace/spaces.json` | `ws-topology migrate` dry-run prints expected v2 shape; `--apply` rewrites in place. Readers do NOT fall back to legacy `.icon`, so always `--apply` before reloading. |
 
 ## Per-host overlay
 
 | # | Scenario | Setup | Expected |
 |---|---|---|---|
-| 15 | Fork host config | `workspace host init` on m3 | `~/.config/workspace/spaces.m3.json` created from `spaces.json`; `workspace host status` shows it as active |
-| 16 | Reset overlay | `workspace host reset` | Per-host file deleted; cascade falls back to shared `spaces.json` |
-| 17 | Different config per machine | Edit `spaces.m1.json` independently of `spaces.m3.json` | Each machine reads its own; shared file unchanged |
+| 13 | Fork host config | `workspace host init` on m3 | `~/.config/workspace/spaces.m3.json` created from `spaces.json`; `workspace host status` shows it as active |
+| 14 | Reset overlay | `workspace host reset` | Per-host file deleted; cascade falls back to shared `spaces.json` |
+| 15 | Different config per machine | Edit `spaces.m1.json` independently of `spaces.m3.json` | Each machine reads its own; shared file unchanged |
 
 ## Accessibility
 
 | # | Scenario | Setup | Expected |
 |---|---|---|---|
-| 18 | Reduce Motion enabled | System Settings → Accessibility → Display → Reduce motion | `layout.env` shows `WS_REDUCE_MOTION=1`; consumers can damp animations (configure sketchybar `animation_curve` if desired) |
-| 19 | Increase Contrast enabled | System Settings → Accessibility → Display → Increase contrast | `layout.env` shows `WS_INCREASE_CONTRAST=1` |
+| 16 | Reduce Motion enabled | System Settings → Accessibility → Display → Reduce motion | `layout.env` shows `WS_REDUCE_MOTION=1`; consumers can damp animations (configure sketchybar `animation_curve` if desired) |
+| 17 | Increase Contrast enabled | System Settings → Accessibility → Display → Increase contrast | `layout.env` shows `WS_INCREASE_CONTRAST=1` |
 
 ## Hotkeys
 
 | # | Scenario | Setup | Expected |
 |---|---|---|---|
-| 26 | Slot count > 10 hotkey overflow | `workspace add` until 11 slots | `~/.config/skhd/spaces.skhdrc` has only 10 bindings; reach slot 11+ via `workspace focus <name>` |
-| 27 | skhd regeneration on slot mutation | Run `workspace add foo` | Post-mutate hook fires `ws-topology emit-skhd --write --reload`; new fragment includes the added slot |
+| 18 | Slot count > 10 overflow | `ws add` until 11 slots | Inside `Hyper+W` focus mode, digits `1..0` address slots 1..10 directly; reach slot 11+ via `n`/`p` cycle (wraps through every existing slot) or `yabai -m space --focus 11`. |
+| 19 | New slot is reachable immediately | Run `ws add foo` | Sketchybar pill appears (post-mutate hook → per-display-pills.sh); `Hyper+W` focus mode can target the new slot without a reload (skhdrc bindings are static, not generated). |
 
 ## Performance
 
 | # | Scenario | Setup | Expected |
 |---|---|---|---|
-| 28 | Space switch latency | Hyper+1..8 in rapid succession | No "paint to right then snap" pulse on pills; single `sketchybar --set` transaction per layout change |
-| 29 | Cascade fires once per event | `log stream --predicate 'subsystem == "com.adames.workspace.topology"'` while switching spaces | One emission per space switch (no duplicate cascades from stale signals) |
+| 20 | Space switch latency | `Hyper+W → 1..0` in rapid succession | No "paint to right then snap" pulse on pills; single `sketchybar --set` transaction per layout change. (The `: true` on-enter in skhdrc flushes the mode-transition event queue — first keystroke after `Hyper+W` is never dropped.) |
+| 21 | Cascade fires once per event | `log stream --predicate 'subsystem == "com.adames.workspace.topology"'` while switching spaces | One emission per space switch (no duplicate cascades from stale signals) |
 
 ## Verification commands
 
