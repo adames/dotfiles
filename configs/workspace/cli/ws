@@ -16,6 +16,21 @@
 #   exit codes  0 success · 1 runtime error · 2 usage error
 #   env overrides  WS_CONFIG, WS_THEMES_DIR, WS_HANDLER, WS_HOOK
 #   --json available on  status · get · themes
+#
+# Naming conventions (read this before adding new names):
+#   • file-global names use the WS_* prefix and UPPER_SNAKE_CASE.
+#       - Declared as  WS_X="${WS_X:-default}"  → user-overridable env knob.
+#       - Declared as  WS_X='literal'  (often `readonly`) → internal
+#         constant; callers should treat as immutable.
+#   • file-private (within-function) names use lowercase snake_case;
+#     transient staging files name themselves by purpose
+#     (config_staging, layout_staging, defaults_staging) so a skim
+#     reveals what's being written, not just that something is.
+#   • functions: cmd_<subcommand>  → public CLI subcommand (1:1 with
+#     `ws <subcommand>`). _<name>()  → file-private helper.
+#   • boolean knobs phrase the toggle as English: WS_GROW_YABAI_ON_ADD,
+#     WS_SKIP_YABAI_SLOT_CHECK. Default value matches the safe behavior
+#     (=1 grow, =0 skip) so callers usually don't need to set them.
 
 set -u
 
@@ -76,10 +91,10 @@ _require_config() {
 _count() { jq '.spaces | keys | map(tonumber) | length' "$WS_CONFIG"; }
 
 # Yabai's authoritative space count. 0 when yabai is absent / down / when
-# WS_SKIP_YABAI_BOUND=1 (the verify harness disables yabai-derived bounds
+# WS_SKIP_YABAI_SLOT_CHECK=1 (the verify harness disables yabai-derived bounds
 # so it can exercise JSON-only state).
 _yabai_count() {
-  [[ "${WS_SKIP_YABAI_BOUND:-0}" == "1" ]] && { printf '0\n'; return; }
+  [[ "${WS_SKIP_YABAI_SLOT_CHECK:-0}" == "1" ]] && { printf '0\n'; return; }
   command -v yabai >/dev/null 2>&1 || { printf '0\n'; return; }
   yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || printf '0\n'
 }
@@ -227,7 +242,7 @@ _fire_cascade() {
 # field is actively dropped: with the cascade fully v2-aware
 # (on-space-changed.sh and space.sh both prefer iconSpec.codepoint), no
 # reader depends on it, so retiring the field keeps diffs clean.
-_NORMALIZE='
+readonly WS_NORMALIZE_JQ='
   .spaces as $s
   | .spaces = (
       reduce ($s | keys | map(tonumber) | sort | map(tostring))[] as $k ({};
@@ -242,18 +257,18 @@ _NORMALIZE='
 # _write <jq-program> [jq-args...]  — atomic mktemp + jq + normalize + validate + mv.
 _write() {
   local prog="$1"; shift
-  local tmp; tmp=$(mktemp) || { err "mktemp failed"; exit 1; }
-  if ! jq "$@" "$prog" "$WS_CONFIG" | jq "$_NORMALIZE" > "$tmp" 2>/dev/null; then
-    rm -f "$tmp"
+  local config_staging; config_staging=$(mktemp) || { err "mktemp failed"; exit 1; }
+  if ! jq "$@" "$prog" "$WS_CONFIG" | jq "$WS_NORMALIZE_JQ" > "$config_staging" 2>/dev/null; then
+    rm -f "$config_staging"
     err "jq transformation failed"
     exit 1
   fi
-  if ! jq -e . "$tmp" >/dev/null 2>&1; then
-    rm -f "$tmp"
+  if ! jq -e . "$config_staging" >/dev/null 2>&1; then
+    rm -f "$config_staging"
     err "produced invalid JSON (refusing to write)"
     exit 1
   fi
-  mv -f "$tmp" "$WS_CONFIG"
+  mv -f "$config_staging" "$WS_CONFIG"
 }
 
 # Truecolor swatch helper. Uses the shared ws_hex_to_rgb parser.
@@ -448,8 +463,8 @@ cmd_color() {
   _fire_cascade
 }
 
-_SF_TO_NERD_MAP="${WS_SF_MAP:-$HOME/.config/workspace/lib/sf-to-nerd.json}"
-_NF_QUESTION_FALLBACK='\uf128'   # nf-fa-question_circle — placeholder when SF has no mapping
+WS_SF_TO_NERD_MAP="${WS_SF_MAP:-$HOME/.config/workspace/lib/sf-to-nerd.json}"
+readonly WS_NF_FALLBACK_GLYPH='\uf128'   # nf-fa-question_circle — placeholder when SF has no mapping
 
 # Derive (codepoint, sf_name) from a single icon argument. Sets:
 #   _ICON_ESCAPED   — ASCII-escaped codepoint (e.g. "") or empty
@@ -465,14 +480,14 @@ _NF_QUESTION_FALLBACK='\uf128'   # nf-fa-question_circle — placeholder when SF
 _pick_icon_fzf() {
   local prompt="${1:-icon> }"
   have fzf || return 1
-  [[ -r "$_SF_TO_NERD_MAP" ]] || return 1
+  [[ -r "$WS_SF_TO_NERD_MAP" ]] || return 1
   local picked
   picked=$(jq -r '
     to_entries
     | map(select(.key | startswith("_") | not))
     | sort_by(.key) | .[]
     | "\(.key)\t\(.value)"
-  ' "$_SF_TO_NERD_MAP" \
+  ' "$WS_SF_TO_NERD_MAP" \
     | while IFS=$'\t' read -r name esc; do
         printf '%s\t%s\t%s\n' "$(ws_decode_icon "$esc")" "$name" "$esc"
       done \
@@ -495,13 +510,13 @@ _resolve_icon_input() {
   if [[ "$input" =~ ^[a-z][a-z0-9._]*$ ]]; then
     # SF Symbol identifier. Map → Nerd Font codepoint via curated table.
     _ICON_SF_NAME="$input"
-    if [[ -r "$_SF_TO_NERD_MAP" ]] && have jq; then
-      _ICON_ESCAPED=$(jq -r --arg n "$input" '.[$n] // ""' "$_SF_TO_NERD_MAP" 2>/dev/null)
+    if [[ -r "$WS_SF_TO_NERD_MAP" ]] && have jq; then
+      _ICON_ESCAPED=$(jq -r --arg n "$input" '.[$n] // ""' "$WS_SF_TO_NERD_MAP" 2>/dev/null)
     fi
     if [[ -z "$_ICON_ESCAPED" ]]; then
-      warn "no Nerd Font mapping for SF Symbol '$input' — using placeholder ($_NF_QUESTION_FALLBACK)."
-      warn "  add a mapping in ${_SF_TO_NERD_MAP/#$HOME/~}"
-      _ICON_ESCAPED="$_NF_QUESTION_FALLBACK"
+      warn "no Nerd Font mapping for SF Symbol '$input' — using placeholder ($WS_NF_FALLBACK_GLYPH)."
+      warn "  add a mapping in ${WS_SF_TO_NERD_MAP/#$HOME/~}"
+      _ICON_ESCAPED="$WS_NF_FALLBACK_GLYPH"
     fi
     return 0
   fi
@@ -534,7 +549,7 @@ cmd_icon() {
   if [[ "${1:-}" == "search" ]]; then
     shift
     local q="${1:-}"
-    if [[ ! -r "$_SF_TO_NERD_MAP" ]] || ! have jq; then
+    if [[ ! -r "$WS_SF_TO_NERD_MAP" ]] || ! have jq; then
       err "sf-to-nerd map not available"; exit 1
     fi
     jq -r --arg q "$q" '
@@ -544,7 +559,7 @@ cmd_icon() {
       | sort_by(.key)
       | .[]
       | "\(.key)\t\(.value)"
-    ' "$_SF_TO_NERD_MAP" \
+    ' "$WS_SF_TO_NERD_MAP" \
       | while IFS=$'\t' read -r name esc; do
           local glyph
           glyph=$(ws_decode_icon "$esc")
@@ -794,7 +809,7 @@ cmd_add() {
     fi
     # Icon prompt via fzf picker if available; ESC leaves the slot
     # icon-less (kind=none). Skipped if fzf or sf-to-nerd map missing.
-    if [[ -z "$icon" ]] && have fzf && [[ -r "$_SF_TO_NERD_MAP" ]]; then
+    if [[ -z "$icon" ]] && have fzf && [[ -r "$WS_SF_TO_NERD_MAP" ]]; then
       printf 'icon: opening fzf (ESC to skip) ...\n' >&2
       icon=$(_pick_icon_fzf "icon for new slot $new_slot> " || true)
     fi
@@ -873,9 +888,9 @@ cmd_add() {
   # headless) and on failure (scripting-addition not loaded). The
   # space_created signal subscribed in yabairc will fire
   # per-display-pills.sh, which adds the matching sketchybar pill.
-  # Disable with WS_ADD_GROW_YABAI=0 — useful for tests that don't
+  # Disable with WS_GROW_YABAI_ON_ADD=0 — useful for tests that don't
   # want to actually touch yabai state.
-  if [[ "${WS_ADD_GROW_YABAI:-1}" == 1 ]] && have yabai && pgrep -x yabai >/dev/null 2>&1; then
+  if [[ "${WS_GROW_YABAI_ON_ADD:-1}" == 1 ]] && have yabai && pgrep -x yabai >/dev/null 2>&1; then
     yabai -m space --create >/dev/null 2>&1 || true
   fi
 }
@@ -1101,8 +1116,8 @@ cmd_layout() {
       [[ $# -eq 1 ]] || { err "usage: ws layout save <NAME>"; exit 2; }
       [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || { err "layout name must be [A-Za-z0-9._-]+"; exit 2; }
       local dest="$layouts_dir/$1.json"
-      local tmp; tmp=$(mktemp) || { err "mktemp failed"; exit 1; }
-      cp "$WS_CONFIG" "$tmp" && mv -f "$tmp" "$dest"
+      local layout_staging; layout_staging=$(mktemp) || { err "mktemp failed"; exit 1; }
+      cp "$WS_CONFIG" "$layout_staging" && mv -f "$layout_staging" "$dest"
       ok "saved layout ${dest/#$HOME/~}"
       ;;
     load)
@@ -1120,8 +1135,8 @@ cmd_layout() {
       jq -e . "$src" >/dev/null 2>&1 || { err "layout is malformed JSON: $src"; exit 1; }
       _confirm "replace spaces.json with layout '$name'?" "$yes" \
         || { warn "aborted"; exit 1; }
-      local tmp; tmp=$(mktemp) || { err "mktemp failed"; exit 1; }
-      cp "$src" "$tmp" && mv -f "$tmp" "$WS_CONFIG"
+      local layout_staging; layout_staging=$(mktemp) || { err "mktemp failed"; exit 1; }
+      cp "$src" "$layout_staging" && mv -f "$layout_staging" "$WS_CONFIG"
       _fire_post layout "$name"
       _fire_cascade
       ;;
@@ -1261,10 +1276,10 @@ cmd_reset() {
   [[ -r "$WS_DEFAULTS" ]] || { err "defaults file not found: $WS_DEFAULTS"; exit 1; }
   _confirm "reset spaces.json to defaults from $WS_DEFAULTS?" "$yes" \
     || { warn "aborted"; exit 1; }
-  local tmp; tmp=$(mktemp) || { err "mktemp failed"; exit 1; }
-  cp -f "$WS_DEFAULTS" "$tmp"
-  jq -e . "$tmp" >/dev/null 2>&1 || { rm -f "$tmp"; err "defaults file is malformed"; exit 1; }
-  mv -f "$tmp" "$WS_CONFIG"
+  local defaults_staging; defaults_staging=$(mktemp) || { err "mktemp failed"; exit 1; }
+  cp -f "$WS_DEFAULTS" "$defaults_staging"
+  jq -e . "$defaults_staging" >/dev/null 2>&1 || { rm -f "$defaults_staging"; err "defaults file is malformed"; exit 1; }
+  mv -f "$defaults_staging" "$WS_CONFIG"
   _fire_post reset
   _fire_cascade
 }
@@ -1361,12 +1376,12 @@ cmd_doctor() {
   # if it ever misses an event (yabai down at destroy time, signal-storm
   # races, older deploys without the handler), orphans accumulate and
   # silently block `ws name` uniqueness checks against ghost slots.
-  # WS_SKIP_YABAI_BOUND=1 disables every yabai-derived bound (this drift
+  # WS_SKIP_YABAI_SLOT_CHECK=1 disables every yabai-derived bound (this drift
   # check + _resolve_slot's addressable bound + cmd_count's view). Set
   # by the verify harness, which intentionally grows the JSON beyond
   # yabai's real space count to give positional tests headroom without
   # touching yabai state.
-  if [[ "${WS_SKIP_YABAI_BOUND:-0}" != "1" ]] \
+  if [[ "${WS_SKIP_YABAI_SLOT_CHECK:-0}" != "1" ]] \
        && command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
     local yabai_n json_n
     yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || echo 0)

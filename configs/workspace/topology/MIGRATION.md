@@ -20,7 +20,7 @@ always `--apply` before reloading.
 | All `_doc_*` top-level keys | preserved | preserved |
 
 The on-disk shape is still a JSON object keyed by the slot index
-(`"1".."N"`). The `workspace` CLI's `_NORMALIZE` filter keeps it sorted
+(`"1".."N"`). The `workspace` CLI's `WS_NORMALIZE_JQ` filter keeps it sorted
 numerically AND actively strips any legacy `.icon` field that sneaks in.
 
 ## Migration rules (still applied on `ws-topology migrate`)
