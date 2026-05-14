@@ -45,29 +45,29 @@ if [[ -z "$app" ]]; then
   exit 1
 fi
 
-# The pgrep gate avoids the "two windows on first press" bug. When
-# the app is NOT already running, `tell app to activate` launches it
-# — and the launch creates the app's default startup window. Then
-# `make new window` would add a SECOND window. Two windows per press
-# when the app's cold.
-#
-# Branch:
-#   • App already running  → activate + make new window (1 new window).
-#   • App not running       → just `open -a` (1 window from the launch).
-#
-# -i (case-insensitive) is required for apps whose Finder name and
-# actual process name disagree on case — Ghostty.app runs as `ghostty`
-# (lowercase). Without -i, the gate misclassifies running Ghostty as
-# "not running", falls through to `open -a` (just activates the
-# running app), and the user gets silence instead of a new window.
+# Ghostty special-case. Ghostty's AppleScript dictionary doesn't
+# support `make new window` (returns -2710 / "Can't make class window")
+# AND `tell application "Ghostty" to activate` creates a default window
+# if none is currently visible — so the activate-then-make-window-then-
+# fallback chain we use for iTerm/Terminal/Chrome would land you with
+# TWO windows on Hyper+T when Ghostty has no visible window. Ghostty's
+# architecture is one-window-per-process, so each `open -na` invocation
+# reliably produces exactly one new window regardless of whether the
+# app is already running. Use it directly.
+if [[ "$app" == "Ghostty" ]]; then
+  open -na "$app" >/dev/null 2>&1 || true
+  exit 0
+fi
+
+# Other terminals: keep the activate + make-new-window chain with a
+# pgrep gate to avoid the original double-window bug on cold start.
+# -i (case-insensitive) so apps whose process name diverges from their
+# Finder name still match when running.
 if pgrep -ixq "$app" 2>/dev/null; then
   if ! osascript >/dev/null 2>&1 \
          -e "tell application \"$app\" to activate" \
          -e "tell application \"$app\" to make new window"; then
     # Dictionary missing `make new window` — fall back to `open -na`.
-    # Some terminals (kitty, Alacritty) interpret -n as "second app
-    # instance" rather than "new window of existing"; acceptable as
-    # a last resort.
     open -na "$app" >/dev/null 2>&1 || true
   fi
 else

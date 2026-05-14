@@ -107,7 +107,6 @@ Caps + t                      → new terminal window (auto-detect)
 Caps + b                      → new browser window (auto-detect)
 Caps + o                      → new Finder window  (o = open)
 Caps + s                      → System Settings
-Caps + c / m                  → Claude / Spotify
 Caps + ;                      → toggle cheatsheet
 Caps + tab / Shift + tab      → focus next / prev display
 Caps + Esc                    → no-op (preserved as muscle-memory panic key)
