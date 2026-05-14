@@ -143,8 +143,8 @@ ws icon 1 code            # set an SF Symbol icon (auto-maps to Nerd Font)
 ws color 1 "#a6e3a1"      # any hex
 ```
 
-The slot count is whatever yabai has — `Caps+1..0` focuses slot N,
-silently no-ops if N doesn't exist. Mission Control's `+` / `×` Space
+The slot count is whatever yabai has — `Caps+W → digit` focuses slot N,
+loudly notifies if N doesn't exist. Mission Control's `+` / `×` Space
 gestures keep the bar in lock-step (yabai's `space_created` /
 `space_destroyed` signals are wired to per-display-pills.sh and
 on-space-destroyed.sh).
@@ -196,7 +196,7 @@ reorder. Use `workspace color N #HEX` to change a slot's colour
 directly.
 
 **Visible-pill cap (notch-aware).** Notched MacBook Pros cap visible
-pills at 10 on the built-in display (matches the `Caps+1..0` hotkey
+pills at 10 on the built-in display (matches the `Caps+W → 1..0` focus
 range and the geometric constraint of the camera notch). Non-notched
 displays (externals, MBAir / 13" Pro built-in) show all assigned
 pills, centered between the left and right edges. Notch detection
@@ -425,7 +425,7 @@ yabai -m query --windows | jq '.[].app'           # tiler is live
 launchctl list | grep com.koekeishiya.skhd        # skhd PID > 0
 
 # Terminal + shell
-tmux show -gv prefix                              # → C-Space
+tmux show -gv prefix                              # → C-a
 zsh -ic 'bindkey | grep fzf-history-widget' | head -1
 zsh -ic 'type z' | head -1                        # zoxide function
 
