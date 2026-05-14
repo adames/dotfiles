@@ -17,11 +17,19 @@ let package = Package(
         .library(name: "LayoutPolicy", targets: ["LayoutPolicy"]),
         .library(name: "WorkspaceState", targets: ["WorkspaceState"]),
         .library(name: "AdaptersAppKit", targets: ["AdaptersAppKit"]),
+        .library(name: "WsUI", targets: ["WsUI"]),
     ],
     targets: [
         .target(
             name: "DisplayTopology",
             path: "Sources/DisplayTopology"
+        ),
+        // Shared SwiftUI helpers used by every overlay binary. Tiny by
+        // design — anything app-specific (palette, controllers) belongs
+        // in the executable target.
+        .target(
+            name: "WsUI",
+            path: "Sources/WsUI"
         ),
         .target(
             name: "LayoutPolicy",
@@ -60,11 +68,12 @@ let package = Package(
         ),
         .executableTarget(
             name: "ws-cheatsheet",
-            dependencies: ["DisplayTopology"],
+            dependencies: ["DisplayTopology", "WsUI"],
             path: "Sources/ws-cheatsheet"
         ),
         .executableTarget(
             name: "ws-prompt",
+            dependencies: ["WsUI"],
             path: "Sources/ws-prompt"
         ),
         .executableTarget(
