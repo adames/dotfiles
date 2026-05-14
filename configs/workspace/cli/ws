@@ -75,17 +75,89 @@ _require_config() {
 
 _count() { jq '.spaces | keys | map(tonumber) | length' "$WS_CONFIG"; }
 
+# Yabai's authoritative space count. 0 when yabai is absent / down / when
+# WS_SKIP_YABAI_BOUND=1 (the verify harness disables yabai-derived bounds
+# so it can exercise JSON-only state).
+_yabai_count() {
+  [[ "${WS_SKIP_YABAI_BOUND:-0}" == "1" ]] && { printf '0\n'; return; }
+  command -v yabai >/dev/null 2>&1 || { printf '0\n'; return; }
+  yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || printf '0\n'
+}
+
+# Addressable slot upper bound for CLI commands. Yabai owns existence —
+# when it reports N spaces, slots 1..N are addressable even if some
+# carry no JSON identity yet (identity writes lazy-seed). Falls back to
+# JSON keys when yabai is silent (Linux, harness). Never below _count
+# (defensive: orphan JSON metadata stays addressable so the user can
+# clean it up via `ws remove`).
+_addressable_max() {
+  local j y; j=$(_count); y=$(_yabai_count)
+  (( j > y )) && printf '%s\n' "$j" || printf '%s\n' "$y"
+}
+
+# Positional color from the factory defaults file, if it has one for this
+# slot. Falls back to the catppuccin pastel `cmd_add` uses. Single source
+# for both `cmd_add` and `_ensure_slot` so lazy-seeded slots look the
+# same as user-added ones.
+_default_color_for_slot() {
+  local slot="$1" color=""
+  if [[ -r "$WS_DEFAULTS" ]] && have jq; then
+    color=$(jq -r --arg k "$slot" '.spaces[$k].color // empty' "$WS_DEFAULTS" 2>/dev/null)
+  fi
+  printf '%s\n' "${color:-#cdd6f4}"
+}
+
+# Lazy-seed default entries up to slot N. Preserves the contiguous-keys
+# invariant the rest of the CLI assumes — every missing key in 1..N gets
+# a bare `wsK` entry shaped identically to `cmd_add`'s output, so doctor
+# stays green and reorder/theme/swap continue to work unchanged.
+# No-op if N already exists (or every key 1..N already exists).
+_ensure_slot() {
+  local target="$1" missing i color
+  missing=$(jq -r --argjson n "$target" '
+    [range(1; $n + 1)] - (.spaces | keys | map(tonumber))
+    | .[]
+  ' "$WS_CONFIG")
+  [[ -z "$missing" ]] && return 0
+  for i in $missing; do
+    color=$(_default_color_for_slot "$i")
+    _write '
+      .spaces[$k] = {
+        name: ("ws" + $k),
+        color: $c,
+        stableLogicalLabel: ("ws" + $k),
+        iconSpec: {
+          kind: "none",
+          fallbackSfSymbol: "circle.fill",
+          fallbackText: ("WS" | ascii_upcase),
+          userOverridden: false
+        }
+      }
+    ' --arg k "$i" --arg c "$color"
+  done
+}
+
 # Accept either a numeric slot index OR a slot name. Print the resolved
 # slot index to stdout. Exit 2 on no-match / ambiguous.
+#
+# Numeric input is bounded by `_addressable_max` (yabai-derived when
+# present), so any yabai-known slot is addressable even when it carries
+# no JSON identity yet. Name lookup stays JSON-only — names are an
+# identity concept, not an existence one; uncustomized slots have no
+# name to match.
 _resolve_slot() {
   local input="$1"
-  local n; n=$(_count)
+  local n; n=$(_addressable_max)
   if [[ "$input" =~ ^[1-9][0-9]*$ ]]; then
     if (( input >= 1 && input <= n )); then
       printf '%s\n' "$input"
       return 0
     fi
-    err "slot index out of range: $input (have $n slots)"
+    if (( n == 0 )); then
+      err "slot index out of range: $input (no spaces — Mission Control's + creates one)"
+    else
+      err "slot index out of range: $input (have $n)"
+    fi
     exit 2
   fi
   # Name lookup. Names must match exactly; uniqueness is enforced.
@@ -224,7 +296,7 @@ USAGE
 INSPECTION
   status [--json]            list all slots with color swatches
   get <SLOT> [--json]        dump slot as JSON
-  count                      print current slot count
+  count [--customized]       print addressable slot count (default: yabai's; --customized: JSON-key count)
   themes [--json]            list available themes
   doctor                     validate spaces.json schema
   verify                     run end-to-end cascade tests
@@ -280,17 +352,19 @@ cmd_status() {
     jq '.spaces' "$WS_CONFIG"
     return
   fi
+  # Row count is addressable_max (yabai reality when up, JSON keys
+  # otherwise) so the table mirrors the pill strip - uncustomized
+  # slots render with bare wsN / neutral defaults rather than being
+  # hidden. Mirrors paint-all.sh's yabai-owns-existence join.
+  local n; n=$(_addressable_max)
+  if (( n == 0 )); then
+    printf '(no spaces - Mission Control'\''s + creates one)\n'
+    return
+  fi
   printf '%-3s %-4s %-12s %-9s %s\n' '#' 'ICON' 'NAME' 'COLOR' ''
-  # Single jq pass yields one row per slot, fields separated by U+001F
-  # (Unit Separator). Why not \t: bash's `read` with whitespace IFS
-  # collapses consecutive separators, which misaligns fields when
-  # codepoint is empty (kind=none slot) — fallbackText would slide
-  # into the cp slot and ws_decode_icon would croak on "SM" or "CO".
-  # \x1f is non-whitespace, so empty fields are preserved verbatim.
-  # icon_escape is the iconSpec.codepoint (a `\uXXXX` or `\u{XXXXX}`
-  # string) which ws_decode_icon turns into the literal glyph at render
-  # time. fallback_text is iconSpec.fallbackText; shown when codepoint
-  # is absent so the column isn't structurally empty for kind=none slots.
+  # Single jq pass; fields separated by U+001F so empty fields
+  # (e.g. codepoint-less kind=none slots) align correctly under
+  # bash's whitespace IFS.
   while IFS=$'\x1f' read -r i name color cp ft; do
     local glyph
     if [[ -n "$cp" ]]; then
@@ -299,16 +373,17 @@ cmd_status() {
       glyph="$ft"
     fi
     printf '%-3s %-4s %-12s %-9s %s\n' "$i" "$glyph" "$name" "$color" "$(_swatch "$color")"
-  done < <(jq -r '
-    .spaces | to_entries
-    | sort_by(.key | tonumber)
-    | .[]
+  done < <(jq -r --argjson n "$n" '
+    . as $root
+    | [range(1; $n + 1) | tostring][]
+    | . as $k
+    | ($root.spaces[$k] // {}) as $meta
     | [
-        .key,
-        (.value.name // ""),
-        (.value.color // "#cdd6f4"),
-        (.value.iconSpec.codepoint // ""),
-        (.value.iconSpec.fallbackText // "")
+        $k,
+        ($meta.name // ("ws" + $k)),
+        ($meta.color // "#cdd6f4"),
+        ($meta.iconSpec.codepoint // ""),
+        ($meta.iconSpec.fallbackText // "")
       ]
     | join("")
   ' "$WS_CONFIG")
@@ -323,7 +398,14 @@ cmd_get() {
 
 cmd_count() {
   _require_config
-  _count
+  # Default: addressable count (matches what the user sees in the pill
+  # strip — yabai's reality). `--customized` returns just the JSON-key
+  # count for scripts that care about identity coverage.
+  if [[ "${1:-}" == "--customized" ]]; then
+    _count
+  else
+    _addressable_max
+  fi
 }
 
 cmd_themes() {
@@ -349,6 +431,7 @@ cmd_name() {
   [[ $# -eq 2 ]] || { err "usage: ws name <SLOT_OR_NAME> <NEW_NAME>"; exit 2; }
   local slot; slot=$(_resolve_slot "$1") || exit $?
   _validate_name_unique "$2" "$slot"
+  _ensure_slot "$slot"
   _write '.spaces[$k] = ((.spaces[$k] // {}) + {name: $v})' --arg k "$slot" --arg v "$2"
   _fire_post name "$slot"
   _fire_cascade
@@ -359,6 +442,7 @@ cmd_color() {
   [[ $# -eq 2 ]] || { err "usage: ws color <SLOT_OR_NAME> <#HEX>"; exit 2; }
   local slot; slot=$(_resolve_slot "$1") || exit $?
   _validate_color "$2"
+  _ensure_slot "$slot"
   _write '.spaces[$k] = ((.spaces[$k] // {}) + {color: $v})' --arg k "$slot" --arg v "$2"
   _fire_post color "$slot"
   _fire_cascade
@@ -488,6 +572,7 @@ cmd_icon() {
     }
   fi
 
+  _ensure_slot "$slot"
   _resolve_icon_input "$arg"
 
   # Decide kind: sfSymbol if we identified an SF name, else nerdFont when
@@ -1276,11 +1361,12 @@ cmd_doctor() {
   # if it ever misses an event (yabai down at destroy time, signal-storm
   # races, older deploys without the handler), orphans accumulate and
   # silently block `ws name` uniqueness checks against ghost slots.
-  # WS_DOCTOR_SKIP_DRIFT=1 bypasses the yabai-vs-json drift check. Used by
-  # the verify harness, which intentionally grows the JSON beyond yabai's
-  # real space count to give positional tests headroom without touching
-  # yabai state.
-  if [[ "${WS_DOCTOR_SKIP_DRIFT:-0}" != "1" ]] \
+  # WS_SKIP_YABAI_BOUND=1 disables every yabai-derived bound (this drift
+  # check + _resolve_slot's addressable bound + cmd_count's view). Set
+  # by the verify harness, which intentionally grows the JSON beyond
+  # yabai's real space count to give positional tests headroom without
+  # touching yabai state.
+  if [[ "${WS_SKIP_YABAI_BOUND:-0}" != "1" ]] \
        && command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
     local yabai_n json_n
     yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
