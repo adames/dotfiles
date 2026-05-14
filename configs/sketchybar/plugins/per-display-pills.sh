@@ -72,11 +72,21 @@ done
 #    of the chip doesn't shift when the focused-workspace name changes
 #    length (home → uplink → ridiculouslylongname). Set at --add time,
 #    never updated by paint-all.sh, so focus events stay geometry-stable.
-#    label.align=center horizontally centers the name in the fixed
-#    140pt slot; symmetric label padding keeps the centering visually
-#    true (asymmetric padding would shift the apparent center).
+#
+#    Centering math: sketchybar's `label.align=center` only centers text
+#    WITHIN the label's own rendering box — not within the parent item.
+#    With auto-sized label width, the label box hugs the text and the
+#    item lays out content left-anchored, leaving a large right-side
+#    gap. To actually center the name in the chip we (a) zero the
+#    off-icon's padding so the icon block has no width, and (b) force
+#    `label.width` to span the chip's visible interior (item width
+#    minus the bar's default bg padding). Then `label.align=center`
+#    centers the text within that wide label box, which IS the chip.
 #    ~140pt fits ~11 chars at 12pt bold; longer names truncate
 #    (acceptable trade vs. geometry instability).
+chip_width=140
+# bg.padding_left/right=8 each in --default → 16 of horizontal inset.
+label_width=$(( chip_width - 16 ))
 for d in $current_displays; do
   if ! grep -qx "$d" <<<"$existing_chips"; then
     sketchybar --add item "workspace.name.$d" left >/dev/null 2>&1 || true
@@ -88,11 +98,14 @@ for d in $current_displays; do
   # label.value and label.color.
   sketchybar --set "workspace.name.$d" \
     icon.drawing=off \
+    icon.padding_left=0 \
+    icon.padding_right=0 \
     label.drawing=on \
     label.align=center \
-    label.padding_left=8 \
-    label.padding_right=8 \
-    width=140 \
+    label.padding_left=0 \
+    label.padding_right=0 \
+    label.width="$label_width" \
+    width="$chip_width" \
     display="$d" \
     drawing=on \
     >/dev/null 2>&1 || true
