@@ -1,7 +1,6 @@
 # Architecture
 
-How Caps Lock becomes a window-focus command — and how the same key turns
-the rest of the keyboard into a coherent dev surface.
+Caps Lock is king of the dev surface.
 
 ## Layer stack
 
