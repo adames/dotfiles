@@ -28,7 +28,6 @@ MACOS_ONLY_PATHS=(
   "configs/workspace/topology/"
   "configs/workspace/on-space-changed.sh"
   "configs/workspace/on-space-destroyed.sh"
-  "configs/workspace/rename.sh"
   "configs/workspace/install.sh"
   "configs/workspace/hooks/"
   "configs/ghostty-config"
