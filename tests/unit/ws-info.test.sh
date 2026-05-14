@@ -31,7 +31,7 @@ export PATH="$TMP:$PATH"
 export HOME="$TMP"
 mkdir -p "$HOME/.config/workspace"
 cat > "$HOME/.config/workspace/spaces.json" <<'EOF'
-{"palette":"catppuccin-mocha","spaces":{"2":{"name":"forge","color":"#f9e2af","iconSpec":{"codepoint":"\\uf121"}}}}
+{"palette":"catppuccin-mocha","spaces":{"2":{"name":"home","color":"#f9e2af","iconSpec":{"codepoint":"\\uf121"}}}}
 EOF
 
 pass=0; fail=0
@@ -53,7 +53,7 @@ exit_ok=$?
   || { fail=$((fail + 1)); printf 'FAIL expected exit 0, got %s\n' "$exit_ok"; }
 
 _assert_log_contains "notification includes slot index"  "slot 2"
-_assert_log_contains "notification includes slot name"   "forge"
+_assert_log_contains "notification includes slot name"   "home"
 _assert_log_contains "notification includes hex color"   "#f9e2af"
 
 # ── Slot with no entry in spaces.json → falls back to "(unnamed)" ───────

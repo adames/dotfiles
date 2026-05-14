@@ -15,15 +15,15 @@ graph LR
   Mod --> skhd
   skhd -->|"yabai -m ..."| yabai
   skhd -->|Hyper+T osascript| Ghostty
-  skhd -->|Mod+arrows| WSSnap[ws-snap · AX]
   skhd -->|Hyper+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
+  yabai -->|window_created signal| WSStage[stage-window.sh]
 
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
   WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
   WorkspaceHandler -->|set-environment| tmux
 
   yabai --> Windows[(macOS Windows)]
-  WSSnap --> Windows
+  WSStage --> Windows
 
   Ghostty --> tmux
   tmux --> zsh
@@ -59,27 +59,31 @@ The two layers carry a consistent semantic split:
 | Layer | Role | Examples |
 |---|---|---|
 | **Hyper** | navigate / read-only | focus window (`hjkl`), focus mode (`w` → digit), focus display (`tab`), new terminal (`t`), launch app (`b`/`c`), cheatsheet (`;`), panic-exit (`esc`) |
-| **Mod**   | modify / destructive | swap window (`hjkl`), manage mode (`w` → `a`/`r`/`i`/`l`/`Shift+D`), focus prev display (`tab`), manual snap (`arrows`) |
+| **Mod**   | modify / destructive | swap window (`hjkl`), manage mode entry (`return`), focus prev display (`tab`) |
 
 Workspace targeting (focus and send-window-and-follow) lives in three
 transient skhd modes rather than direct number-row chords:
 
 | Trigger | Mode | What |
 |---|---|---|
-| `Hyper+W` | focus  | digit focuses slot N · `n`/`p`/`tab` cycle · `esc` exit |
-| `Ctrl+Space` (no Caps) | send | digit sends focused window to slot N + follow · `n`/`p` next/prev · `esc` exit |
-| `Mod+W` | manage | `a` add · `r` rename · `i` info · `l` list · `Shift+D` destroy (confirm) · `esc` exit |
-| `Hyper+Esc` | — | global panic exit from any mode |
+| `Caps + space`         | focus  | digit focuses slot N · `n`/`p`/`tab` cycle · `esc` exit |
+| `Caps + return`        | send   | digit sends focused window to slot N + follow · `n`/`p` next/prev · `esc` exit |
+| `Caps + Shift + return`| manage | `a` add · `r` rename · `i` info · `l` list · `Shift+D` destroy (confirm) · `esc` exit |
+| `Caps + Esc`           | —      | global panic exit from any mode |
+
+Entry chords use `return` and `space` because they're easier to hit
+than letter-based chords and group naturally: `return` for slot-targeted
+ops (send, manage), `space` for the navigation mode (focus).
 
 Workspace **numbers** stay the stable selector; `spaces.json`
 names/icons are display-only metadata.
 
-This is why the SIP-safe arrow snaps live on **Mod+arrows** rather than
-Hyper+arrows — snapping is "manually move this window," which belongs in
-the modify layer next to swap and send-to-space. It keeps the
-hjkl-vs-arrows distinction coherent: `hjkl` is always yabai-managed
-(tree-relative), arrows are always absolute-position (manual mode, for
-floating or unmanaged windows like Ghostty and System Settings).
+New windows are auto-staged centered on the focused space by a yabai
+`window_created` signal ([stage-window.sh](../configs/workspace/stage-window.sh))
+— so the previous Mod+arrow manual snap chords have been removed.
+Tile-vs-float remains the app/rule decision; the staging script
+centers + focuses only, and `Caps+f` toggles float for the case where
+the user wants a staged floating window committed to the BSP tiling.
 
 ## Who owns what
 
@@ -88,7 +92,8 @@ floating or unmanaged windows like Ghostty and System Settings).
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
 | Hyper/Mod hotkey dispatch (windows, spaces, app launchers, terminal, cheatsheet trigger) | skhd | `skhdrc` |
-| Floating-window snaps (Mod+arrows) | ws-snap (topology package, AX) | `configs/workspace/topology/Sources/ws-snap/` |
+| New-window staging (center if floating, focus, cross-space migrate) | bash + yabai `window_created` signal | `configs/workspace/stage-window.sh` |
+| AX absolute-snap CLI (manual use; no chord bound) | ws-snap (topology package, AX) | `configs/workspace/topology/Sources/ws-snap/` |
 | SketchyBar per-display autohide | ws-autohide (LaunchAgent, Swift) | `configs/workspace/topology/Sources/ws-autohide/` |
 | Cheatsheet HUD (SwiftUI) | ws-cheatsheet (topology package) | `configs/workspace/cheatsheet.json` + `configs/workspace/topology/Sources/ws-cheatsheet/` |
 | Cross-display topology (notch + aux geometry + per-display layout policy) | ws-topologyd (LaunchAgent, Swift) | `configs/workspace/topology/` |
@@ -108,7 +113,8 @@ floating or unmanaged windows like Ghostty and System Settings).
 - Anything that needs macOS API access is its own one-shot binary, shipped
   by the Swift package under `configs/workspace/topology/`:
   - **ws-snap** moves floating / yabai-unmanaged windows via the
-    Accessibility API (Mod+arrows). One process per keypress.
+    Accessibility API. Not bound to a chord today (kept as a manual
+    CLI for advanced use); the staging signal does the common case.
   - **ws-cheatsheet** is the SwiftUI HUD (Hyper+;).
   - **ws-autohide** is the only long-running helper — a launchd-managed
     cursor poller that hides each display's SketchyBar pills when the
@@ -127,7 +133,7 @@ Once you're in the terminal, the same hjkl + leader-key model continues:
 
 | Layer | Prefix / leader | Owns |
 |---|---|---|
-| **tmux**   | `C-a` (also `Hyper+Space` inside Ghostty) | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
+| **tmux**   | `C-a` | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
 | **zsh**    | (vi-mode `Esc`) | Vi normal-mode editing on the command line; fzf widgets `Ctrl-R/T`/`Alt-C`; zoxide `z` |
 | **Neovim** | `Space`         | LSP (`gd`/`K`/`gr`/`<leader>ca`/`<leader>rn`), find (`<leader>f*`), debug (`<leader>d*`), test (`<leader>t*`) |
 
@@ -218,10 +224,11 @@ ones.
   layout / edit / reset / doctor. Every mutation is atomic (mktemp + jq
   + mv) and fires the cascade. Slot count is derived dynamically; the
   system tolerates any count ≥ 1 even though the digit keys inside
-  `Hyper+W` focus mode address slots 1..10 directly (use `n`/`p` to
-  cycle beyond that). Any subcommand that takes a slot accepts either
-  a numeric index or a unique slot name. Slot add/destroy are bound
-  inside the `Mod+W` manage mode (`a` adds, `Shift+D` destroys with a
+  the `Caps + space` focus mode address slots 1..10 directly (use
+  `n`/`p` to cycle beyond that). Any subcommand that takes a slot
+  accepts either a numeric index or a unique slot name. Slot
+  add/destroy are bound inside the `Caps + Shift + return` manage
+  mode (`a` adds, `Shift+D` destroys with a
   confirm dialog) so the bar can grow/shrink without a terminal
   round-trip.
 - **Positional colors.** Reordering operations (`swap`, `move`,
@@ -244,8 +251,8 @@ ones.
   which display). Mission Control's `+` / `×` is the canonical way to
   add/remove. `spaces.json` layers optional IDENTITY (name, color, icon)
   on top — entries are looked up by yabai's space index. Missing entry
-  → bare gray `wsN` pill. The old `lib/colors.sh` WORKSPACE_LABELS array
-  (`core/forge/codex/…`), `reconcile-displays.sh`, `yabai-ensure-spaces.sh`,
+  → bare gray `wsN` pill. The old `lib/colors.sh` WORKSPACE_LABELS array,
+  `reconcile-displays.sh`, `yabai-ensure-spaces.sh`,
   and `laptop-uuid-init.sh` are all retired — they manipulated yabai
   state in service of a fixed per-slot layout that fought macOS's
   Mission Control instead of working with it.
@@ -334,7 +341,7 @@ the bar's `padding_left=8` handles the corner margin.
     │   │   ├── Sources/ws-topologyd/      # launchd agent (reconfig callback)
     │   │   ├── Sources/ws-cheatsheet/     # SwiftUI HUD (replaces cheatsheet.lua)
     │   │   ├── Sources/ws-autohide/       # SketchyBar per-display cursor-y auto-hide (launchd)
-    │   │   ├── Sources/ws-snap/           # Mod+arrows floating-window snap (AX, skhd-driven)
+    │   │   ├── Sources/ws-snap/           # AX absolute snap CLI (manual use; not currently bound)
     │   │   ├── Tests/                     # XCTest (full Xcode required)
     │   │   ├── launchd/*.plist            # LaunchAgents (topologyd + autohide)
     │   │   └── install.sh                 # builds + symlinks + load
