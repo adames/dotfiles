@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# yabai-stub — PATH-prepended fake `yabai` for unit-testing the mode
+# helpers (ws-focus, ws-send-follow, ws-info, ws-destroy-current).
+#
+# Behavior is driven entirely by environment variables so each test
+# can stage its own world without touching real yabai state:
+#
+#   YABAI_STUB_SPACES_JSON       JSON array of space objects returned
+#                                by `yabai -m query --spaces`. Default:
+#                                10 spaces with .index = 1..10.
+#   YABAI_STUB_FOCUSED_SPACE     Index of the "focused" space; used by
+#                                `yabai -m query --spaces --space`.
+#                                Default: 1.
+#   YABAI_STUB_FOCUSED_WINDOW    JSON object returned by
+#                                `yabai -m query --windows --window`,
+#                                or the literal "null" string to
+#                                simulate "no focused window". Default:
+#                                {"id":12345}.
+#   YABAI_STUB_FAIL              If set non-empty, the action commands
+#                                (`--space N`, `--focus N`) exit 1 to
+#                                simulate yabai not running / SA missing.
+#   YABAI_STUB_CALL_LOG          File path. If set, every invocation
+#                                is appended as a single line of
+#                                space-separated args. Tests assert
+#                                against this to verify "did we call
+#                                yabai with the right args?"
+#
+# The helpers under test only ever invoke yabai in five shapes; we
+# branch on the (subcommand, first-flag) pair and return canned data.
+
+set -u
+
+if [[ -n "${YABAI_STUB_CALL_LOG:-}" ]]; then
+  printf '%s\n' "$*" >> "$YABAI_STUB_CALL_LOG"
+fi
+
+# All helper calls are `yabai -m <domain> <action> [args]`. Skip the
+# leading `-m` so `$1` is the domain.
+[[ "${1:-}" == "-m" ]] && shift
+
+domain="${1:-}"
+action="${2:-}"
+arg="${3:-}"
+
+case "$domain $action" in
+  "query --spaces")
+    if [[ "$arg" == "--space" ]]; then
+      # Single focused-space query → just the one object.
+      idx="${YABAI_STUB_FOCUSED_SPACE:-1}"
+      printf '{"index":%s,"display":1}\n' "$idx"
+    else
+      # Full list query.
+      if [[ -n "${YABAI_STUB_SPACES_JSON:-}" ]]; then
+        printf '%s\n' "$YABAI_STUB_SPACES_JSON"
+      else
+        # Default: 10 spaces.
+        printf '['
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          [[ $i -gt 1 ]] && printf ','
+          printf '{"index":%d,"display":1}' "$i"
+        done
+        printf ']\n'
+      fi
+    fi
+    ;;
+  "query --windows")
+    if [[ "$arg" == "--window" ]]; then
+      printf '%s\n' "${YABAI_STUB_FOCUSED_WINDOW:-{\"id\":12345\}}"
+    else
+      printf '[]\n'
+    fi
+    ;;
+  "space --focus" | "window --space" | "space --create")
+    [[ -n "${YABAI_STUB_FAIL:-}" ]] && exit 1
+    exit 0
+    ;;
+  *)
+    # Unrecognized shape — print to stderr so a drifting helper is
+    # loud rather than silently green.
+    printf 'yabai-stub: unhandled invocation: %s\n' "$*" >&2
+    exit 2
+    ;;
+esac
