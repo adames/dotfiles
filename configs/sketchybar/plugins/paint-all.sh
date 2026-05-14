@@ -148,20 +148,50 @@ while IFS="$SEP" read -r idx name color codepoint user_overridden stable_label; 
       )
     fi
   fi
-done < <(jq -r --arg sep "$SEP" '
-  .spaces | to_entries
-  | sort_by(.key | tonumber)
-  | .[]
-  | [
-      .key,
-      (.value.name // ("ws" + .key)),
-      (.value.color // "#9399b2"),
-      (.value.iconSpec.codepoint // ""),
-      ((.value.iconSpec.userOverridden // false) | tostring),
-      (.value.stableLogicalLabel // (.value.name // ""))
-    ]
-  | join($sep)
-' "$CONFIG" 2>/dev/null)
+done < <(
+  # Drive the pill loop from yabai's spaces (source of truth for
+  # existence), join with spaces.json metadata for optional identity.
+  # If spaces.json has no entry for a yabai-reported space, the // ""
+  # fallbacks make it render as a bare pill (gray digit, no glyph).
+  # This is the "yabai owns existence, spaces.json owns identity"
+  # contract — paint reflects whatever Apple/yabai actually has.
+  if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
+    yabai -m query --spaces 2>/dev/null \
+      | jq -r --slurpfile cfg "$CONFIG" --arg sep "$SEP" '
+          . | sort_by(.index) | .[]
+          | . as $s
+          | ($s.index | tostring) as $k
+          | ($cfg[0].spaces[$k] // {}) as $meta
+          | (("ws" + $k)) as $default_name
+          | [
+              $k,
+              ($meta.name // $default_name),
+              ($meta.color // "#9399b2"),
+              ($meta.iconSpec.codepoint // ""),
+              (($meta.iconSpec.userOverridden // false) | tostring),
+              ($meta.stableLogicalLabel // ($meta.name // $default_name))
+            ]
+          | join($sep)
+        ' 2>/dev/null
+  else
+    # Fallback for headless / pre-yabai: emit rows for whatever
+    # spaces.json has (better than no pills at all).
+    jq -r --arg sep "$SEP" '
+      .spaces | to_entries
+      | sort_by(.key | tonumber)
+      | .[]
+      | [
+          .key,
+          (.value.name // ("ws" + .key)),
+          (.value.color // "#9399b2"),
+          (.value.iconSpec.codepoint // ""),
+          ((.value.iconSpec.userOverridden // false) | tostring),
+          (.value.stableLogicalLabel // (.value.name // ""))
+        ]
+      | join($sep)
+    ' "$CONFIG" 2>/dev/null
+  fi
+)
 
 # Per-display workspace name chip update. For each yabai display, find
 # the currently visible space and set workspace.name.<display>'s label
