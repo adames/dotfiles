@@ -27,13 +27,25 @@ enum ManageStage: Equatable {
 }
 
 /// What ManageController.handle returns. The caller (main.swift) executes
-/// `.runCommand` side-effects, captures the result, and feeds it back
-/// into the controller via `applyCommandResult(...)`. `.idle` means
-/// the view should re-render but no side effect runs. `.terminate`
-/// closes the overlay.
+/// the side-effect cases, captures the result, and feeds it back via
+/// `applyCommandResult(...)`. `.idle` means the view should re-render
+/// but no side effect runs. `.terminate` closes the overlay.
+///
+/// Two binaries get invoked from the manage flow:
+///
+///   ws    — identity layer over spaces.json (`ws name`, `ws layout`,
+///           `ws verify`, `ws doctor`). Output goes to the result panel.
+///   yabai — the actual macOS Space lifecycle (`--create`, `--destroy`).
+///           Requires the scripting-addition to be loaded.
+///
+/// `runAdd` is a composite: create the yabai space first, then attach
+/// identity via `ws name <new_index>`. main.swift drives the sequence so
+/// the state machine doesn't have to model two-stage execution.
 enum ManageAction: Equatable {
     case idle
-    case runCommand(verb: String, args: [String], capture: Bool)
+    case runWs(verb: String, args: [String])
+    case runYabai(verb: String, args: [String])
+    case runAdd(name: String, icon: String?)
     case terminate
 }
 
@@ -145,10 +157,10 @@ final class ManageController {
             stage = .layoutVerb;       return .idle
         case .char("v"), .char("V"):
             stage = .running(verb: "verify")
-            return .runCommand(verb: "verify", args: ["verify"], capture: true)
+            return .runWs(verb: "verify", args: ["verify"])
         case .char("?"):
             stage = .running(verb: "doctor")
-            return .runCommand(verb: "doctor", args: ["doctor"], capture: true)
+            return .runWs(verb: "doctor", args: ["doctor"])
         default:             return .idle
         }
     }
@@ -192,13 +204,18 @@ final class ManageController {
             // Icon resolution policy: empty → no icon (CLI default).
             // Single character → assume the user typed a Nerd Font glyph
             // directly; pass through. Multi-char → must exist in the
-            // SF Symbol → Nerd Font map, otherwise silently drop the
-            // icon arg so the workspace is created cleanly rather than
-            // with a placeholder glyph (which the CLI would warn about).
-            var args = ["add", name, ""]
-            if !buf.isEmpty && Self.iconResolvable(buf) { args.append(buf) }
+            // SF Symbol → Nerd Font map, otherwise silently drop it so
+            // the workspace is created cleanly rather than with a
+            // placeholder glyph (which the CLI would warn about).
+            //
+            // Composite execution: main.swift runs `yabai space --create`
+            // first to actually allocate the macOS Space, then attaches
+            // identity via `ws name <new_index> NAME [ICON]`. Without
+            // the yabai step the slot would be an orphan in spaces.json
+            // (the failure mode the CLI's `ws add` had on its own).
+            let icon: String? = (!buf.isEmpty && Self.iconResolvable(buf)) ? buf : nil
             stage = .running(verb: "add")
-            return .runCommand(verb: "add", args: args, capture: true)
+            return .runAdd(name: name, icon: icon)
         case .char(let c):
             stage = .addIcon(name: name, buffer: buf + String(c))
             return .idle
@@ -319,7 +336,7 @@ final class ManageController {
                 return .idle
             }
             stage = .running(verb: "name")
-            return .runCommand(verb: "name", args: ["name", String(slot), new], capture: true)
+            return .runWs(verb: "name", args: ["name", String(slot), new])
         case .char(let c):
             stage = .renameNewName(slot: slot, slotName: slotName, buffer: buf + String(c))
             return .idle
@@ -383,8 +400,16 @@ final class ManageController {
         switch key {
         case .escape:                return .terminate
         case .char("d"), .char("D"), .char("y"), .char("Y"), .enter:
-            stage = .running(verb: "remove")
-            return .runCommand(verb: "remove", args: ["remove", String(slot), "-y"], capture: true)
+            // Destroy the actual macOS Space. yabai's space_destroyed
+            // signal fires the cascade (on-space-destroyed.sh), which
+            // prunes the slot from spaces.json on its own — so we don't
+            // need a follow-up `ws remove`. Requires yabai's scripting
+            // addition to be loaded; failure surfaces in the result
+            // panel ("cannot destroy space due to an error with the
+            // scripting-addition.").
+            stage = .running(verb: "destroy")
+            return .runYabai(verb: "destroy",
+                             args: ["-m", "space", "--destroy", String(slot)])
         default:
             stage = .destroyTarget(filter: "", selection: focusedSelection, inQueryMode: false)
             return .idle
@@ -426,7 +451,7 @@ final class ManageController {
             let name = buf.trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty else { return .idle }
             stage = .running(verb: "layout save")
-            return .runCommand(verb: "layout save", args: ["layout", "save", name], capture: true)
+            return .runWs(verb: "layout save", args: ["layout", "save", name])
         case .char(let c):
             // Layout name validator (matches the CLI's [A-Za-z0-9._-]+).
             // Reject invalid chars early so the user sees the rule.
@@ -451,8 +476,8 @@ final class ManageController {
             switch mode {
             case .load:
                 stage = .running(verb: "layout load")
-                return .runCommand(verb: "layout load",
-                                   args: ["layout", "load", pick, "-y"], capture: true)
+                return .runWs(verb: "layout load",
+                              args: ["layout", "load", pick, "-y"])
             case .delete:
                 stage = .layoutDeleteConfirm(name: pick)
                 return .idle
@@ -481,8 +506,8 @@ final class ManageController {
         case .escape:                return .terminate
         case .char("d"), .char("D"), .char("y"), .char("Y"), .enter:
             stage = .running(verb: "layout delete")
-            return .runCommand(verb: "layout delete",
-                               args: ["layout", "delete", name, "-y"], capture: true)
+            return .runWs(verb: "layout delete",
+                          args: ["layout", "delete", name, "-y"])
         default:
             stage = .layoutVerb
             return .idle

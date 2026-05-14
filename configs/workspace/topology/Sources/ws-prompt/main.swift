@@ -234,8 +234,12 @@ func dispatchManage(_ key: PromptKey) {
     switch action {
     case .idle:                              return
     case .terminate:                         terminate()
-    case .runCommand(let verb, let args, let capture):
-        runWsCommand(verb: verb, args: args, capture: capture)
+    case .runWs(let verb, let args):
+        runManageCommand(verb: verb, binary: wsBinaryPath, args: args)
+    case .runYabai(let verb, let args):
+        runManageCommand(verb: verb, binary: WorkspaceLoader.resolveYabaiBinary(), args: args)
+    case .runAdd(let name, let icon):
+        runAddComposite(name: name, icon: icon)
     }
 }
 
@@ -252,22 +256,22 @@ func runHelper(_ name: String, _ arg: String...) {
     }
 }
 
-/// Run `ws <args>` and surface the result back into the manage flow.
-/// We capture stderr + stdout together because the CLI's `ok`/`err`
-/// helpers emit to stderr; the user wants to see all of it in the panel.
-/// Runs in the background so the UI thread isn't blocked; result is
-/// pushed back on the main queue.
-func runWsCommand(verb: String, args: [String], capture: Bool) {
-    let wsPath = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".local/bin/ws").path
+let wsBinaryPath = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent(".local/bin/ws").path
+
+/// Run a single external command (ws or yabai) and surface the result
+/// back into the manage flow. Captures stderr + stdout because the CLI's
+/// `ok`/`err` helpers emit to stderr; the user wants to see all of it
+/// in the result panel. Runs in the background so the UI thread isn't
+/// blocked; result is pushed back on the main queue.
+@discardableResult
+func runManageCommand(verb: String, binary: String, args: [String]) -> Process? {
     let task = Process()
-    task.executableURL = URL(fileURLWithPath: wsPath)
+    task.executableURL = URL(fileURLWithPath: binary)
     task.arguments = args
     let pipe = Pipe()
-    if capture {
-        task.standardOutput = pipe
-        task.standardError = pipe
-    }
+    task.standardOutput = pipe
+    task.standardError = pipe
 
     DispatchQueue.global(qos: .userInitiated).async {
         var output = ""
@@ -276,21 +280,127 @@ func runWsCommand(verb: String, args: [String], capture: Bool) {
             try task.run()
             task.waitUntilExit()
             success = (task.terminationStatus == 0)
-            if capture {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                output = String(data: data, encoding: .utf8) ?? ""
-            }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            output = String(data: data, encoding: .utf8) ?? ""
         } catch {
             output = "spawn failed: \(error)"
             success = false
         }
         DispatchQueue.main.async {
-            // On a clean success that's not doctor/verify, jump straight
-            // to a green "done" panel and let the user dismiss with any
-            // key. Errors always show the panel with the captured output
-            // so the user can read what went wrong.
             guard let ctl = manageController, let vm = manageVM else { return }
             ctl.applyCommandResult(verb: verb, success: success, output: output)
+            vm.stage = ctl.stage
+        }
+    }
+    return task
+}
+
+/// Composite "add" — create the yabai Space, then attach identity via
+/// `ws name <new_index> NAME [ICON]`. Run synchronously in a background
+/// queue and surface the combined result. Without this two-step the add
+/// path either creates an orphan macOS Space (ws-only) or an orphan
+/// spaces.json entry (yabai-only). Failure at step 1 (yabai SA not
+/// loaded) short-circuits; failure at step 2 leaves the new Space
+/// nameless but visible.
+func runAddComposite(name: String, icon: String?) {
+    let yabai = WorkspaceLoader.resolveYabaiBinary()
+    let body = "name=\(name)" + (icon.map { " icon=\($0)" } ?? "")
+
+    DispatchQueue.global(qos: .userInitiated).async {
+        // Step 1: create the macOS Space.
+        let create = Process()
+        create.executableURL = URL(fileURLWithPath: yabai)
+        create.arguments = ["-m", "space", "--create"]
+        let createPipe = Pipe()
+        create.standardOutput = createPipe
+        create.standardError = createPipe
+        do {
+            try create.run()
+            create.waitUntilExit()
+        } catch {
+            DispatchQueue.main.async {
+                guard let ctl = manageController, let vm = manageVM else { return }
+                ctl.applyCommandResult(verb: "add", success: false,
+                                       output: "yabai spawn failed: \(error)\n\(body)")
+                vm.stage = ctl.stage
+            }
+            return
+        }
+        if create.terminationStatus != 0 {
+            let data = createPipe.fileHandleForReading.readDataToEndOfFile()
+            let out = String(data: data, encoding: .utf8) ?? ""
+            DispatchQueue.main.async {
+                guard let ctl = manageController, let vm = manageVM else { return }
+                ctl.applyCommandResult(verb: "add", success: false,
+                                       output: "yabai space --create failed:\n\(out)\n\(body)")
+                vm.stage = ctl.stage
+            }
+            return
+        }
+
+        // Step 2: count yabai's spaces; the new slot is the highest
+        // index. Then attach identity via `ws name`.
+        let newIndex = WorkspaceLoader.querySpaceCount(yabaiBinary: yabai)
+        guard newIndex >= 1 else {
+            DispatchQueue.main.async {
+                guard let ctl = manageController, let vm = manageVM else { return }
+                ctl.applyCommandResult(verb: "add", success: false,
+                                       output: "yabai created the space but couldn't query the new count\n\(body)")
+                vm.stage = ctl.stage
+            }
+            return
+        }
+
+        // `ws name` takes only NAME — icon is set via `ws icon SLOT GLYPH`
+        // as a second call. Run inline so the composite result reflects
+        // the final state.
+        let nameTask = Process()
+        nameTask.executableURL = URL(fileURLWithPath: wsBinaryPath)
+        nameTask.arguments = ["name", String(newIndex), name]
+        let namePipe = Pipe()
+        nameTask.standardOutput = namePipe
+        nameTask.standardError = namePipe
+        var nameOut = ""
+        var nameOK = false
+        do {
+            try nameTask.run()
+            nameTask.waitUntilExit()
+            nameOK = (nameTask.terminationStatus == 0)
+            nameOut = String(data: namePipe.fileHandleForReading.readDataToEndOfFile(),
+                             encoding: .utf8) ?? ""
+        } catch {
+            nameOut = "ws name spawn failed: \(error)"
+        }
+
+        var iconOK = true
+        var iconOut = ""
+        if nameOK, let icon = icon {
+            let iconTask = Process()
+            iconTask.executableURL = URL(fileURLWithPath: wsBinaryPath)
+            iconTask.arguments = ["icon", String(newIndex), icon]
+            let iconPipe = Pipe()
+            iconTask.standardOutput = iconPipe
+            iconTask.standardError = iconPipe
+            do {
+                try iconTask.run()
+                iconTask.waitUntilExit()
+                iconOK = (iconTask.terminationStatus == 0)
+                iconOut = String(data: iconPipe.fileHandleForReading.readDataToEndOfFile(),
+                                 encoding: .utf8) ?? ""
+            } catch {
+                iconOK = false
+                iconOut = "ws icon spawn failed: \(error)"
+            }
+        }
+        DispatchQueue.main.async {
+            guard let ctl = manageController, let vm = manageVM else { return }
+            let success = nameOK && iconOK
+            let combined = [nameOut, iconOut].filter { !$0.isEmpty }.joined(separator: "\n")
+            ctl.applyCommandResult(verb: "add",
+                                   success: success,
+                                   output: combined.isEmpty
+                                            ? "slot \(newIndex) → \(name)"
+                                            : combined)
             vm.stage = ctl.stage
         }
     }
