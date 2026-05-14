@@ -34,7 +34,7 @@ Keyboard-first dev environment. Three rules:
         ▼
   ┌──────────────────────────────────────────────────────────┐
   │ inside the terminal: Ghostty → tmux → zsh → Neovim       │
-  │   tmux prefix = C-Space     leader = Space               │
+  │   tmux prefix = C-a         leader = Space               │
   │   shell: fzf · zoxide · starship · direnv · vi-mode      │
   │   nvim:  pyright + ruff + dap-python + neotest           │
   └──────────────────────────────────────────────────────────┘
@@ -72,7 +72,7 @@ Ghostty doesn't break zsh's line editor.
 | Per-slot workspace identity (color + icon + name → tmux + prompt + pills) | yabai signal + scripts | [`workspace/`](configs/workspace/) |
 | Hyper app launchers (browser, terminal, Finder, Settings, Claude, Spotify) | skhd | [`skhdrc`](configs/skhdrc) |
 | Terminal (Option = Meta) | Ghostty | [`ghostty-config`](configs/ghostty-config) |
-| `C-Space` prefix · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
+| `C-a` prefix (Hyper+Space in Ghostty too) · `prefix+f` sessionizer · vim-style nav | tmux | [`tmux.conf`](configs/tmux.conf) · [`tmux-sessionizer`](configs/tmux-sessionizer) |
 | zsh: vi-mode · starship · direnv · autosuggestions · syntax-highlighting | zsh | [`zshrc`](configs/zshrc) |
 | `Ctrl-R/T`, `Alt-C` (fd-backed) | fzf | wired in `zshrc` |
 | `z foo` jump to frecent dir | zoxide | wired in `zshrc` |
@@ -92,7 +92,7 @@ Caps tap                      → Esc
 
 # Hyper — navigate / open
 Caps + hjkl                   → focus window
-Caps + 1..9, 0                → focus slot N (0 = slot 10)
+Caps + w  → digit             → focus mode: focus slot N (0 = slot 10, n/p cycle)
 Caps + return / e / r         → fullscreen / balance / rotate
 Caps + t                      → new terminal window (auto-detect)
 Caps + b                      → new browser window (auto-detect)
@@ -100,18 +100,21 @@ Caps + f                      → new Finder window
 Caps + s                      → System Settings
 Caps + c / m                  → Claude / Spotify
 Caps + ;                      → toggle cheatsheet
+Caps + Esc                    → panic exit (returns to default from any mode)
 
 # Mod — modify
 Caps + Shift + hjkl           → swap window
-Caps + Shift + 1..9, 0        → send window to slot N (and follow)
+Caps + Shift + w → a/r/i/l/D  → manage mode: add / rename / info / list / Shift+D destroy
 Caps + Shift + f              → float / unfloat window
-Caps + Shift + r              → rename current workspace
-Caps + Shift + -              → remove current workspace
 Caps + Shift + ←→↑↓           → manual snap for floats / non-yabai windows
 
+# Send window (left-hand chord, no Caps hold)
+Ctrl + Space  → digit         → send mode: send focused window to slot N + follow (n/p next/prev)
+
 # Terminal
-C-Space  hjkl / v / s / z     → tmux pane nav / split / zoom
-C-Space  f                    → fzf project sessionizer
+C-a  hjkl / v / s / z         → tmux pane nav / split / zoom        (prefix = C-a)
+C-a  f                        → fzf project sessionizer
+Caps + Space                  → emits C-a inside Ghostty (alt entry to tmux prefix)
 
 # Neovim
 <leader>ff / fg / fb          → fzf files / live-grep / buffers

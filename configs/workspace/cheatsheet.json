@@ -29,11 +29,13 @@
     {
       "color": "#cba6f7",
       "title": "Workspace · slots",
-      "sub": "color = identity · rename via `ws name <slot> <new>`",
+      "sub": "number = stable selector · names/icons = display only",
       "rows": [
-        ["caps + 1..0", "focus slot N  (0 = slot 10)"],
-        ["caps + shift + 1..0", "send window to slot N + follow"],
-        ["caps + shift + -", "remove current slot  (ws remove $i -y)"],
+        ["caps + w", "focus mode → digit (focus slot) · n/p/tab (cycle) · esc to exit"],
+        ["ctrl + space", "send mode → digit (send window + follow) · n/p (next/prev) · esc to exit"],
+        ["caps + shift + w", "manage mode → a add · r rename · i info · l list · shift+d destroy · esc to exit"],
+        ["caps + shift + esc", "panic exit from any mode"],
+        ["—", "modes are sticky: press esc / return / q after the action to exit back to default"],
         ["—", "slot count tracks yabai; Mission Control + / × also updates the bar"],
         ["—", "slot 1 sticks to laptop; 2..N migrate to external when attached"]
       ]
@@ -54,22 +56,23 @@
     {
       "color": "#34d399",
       "title": "Tmux",
-      "sub": "prefix = ctrl-space",
+      "sub": "prefix = ctrl-a  ·  caps+space in Ghostty also fires prefix",
       "rows": [
-        ["C-space  hjkl", "select pane  ←  ↓  ↑  →"],
-        ["C-space  v / s", "split right / below  (mirrors vim Ctrl-w)"],
-        ["C-space  z", "zoom pane (toggle)"],
-        ["C-space  d", "detach session"],
-        ["C-space  r", "reload tmux.conf"],
-        ["C-space  [", "copy / scroll mode  (q to exit)"],
-        ["C-space  f", "sessionizer — fzf pick → switch/create session"],
-        ["C-space  c", "new window"],
-        ["C-space  n / p", "next / prev window"],
-        ["C-space  0…9", "go to window N"],
-        ["C-space  x", "kill pane  (no confirmation)"],
-        ["C-space  &", "kill window  (no confirmation)"],
-        ["C-space  $", "rename current session"],
-        ["C-space  C-space", "send literal C-space to program"]
+        ["C-a  hjkl", "select pane  ←  ↓  ↑  →"],
+        ["C-a  v / s", "split right / below  (mirrors vim Ctrl-w)"],
+        ["C-a  z", "zoom pane (toggle)"],
+        ["C-a  d", "detach session"],
+        ["C-a  r", "reload tmux.conf"],
+        ["C-a  [", "copy / scroll mode  (q to exit)"],
+        ["C-a  f", "sessionizer — fzf pick → switch/create session"],
+        ["C-a  c", "new window"],
+        ["C-a  n / p", "next / prev window"],
+        ["C-a  0…9", "go to window N"],
+        ["C-a  x", "kill pane  (no confirmation)"],
+        ["C-a  &", "kill window  (no confirmation)"],
+        ["C-a  $", "rename current session"],
+        ["C-a  C-a", "send literal C-a to program"],
+        ["—", "C-space is no longer the prefix — it now enters the send-window mode (see Workspace section)"]
       ]
     },
     {
