@@ -85,8 +85,23 @@ done
 #    ~140pt fits ~11 chars at 12pt bold; longer names truncate
 #    (acceptable trade vs. geometry instability).
 chip_width=140
-# bg.padding_left/right=8 each in --default → 16 of horizontal inset.
-label_width=$(( chip_width - 16 ))
+# Chip has no internal bg padding now — bg fills its entire slot, and
+# label.width spans the full chip so `align=center` centers the name in
+# the visible rectangle. (Earlier we used bg.padding_left/right=8 with
+# label.width = chip_width - 16. The 8-on-each-side inset interacted
+# awkwardly with the slot-rhythm math below, eating into the chip→pill
+# gap by exactly the chip's bg.padding_left. Setting it to 0 simplifies
+# both the centering and the layout.)
+label_width=$chip_width
+
+# Slot rhythm: the bar reads as alternating visible pills and invisible
+# pill-sized chunks of space. Pills measure ~43-44pt at 12pt bold; 44
+# is the round target. We achieve the rhythm via item padding_left — in
+# sketchybar that aliases background.padding_left, and the visible gap
+# from a pill's left edge to the previous item's right edge equals the
+# pill's padding_left (for pill→pill). Setting chip.padding_left=0 too
+# makes the chip→pill boundary follow the same rule.
+SLOT_GAP=44
 for d in $current_displays; do
   if ! grep -qx "$d" <<<"$existing_chips"; then
     sketchybar --add item "workspace.name.$d" left >/dev/null 2>&1 || true
@@ -106,6 +121,8 @@ for d in $current_displays; do
     label.padding_right=0 \
     label.width="$label_width" \
     width="$chip_width" \
+    padding_left=0 \
+    padding_right=0 \
     display="$d" \
     drawing=on \
     >/dev/null 2>&1 || true
@@ -119,12 +136,15 @@ done
 # 3. Pills — add missing, remove stale. Pills carry no per-item script
 #    and no event subscription — the centralized workspace.paint
 #    sentinel runs plugins/paint-all.sh for the batched per-pill render.
+#    `padding_left=$SLOT_GAP` is the invisible-pill-sized gap that
+#    appears before every pill. Re-applied unconditionally in step 5
+#    so existing pills from older deploys pick up the current value.
 for sid in $current_spaces; do
   if ! grep -qx "$sid" <<<"$existing_pills"; then
     sketchybar --add item "space.$sid" left \
                --set "space.$sid" \
                   click_script="yabai -m space --focus $sid" \
-                  padding_left=2 \
+                  padding_left="$SLOT_GAP" \
                   padding_right=0 \
                >/dev/null 2>&1 || true
   fi
@@ -155,10 +175,12 @@ if (( ${#order_args[@]} > 0 )); then
   sketchybar --reorder "${order_args[@]}" >/dev/null 2>&1 || true
 fi
 
-# 5. Per-display: assignment + drawing=on on every pill. No cap. The
-#    chip's display assignment was set at --add time; only pills need
-#    their display updated here (they may have moved between displays
-#    since the last sync). Batched into one sketchybar invocation.
+# 5. Per-display: assignment + drawing=on + padding on every pill. No
+#    cap. The chip's display assignment was set at --add time; pills
+#    need their display updated here (they may have moved between
+#    displays since the last sync). Padding is re-asserted unconditionally
+#    so an existing pill from an older deploy picks up the current gap
+#    without requiring a re-add. Batched into one sketchybar invocation.
 display_groups=$(
   echo "$spaces_json" \
     | jq -r '. | group_by(.display)[] | "\(.[0].display)\t\([.[].index | tostring] | join(","))"'
@@ -168,7 +190,7 @@ while IFS=$'\t' read -r display sid_csv; do
   [[ -z "$display" ]] && continue
   IFS=',' read -ra sids <<<"$sid_csv"
   for sid in "${sids[@]}"; do
-    set_args+=(--set "space.$sid" "display=$display" "drawing=on")
+    set_args+=(--set "space.$sid" "display=$display" "drawing=on" "padding_left=$SLOT_GAP" "padding_right=0")
   done
 done <<< "$display_groups"
 if (( ${#set_args[@]} > 0 )); then
