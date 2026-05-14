@@ -36,6 +36,24 @@ set -u
 command -v sketchybar >/dev/null 2>&1 || exit 0
 pgrep -x sketchybar >/dev/null 2>&1 || exit 0
 command -v yabai >/dev/null 2>&1 || exit 0
+
+# Wait briefly for yabai to respond. Boot-order race: sketchybarrc runs
+# this script during initial setup, but on a fresh login the
+# `brew services` restarts can fire before yabai's own service is
+# accepting RPCs — `yabai -m query --spaces` returns non-zero and we'd
+# bail without ever creating the workspace.name.<D> chip. Yabai signal
+# handlers later re-trigger this script ONLY on display add/remove or
+# space create/destroy; if neither happens, the chip stays missing for
+# the rest of the session.
+#
+# Retry loop: up to ~3s of 200ms backoff. When yabai is already up, the
+# first try succeeds and the loop costs nothing. When it's a slow
+# startup, we wait it out. After 3s without yabai we still exit 0,
+# preserving the original "headless / no-yabai" silent-bail behaviour.
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  yabai -m query --spaces >/dev/null 2>&1 && break
+  sleep 0.2
+done
 yabai -m query --spaces >/dev/null 2>&1 || exit 0
 
 spaces_json=$(yabai -m query --spaces 2>/dev/null)
