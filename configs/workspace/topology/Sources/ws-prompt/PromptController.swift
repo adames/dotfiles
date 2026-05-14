@@ -152,46 +152,11 @@ final class PromptController {
         return .refilter(query: query, matches: currentMatches().map(\.index))
     }
 
-    // MARK: - Fuzzy match
-    //
-    // Subsequence match, case-insensitive, scored by tightness. "hm"
-    // matches "home" (subsequence h…m) and "home-management". Ranking
-    // prefers earlier matches and shorter span. Good enough for a list of
-    // <20 workspaces; no full fzf algorithm needed.
-
+    // Sequence-aware fuzzy match — see FuzzyMatch.swift. "hm" matches
+    // both "home" and "home-management"; tighter, earlier matches sort
+    // first. Good enough for a list of <20 workspaces.
     func currentMatches() -> [Workspace] {
-        if query.isEmpty { return workspaces }
-        let q = query.lowercased()
-        var scored: [(Workspace, Int)] = []
-        for ws in workspaces {
-            if let score = Self.subseqScore(query: q, name: ws.name.lowercased()) {
-                scored.append((ws, score))
-            }
-        }
-        scored.sort { lhs, rhs in
-            if lhs.1 != rhs.1 { return lhs.1 < rhs.1 }
-            return lhs.0.index < rhs.0.index
-        }
-        return scored.map(\.0)
-    }
-
-    private static func subseqScore(query: String, name: String) -> Int? {
-        var qi = query.startIndex
-        var span = 0
-        var firstHit: Int? = nil
-        var lastHit: Int = 0
-        for (i, ch) in name.enumerated() {
-            if qi == query.endIndex { break }
-            if ch == query[qi] {
-                if firstHit == nil { firstHit = i }
-                lastHit = i
-                qi = query.index(after: qi)
-            }
-        }
-        guard qi == query.endIndex, let first = firstHit else { return nil }
-        span = lastHit - first
-        // Lower score wins: small span + early start.
-        return span * 100 + first
+        FuzzyMatch.filter(workspaces, query: query, keyPath: { $0.name })
     }
 }
 

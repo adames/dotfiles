@@ -196,9 +196,7 @@ struct ManageView: View {
     // gets the slot-color fill. The filter behaves like focus/send.
 
     private func targetPicker(filter: String, sel: Int) -> some View {
-        let matches = filter.isEmpty
-            ? vm.workspaces
-            : vm.workspaces.filter { $0.name.lowercased().contains(filter.lowercased()) }
+        let matches = FuzzyMatch.filter(vm.workspaces, query: filter, keyPath: { $0.name })
         let clampedSel = max(0, min(sel, max(0, matches.count - 1)))
         return VStack(alignment: .leading, spacing: 8) {
             textEntry(prompt: "filter by name (digit = slot), ↵ picks", buffer: filter)
@@ -302,9 +300,7 @@ struct ManageView: View {
 
     private func snapshotPicker(snaps: [String], filter: String,
                                 sel: Int, verb: String) -> some View {
-        let matches = filter.isEmpty
-            ? snaps
-            : snaps.filter { $0.lowercased().contains(filter.lowercased()) }
+        let matches = FuzzyMatch.filter(snaps, query: filter, keyPath: { $0 })
         let clampedSel = max(0, min(sel, max(0, matches.count - 1)))
         return VStack(alignment: .leading, spacing: 8) {
             textEntry(prompt: "filter layouts to \(verb), ↵ picks", buffer: filter)
