@@ -54,11 +54,14 @@ cmd + alt + ctrl + shift - return : "$HOME/.local/bin/ws-prompt" send   >/dev/nu
 cmd + alt + ctrl - return         : "$HOME/.local/bin/ws-prompt" manage >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - escape : :
 
-# --- displays -----------------------------------------------------------
-# Cycle focus between monitors. Scales past 10 spaces — useful with 3+
-# displays where digit-row bindings stop making sense.
-cmd + alt + ctrl + shift - tab : yabai -m display --focus next
-cmd + alt + ctrl - tab         : yabai -m display --focus prev
+# --- workspace cycle ---------------------------------------------------
+# Caps+Tab / Caps+Shift+Tab walk through workspaces in slot order with
+# wrap-around: 1 → 2 → … → N → 1. Goes through ws-focus so the
+# optimistic sketchybar pre-paint fires (pill snaps before yabai's
+# transition lands), and so we get loud-fail notifications if yabai
+# isn't responding.
+cmd + alt + ctrl + shift - tab : "$HOME/.local/bin/ws-focus" next
+cmd + alt + ctrl - tab         : "$HOME/.local/bin/ws-focus" prev
 
 # --- cheatsheet ---------------------------------------------------------
 # Hyper+; toggles the native SwiftUI HUD (ws-cheatsheet). The
