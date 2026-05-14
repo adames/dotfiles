@@ -114,7 +114,7 @@ Caps + Esc                    → no-op (preserved as muscle-memory panic key)
 
 # Mod — modify (destructive / lifecycle)
 Caps + Shift + hjkl           → swap window
-Caps + Shift + return → a/r/i/l/⇧D → manage workspace (overlay): add / rename / info / list / destroy
+ws add | name N x | remove N  → workspace lifecycle (CLI, not a chord)
 
 # Terminal
 C-a  hjkl / v / s / z         → tmux pane nav / split / zoom        (prefix = C-a)

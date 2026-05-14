@@ -16,8 +16,8 @@ graph LR
   skhd -->|"yabai -m ..."| yabai
   skhd -->|Hyper+T osascript| Ghostty
   skhd -->|Hyper+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
-  skhd -->|Caps+Space / Caps+Return / Caps+Shift+Return| WSPrompt[ws-prompt · SwiftUI overlay]
-  WSPrompt -->|ws-focus / ws-send-follow / ws-info / yabai| yabai
+  skhd -->|Caps+Space / Caps+Return| WSPrompt[ws-prompt · SwiftUI overlay]
+  WSPrompt -->|ws-focus / ws-send-follow| yabai
   yabai -->|window_created signal| WSStage[stage-window.sh]
 
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
@@ -61,24 +61,30 @@ The two layers carry a consistent semantic split:
 | Layer | Role | Examples |
 |---|---|---|
 | **Hyper** | navigate / read-only | focus window (`hjkl`), focus mode (`w` → digit), focus display (`tab`), new terminal (`t`), launch app (`b`/`c`), cheatsheet (`;`), panic-exit (`esc`) |
-| **Mod**   | modify / destructive | swap window (`hjkl`), manage mode entry (`return`), focus prev display (`tab`) |
+| **Mod**   | modify / destructive | swap window (`hjkl`), focus prev display (`tab`); workspace lifecycle lives in the `ws` CLI |
 
-Workspace targeting (focus, send-window-and-follow, manage) goes through
-a one-shot SwiftUI overlay (`ws-prompt`) rather than sticky skhd modes.
+Workspace targeting (focus, send-window-and-follow) goes through a
+one-shot SwiftUI overlay (`ws-prompt`) rather than sticky skhd modes.
 The overlay captures keystrokes itself and exits on commit / cancel /
 blur / Esc — so skhd never holds workspace state:
 
 | Trigger | Prompt | What |
 |---|---|---|
-| `Caps + space`         | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
-| `Caps + return`        | send   | digit commits + follow · letters fuzzy-match name + Enter |
-| `Caps + Shift + return`| manage | `a` add · `r` rename · `i` info · `l` list · `Shift+D` destroy (confirm) |
+| `Caps + space`          | focus | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
+| `Caps + return`         | send  | digit commits + follow · letters fuzzy-match name + Enter |
 | `Esc` / click-elsewhere | —     | cancels any prompt |
-| `Caps + Esc`           | —      | no-op (preserved as muscle-memory panic key) |
+| `Caps + Esc`            | —     | no-op (preserved as muscle-memory panic key) |
+
+Workspace **lifecycle** (add, rename, destroy) lives in the `ws` CLI —
+`ws add`, `ws name N <new>`, `ws remove N`. There is no chord; an
+earlier `Caps + Shift + return` manage palette was retired because the
+in-overlay dispatch to `space --create` / `ws-info` / `ws-destroy-current`
+was unreliable enough to be worse than typing the CLI.
 
 Entry chords use `return` and `space` because they're easier to hit
-than letter-based chords and group naturally: `return` for slot-targeted
-ops (send, manage), `space` for the navigation prompt (focus).
+than letter-based chords and group naturally: `return` for the
+slot-targeted send-and-follow op, `space` for the navigation prompt
+(focus).
 
 Workspace **numbers** stay the stable selector; `spaces.json`
 names/icons are display-only metadata. Names are constrained to start
@@ -100,7 +106,7 @@ the user wants a staged floating window committed to the BSP tiling.
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
 | Hyper/Mod hotkey dispatch (windows, spaces, app launchers, terminal, cheatsheet trigger) | skhd | `skhdrc` |
-| Workspace focus / send / manage prompts (one-shot SwiftUI overlay) | ws-prompt (topology package) | `configs/workspace/topology/Sources/ws-prompt/` |
+| Workspace focus / send prompts (one-shot SwiftUI overlay) | ws-prompt (topology package) | `configs/workspace/topology/Sources/ws-prompt/` |
 | New-window staging (center if floating, focus, cross-space migrate) | bash + yabai `window_created` signal | `configs/workspace/stage-window.sh` |
 | AX absolute-snap CLI (manual use; no chord bound) | ws-snap (topology package, AX) | `configs/workspace/topology/Sources/ws-snap/` |
 | SketchyBar per-display autohide | ws-autohide (LaunchAgent, Swift) | `configs/workspace/topology/Sources/ws-autohide/` |
@@ -125,10 +131,9 @@ the user wants a staged floating window committed to the BSP tiling.
     Accessibility API. Not bound to a chord today (kept as a manual
     CLI for advanced use); the staging signal does the common case.
   - **ws-cheatsheet** is the SwiftUI HUD (Hyper+;).
-  - **ws-prompt** is the SwiftUI overlay for workspace focus / send /
-    manage (Caps+Space, Caps+Return, Caps+Shift+Return). One-shot,
-    captures keys itself, exits on commit/cancel/blur — no skhd mode
-    state involved.
+  - **ws-prompt** is the SwiftUI overlay for workspace focus / send
+    (Caps+Space, Caps+Return). One-shot, captures keys itself, exits on
+    commit/cancel/blur — no skhd mode state involved.
   - **ws-autohide** is the only long-running helper — a launchd-managed
     cursor poller that hides each display's SketchyBar pills when the
     cursor approaches its top edge.
@@ -236,14 +241,14 @@ ones.
   icon / theme / add / remove / swap / move / rotate / reverse / reorder /
   layout / edit / reset / doctor. Every mutation is atomic (mktemp + jq
   + mv) and fires the cascade. Slot count is derived dynamically; the
-  system tolerates any count ≥ 1 even though the digit keys inside
-  the `Caps + space` focus mode address slots 1..10 directly (use
-  `n`/`p` to cycle beyond that). Any subcommand that takes a slot
-  accepts either a numeric index or a unique slot name. Slot
-  add/destroy are bound inside the `Caps + Shift + return` manage
-  mode (`a` adds, `Shift+D` destroys with a
-  confirm dialog) so the bar can grow/shrink without a terminal
-  round-trip.
+  system tolerates any count ≥ 1 even though digit keys in the
+  `Caps + space` focus prompt address slots 1..10 directly (type a
+  name + Enter to reach 11+, or `<letter><BS>11<CR>` to address it
+  numerically). Any subcommand that takes a slot accepts either a
+  numeric index or a unique slot name. Workspace lifecycle (add /
+  rename / destroy) is intentionally CLI-only: there's no chord,
+  because the earlier in-overlay manage palette dispatched unreliably
+  and was retired.
 - **Positional colors.** Reordering operations (`swap`, `move`,
   `rotate`, `reverse`, `reorder`) permute only the (name, icon) tuples
   — color stays anchored to slot index. This preserves muscle-memory

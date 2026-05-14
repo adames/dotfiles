@@ -2,13 +2,13 @@ import AppKit
 import Foundation
 import SwiftUI
 
-// ws-prompt <focus|send|manage> [--simulate-keys "<keys>"]
+// ws-prompt <focus|send> [--simulate-keys "<keys>"]
 //
 // Live mode: a transient SwiftUI overlay that captures keystrokes,
 // invokes the matching ws-* helper on commit, and exits. Replaces the
-// old skhd sticky modes (focus / send / manage). Nothing here owns a
-// persistent state — the overlay terminates on every commit, cancel,
-// blur, or SIGTERM.
+// old skhd sticky modes (focus / send). Nothing here owns a persistent
+// state — the overlay terminates on every commit, cancel, blur, or
+// SIGTERM.
 //
 // Simulate mode: headless, feeds `--simulate-keys` through the same
 // PromptController and prints the action it WOULD have taken. Used by
@@ -24,7 +24,7 @@ func parseMode(_ args: [String]) -> PromptMode? {
 }
 
 func usage() -> Never {
-    FileHandle.standardError.write(Data("usage: ws-prompt <focus|send|manage> [--simulate-keys \"<keys>\"]\n".utf8))
+    FileHandle.standardError.write(Data("usage: ws-prompt <focus|send> [--simulate-keys \"<keys>\"]\n".utf8))
     exit(2)
 }
 
@@ -143,12 +143,6 @@ NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
         case kVK_Tab:    return mods.contains(.shift) ? .backTab : .tab
         case kVK_Delete: return .backspace
         default:
-            // Manage mode is the only place Shift+D matters specifically.
-            if mode == .manage,
-               event.charactersIgnoringModifiers?.lowercased() == "d",
-               mods.contains(.shift) {
-                return .shiftD
-            }
             // Build a single-character key from the typed input. Use
             // charactersIgnoringModifiers so layout-mapped letters
             // (e.g. Dvorak) still resolve to the printable letter.
@@ -191,9 +185,6 @@ func dispatch(_ key: PromptKey) {
     case .commitSend(let slot):
         runHelper("ws-send-follow", String(slot))
         terminate()
-    case .commitManage(let manageAction):
-        runManageAction(manageAction)
-        terminate()
     }
 }
 
@@ -211,29 +202,6 @@ func runHelper(_ name: String, _ arg: String...) {
     }
     // Don't wait — let the helper finish on its own. The bash side is
     // fire-and-forget anyway.
-}
-
-func runManageAction(_ action: ManageAction) {
-    switch action {
-    case .add:
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: WorkspaceLoader.resolveYabaiBinary())
-        task.arguments = ["-m", "space", "--create"]
-        try? task.run()
-    case .rename:
-        let path = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/workspace/rename.sh").path
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = [path]
-        try? task.run()
-    case .info:
-        runHelper("ws-info")
-    case .list:
-        runHelper("ws-cheatsheet", "--toggle")
-    case .destroy:
-        runHelper("ws-destroy-current")
-    }
 }
 
 func terminate() -> Never {
