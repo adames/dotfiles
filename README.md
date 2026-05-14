@@ -88,7 +88,7 @@ Caps + f                       → toggle float / unfloat
 Caps + e / r                   → balance / rotate space
 Caps + t / b / o / s           → terminal / browser / Finder / System Settings
 Caps + ;                       → toggle cheatsheet HUD
-Caps + tab / Shift + tab       → focus next / prev display
+Caps + tab / Shift + tab       → cycle next / prev workspace (wraps 1↔N)
 Caps + Esc                     → no-op (preserved as muscle-memory panic key)
 
 # Mod — modify (destructive / lifecycle)

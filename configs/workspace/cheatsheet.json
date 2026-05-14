@@ -19,8 +19,8 @@
         ["caps + f",             "toggle float / unfloat  (unfloat = commit staged window to tiling)"],
         ["caps + e",             "balance space"],
         ["caps + r",             "rotate space 90°"],
-        ["caps + tab",           "focus next display"],
-        ["caps + shift + tab",   "focus prev display"]
+        ["caps + tab",           "cycle next workspace (wraps 1↔N)"],
+        ["caps + shift + tab",   "cycle prev workspace (wraps N↔1)"]
       ]
     },
     {

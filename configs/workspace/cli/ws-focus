@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# ws-focus <SLOT> — focus space N if it exists, else notify.
-# Called from ws-prompt's focus overlay (Caps+Space → digit/name).
-# yabai's `space --focus N` silently no-ops for nonexistent N (its
-# stderr message never surfaces), which is the existing UX bug
+# ws-focus <SLOT|next|prev> — focus space N (or cycle).
+# Called from ws-prompt's focus overlay (Caps+Space → digit/name) AND
+# directly from skhd's Caps+Tab / Caps+Shift+Tab chords for wrap-around
+# cycling. yabai's `space --focus N` silently no-ops for nonexistent N
+# (its stderr message never surfaces), which is the existing UX bug
 # we're fixing.
 set -u
 
@@ -12,10 +13,9 @@ target="${1:-}"
   exit 2
 }
 
-# One yabai RPC, three values extracted: total slot count, target's
-# display, current focused SID. Combining what used to be 2-3 separate
-# queries shaves ~30ms off the chord's perceived latency. `null` → ""
-# coerces missing fields without crashing on `set -u`.
+# One yabai RPC. Three values when `target` is a literal slot
+# (count + target_display + cur_sid); two when it's `next`/`prev`
+# (target_display gets resolved after we compute the target index).
 read -r count cur_sid target_disp < <(
   yabai -m query --spaces 2>/dev/null \
     | jq -r --arg t "$target" '
@@ -31,6 +31,27 @@ if [[ -z "$count" || ! "$count" =~ ^[0-9]+$ ]]; then
   osascript -e 'display notification "yabai unavailable" with title "ws"'
   exit 1
 fi
+
+# Resolve next/prev → literal slot index. Modulo wrap so 0..N stays
+# in-range and the last slot's `next` lands on slot 1 (and slot 1's
+# `prev` lands on the last). Cur defaults to 1 if yabai didn't surface
+# a focused space — the wrap math still produces a valid result.
+case "$target" in
+  next)
+    cur="${cur_sid:-1}"; [[ "$cur" == "0" ]] && cur=1
+    target=$(( cur % count + 1 ))
+    target_disp=$(yabai -m query --spaces 2>/dev/null \
+                  | jq -r --arg t "$target" \
+                      '.[] | select((.index|tostring) == $t) | .display' 2>/dev/null)
+    ;;
+  prev)
+    cur="${cur_sid:-1}"; [[ "$cur" == "0" ]] && cur=1
+    target=$(( (cur - 2 + count) % count + 1 ))
+    target_disp=$(yabai -m query --spaces 2>/dev/null \
+                  | jq -r --arg t "$target" \
+                      '.[] | select((.index|tostring) == $t) | .display' 2>/dev/null)
+    ;;
+esac
 
 if [[ "$target" =~ ^[0-9]+$ ]] && (( target < 1 || target > count )); then
   osascript -e "display notification \"slot $target does not exist (have $count)\" with title \"ws\""

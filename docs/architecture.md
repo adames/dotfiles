@@ -57,7 +57,7 @@ JSON specifics in [`configs/karabiner.md`](../configs/karabiner.md).
 
 | Layer | Role | Examples |
 |---|---|---|
-| **Hyper** | navigate / read-only | focus window (`hjkl`), focus workspace (`space`), focus display (`tab`), open app (`t`/`b`/`o`/`s`), cheatsheet (`;`) |
+| **Hyper** | navigate / read-only | focus window (`hjkl`), focus workspace (`space`), cycle workspace (`tab`), open app (`t`/`b`/`o`/`s`), cheatsheet (`;`) |
 | **Mod**   | modify / destructive | swap window (`hjkl`), manage workspace (`return`) |
 
 All workspace operations go through `ws-prompt`, a one-shot SwiftUI
