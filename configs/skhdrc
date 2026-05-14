@@ -14,26 +14,27 @@ cmd + alt + ctrl - j : yabai -m window --swap south
 cmd + alt + ctrl - k : yabai -m window --swap north
 cmd + alt + ctrl - l : yabai -m window --swap east
 
-# --- layout --------------------------------------------------------------
-# Zoom-fullscreen lives on Hyper+F (single-key chord, easy hit). The
-# previous Hyper+Return slot is now the send-mode entry. Toggle-float
-# and floating-window snaps live inside the float submode (see below).
+# --- layout / float -------------------------------------------------------
+# New windows are staged on the focused space by ~/.yabairc's
+# ws_stage_window signal: cross-space migrated, focused, and (if the
+# app/rule has them floating) centered. Tile-vs-float is the app's call.
+# Floating-staged windows have three exits:
+#   1. caps + return → digit  — send to another workspace (send mode)
+#   2. ⌘W                     — close
+#   3. caps + shift + f       — toggle float (unfloat = commit to tiling)
 cmd + alt + ctrl + shift - f      : yabai -m window --toggle zoom-fullscreen
 cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
+cmd + alt + ctrl - f              : yabai -m window --toggle float
 
-# --- workspace + window modes -------------------------------------------
-# Four transient submodes, all capturing (@) so unbound keys don't leak
+# --- workspace modes ----------------------------------------------------
+# Three transient submodes, all capturing (@) so unbound keys don't leak
 # to the foreground app while a mode is active:
 #
 #   focus    caps+space        → digit (focus space), n/p/tab cycle.
 #   send     caps+return       → digit (send window+follow), n/p.
 #   manage   caps+shift+return → a (add), r (rename), i (info),
 #                                l (list), shift+d (destroy).
-#   float    caps+shift+f      → f (toggle float), hjkl (snap left,
-#                                center, max, right). hjkl mirrors the
-#                                focus/swap directional grammar so
-#                                muscle memory carries over.
 #
 # Entry chords use return/space because they're easier to hit than the
 # old w/ctrl-space chords, and they group naturally: return for
@@ -53,7 +54,6 @@ cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 :: focus  @ : true
 :: send   @ : true
 :: manage @ : true
-:: float  @ : true
 
 # Mode entries (no shell command — `; mode` and `: command` cannot
 # coexist on one line). Hyper+Esc is the global panic-exit; bound to
@@ -62,7 +62,6 @@ cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 cmd + alt + ctrl + shift - space  ; focus
 cmd + alt + ctrl + shift - return ; send
 cmd + alt + ctrl - return         ; manage
-cmd + alt + ctrl - f              ; float
 cmd + alt + ctrl + shift - escape ; default
 
 # focus mode --------------------------------------------------------------
@@ -118,24 +117,6 @@ manage < escape ; default
 manage < return ; default
 manage < q      ; default
 manage < cmd + alt + ctrl + shift - escape ; default
-
-# float mode --------------------------------------------------------------
-# Float ops are infrequent and grouped — a mode amortises the entry chord
-# across multiple actions and keeps the default layer uncluttered. `f`
-# toggles regardless of current state, so the user never needs to know
-# whether the window is currently floating before entering the mode.
-#
-# Snap commands invoke ws-snap (AX-based absolute positioning). Calling
-# them on a tiled window is harmless — yabai re-tiles immediately.
-float < f      : yabai -m window --toggle float
-float < h      : "$HOME/.local/bin/ws-snap" left
-float < l      : "$HOME/.local/bin/ws-snap" right
-float < k      : "$HOME/.local/bin/ws-snap" max
-float < j      : "$HOME/.local/bin/ws-snap" center
-float < escape ; default
-float < return ; default
-float < q      ; default
-float < cmd + alt + ctrl + shift - escape ; default
 
 # --- displays -----------------------------------------------------------
 # Cycle focus between monitors. Scales past 10 spaces — useful with 3+
