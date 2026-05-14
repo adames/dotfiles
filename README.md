@@ -66,6 +66,7 @@ Ghostty doesn't break zsh's line editor.
 | Persistent workspace pill strip (always-visible per-display indicator) | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
 | Hyper/Mod hotkeys → yabai · terminal · app launchers · cheatsheet · snaps | skhd | [`skhdrc`](configs/skhdrc) |
 | Mod+arrow snaps for floating windows (AX) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
+| skhd-mode helpers: focus / send+follow / destroy / info (loud-fail wrappers around yabai) | bash | [`workspace/cli/ws-focus`](configs/workspace/cli/ws-focus) · [`ws-send-follow`](configs/workspace/cli/ws-send-follow) · [`ws-destroy-current`](configs/workspace/cli/ws-destroy-current) · [`ws-info`](configs/workspace/cli/ws-info) |
 | SketchyBar per-display autohide (cursor poller, LaunchAgent) | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cheatsheet HUD (native SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`workspace/cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Cross-display topology + per-display layout policy (notch-aware) | ws-topologyd (LaunchAgent) | [`workspace/topology/`](configs/workspace/topology) |
@@ -317,13 +318,13 @@ slot indices. Use `ws color N #HEX` to change a slot's color directly.
 (Orange always means slot 2, regardless of what's currently named
 there.)
 
-**Hotkey remove.** `Hyper+Shift+-` removes the currently focused slot
-(`ws remove $MACOS_SPACE_INDEX -y`). There's no companion add hotkey
-right now — the previous Hyper+Shift+= binding spawned a Ghostty window
-and typed `ws add` into it, which was unreliable; run `ws add` from
-your shell directly until we find a better entry point. Subcommands
-and slot identifiers tab-complete in zsh and bash when the completion
-file is sourced (handled by `zshrc` / `bashrc`).
+**Hotkey remove / add.** Both live inside the `Mod+W` manage mode —
+`Mod+W → Shift+D` destroys the current slot (with an osascript
+confirm dialog), and `Mod+W → a` calls `yabai -m space --create`
+(needs the scripting addition; falls back to a notification if SA
+isn't loaded). Subcommands and slot identifiers tab-complete in zsh
+and bash when the completion file is sourced (handled by `zshrc` /
+`bashrc`).
 
 **Slot identifiers.** Anywhere a slot is expected — `name`, `color`,
 `icon`, `get`, `remove`, `swap`, `move` — you can pass either a numeric
@@ -341,14 +342,12 @@ Canonical palettes shipped by bootstrap: `catppuccin-mocha` (default),
 `catppuccin-frappe`, `gruvbox-dark`, `tokyonight`, `rose-pine`.
 
 **Slot count is flexible.** The CLI derives the current count from
-`spaces.json` rather than hardcoding 10. `add` / `remove` are
-first-class, and the default post-mutate hook keeps the SketchyBar pill
-count in sync. Slot-focus hotkeys are *generated* on every mutation:
-`ws-topology emit-skhd --write` regenerates `~/.config/skhd/spaces.skhdrc`
-(loaded via `.load` from the main `skhdrc`) for `min(slotCount, 10)`
-slots — the 10-cap is a digit-keyboard hardware limit. Slots beyond 10
-are reachable via yabai's own CLI or a leader-prefix scheme you add
-manually.
+yabai rather than hardcoding 10. `add` / `remove` are first-class, and
+the default post-mutate hook keeps the SketchyBar pill count in sync.
+Slot-focus is digit-keyed inside the `Hyper+W` focus mode (`1..9` and
+`0` = slot 10) — the 10-cap is a digit-keyboard hardware limit. Slots
+beyond 10 are reachable via the mode's `n`/`p` cycle (which wraps
+through every existing slot) or via yabai's own CLI.
 
 **Per-host overlay.** Need different slot identities on your laptop vs
 desktop? `workspace host init` forks the shared `spaces.json` into
@@ -466,6 +465,9 @@ and re-links them. Tmux: `prefix + r`.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | "Karabiner installed but `.app` missing" | `installer -pkg` was interrupted; bootstrap re-runs the staged installer when TTY is present, or `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
+| `Ctrl+Space` switches input source instead of entering send mode | macOS's "Select previous input source" is still enabled. System Settings → Keyboard → Keyboard Shortcuts → Input Sources, uncheck both rows. (Or `/usr/libexec/PlistBuddy -c "Set :AppleSymbolicHotKeys:60:enabled false" ~/Library/Preferences/com.apple.symbolichotkeys.plist` and re-log.) |
+| Stuck in a skhd mode | Press `Caps + Esc` (panic exit, bound at default level and inside every mode). If that fails, `skhd --reload`. |
+| `Caps + W` / `Ctrl + Space` / `Caps + Shift + W` does nothing | Helpers missing — `ls ~/.local/bin/ws-{focus,send-follow,destroy-current,info}`. Re-run `macos/bootstrap.sh`. |
 | `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — re-run `~/.config/workspace/topology/install.sh` |
 | Workspace pills missing from menu/bottom bar | `sketchybar` not installed or service dead — `brew install FelixKratz/formulae/sketchybar` then `brew services restart sketchybar`. Pills painted but blank glyphs → Nerd Font not installed (`brew install --cask font-jetbrains-mono-nerd-font`) or wrong family name in `sketchybarrc` (must be `"JetBrainsMono Nerd Font"`). Verify with `osascript -e 'use framework "AppKit"' -e 'return (current application'\''s NSFontManager'\''s sharedFontManager'\''s availableFontFamilies()) as list'` and grep for JetBrains. |
 | Workspace pill doesn't update on space switch | `on-space-changed.sh` ran but sketchybar trigger silent — `sketchybar --trigger workspace_changed` to repaint; if that does nothing, `brew services restart sketchybar` |
