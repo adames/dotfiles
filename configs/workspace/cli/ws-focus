@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# ws-focus <SLOT> — focus space N if it exists, else notify.
+# Called from skhd `focus` mode (Hyper+W → digit). yabai's
+# `space --focus N` silently no-ops for nonexistent N (its stderr
+# message never surfaces), which is the existing UX bug we're fixing.
+set -u
+
+target="${1:-}"
+[[ -n "$target" ]] || {
+  osascript -e 'display notification "ws-focus: missing slot arg" with title "ws"'
+  exit 2
+}
+
+count=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null)
+if [[ -z "${count:-}" || ! "$count" =~ ^[0-9]+$ ]]; then
+  osascript -e 'display notification "yabai unavailable" with title "ws"'
+  exit 1
+fi
+
+if [[ "$target" =~ ^[0-9]+$ ]] && (( target < 1 || target > count )); then
+  osascript -e "display notification \"slot $target does not exist (have $count)\" with title \"ws\""
+  exit 1
+fi
+
+yabai -m space --focus "$target" 2>/dev/null || {
+  osascript -e "display notification \"yabai focus failed for $target\" with title \"ws\""
+  exit 1
+}

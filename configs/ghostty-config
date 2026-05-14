@@ -14,6 +14,13 @@ window-padding-y = 8
 # treats as a separate tile-able window — every Cmd+T halved the active
 # pane. Funnelling everything through new_window means yabai sees one
 # window per terminal and the BSP layout stays sane. Use tmux for in-window
-# splits (C-Space + v/s).
+# splits (C-a + v/s).
 keybind = cmd+t=new_window
 keybind = cmd+n=new_window
+
+# Hyper+Space → tmux prefix bridge (Ghostty-scoped).
+# \x01 is the SOH byte that terminals send as Ctrl-A — tmux's real
+# prefix. No `global:` prefix here, so the chord only fires when
+# Ghostty is the focused app; outside Ghostty it stays unbound.
+# Zig string-literal syntax demands the quotes for \xNN escapes.
+keybind = cmd+alt+ctrl+shift+space=text:"\x01"
