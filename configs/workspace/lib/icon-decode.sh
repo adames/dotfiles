@@ -2,9 +2,9 @@
 #
 # spaces.json (v2) stores icons as ASCII-escaped codepoints — `\uXXXX` for
 # BMP scalars or `\u{XXXXX}` for supplementary-plane scalars — never raw
-# PUA bytes. Every consumer (tmux env, starship chip, sketchybar pill,
-# borders) renders the same glyph, regardless of how the file is edited
-# or synced. This helper centralizes the unescape.
+# PUA bytes. Every consumer (tmux env, starship chip, sketchybar pill)
+# renders the same glyph, regardless of how the file is edited or
+# synced. This helper centralizes the unescape.
 #
 # Source it: `. "$HOME/.config/workspace/lib/icon-decode.sh"`
 #

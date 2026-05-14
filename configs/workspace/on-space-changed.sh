@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Refreshes ~/.cache/workspace/current.env from spaces.json + yabai state,
-# pushes vars into tmux global env, repaints the JankyBorders active
-# colour, and triggers the SketchyBar workspace-pill repaint.
+# pushes vars into tmux global env, and triggers the SketchyBar
+# workspace-pill repaint.
 #
 # Called from yabai signals (space_changed, display_changed), the rename
 # flow, and skhd manual-refresh. Idempotent. Silent on subsystem absence
-# — system stays usable even if tmux or borders is down.
+# — system stays usable even if tmux is down.
 
 set -u
 
@@ -136,17 +136,9 @@ fi
 # owns existence; spaces.json owns the optional display name. We don't
 # write labels back — Mission Control + / × is how spaces come and go,
 # and labels would just be a stale parallel state. Renames live in
-# tmux / starship / borders only.
+# tmux / starship only.
 
-# JankyBorders: paint the active-window border in the slot's colour.
-# Borders takes 0xAARRGGBB; strip the leading '#' from COLOR. Daemon
-# may not be running yet (e.g., fresh boot before yabairc launched it)
-# — silent on absence.
-if command -v borders >/dev/null 2>&1 && pgrep -x borders >/dev/null 2>&1; then
-  borders active_color="0xff${COLOR#\#}" 2>/dev/null || true
-fi
-
-# SketchyBar workspace pills. Fired AFTER current.env + tmux env + borders
+# SketchyBar workspace pills. Fired AFTER current.env + tmux env
 # are committed so every pill plugin reads the same state. The trigger is
 # a custom event registered in configs/sketchybar/sketchybarrc; a single
 # hidden `workspace.paint` sentinel item subscribes to it and runs

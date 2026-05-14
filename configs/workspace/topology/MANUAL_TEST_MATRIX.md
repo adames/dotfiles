@@ -41,13 +41,6 @@ system settings to toggle. Re-run when validating a release.
 | 18 | Reduce Motion enabled | System Settings → Accessibility → Display → Reduce motion | `layout.env` shows `WS_REDUCE_MOTION=1`; consumers can damp animations (configure sketchybar `animation_curve` if desired) |
 | 19 | Increase Contrast enabled | System Settings → Accessibility → Display → Increase contrast | `layout.env` shows `WS_INCREASE_CONTRAST=1` |
 
-## Side surfaces
-
-| # | Scenario | Setup | Expected |
-|---|---|---|---|
-| 20 | Border refresh on focus | Switch between two windows within same space | JankyBorders re-asserts `active_color = MACOS_SPACE_COLOR` on each focus change; visible via `log stream --process=borders --predicate 'eventMessage CONTAINS "active_color"'` |
-| 21 | Border survives daemon restart | `pkill borders && bordersrc` then focus a window | Active color matches the current workspace within one focus event |
-
 ## Hotkeys
 
 | # | Scenario | Setup | Expected |

@@ -65,7 +65,7 @@ else
 fi
 
 # Refresh the workspace identity surfaces. on-space-changed.sh
-# re-writes current.env, pushes tmux/borders, and triggers
+# re-writes current.env, pushes tmux env, and triggers
 # workspace_changed so paint-all.sh re-renders.
 [[ -x "$HOME/.config/workspace/on-space-changed.sh" ]] && \
   "$HOME/.config/workspace/on-space-changed.sh" >/dev/null 2>&1 || true

@@ -55,10 +55,12 @@ sketchybar --bar \
 # per-display `workspace.name.<D>` chip (created by per-display-pills.sh
 # as the leftmost item of each display's strip) — that keeps "where
 # am I" visible without resizing the pill chain.
-# Font family is "JetBrainsMono NF" with the space — that's the Core
-# Text registered family name (per `mdls -name kMDItemFonts ...`); the
-# no-space variant does not resolve and falls back to a non-Nerd-Font,
-# hiding all PUA glyphs.
+# Font family is "JetBrainsMono Nerd Font" — that's the Core Text
+# registered family name shipped by `font-jetbrains-mono-nerd-font`
+# (verify with `osascript -e 'use framework "AppKit"' …` or Font Book).
+# The obsolete `JetBrainsMono NF` short name no longer resolves on
+# modern cask installs and falls back to a non-Nerd-Font, hiding all
+# PUA glyphs.
 sketchybar --default \
   drawing=on \
   updates=when_shown \
@@ -67,10 +69,10 @@ sketchybar --default \
   background.height=22 \
   background.padding_left=8 \
   background.padding_right=8 \
-  icon.font="JetBrainsMono NF:Bold:12.0" \
+  icon.font="JetBrainsMono Nerd Font:Bold:12.0" \
   icon.padding_left=8 \
   icon.padding_right=8 \
-  label.font="JetBrainsMono NF:Bold:12.0"
+  label.font="JetBrainsMono Nerd Font:Bold:12.0"
 
 ##### space items (per-display, yabai-driven) ################################
 # Yabai is the source of truth for "what spaces exist and which display
