@@ -32,7 +32,7 @@
       "rows": [
         ["caps + space",          "focus prompt → digit · letters → name search + ↵"],
         ["caps + return",         "send prompt → digit (commit + follow) · letters + ↵"],
-        ["caps + shift + return", "manage prompt → a add · r rename · d destroy"],
+        ["caps + shift + return", "manage prompt → a add · r rename · i icon · d destroy"],
         ["    (in manage)",       "⇧L layout save/load/delete · v verify · ? doctor"],
         ["esc / click-elsewhere", "cancel any prompt"],
         ["—",                     "names cannot start with a digit · all-numeric query = slot index (11+)"]
