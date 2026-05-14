@@ -16,9 +16,13 @@ cmd + alt + ctrl - l : yabai -m window --swap east
 
 # --- layout / float ------------------------------------------------------
 cmd + alt + ctrl + shift - return : yabai -m window --toggle zoom-fullscreen
-cmd + alt + ctrl + shift - f      : yabai -m window --toggle float
 cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
+
+# Hyper+F is "open Finder" (see below). Toggle-float lives on Meh+F:
+# Meh is the "modify" layer (Hyper = navigate, Meh = modify), so
+# changing a window's tiled/floating state belongs here next to swap.
+cmd + alt + ctrl - f              : yabai -m window --toggle float
 
 # --- spaces (Hyper+digit focus, Meh+digit send window) -----------------
 # Inlined for simplicity. yabai silently no-ops on `--space N --focus`
@@ -40,6 +44,7 @@ cmd + alt + ctrl + shift - 6 : yabai -m space --focus 6
 cmd + alt + ctrl + shift - 7 : yabai -m space --focus 7
 cmd + alt + ctrl + shift - 8 : yabai -m space --focus 8
 cmd + alt + ctrl + shift - 9 : yabai -m space --focus 9
+cmd + alt + ctrl + shift - 0 : yabai -m space --focus 10
 
 cmd + alt + ctrl - 1 : yabai -m window --space 1 && yabai -m space --focus 1
 cmd + alt + ctrl - 2 : yabai -m window --space 2 && yabai -m space --focus 2
@@ -69,12 +74,9 @@ cmd + alt + ctrl + shift - 0x29 : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/
 
 # --- open terminal ------------------------------------------------------
 # Hyper+T → open a new terminal window in the current workspace.
-# Hyper+0 → focus the "code" workspace AND open a new terminal there
-#           (pairs with the "code" pill in the factory-default navbar).
 # Terminal app is auto-detected; no hardcoding here. Override the
 # detection with $WS_TERMINAL_APP. See configs/workspace/launch-terminal.sh.
 cmd + alt + ctrl + shift - t : "$HOME/.local/bin/ws-launch-terminal" >/dev/null 2>&1 &
-cmd + alt + ctrl + shift - 0 : "$HOME/.local/bin/ws-launch-terminal" code >/dev/null 2>&1 &
 
 # --- open browser -------------------------------------------------------
 # Hyper+B → open a new browser window in whatever browser is available.
@@ -82,6 +84,13 @@ cmd + alt + ctrl + shift - 0 : "$HOME/.local/bin/ws-launch-terminal" code >/dev/
 # → Firefox → Safari); no hardcoding. Override with $WS_BROWSER_APP.
 # See configs/workspace/launch-browser.sh.
 cmd + alt + ctrl + shift - b : "$HOME/.local/bin/ws-launch-browser" >/dev/null 2>&1 &
+
+# --- open Finder / Settings --------------------------------------------
+# Hyper+F → open a new Finder window. AppleScript dictionary (no
+# Accessibility permission required).
+# Hyper+S → activate macOS System Settings.
+cmd + alt + ctrl + shift - f : osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - s : open -a "System Settings"
 
 # --- app launchers (just activate; no new-window semantics) ------------
 cmd + alt + ctrl + shift - c : open -a "Claude"
