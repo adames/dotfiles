@@ -64,6 +64,12 @@ final class ManageController: ObservableObject {
     /// enters the layout sub-flow; cached after that.
     private var snapshotCache: [String]?
 
+    /// Host wires this up to dismiss the overlay window. Called on
+    /// command-completion success so the user doesn't have to press a
+    /// key to acknowledge an "ok" result. Failures still flow through
+    /// `.result(...)` because the error output is the whole point.
+    var onTerminate: (() -> Void)?
+
     init(workspaces: [Workspace],
          focusedIndex: Int? = nil,
          service: WorkspaceService) {
@@ -571,22 +577,29 @@ final class ManageController: ObservableObject {
     // MARK: - Command dispatch
 
     /// Transition to `.running(verb:)`, kick off the side effect, and
-    /// flip to `.result(...)` when it completes. `runner` is whichever
-    /// of `service.runWs / runYabai / runAdd` makes sense for this
-    /// verb — the controller just composes the dispatch contract here
-    /// so every verb shares the running → result transition.
+    /// either auto-dismiss on success or flip to `.result(...)` on
+    /// failure. `runner` is whichever of `service.runWs / runYabai /
+    /// runAdd` makes sense for this verb — the controller composes the
+    /// dispatch contract here so every verb shares the
+    /// running → done | error transition.
     private func dispatch(verb: String,
                           runner: (@escaping (CommandResult) -> Void) -> Void) {
         stage = .running(verb: verb)
         runner { [weak self] result in
-            // Completion already fires on the main queue (the service
-            // contract); SwiftUI doesn't care which queue published the
-            // change, but @Published-driven view updates have to be on
-            // main.
-            self?.stage = .result(
-                title: result.success ? "\(verb): ok" : "\(verb): failed",
+            guard let self else { return }
+            if result.success {
+                // Skip the "ok" panel — it's an extra keystroke the
+                // user doesn't owe us. The visible result is in the
+                // bar (pill highlight, chip label, etc.). Errors
+                // still flow into the result panel because the body
+                // carries the actual diagnostic.
+                self.onTerminate?()
+                return
+            }
+            self.stage = .result(
+                title: "\(verb): failed",
                 body: result.output.trimmingCharacters(in: .whitespacesAndNewlines),
-                success: result.success
+                success: false
             )
         }
     }
