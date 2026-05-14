@@ -74,6 +74,20 @@ command -v sketchybar >/dev/null 2>&1 || exit 0
 
 ACTIVE_SID=0
 ACTIVE_DISPLAY=0
+# Optimistic pre-paint override: ws-focus / ws-send-follow fire this
+# trigger with the target SID + DISPLAY *before* invoking yabai's
+# space --focus, so the pill snaps to the target the instant the user
+# commits the chord — well before yabai's transition animation + the
+# space_changed cascade would otherwise land. The cascade fires this
+# same paint again afterward with the now-real values from yabai; the
+# two paints land on the same state, so no visible flicker.
+#
+# Override is dropped on the second pass because the cascade trigger
+# from on-space-changed.sh doesn't propagate these env vars.
+if [[ -n "${WS_OPTIMISTIC_SID:-}" ]]; then
+  ACTIVE_SID="$WS_OPTIMISTIC_SID"
+  ACTIVE_DISPLAY="${WS_OPTIMISTIC_DISPLAY:-1}"
+fi
 # Authoritative focus from yabai. current.env is updated by
 # on-space-changed.sh, which fires on yabai's `space_changed`. Some
 # focus changes — particularly cross-display mouse clicks or non-yabai-
@@ -81,7 +95,9 @@ ACTIVE_DISPLAY=0
 # leaving the cascade cache stale. paint-all.sh ran with the old cache
 # and lit the wrong chip. Querying yabai inside paint-all.sh makes the
 # chip self-correcting on every repaint regardless of cascade state.
-if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces --space >/dev/null 2>&1; then
+if [[ "$ACTIVE_SID" == 0 ]] \
+   && command -v yabai >/dev/null 2>&1 \
+   && yabai -m query --spaces --space >/dev/null 2>&1; then
   read -r ACTIVE_SID ACTIVE_DISPLAY < <(
     yabai -m query --spaces --space 2>/dev/null \
       | jq -r '"\(.index) \(.display)"' 2>/dev/null
@@ -240,6 +256,20 @@ done < <(
 if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
   while IFS="$SEP" read -r d_idx s_idx s_name s_color; do
     [[ -z "$d_idx" || -z "$s_idx" ]] && continue
+    # Optimistic pre-paint: on the target display, force the chip's
+    # visible-space view to the optimistic SID (and pick up that
+    # slot's identity from spaces.json) so the chip's label + colour
+    # don't lag a frame behind the pill highlight.
+    if [[ -n "${WS_OPTIMISTIC_SID:-}" && "$d_idx" == "${WS_OPTIMISTIC_DISPLAY:-}" ]]; then
+      s_idx="$WS_OPTIMISTIC_SID"
+      read -r s_name s_color < <(
+        jq -r --arg k "$s_idx" '
+          [ (.spaces[$k].name  // ("ws" + $k)),
+            (.spaces[$k].color // "#cdd6f4") ]
+          | @tsv
+        ' "$CONFIG" 2>/dev/null
+      )
+    fi
     [[ -z "$s_name" ]] && s_name="ws$s_idx"
     [[ -z "$s_color" ]] && s_color="#cdd6f4"
     slot_hex="0xff${s_color#\#}"

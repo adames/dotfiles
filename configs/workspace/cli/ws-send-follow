@@ -45,4 +45,21 @@ if ! yabai -m window --space "$target" 2>/dev/null; then
   osascript -e "display notification \"send to slot $target failed\" with title \"ws\""
   exit 1
 fi
+
+# Optimistic pre-paint (same pattern as ws-focus): tell sketchybar the
+# new active SID + DISPLAY before yabai's transition lands, so the pill
+# snaps the instant the chord commits. The cascade fires the same
+# paint redundantly after space_changed; no flicker. Best-effort —
+# sketchybar missing falls back to legacy cascade timing.
+if command -v sketchybar >/dev/null 2>&1; then
+  disp=$(yabai -m query --spaces 2>/dev/null \
+         | jq -r --arg t "$target" \
+             '.[] | select((.index|tostring) == $t) | .display' 2>/dev/null)
+  if [[ -n "${disp:-}" ]]; then
+    sketchybar --trigger workspace_changed \
+      WS_OPTIMISTIC_SID="$target" \
+      WS_OPTIMISTIC_DISPLAY="$disp" >/dev/null 2>&1 || true
+  fi
+fi
+
 yabai -m space --focus "$target" 2>/dev/null
