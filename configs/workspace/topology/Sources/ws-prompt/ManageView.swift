@@ -70,6 +70,8 @@ struct ManageView: View {
         case .addName, .addIcon:  return "ADD"
         case .renameTarget, .renameNewName: return "RENAME"
         case .destroyTarget, .destroyConfirm: return "DESTROY"
+        case .iconTarget:         return "ICON"
+        case .iconPick:           return "ICON · PICK"
         case .layoutVerb:         return "LAYOUT"
         case .layoutSaveName:     return "LAYOUT · SAVE"
         case .layoutLoadPick:     return "LAYOUT · LOAD"
@@ -86,6 +88,7 @@ struct ManageView: View {
         case .renameTarget, .renameNewName:    return Catppuccin.blue
         case .destroyTarget, .destroyConfirm,
              .layoutDeleteConfirm:             return Catppuccin.maroon
+        case .iconTarget, .iconPick:           return Catppuccin.blue
         case .layoutSaveName, .layoutLoadPick, .layoutDeletePick: return Catppuccin.blue
         case .running:                         return Catppuccin.overlay1
         case .result(_, _, let ok):            return ok ? Catppuccin.green : Catppuccin.maroon
@@ -104,6 +107,8 @@ struct ManageView: View {
         case .renameNewName(_, let nm, let buf):       textEntry(prompt: "rename \"\(nm)\" →", buffer: buf)
         case .destroyTarget(let f, let s, _):          targetPicker(filter: f, sel: s)
         case .destroyConfirm(let i, let nm):           destroyConfirmView(slot: i, name: nm)
+        case .iconTarget(let f, let s, _):             targetPicker(filter: f, sel: s)
+        case .iconPick(_, let nm, let f, let s):       iconPicker(slotName: nm, filter: f, sel: s)
         case .layoutVerb:                              layoutVerbView
         case .layoutSaveName(let buf):                 textEntry(prompt: "layout name (letters / digits / . _ -)", buffer: buf)
         case .layoutLoadPick(let snaps, let f, let s): snapshotPicker(snaps: snaps, filter: f, sel: s, verb: "load")
@@ -120,6 +125,7 @@ struct ManageView: View {
         VStack(spacing: 6) {
             verbRow(key: "a",  desc: "add workspace",         color: Catppuccin.green)
             verbRow(key: "r",  desc: "rename workspace",      color: Catppuccin.blue)
+            verbRow(key: "i",  desc: "set workspace icon",    color: Catppuccin.blue)
             verbRow(key: "d",  desc: "destroy workspace",     color: Catppuccin.maroon)
             verbRow(key: "⇧L", desc: "layout — save / load / delete", color: Catppuccin.blue)
             verbRow(key: "v",  desc: "verify cascade (ws verify)",    color: Catppuccin.subtext0)
@@ -337,6 +343,64 @@ struct ManageView: View {
         )
     }
 
+    // MARK: - Icon picker
+
+    /// Fuzzy-filter list of (SF name, glyph) entries from the
+    /// SF Symbol → Nerd Font catalog. Each row previews the glyph in
+    /// Nerd Font alongside its name; the selection writes
+    /// `ws icon SLOT <sf-name>`. Catalog comes from
+    /// `~/.config/workspace/lib/sf-to-nerd.json` via the service.
+    private func iconPicker(slotName: String, filter: String,
+                            sel: Int) -> some View {
+        let matches = FuzzyMatch.filter(controller.iconCatalogCached,
+                                        query: filter,
+                                        keyPath: { $0.sfName })
+        let clampedSel = max(0, min(sel, max(0, matches.count - 1)))
+        return VStack(alignment: .leading, spacing: 8) {
+            textEntry(prompt: "icon for \"\(slotName)\" — fuzzy-filter, ↵ commits",
+                      buffer: filter)
+            ScrollView {
+                VStack(spacing: 4) {
+                    ForEach(Array(matches.enumerated()), id: \.offset) { (idx, entry) in
+                        iconRow(entry: entry, selected: idx == clampedSel)
+                    }
+                    if matches.isEmpty {
+                        Text("no matching icons")
+                            .font(.system(size: 11))
+                            .foregroundColor(Catppuccin.overlay0)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                }
+            }
+            .frame(maxHeight: 280)
+        }
+    }
+
+    private func iconRow(entry: IconCatalogEntry, selected: Bool) -> some View {
+        HStack(spacing: 12) {
+            // Nerd Font glyph preview — same family the bar paints with.
+            Text(entry.glyph)
+                .font(PromptStyle.nerd(14))
+                .foregroundColor(selected ? Catppuccin.base : Catppuccin.subtext0)
+                .frame(width: 28, alignment: .center)
+            Text(entry.sfName)
+                .font(PromptStyle.nerd(12))
+                .foregroundColor(selected ? Catppuccin.base : Catppuccin.text)
+            Spacer()
+        }
+        .padding(.horizontal, 10)
+        .frame(height: PromptStyle.pillHeight + 6)
+        .background(
+            RoundedRectangle(cornerRadius: PromptStyle.pillCorner)
+                .fill(selected ? Catppuccin.blue : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: PromptStyle.pillCorner)
+                        .strokeBorder(Catppuccin.blue.opacity(selected ? 1 : 0.55), lineWidth: 1.5)
+                )
+        )
+    }
+
     // MARK: - Running + result
 
     private func runningView(verb: String) -> some View {
@@ -384,6 +448,8 @@ struct ManageView: View {
         case .renameNewName:     return "type a new name · ↵ commits · esc backs out"
         case .destroyTarget:     return "↵ destroys focused · digit = slot · letters fuzzy-match · esc backs out"
         case .destroyConfirm:    return "press d / y / ↵ to confirm · esc backs out"
+        case .iconTarget:        return "↵ picks focused · digit = slot · letters fuzzy-match · esc backs out"
+        case .iconPick:          return "letters fuzzy-match · tab cycles · ↵ commits · esc backs out"
         case .layoutVerb:        return "s save · l load · x delete · esc backs out"
         case .layoutSaveName:    return "name your snapshot · ↵ commits · esc backs out"
         case .layoutLoadPick, .layoutDeletePick: return "letters filter · tab cycles · ↵ picks · esc backs out"

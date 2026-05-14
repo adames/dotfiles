@@ -8,6 +8,14 @@ struct CommandResult: Equatable {
     let output: String
 }
 
+/// One entry in the SF Symbol → Nerd Font catalog. Used by the manage
+/// overlay's icon picker to fuzzy-search the catalog and preview the
+/// glyph alongside its name.
+struct IconCatalogEntry: Equatable {
+    let sfName: String   // "play.fill"
+    let glyph: String    // "\u{F04B}" — single Nerd Font character
+}
+
 /// The single seam between the controllers and the outside world.
 ///
 /// Everything that talks to yabai, the `ws` CLI, or the file system
@@ -26,6 +34,10 @@ protocol WorkspaceService {
     func focusedSpaceIndex() -> Int?
     func listSnapshots() -> [String]
     func iconResolvable(_ name: String) -> Bool
+    /// SF Symbol → Nerd Font catalog. Read from
+    /// ~/.config/workspace/lib/sf-to-nerd.json. Sorted alphabetically by
+    /// SF name for stable picker order.
+    func iconCatalog() -> [IconCatalogEntry]
 
     // MARK: Async commands (capture stdout+stderr; complete on main queue)
     func runWs(args: [String], completion: @escaping (CommandResult) -> Void)

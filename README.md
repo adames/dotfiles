@@ -94,7 +94,7 @@ Caps + Esc                     → no-op (preserved as muscle-memory panic key)
 # Mod — modify (destructive / lifecycle)
 Caps + Shift + hjkl            → swap window
 Caps + Shift + return          → manage workspace (overlay):
-                                  a add · r rename · d destroy
+                                  a add · r rename · i icon · d destroy
                                   ⇧L layout (save / load / delete)
                                   v verify · ? doctor
 
