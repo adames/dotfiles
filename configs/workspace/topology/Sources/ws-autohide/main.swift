@@ -79,18 +79,44 @@ final class AutohideDaemon {
 
         let menuBarInset = screen.frame.maxY - screen.visibleFrame.maxY
 
+        // If a menu pull-down is open, suppress the *unhide* paths so the
+        // pills don't bounce back while the user is still navigating an
+        // Apple/app menu (which extends below the trigger band) or any
+        // other popup at kCGPopUpMenuWindowLevel. The *hide* path is
+        // unaffected — entering the top 2 px still hides as before.
+        let popupOpen = anyPopupMenuOpen()
+
         if relY < hideAtRelY {
             setDisplayHidden(yidx: yidx, hidden: true)
-        } else if relY >= menuBarInset {
+        } else if relY >= menuBarInset && !popupOpen {
             setDisplayHidden(yidx: yidx, hidden: false)
         }
 
         // Any OTHER display the cursor isn't on should be shown — otherwise
         // it could stay hidden indefinitely after the cursor jumps from
-        // its top edge into another display.
-        for (other, hidden) in hiddenPerDisplay where other != yidx && hidden {
+        // its top edge into another display. Coarse popup gating: a popup
+        // anywhere holds every hidden display. Acceptable because popups
+        // are transient; per-display attribution is a future refinement.
+        for (other, hidden) in hiddenPerDisplay where other != yidx && hidden && !popupOpen {
             setDisplayHidden(yidx: other, hidden: false)
         }
+    }
+
+    // MARK: - Popup-menu detection
+    //
+    // NSMenu pull-downs (Apple menu, app menu, status-bar drop-downs,
+    // right-click context menus) all live at kCGPopUpMenuWindowLevel.
+    // CGWindowListCopyWindowInfo is a public CG call — no Accessibility,
+    // no Screen Recording, no private framework. kCGWindowLayer/Bounds
+    // are free fields that don't trigger the Screen-Recording prompt.
+
+    private func anyPopupMenuOpen() -> Bool {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let info = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+            return false
+        }
+        let popupLevel = Int(CGWindowLevelForKey(.popUpMenuWindow))
+        return info.contains { ($0[kCGWindowLayer as String] as? Int) == popupLevel }
     }
 
     // MARK: - State change
