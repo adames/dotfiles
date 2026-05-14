@@ -34,7 +34,11 @@ if [[ -z "$app" ]]; then
   exit 1
 fi
 
-if pgrep -xq "$app" 2>/dev/null; then
+# -i (case-insensitive) so apps whose Finder name and process name
+# disagree on case (e.g. ghostty.app → process "ghostty") still match
+# when running. Without it the gate misclassifies and falls to
+# `open -a`, which silently fails to create a new window.
+if pgrep -ixq "$app" 2>/dev/null; then
   if ! osascript >/dev/null 2>&1 \
          -e "tell application \"$app\" to activate" \
          -e "tell application \"$app\" to make new window"; then
