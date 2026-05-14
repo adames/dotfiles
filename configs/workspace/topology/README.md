@@ -19,8 +19,8 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | **Per-host overlay** | `spaces.<hostname>.json` overrides the shared `spaces.json` on this machine. `workspace host` subcommands. Resolution helper sourced by every cascade reader. |
 | **Cache-driven shell adapters** | The SketchyBar plugins (`notch-detect.sh`, `per-display-pills.sh`, `paint-all.sh`) and the cascade (`on-space-changed.sh`) prefer `layout.env` / `iconSpec.codepoint`, with legacy heuristics retained as boot-time fallbacks. `paint-all.sh` is the centralized batched-repaint plugin subscribed to `workspace_changed` via a single hidden sentinel item in `sketchybarrc`. Items anchored `left`, no centering math. |
 | **Layout policy** | Notched: pills split symmetrically around the camera housing, the two halves anchored to `auxiliaryTopLeftArea.maxX` and `auxiliaryTopRightArea.minX`. Non-notched: pills centered in `visibleFrame`. Density mode (sparse / comfort / dense) picks gap from `(N × pill_w) / usable_w`. |
-| **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; / Caps+/ via skhd). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
-| **Floating-window snaps** | `ws-snap` (Meh+arrows via skhd). One-shot AX writes to move yabai-unmanaged windows. Replaces the Hammerspoon `setFrame` block — same geometry fractions, no Lua runtime. |
+| **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; via skhd). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
+| **Floating-window snaps** | `ws-snap` (Mod+arrows via skhd). One-shot AX writes to move yabai-unmanaged windows. Replaces the Hammerspoon `setFrame` block — same geometry fractions, no Lua runtime. |
 | **SketchyBar autohide** | `ws-autohide` launchd agent. 100ms cursor poller: when the cursor enters the top 2px of any display, that display's pills slide off and the auto-hide menu bar reveals. Other displays unaffected. Replaces the Hammerspoon timer. |
 | **Side surfaces** | JankyBorders `active_color` re-asserted on `window_focused`. |
 
@@ -36,9 +36,9 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 │   ├── AdaptersAppKit/                       window-delegate sample, accessibility probe (+ ObjC bridge)
 │   ├── ws-topology/                          one-shot CLI
 │   ├── ws-topologyd/                         launchd agent (CGDisplayRegisterReconfigurationCallback)
-│   ├── ws-cheatsheet/                        SwiftUI HUD (Caps+; / Caps+/ via skhd)
+│   ├── ws-cheatsheet/                        SwiftUI HUD (Caps+; via skhd)
 │   ├── ws-autohide/                          launchd agent — SketchyBar per-display autohide poller
-│   └── ws-snap/                              one-shot AX CLI — Meh+arrows floating-window snaps
+│   └── ws-snap/                              one-shot AX CLI — Mod+arrows floating-window snaps
 ├── Tests/                                    XCTest suites (require full Xcode; see "Testing")
 ├── launchd/
 │   ├── com.adames.workspace.topologyd.plist
