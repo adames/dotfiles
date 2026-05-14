@@ -81,7 +81,7 @@ Ghostty doesn't break zsh's line editor.
 | Side-by-side syntax-highlighted git diffs | git-delta | [`gitconfig`](configs/gitconfig) |
 | Neovim 0.12+ · Lazy + 16 plugins (incl. harpoon, oil, lazygit) | nvim | [`nvim-init.lua`](configs/nvim-init.lua) |
 | Python: Pyright + Ruff (LSP) · debugpy (DAP) · pytest (neotest) | Mason | same |
-| Git TUI (`lazygit` CLI · `<leader>gG` in nvim) | lazygit | brew formula |
+| Git TUI (run `lazygit` from a terminal / tmux pane) | lazygit | brew formula |
 | Docker / Compose / Kubernetes (~1s cold start, native Apple Silicon) | OrbStack | brew cask · replaces Docker Desktop |
 
 ## Daily-driver keymap
