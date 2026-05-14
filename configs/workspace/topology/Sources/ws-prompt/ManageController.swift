@@ -159,10 +159,14 @@ final class ManageController {
         case .escape:        stage = .addName(buffer: name); return .idle
         case .backspace:     stage = .addIcon(name: name, buffer: String(buf.dropLast())); return .idle
         case .enter:
-            // Empty icon → ws CLI uses its seeded default (kind=none).
-            // Non-empty → pass through as the icon arg.
+            // Icon resolution policy: empty → no icon (CLI default).
+            // Single character → assume the user typed a Nerd Font glyph
+            // directly; pass through. Multi-char → must exist in the
+            // SF Symbol → Nerd Font map, otherwise silently drop the
+            // icon arg so the workspace is created cleanly rather than
+            // with a placeholder glyph (which the CLI would warn about).
             var args = ["add", name, ""]
-            if !buf.isEmpty { args.append(buf) }
+            if !buf.isEmpty && Self.iconResolvable(buf) { args.append(buf) }
             stage = .running(verb: "add")
             return .runCommand(verb: "add", args: args, capture: true)
         case .char(let c):
@@ -170,6 +174,42 @@ final class ManageController {
             return .idle
         case .tab, .backTab: return .idle
         }
+    }
+
+    // MARK: - Icon resolvability
+    //
+    // Pre-flight check against ~/.config/workspace/lib/sf-to-nerd.json so
+    // the manage flow doesn't have to surface the CLI's "no mapping →
+    // placeholder" warning. The map is loaded lazily once per overlay
+    // session; small (~80 entries) and there's no point re-reading it on
+    // every keystroke.
+
+    private static var cachedIconMap: Set<String>?
+    private static let iconMapPath = FileManager.default
+        .homeDirectoryForCurrentUser
+        .appendingPathComponent(".config/workspace/lib/sf-to-nerd.json")
+
+    private static func iconMap() -> Set<String> {
+        if let cached = cachedIconMap { return cached }
+        guard let data = try? Data(contentsOf: iconMapPath),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            cachedIconMap = []
+            return []
+        }
+        // Documentation keys start with `_` (e.g. `_doc`) — exclude them.
+        let keys = Set(obj.keys.filter { !$0.hasPrefix("_") })
+        cachedIconMap = keys
+        return keys
+    }
+
+    /// True when `icon` is something the CLI can render without falling
+    /// back to a placeholder: a single typed glyph, or a known SF Symbol
+    /// name with a Nerd Font mapping.
+    static func iconResolvable(_ icon: String) -> Bool {
+        guard !icon.isEmpty else { return false }
+        if icon.unicodeScalars.count == 1 { return true }
+        return iconMap().contains(icon)
     }
 
     private func atRenameTarget(_ key: PromptKey, filter: String, sel: Int) -> ManageAction {
@@ -334,7 +374,7 @@ final class ManageController {
 
     private func atLayoutPick(_ key: PromptKey, snapshots: [String], filter: String,
                               sel: Int, mode: LayoutPickMode) -> ManageAction {
-        let matches = snapshots.filter { filter.isEmpty || $0.lowercased().contains(filter.lowercased()) }
+        let matches = FuzzyMatch.filter(snapshots, query: filter, keyPath: { $0 })
         switch key {
         case .escape:        stage = .layoutVerb; return .idle
         case .enter:
@@ -391,10 +431,12 @@ final class ManageController {
         }
     }
 
+    /// Same broad subsequence match focus/send use — `arc` matches
+    /// `archives`, `hm` matches `home-mgmt`. Substring-only was too
+    /// restrictive for the manage target pickers, where you usually
+    /// remember a couple of letters rather than a contiguous prefix.
     func filteredWorkspaces(filter: String) -> [Workspace] {
-        guard !filter.isEmpty else { return workspaces }
-        let q = filter.lowercased()
-        return workspaces.filter { $0.name.lowercased().contains(q) }
+        FuzzyMatch.filter(workspaces, query: filter, keyPath: { $0.name })
     }
 
     /// If `filter` is purely numeric, parse it as a slot index. Used by
