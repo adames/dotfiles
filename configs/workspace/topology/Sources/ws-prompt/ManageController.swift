@@ -3,13 +3,19 @@ import Foundation
 /// Where the manage overlay is in its multi-step flow. Each stage owns
 /// the data it needs to render and to transition forward. Esc always
 /// drops back one stage; from `verbPicker` Esc cancels the overlay.
+///
+/// `inQueryMode` on the rename/destroy target pickers tracks whether
+/// the user has started typing letters. Off → the next digit commits
+/// directly to that slot (fast path: open prompt, press `5`, you're
+/// renaming slot 5). On → digits join the filter buffer so 11+ can be
+/// reached after an initial letter or backspace-erasure.
 enum ManageStage: Equatable {
     case verbPicker
     case addName(buffer: String)
     case addIcon(name: String, buffer: String)
-    case renameTarget(filter: String, selection: Int)
+    case renameTarget(filter: String, selection: Int, inQueryMode: Bool)
     case renameNewName(slot: Int, slotName: String, buffer: String)
-    case destroyTarget(filter: String, selection: Int)
+    case destroyTarget(filter: String, selection: Int, inQueryMode: Bool)
     case destroyConfirm(slot: Int, slotName: String)
     case layoutVerb
     case layoutSaveName(buffer: String)
@@ -39,15 +45,33 @@ final class ManageController {
     private(set) var workspaces: [Workspace]
     private let wsBinary: String
 
+    /// Yabai's currently-focused space index, captured once at overlay
+    /// open. Used to default the rename/destroy target pickers to "act
+    /// on the workspace I'm already on" so Enter-without-typing is the
+    /// fast path. Nil → fall back to selection index 0.
+    private let focusedIndex: Int?
+
     /// Layout-snapshot list is loaded on demand the first time the user
     /// enters the layout sub-flow; cached after that.
     private var snapshotCache: [String]?
 
     init(workspaces: [Workspace],
+         focusedIndex: Int? = nil,
          wsBinary: String = FileManager.default.homeDirectoryForCurrentUser
              .appendingPathComponent(".local/bin/ws").path) {
         self.workspaces = workspaces
+        self.focusedIndex = focusedIndex
         self.wsBinary = wsBinary
+    }
+
+    /// Position of the focused workspace within `workspaces` (0-based),
+    /// or 0 if yabai didn't report a focus. Used as the initial
+    /// selection when entering a target picker.
+    private var focusedSelection: Int {
+        guard let fi = focusedIndex,
+              let pos = workspaces.firstIndex(where: { $0.index == fi })
+        else { return 0 }
+        return pos
     }
 
     // MARK: - Event handling
@@ -58,10 +82,12 @@ final class ManageController {
         case .verbPicker:                       return atVerbPicker(key)
         case .addName(let buf):                 return atAddName(key, buf: buf)
         case .addIcon(let n, let buf):          return atAddIcon(key, name: n, buf: buf)
-        case .renameTarget(let f, let s):       return atRenameTarget(key, filter: f, sel: s)
+        case .renameTarget(let f, let s, let q):
+            return atRenameTarget(key, filter: f, sel: s, inQueryMode: q)
         case .renameNewName(let i, let nm, let buf):
             return atRenameNewName(key, slot: i, slotName: nm, buf: buf)
-        case .destroyTarget(let f, let s):      return atDestroyTarget(key, filter: f, sel: s)
+        case .destroyTarget(let f, let s, let q):
+            return atDestroyTarget(key, filter: f, sel: s, inQueryMode: q)
         case .destroyConfirm(let i, let nm):    return atDestroyConfirm(key, slot: i, slotName: nm)
         case .layoutVerb:                       return atLayoutVerb(key)
         case .layoutSaveName(let buf):          return atLayoutSaveName(key, buf: buf)
@@ -109,8 +135,12 @@ final class ManageController {
         switch key {
         case .escape:        return .terminate
         case .char("a"), .char("A"):  stage = .addName(buffer: "");        return .idle
-        case .char("r"), .char("R"):  stage = .renameTarget(filter: "", selection: 0);  return .idle
-        case .char("d"), .char("D"):  stage = .destroyTarget(filter: "", selection: 0); return .idle
+        case .char("r"), .char("R"):
+            stage = .renameTarget(filter: "", selection: focusedSelection, inQueryMode: false)
+            return .idle
+        case .char("d"), .char("D"):
+            stage = .destroyTarget(filter: "", selection: focusedSelection, inQueryMode: false)
+            return .idle
         case .char("L"):              // capital L only (Shift+L), avoids clashing with destroy 'd'
             stage = .layoutVerb;       return .idle
         case .char("v"), .char("V"):
@@ -212,23 +242,19 @@ final class ManageController {
         return iconMap().contains(icon)
     }
 
-    private func atRenameTarget(_ key: PromptKey, filter: String, sel: Int) -> ManageAction {
+    private func atRenameTarget(_ key: PromptKey, filter: String, sel: Int,
+                                inQueryMode: Bool) -> ManageAction {
         switch key {
         case .escape: stage = .verbPicker; return .idle
         case .enter:
-            let matches = filteredWorkspaces(filter: filter)
-            // Digit fast-path: empty filter, just numeric — commit the
-            // explicit slot if it exists.
-            if let target = digitTarget(filter: filter) {
-                guard let ws = workspaces.first(where: { $0.index == target }) else {
-                    stage = .result(title: "rename: rejected",
-                                    body: "slot \(target) does not exist",
-                                    success: false)
-                    return .idle
-                }
-                stage = .renameNewName(slot: ws.index, slotName: ws.name, buffer: "")
-                return .idle
+            // Enter on empty filter → commit the focused workspace (the
+            // initial selection points at it). Otherwise pick the
+            // currently-highlighted match. All-numeric query while in
+            // query mode resolves to a literal slot (the path to 11+).
+            if inQueryMode, let target = digitTarget(filter: filter) {
+                return commitRename(slot: target)
             }
+            let matches = filteredWorkspaces(filter: filter)
             guard !matches.isEmpty else { return .idle }
             let pick = matches[sel.clamped(to: 0...(matches.count - 1))]
             stage = .renameNewName(slot: pick.index, slotName: pick.name, buffer: "")
@@ -236,25 +262,52 @@ final class ManageController {
         case .tab:
             let matches = filteredWorkspaces(filter: filter)
             stage = .renameTarget(filter: filter,
-                                  selection: cycle(sel, count: matches.count, by: +1))
+                                  selection: cycle(sel, count: matches.count, by: +1),
+                                  inQueryMode: inQueryMode)
             return .idle
         case .backTab:
             let matches = filteredWorkspaces(filter: filter)
             stage = .renameTarget(filter: filter,
-                                  selection: cycle(sel, count: matches.count, by: -1))
+                                  selection: cycle(sel, count: matches.count, by: -1),
+                                  inQueryMode: inQueryMode)
             return .idle
         case .backspace:
-            stage = .renameTarget(filter: String(filter.dropLast()), selection: 0); return .idle
+            if filter.isEmpty { return .idle }
+            stage = .renameTarget(filter: String(filter.dropLast()),
+                                  selection: 0, inQueryMode: inQueryMode)
+            return .idle
         case .char(let c):
-            stage = .renameTarget(filter: filter + String(c).lowercased(), selection: 0)
+            // First-keystroke digit → commit that slot directly. Slot 0
+            // is a stand-in for 10, mirroring focus/send.
+            if !inQueryMode, c.isASCII, c.isNumber {
+                let slot: Int = (c == "0") ? 10 : Int(String(c)) ?? -1
+                return commitRename(slot: slot)
+            }
+            stage = .renameTarget(filter: filter + String(c).lowercased(),
+                                  selection: 0, inQueryMode: true)
             return .idle
         }
+    }
+
+    /// Helper for the digit + all-numeric-query paths. Validates the slot
+    /// exists; if not, transitions to a result panel so the failure is
+    /// visible rather than silently dropping the keystroke.
+    private func commitRename(slot: Int) -> ManageAction {
+        guard let ws = workspaces.first(where: { $0.index == slot }) else {
+            stage = .result(title: "rename: rejected",
+                            body: "slot \(slot) does not exist", success: false)
+            return .idle
+        }
+        stage = .renameNewName(slot: ws.index, slotName: ws.name, buffer: "")
+        return .idle
     }
 
     private func atRenameNewName(_ key: PromptKey, slot: Int, slotName: String,
                                  buf: String) -> ManageAction {
         switch key {
-        case .escape:        stage = .renameTarget(filter: "", selection: 0); return .idle
+        case .escape:
+            stage = .renameTarget(filter: "", selection: focusedSelection, inQueryMode: false)
+            return .idle
         case .backspace:     stage = .renameNewName(slot: slot, slotName: slotName,
                                                    buffer: String(buf.dropLast())); return .idle
         case .enter:
@@ -274,18 +327,13 @@ final class ManageController {
         }
     }
 
-    private func atDestroyTarget(_ key: PromptKey, filter: String, sel: Int) -> ManageAction {
+    private func atDestroyTarget(_ key: PromptKey, filter: String, sel: Int,
+                                 inQueryMode: Bool) -> ManageAction {
         switch key {
         case .escape: stage = .verbPicker; return .idle
         case .enter:
-            if let target = digitTarget(filter: filter) {
-                guard let ws = workspaces.first(where: { $0.index == target }) else {
-                    stage = .result(title: "destroy: rejected",
-                                    body: "slot \(target) does not exist", success: false)
-                    return .idle
-                }
-                stage = .destroyConfirm(slot: ws.index, slotName: ws.name)
-                return .idle
+            if inQueryMode, let target = digitTarget(filter: filter) {
+                return commitDestroy(slot: target)
             }
             let matches = filteredWorkspaces(filter: filter)
             guard !matches.isEmpty else { return .idle }
@@ -295,19 +343,39 @@ final class ManageController {
         case .tab:
             let matches = filteredWorkspaces(filter: filter)
             stage = .destroyTarget(filter: filter,
-                                   selection: cycle(sel, count: matches.count, by: +1))
+                                   selection: cycle(sel, count: matches.count, by: +1),
+                                   inQueryMode: inQueryMode)
             return .idle
         case .backTab:
             let matches = filteredWorkspaces(filter: filter)
             stage = .destroyTarget(filter: filter,
-                                   selection: cycle(sel, count: matches.count, by: -1))
+                                   selection: cycle(sel, count: matches.count, by: -1),
+                                   inQueryMode: inQueryMode)
             return .idle
         case .backspace:
-            stage = .destroyTarget(filter: String(filter.dropLast()), selection: 0); return .idle
+            if filter.isEmpty { return .idle }
+            stage = .destroyTarget(filter: String(filter.dropLast()),
+                                   selection: 0, inQueryMode: inQueryMode)
+            return .idle
         case .char(let c):
-            stage = .destroyTarget(filter: filter + String(c).lowercased(), selection: 0)
+            if !inQueryMode, c.isASCII, c.isNumber {
+                let slot: Int = (c == "0") ? 10 : Int(String(c)) ?? -1
+                return commitDestroy(slot: slot)
+            }
+            stage = .destroyTarget(filter: filter + String(c).lowercased(),
+                                   selection: 0, inQueryMode: true)
             return .idle
         }
+    }
+
+    private func commitDestroy(slot: Int) -> ManageAction {
+        guard let ws = workspaces.first(where: { $0.index == slot }) else {
+            stage = .result(title: "destroy: rejected",
+                            body: "slot \(slot) does not exist", success: false)
+            return .idle
+        }
+        stage = .destroyConfirm(slot: ws.index, slotName: ws.name)
+        return .idle
     }
 
     private func atDestroyConfirm(_ key: PromptKey, slot: Int,
@@ -318,7 +386,7 @@ final class ManageController {
             stage = .running(verb: "remove")
             return .runCommand(verb: "remove", args: ["remove", String(slot), "-y"], capture: true)
         default:
-            stage = .destroyTarget(filter: "", selection: 0)
+            stage = .destroyTarget(filter: "", selection: focusedSelection, inQueryMode: false)
             return .idle
         }
     }
