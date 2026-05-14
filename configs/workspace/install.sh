@@ -101,7 +101,7 @@ fi
 
 # ── 3 · dependency assertions ────────────────────────────────────────────
 missing=()
-for bin in jq yabai hs tmux; do
+for bin in jq yabai tmux; do
   command -v "$bin" >/dev/null 2>&1 || missing+=("$bin")
 done
 if (( ${#missing[@]} )); then

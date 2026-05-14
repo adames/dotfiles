@@ -8,10 +8,6 @@
 #   3. symlink built binaries into ~/.local/bin/
 #   4. copy the LaunchAgent plists into ~/Library/LaunchAgents/
 #   5. launchctl load each agent
-#
-# Does NOT run the v1→v2 migration on spaces.json. Run that explicitly:
-#   ~/.local/bin/ws-topology migrate           # dry-run, prints diff
-#   ~/.local/bin/ws-topology migrate --apply   # writes; backs up to spaces.v1.json
 
 set -eu
 
@@ -84,14 +80,6 @@ done
 step "agents loaded; logs under ~/.cache/workspace/"
 
 cat <<NOTE
-
-Next steps:
-  1. Dry-run the spaces.json migration:
-       ws-topology migrate
-  2. If the diff looks right, apply it:
-       ws-topology migrate --apply
-  3. Regenerate the dynamic skhd fragment + reload skhd:
-       ws-topology emit-skhd --write --reload
 
 To uninstall:
   for L in ${AGENT_LABELS[*]}; do launchctl bootout "gui/\$(id -u)" "$LAUNCH_AGENTS/\$L.plist"; rm -f "$LAUNCH_AGENTS/\$L.plist"; done
