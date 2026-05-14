@@ -1149,8 +1149,58 @@ cmd_layout() {
       local src="$layouts_dir/$name.json"
       [[ -r "$src" ]] || { err "layout not found: $src"; exit 1; }
       jq -e . "$src" >/dev/null 2>&1 || { err "layout is malformed JSON: $src"; exit 1; }
-      _confirm "replace spaces.json with layout '$name'?" "$yes" \
-        || { warn "aborted"; exit 1; }
+
+      # Reconcile yabai's macOS Space count to match the layout's slot
+      # count BEFORE writing spaces.json. Without this step, loading a
+      # 7-slot layout onto a 4-space system leaves 3 entries as orphans
+      # (and the inverse — loading a 4-slot layout onto 7 spaces leaves
+      # 3 bare ws<N> pills with no identity). yabai handles destroying
+      # the focused space gracefully (focus shifts to a neighbour), so
+      # we don't bother detecting that case here.
+      #
+      # We destroy from the highest index down so each `--destroy N` is
+      # operating on what is still the tail at that moment (yabai never
+      # renumbers when destroying the highest slot).
+      local saved_count current_count
+      saved_count=$(jq '.spaces | length' "$src" 2>/dev/null)
+      if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
+        current_count=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null)
+      else
+        current_count=""
+        warn "yabai not available — loading identity only; yabai space count not reconciled"
+      fi
+
+      if [[ "${saved_count:-}" =~ ^[0-9]+$ && "${current_count:-}" =~ ^[0-9]+$ ]]; then
+        if (( saved_count < 1 )); then
+          err "layout '$name' has 0 slots — refusing to load (yabai requires ≥ 1 space)"
+          exit 1
+        fi
+        _confirm "load layout '$name' (will reconcile yabai $current_count → $saved_count spaces, then replace spaces.json)?" "$yes" \
+          || { warn "aborted"; exit 1; }
+
+        local i
+        if (( saved_count > current_count )); then
+          for ((i = current_count; i < saved_count; i++)); do
+            if ! yabai -m space --create 2>/dev/null; then
+              err "yabai space --create failed (scripting-addition?). aborted with $i/$saved_count spaces; spaces.json untouched."
+              exit 1
+            fi
+          done
+        elif (( saved_count < current_count )); then
+          for ((i = current_count; i > saved_count; i--)); do
+            if ! yabai -m space --destroy "$i" 2>/dev/null; then
+              err "yabai space --destroy $i failed (scripting-addition?). aborted; spaces.json untouched."
+              exit 1
+            fi
+          done
+        fi
+      else
+        # yabai unavailable or layout count unparseable — preserve the
+        # legacy identity-only load behaviour.
+        _confirm "replace spaces.json with layout '$name'?" "$yes" \
+          || { warn "aborted"; exit 1; }
+      fi
+
       local layout_staging; layout_staging=$(mktemp) || { err "mktemp failed"; exit 1; }
       cp "$src" "$layout_staging" && mv -f "$layout_staging" "$WS_CONFIG"
       _fire_post layout "$name"
