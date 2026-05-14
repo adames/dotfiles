@@ -230,11 +230,15 @@ ones.
   cascade already fires). It receives `(subcommand, slot_indices...)`
   after every successful mutation and is gitconfig.local-style — never
   clobbered by bootstrap.
-- **`lib/colors.sh`** owns the slot↔yabai-label mapping (core, forge,
-  …). Labels are immutable so reconcile-displays.sh can address spaces
-  by name across plug/unplug events. The CLI never touches labels —
-  reorder permutes the (name, icon) tuples on top of stable
-  label-anchored slots.
+- **Source of truth.** yabai owns space EXISTENCE (which spaces, on
+  which display). Mission Control's `+` / `×` is the canonical way to
+  add/remove. `spaces.json` layers optional IDENTITY (name, color, icon)
+  on top — entries are looked up by yabai's space index. Missing entry
+  → bare gray `wsN` pill. The old `lib/colors.sh` WORKSPACE_LABELS array
+  (`core/forge/codex/…`), `reconcile-displays.sh`, `yabai-ensure-spaces.sh`,
+  and `laptop-uuid-init.sh` are all retired — they manipulated yabai
+  state in service of a fixed per-slot layout that fought macOS's
+  Mission Control instead of working with it.
 
 ## SketchyBar coexistence with the macOS menu bar
 

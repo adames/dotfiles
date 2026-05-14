@@ -30,47 +30,14 @@ seed="$SELF_DIR/spaces.default.json"
 
 if [[ ! -f "$target" ]]; then
   install -m 644 "$seed" "$target"
-  ok "seeded ${target/#$HOME/~}"
+  ok "seeded ${target/#$HOME/~} (empty — yabai owns existence, identity is opt-in)"
 elif command -v jq >/dev/null 2>&1; then
-  # Migration: existing config from the 8-slot era is missing keys "9"
-  # and "10". Add them (with default name/colour/icon from the seed)
-  # without touching any user renames on slots 1..8.
-  missing_slots=$(
-    jq -r --slurpfile seed "$seed" '
-      ($seed[0].spaces | keys_unsorted) - (.spaces | keys_unsorted)
-      | .[]
-    ' "$target" 2>/dev/null
-  )
-  if [[ -n "$missing_slots" ]]; then
-    step "migrating ${target/#$HOME/~} — appending missing slots: $(echo "$missing_slots" | tr '\n' ' ')"
-    tmp=$(mktemp) || exit 1
-    # Right-bias merge: seed supplies any missing slot, user-edited keys
-    # win on slots present in both. `*` deep-merges objects in jq.
-    jq --slurpfile seed "$seed" '
-      .version = ($seed[0].version // 2)
-      | .spaces = (($seed[0].spaces) * (.spaces // {}))
-    ' "$target" > "$tmp" && mv -f "$tmp" "$target"
-    # Post-condition: migration must produce at least the seed's slot
-    # count (extras from `ws add` are fine). Anything less is a bug in
-    # the merge — refuse to leave a corrupt config. Reads the expected
-    # count from the seed file so the assertion stays in lockstep with
-    # whatever spaces.default.json ships (2 today, may grow / shrink).
-    expected=$(jq '.spaces | length' "$seed" 2>/dev/null || echo 1)
-    final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
-    if (( final < expected )); then
-      err "migration produced $final slots (expected ≥ $expected) — leaving original at ${target}.broken"
-      mv "$target" "${target}.broken" 2>/dev/null
-      exit 1
-    fi
-    ok "migrated to $final slots (existing renames preserved)"
-  else
-    final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
-    if [[ "$final" != "10" ]]; then
-      info "existing ${target/#$HOME/~} has $final slots (not the canonical 10) — preserving as-is"
-    else
-      ok "preserving existing ${target/#$HOME/~} (renames intact)"
-    fi
-  fi
+  # No seed migration anymore. spaces.default.json is just `{spaces: {}}`
+  # by design — yabai is the source of truth for which spaces exist, and
+  # spaces.json's job is to layer optional name/color/icon on top of
+  # whatever yabai reports. Existing user renames are always preserved.
+  final=$(jq '.spaces | length' "$target" 2>/dev/null || echo 0)
+  ok "preserving existing ${target/#$HOME/~} ($final slot identities)"
 else
   ok "preserving existing ${target/#$HOME/~} (jq not available; no migration)"
 fi
@@ -132,19 +99,7 @@ EOF
   ok "created ~/.config/workspace/hooks/post-mutate.sh (sketchybar-aware default)"
 fi
 
-# ── 3 · laptop UUID capture (single-display only, idempotent) ────────────
-uuid_file="$HOME/.config/workspace/laptop.uuid"
-if [[ ! -s "$uuid_file" ]] && command -v yabai >/dev/null 2>&1; then
-  display_count=$(yabai -m query --displays 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
-  if [[ "$display_count" -eq 1 ]]; then
-    "$SELF_DIR/laptop-uuid-init.sh" >/dev/null && \
-      ok "captured laptop display UUID"
-  else
-    warn "skip laptop UUID capture: ${display_count} displays attached — run laptop-uuid-init.sh manually with only the built-in panel connected, OR write the UUID by hand to ${uuid_file/#$HOME/~}"
-  fi
-fi
-
-# ── 4 · dependency assertions ────────────────────────────────────────────
+# ── 3 · dependency assertions ────────────────────────────────────────────
 missing=()
 for bin in jq yabai hs tmux; do
   command -v "$bin" >/dev/null 2>&1 || missing+=("$bin")
