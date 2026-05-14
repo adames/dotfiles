@@ -189,16 +189,9 @@ require("lazy").setup({
     end,
   },
 
-  -- LazyGit in a floating window. CLI dep: `brew install lazygit`.
-  -- <leader>gG (capital) so it doesn't clash with <leader>gd/gp/gr/gb/gh.
-  {
-    "kdheepak/lazygit.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
-    cmd          = { "LazyGit", "LazyGitConfig", "LazyGitCurrentFile" },
-    keys         = {
-      { "<leader>gG", "<cmd>LazyGit<cr>", desc = "LazyGit" },
-    },
-  },
+  -- (lazygit.nvim retired — the `lazygit` brew CLI is used standalone
+  -- from any tmux pane / terminal. The floating-window wrapper was
+  -- dead weight: every keypress did the same as typing `lazygit`.)
 
   {
     "folke/which-key.nvim",
