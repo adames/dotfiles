@@ -20,7 +20,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | **Cache-driven shell adapters** | The SketchyBar plugins (`notch-detect.sh`, `per-display-pills.sh`, `paint-all.sh`) and the cascade (`on-space-changed.sh`) prefer `layout.env` / `iconSpec.codepoint`, with legacy heuristics retained as boot-time fallbacks. `paint-all.sh` is the centralized batched-repaint plugin subscribed to `workspace_changed` via a single hidden sentinel item in `sketchybarrc`. Items anchored `left`, no centering math. |
 | **Layout policy** | Notched: pills split symmetrically around the camera housing, the two halves anchored to `auxiliaryTopLeftArea.maxX` and `auxiliaryTopRightArea.minX`. Non-notched: pills centered in `visibleFrame`. Density mode (sparse / comfort / dense) picks gap from `(N × pill_w) / usable_w`. |
 | **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; via skhd). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
-| **Floating-window snaps** | `ws-snap` (Mod+arrows via skhd). One-shot AX writes to move yabai-unmanaged windows. Replaces the Hammerspoon `setFrame` block — same geometry fractions, no Lua runtime. |
+| **AX absolute-snap CLI** | `ws-snap` (manual use; no chord bound today). One-shot AX writes to move yabai-unmanaged windows. The common new-window case is now handled by `stage-window.sh` from yabai's `window_created` signal. |
 | **SketchyBar autohide** | `ws-autohide` launchd agent. 100ms cursor poller: when the cursor enters the top 2px of any display, that display's pills slide off and the auto-hide menu bar reveals. Other displays unaffected. Replaces the Hammerspoon timer. |
 
 ## File layout
@@ -37,7 +37,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 │   ├── ws-topologyd/                         launchd agent (CGDisplayRegisterReconfigurationCallback)
 │   ├── ws-cheatsheet/                        SwiftUI HUD (Caps+; via skhd)
 │   ├── ws-autohide/                          launchd agent — SketchyBar per-display autohide poller
-│   └── ws-snap/                              one-shot AX CLI — Mod+arrows floating-window snaps
+│   └── ws-snap/                              one-shot AX CLI — manual absolute snap (no chord bound today)
 ├── Tests/                                    XCTest suites (require full Xcode; see "Testing")
 ├── launchd/
 │   ├── com.adames.workspace.topologyd.plist
@@ -150,7 +150,7 @@ longer read by any consumer.
 | `NOTCH_WIDTH=400` heuristic in `recenter.sh` | recenter retired; left-aligned layout sidesteps the notch geometry entirely. `WS_TOP_REGION_W_<id>` / `WS_NOTCH_W_<id>` still published for diagnostics. |
 | `NOTCH_MAX_VISIBLE=10` constant | `WS_MAX_VISIBLE_SLOTS_<id>` (derived from combined aux width) |
 | Raw Nerd Font PUA bytes in JSON `.icon` | `iconSpec.codepoint = "\uXXXX"`; literal glyph reconstructed only at the env sink |
-| Static `cmd + alt + ctrl + shift - N` block in `skhdrc` | Replaced by transient skhd modes (`Hyper+W` focus, `C-Space` send, `Mod+W` manage) — digit keys inside each mode address slots 1..10. Bindings are inlined and don't need per-mutation regeneration. (The `ws-topology emit-skhd` subcommand still exists for historical reasons but no consumer calls it.) |
+| Static `cmd + alt + ctrl + shift - N` block in `skhdrc` | Replaced by transient skhd modes (`Caps + space` focus, `Caps + return` send, `Caps + Shift + return` manage) — digit keys inside each mode address slots 1..10. Bindings are inlined and don't need per-mutation regeneration. (The `ws-topology emit-skhd` subcommand still exists for historical reasons but no consumer calls it.) |
 | Per-consumer rediscovery of display roles via yabai queries | Single `layout.env` from `ws-topologyd` |
 | `space_changed` triggered full chain rebuild + two-pass write | Single-pass batched writes; `per-display-pills.sh` only re-runs on display events |
 | Duplicate `workspace_on_space_change` signal firing cascade twice | Single `ws_space_changed` registration |
