@@ -54,7 +54,13 @@ fi
 # Branch:
 #   • App already running  → activate + make new window (1 new window).
 #   • App not running       → just `open -a` (1 window from the launch).
-if pgrep -xq "$app" 2>/dev/null; then
+#
+# -i (case-insensitive) is required for apps whose Finder name and
+# actual process name disagree on case — Ghostty.app runs as `ghostty`
+# (lowercase). Without -i, the gate misclassifies running Ghostty as
+# "not running", falls through to `open -a` (just activates the
+# running app), and the user gets silence instead of a new window.
+if pgrep -ixq "$app" 2>/dev/null; then
   if ! osascript >/dev/null 2>&1 \
          -e "tell application \"$app\" to activate" \
          -e "tell application \"$app\" to make new window"; then
