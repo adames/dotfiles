@@ -86,6 +86,19 @@ precmd_functions+=(_workspace_env)
 if [[ -d "$HOME/.config/zsh/completions" ]]; then
   fpath=("$HOME/.config/zsh/completions" $fpath)
 fi
+
+# Prune dangling _completion symlinks from fpath dirs. An uninstalled
+# Homebrew cask (e.g. docker-desktop pointing into /Applications/Docker.app)
+# can leave broken symlinks under site-functions that compinit then errors
+# on with `:527: no such file or directory` and a cascaded `:529 shift`.
+for _zd in $fpath; do
+  [[ -d $_zd ]] || continue
+  for _zf in "$_zd"/_*(N); do
+    [[ -e $_zf ]] || command rm -f -- "$_zf" 2>/dev/null
+  done
+done
+unset _zd _zf
+
 autoload -Uz compinit && compinit -i
 
 # Auto-attach tmux on SSH
