@@ -36,19 +36,28 @@ let configPath: URL = {
 
 // MARK: - Headless layout dump (--dump-layout)
 //
-// Skip the GUI entirely; run the ShelfLayout pipeline against the loaded
-// document with simulated page dimensions and print a stable line-oriented
-// format. Used by tests/unit/ws-cheatsheet.test.sh to assert on packing
-// behavior without spawning a window. Page dims default to a "typical
-// laptop" (1640×1000); --page-width/--page-height override.
-if let dumpIdx = args.firstIndex(of: "--dump-layout") {
+// Skip the GUI entirely; run the Masonry packer against the loaded
+// document at a simulated page width and print a stable line-oriented
+// format. Used by tests/unit/ws-cheatsheet.test.sh to assert on
+// distribution behavior without spawning a window.
+//
+//   --page-width N    inner usable width (default 1640pt, matches
+//                     1720pt window minus outer padding)
+//   --columns N       force a specific column count (default: derived
+//                     from --page-width via Masonry.columnCount)
+//
+// Output:
+//   total_columns=N
+//   column=N cards=N height=N
+//     card=N title="..." height=N
+//     ...
+if args.firstIndex(of: "--dump-layout") != nil {
     var pageW: CGFloat = 1640
-    var pageH: CGFloat = 1000
+    var explicitColumns: Int? = nil
     if let i = args.firstIndex(of: "--page-width"), i + 1 < args.count,
        let v = Double(args[i + 1]) { pageW = CGFloat(v) }
-    if let i = args.firstIndex(of: "--page-height"), i + 1 < args.count,
-       let v = Double(args[i + 1]) { pageH = CGFloat(v) }
-    _ = dumpIdx  // silence unused
+    if let i = args.firstIndex(of: "--columns"), i + 1 < args.count,
+       let v = Int(args[i + 1]) { explicitColumns = v }
 
     let doc: CheatsheetDocument
     do {
@@ -58,16 +67,15 @@ if let dumpIdx = args.firstIndex(of: "--dump-layout") {
             "ws-cheatsheet: load failed: \(error)\n".utf8))
         exit(2)
     }
-    let shelves = ShelfLayout.pack(
-        sections: doc.sections,
-        pageWidth: pageW,
-        pageHeight: pageH
-    )
-    print("total_shelves=\(shelves.count)")
-    for shelf in shelves {
-        print("shelf=\(shelf.id) items=\(shelf.items.count) max_height=\(Int(shelf.estimatedHeight))")
-        for (i, item) in shelf.items.enumerated() {
-            print("  item=\(i) title=\"\(item.section.title)\" span=\(item.span) height=\(Int(item.estimatedHeight))")
+    let cols = explicitColumns
+        ?? Masonry.columnCount(forWidth: pageW, spacing: 14)
+    let columns = Masonry.columnize(sections: doc.sections, columnCount: cols)
+    print("total_columns=\(columns.count)")
+    for column in columns {
+        print("column=\(column.id) cards=\(column.sections.count) height=\(Int(column.estimatedHeight))")
+        for (i, section) in column.sections.enumerated() {
+            let h = Masonry.estimateHeight(section)
+            print("  card=\(i) title=\"\(section.title)\" height=\(Int(h))")
         }
     }
     exit(0)
