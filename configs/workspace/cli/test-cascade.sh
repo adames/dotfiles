@@ -77,7 +77,8 @@ trap restore EXIT INT TERM
 MIN_SLOTS=7
 while (( $("$WS_BIN" count) < MIN_SLOTS )); do
   next=$(( $("$WS_BIN" count) + 1 ))
-  "$WS_BIN" add "verify-slot-$next" "#888888" "" >/dev/null \
+  # `ws add [NAME] [ICON]` — no COLOR (theme-driven now). Pass name only.
+  "$WS_BIN" add "verify-slot-$next" >/dev/null \
     || { red "harness setup: ws add failed at slot $next"; exit 1; }
 done
 
@@ -115,12 +116,12 @@ assert_true "doctor green on baseline" "$WS_BIN" doctor
 "$WS_BIN" name 3 "test-name-$$" >/dev/null
 assert "name 3" "test-name-$$" "$(jq -r '.spaces["3"].name' "$WS_CONFIG")"
 
-# 3 · color roundtrip
-"$WS_BIN" color 5 "#abcdef" >/dev/null
-assert "color 5 = #abcdef" "#abcdef" "$(jq -r '.spaces["5"].color' "$WS_CONFIG")"
-
-# 4 · color validation rejects bad input
-assert_false "color rejects non-hex" "$WS_BIN" color 5 "not-a-color"
+# 3 · color roundtrip + 4 · color validation: RETIRED.
+# `ws color N #HEX` was removed when colors became theme-driven only
+# (see the `ws color` gravestone comment in configs/workspace/cli/ws).
+# The "color stays positional across reorder/move/swap" coverage moved
+# to the swap / reorder / move blocks below, which already snapshot
+# pre-mutation colors and assert they're unchanged after the op.
 
 # 5 · icon roundtrip writes a v2 iconSpec.codepoint
 if jq -e '.icons[5] | length > 0' "$WS_THEMES_DIR/catppuccin-mocha.json" >/dev/null 2>&1; then
@@ -159,7 +160,10 @@ else
 fi
 
 # 6 · add / count / remove involution
-"$WS_BIN" add "added-$$" "#112233" "" >/dev/null
+# Signature is `ws add [NAME] [ICON]` — no COLOR positional (theme-driven).
+# Pass name only; the iconSpec assertions below verify the no-icon path
+# writes kind=none + fallbackText.
+"$WS_BIN" add "added-$$" >/dev/null
 assert "add increments count" "$((orig_count + 1))" "$("$WS_BIN" count)"
 assert "added slot has expected name" "added-$$" "$(jq -r --arg c "$((orig_count + 1))" '.spaces[$c].name' "$WS_CONFIG")"
 
