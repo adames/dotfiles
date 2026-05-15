@@ -1,5 +1,5 @@
 {
-  "_doc_icon": "Optional per-slot identity overlay (name / color / icon). yabai owns space EXISTENCE — this file just adds optional metadata on top. Empty by default: bar renders bare pills for whatever yabai has, named ws1, ws2, … in INACTIVE_LABEL gray. Customize a slot with `ws name N <name>`, `ws icon N <glyph>`, `ws color N <#hex>`. Icons use Nerd Font private-use codepoints; install via: brew install --cask font-jetbrains-mono-nerd-font",
+  "_doc_icon": "Optional per-slot identity overlay (name / icon). yabai owns space EXISTENCE — this file just adds optional metadata on top. Empty by default: bar renders bare pills for whatever yabai has, named ws1, ws2, … in INACTIVE_LABEL gray. Customize a slot with `ws name N <name>` or `ws icon N <glyph>`. Color is theme-driven — use `ws theme NAME` to switch the palette. Icons use Nerd Font private-use codepoints; install via: brew install --cask font-jetbrains-mono-nerd-font",
   "palette": "catppuccin-mocha",
   "spaces": {}
 }
