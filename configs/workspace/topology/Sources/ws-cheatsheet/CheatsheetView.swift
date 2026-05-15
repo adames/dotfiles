@@ -16,13 +16,13 @@ import WsUI   // re-exports `Color(hex:)`
 ///   `customLayout: "keyboard"` — dual coding (Paivio) where it reinforces
 ///   the concept ("h is left because it's the leftmost arrow key").
 ///
-/// Layout (v3 — span-aware shelf packing):
-/// - 4 fixed columns. Each card occupies 1 or 2 columns based on its
-///   `allowedSpans` hint. The packer (`ShelfLayout.pack`) pre-splits
-///   tall cards (TMUX, WORKSPACE) by their declared subsections and
-///   bin-packs the result into shelves, rebalancing spans inside each
-///   shelf for height + utilization. See ShelfLayout.swift for the
-///   pipeline.
+/// Layout: **masonry** (see Masonry.swift). Cards drop into the shortest
+/// column at the time of placement — same trick CSS column-count gives
+/// you for free. This trades the previous LazyVGrid's row-alignment
+/// (which forced every card in a row to match the tallest one's height,
+/// wasting vertical room under shorter neighbors) for tight Pinterest-
+/// style packing. Family color carries the organizational cue: same hue
+/// = same world, regardless of which column the card landed in.
 struct CheatsheetView: View {
     let document: CheatsheetDocument
     let timestamp: String
@@ -31,7 +31,7 @@ struct CheatsheetView: View {
     private let outerTopPadding: CGFloat = 36
     private let outerBottomPadding: CGFloat = 22
     private let columnSpacing: CGFloat = 14
-    private let shelfSpacing: CGFloat = 14
+    private let cardSpacing: CGFloat = 14
     private let maxPageWidth: CGFloat = 1720
 
     var body: some View {
@@ -50,30 +50,30 @@ struct CheatsheetView: View {
         }
     }
 
-    /// Shelf-packed body. GeometryReader gives us the inner width so we
-    /// can compute exact column widths; everything below it is sized in
-    /// concrete pt values, which means ScrollView's intrinsic content
-    /// size is well-defined.
+    /// Masonry grid. GeometryReader gives us the inner width so we can
+    /// adapt the column count to the screen (2..6 columns) and compute an
+    /// exact column width. ScrollView keeps each column independently
+    /// scrollable when the tallest column exceeds the page.
     private var sectionGrid: some View {
         GeometryReader { geo in
             let usableWidth = min(geo.size.width, maxPageWidth - 2 * outerHPadding)
-            let columns = ShelfLayout.columns
-            let totalSpacing = columnSpacing * CGFloat(columns - 1)
-            let columnWidth = (usableWidth - totalSpacing) / CGFloat(columns)
-            let shelves = ShelfLayout.pack(
+            let cols = Masonry.columnCount(forWidth: usableWidth, spacing: columnSpacing)
+            let totalSpacing = columnSpacing * CGFloat(cols - 1)
+            let columnWidth = (usableWidth - totalSpacing) / CGFloat(cols)
+            let columns = Masonry.columnize(
                 sections: document.sections,
-                pageWidth: usableWidth,
-                pageHeight: geo.size.height
+                columnCount: cols
             )
 
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: shelfSpacing) {
-                    ForEach(shelves) { shelf in
-                        ShelfRow(
-                            shelf: shelf,
-                            columnWidth: columnWidth,
-                            columnSpacing: columnSpacing
-                        )
+                HStack(alignment: .top, spacing: columnSpacing) {
+                    ForEach(columns) { column in
+                        VStack(spacing: cardSpacing) {
+                            ForEach(column.sections) { section in
+                                SectionCard(section: section)
+                            }
+                        }
+                        .frame(width: columnWidth, alignment: .top)
                     }
                 }
                 .padding(.bottom, 6)
@@ -126,35 +126,6 @@ struct CheatsheetView: View {
     }
 }
 
-// MARK: - ShelfRow
-
-private struct ShelfRow: View {
-    let shelf: ShelfLayout.Shelf
-    let columnWidth: CGFloat
-    let columnSpacing: CGFloat
-
-    var body: some View {
-        HStack(alignment: .top, spacing: columnSpacing) {
-            ForEach(Array(shelf.items.enumerated()), id: \.offset) { _, item in
-                SectionCard(section: item.section)
-                    .frame(
-                        width: cardWidth(span: item.span),
-                        alignment: .topLeading
-                    )
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    /// One column wide = `columnWidth`. Two columns wide = two columns
-    /// plus the spacer between them (so the card crosses the gutter that
-    /// would otherwise sit between its two host columns).
-    private func cardWidth(span: Int) -> CGFloat {
-        let s = CGFloat(max(1, span))
-        return columnWidth * s + columnSpacing * (s - 1)
-    }
-}
-
 // MARK: - SectionCard
 
 private struct SectionCard: View {
@@ -168,15 +139,11 @@ private struct SectionCard: View {
                     .tracking(0.9)
                     .foregroundColor(accentColor)
                     .padding(.bottom, 3)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
 
-                if !section.sub.isEmpty {
-                    Text(section.sub)
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.38))
-                        .padding(.bottom, section.idea == nil ? 12 : 8)
-                }
+                Text(section.sub)
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.38))
+                    .padding(.bottom, section.idea == nil ? 12 : 8)
 
                 if let idea = section.idea, !idea.isEmpty {
                     Text(idea)
@@ -191,10 +158,10 @@ private struct SectionCard: View {
                 // a diagram above the row table.
                 if section.customLayout?.lowercased() == "keyboard" {
                     SpatialKeyboardView()
-                        .padding(.bottom, hasRenderableRows ? 10 : 0)
+                        .padding(.bottom, section.rows.isEmpty ? 0 : 10)
                 }
 
-                ForEach(Array(renderableRows.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(section.rows.enumerated()), id: \.offset) { _, row in
                     rowView(row)
                 }
             }
@@ -213,17 +180,6 @@ private struct SectionCard: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
-
-    /// Filtered rows: `[":sub", "..."]` markers are layout metadata, not
-    /// rendered content. The packer consumes them; the renderer skips
-    /// them. (Chunks emitted by `splitIntoChunks` don't contain `:sub`
-    /// rows at all, but we filter defensively in case a section opts
-    /// out of `splitAfter` but still has `:sub` markers for the future.)
-    private var renderableRows: [[String]] {
-        section.rows.filter { $0.first != ":sub" }
-    }
-
-    private var hasRenderableRows: Bool { !renderableRows.isEmpty }
 
     private func rowView(_ row: [String]) -> some View {
         let key = row.indices.contains(0) ? row[0] : ""
