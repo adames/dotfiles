@@ -13,12 +13,20 @@ struct SpatialKeyboardView: View {
     enum Role {
         case arrow, word, find, jump, neutral, dim
 
+        // The `.jump` accent was previously FamilyColors.nvim. After the
+        // nvim cheatsheet sections were pruned, FamilyColors.nvim went
+        // with them; the spatial keyboard is the last consumer of that
+        // particular pink, so the hex is inlined here. Search/jump keys
+        // (/, n, N, *, #) stay visually distinct from word-motion (b, w,
+        // e) and char-find (f, F, t, T) which both use the vim orange.
+        private static let jumpAccent = Color(hex: "#f472b6") ?? .pink
+
         var bg: Color {
             switch self {
             case .arrow:   return FamilyColors.vim.opacity(0.85)
             case .word:    return FamilyColors.vim.opacity(0.50)
             case .find:    return FamilyColors.vim.opacity(0.32)
-            case .jump:    return FamilyColors.nvim.opacity(0.55)
+            case .jump:    return Self.jumpAccent.opacity(0.55)
             case .neutral: return Color.white.opacity(0.06)
             case .dim:     return Color.white.opacity(0.025)
             }

@@ -12,8 +12,8 @@ struct PickerView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.45)
-
+            // No background scrim — the card floats over the live desktop.
+            // Borderless window is already transparent (WsPickerApp).
             VStack(spacing: 14) {
                 Spacer().frame(height: 96)
                 card
