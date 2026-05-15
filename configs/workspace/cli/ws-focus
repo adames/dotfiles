@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# ws-focus <SLOT|next|prev> — focus space N (or cycle).
-# Called from ws-prompt's focus overlay (Caps+f → digit/name) AND
-# directly from skhd's Caps+Tab / Caps+Shift+Tab chords for wrap-around
-# cycling. yabai's `space --focus N` silently no-ops for nonexistent N
-# (its stderr message never surfaces), which is the existing UX bug
-# we're fixing.
+# ws-focus <SLOT|next|prev|last> — focus space N (or cycle).
+# Called from ws-prompt's focus overlay (Caps+w → digit/name) AND
+# directly from skhd's Caps+n / Caps+p / Caps+Tab chords for cycling +
+# recent-space jump. yabai's `space --focus N` silently no-ops for
+# nonexistent N (its stderr message never surfaces), which is the
+# existing UX bug we're fixing.
 set -u
 
 target="${1:-}"
@@ -12,6 +12,21 @@ target="${1:-}"
   osascript -e 'display notification "ws-focus: missing slot arg" with title "ws"'
   exit 2
 }
+
+# `last`/`recent` — delegate to yabai's built-in recent-space tracking.
+# We don't try to pre-resolve which slot "recent" maps to (yabai owns
+# that state) — so the optimistic sketchybar pre-paint isn't possible
+# here. Trigger a plain workspace_changed afterward so the bar repaints
+# from yabai's new state.
+if [[ "$target" == "last" || "$target" == "recent" ]]; then
+  if yabai -m space --focus recent 2>/dev/null; then
+    command -v sketchybar >/dev/null 2>&1 \
+      && sketchybar --trigger workspace_changed >/dev/null 2>&1 || true
+    exit 0
+  fi
+  osascript -e 'display notification "yabai has no recent space yet" with title "ws"'
+  exit 1
+fi
 
 # One yabai RPC. Three values when `target` is a literal slot
 # (count + target_display + cur_sid); two when it's `next`/`prev`

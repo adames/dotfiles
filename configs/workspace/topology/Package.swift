@@ -51,6 +51,7 @@ let package = Package(
         .executable(name: "ws-topologyd", targets: ["ws-topologyd"]),
         .executable(name: "ws-cheatsheet", targets: ["ws-cheatsheet"]),
         .executable(name: "ws-prompt", targets: ["ws-prompt"]),
+        .executable(name: "ws-picker", targets: ["ws-picker"]),
         .executable(name: "ws-autohide", targets: ["ws-autohide"]),
         .executable(name: "ws-snap", targets: ["ws-snap"]),
         .library(name: "DisplayTopology", targets: ["DisplayTopology"]),
@@ -115,6 +116,11 @@ let package = Package(
             name: "ws-prompt",
             dependencies: ["WsUI"],
             path: "Sources/ws-prompt"
+        ),
+        .executableTarget(
+            name: "ws-picker",
+            dependencies: ["WsUI"],
+            path: "Sources/ws-picker"
         ),
         .executableTarget(
             name: "ws-autohide",

@@ -205,12 +205,15 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/lib/hex-ansi.sh"     "$HOME/.config/workspace/lib/hex-ansi.sh"
   install_file "$CONFIGS_DIR/workspace/lib/sf-to-nerd.json" "$HOME/.config/workspace/lib/sf-to-nerd.json"
   install_file "$CONFIGS_DIR/workspace/hooks/post-mutate.sh" "$HOME/.config/workspace/hooks/post-mutate.sh" 755
-  # ws-launch-terminal / ws-launch-browser: auto-detect the user's
-  # preferred terminal / browser and open a new window. No hardcoded
-  # app names; override with $WS_TERMINAL_APP / $WS_BROWSER_APP.
-  # Wired to Caps+t (terminal) and Caps+b (browser) in skhdrc.
+  # ws-launch-*: auto-detect the user's preferred terminal / browser /
+  # notes / inbox app and open it. No hardcoded app names; override with
+  # $WS_TERMINAL_APP / $WS_BROWSER_APP / $WS_NOTES_APP / $WS_INBOX_APP
+  # (or $WS_INBOX_VAULT). Wired to Caps+t / Caps+b / Caps+q / Caps+Shift+q
+  # in skhdrc.
   install_file "$CONFIGS_DIR/workspace/launch-terminal.sh"  "$HOME/.local/bin/ws-launch-terminal"             755
   install_file "$CONFIGS_DIR/workspace/launch-browser.sh"   "$HOME/.local/bin/ws-launch-browser"              755
+  install_file "$CONFIGS_DIR/workspace/launch-notes.sh"     "$HOME/.local/bin/ws-launch-notes"                755
+  install_file "$CONFIGS_DIR/workspace/launch-inbox.sh"     "$HOME/.local/bin/ws-launch-inbox"                755
   # Clean up the notch-padding tuning env retired by the left-aligned
   # navbar refactor. The file had user edits, but the only consumer
   # (recenter.sh) is gone — nothing reads it now. Idempotent.
