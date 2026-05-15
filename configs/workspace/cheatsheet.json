@@ -13,16 +13,20 @@
       "title": "Windows · Spaces",
       "sub": "yabai · skhd · ws-snap",
       "idea": "Hyper navigates; Mod modifies. New windows arrive on the focused space + focused; floats are centered. Unfloat to commit, go to relocate, ⌘W to dismiss.",
+      "splitAfter": ["Focus", "Layout", "Cycle"],
       "rows": [
-        ["caps + hjkl",          "focus window  ←  ↓  ↑  →"],
-        ["caps + shift + hjkl",  "swap window  ←  ↓  ↑  →"],
-        ["caps + v",             "toggle float / unfloat  (unfloat = commit staged window to tiling)"],
-        ["caps + shift + v",     "center floating window  (50% inner grid)"],
-        ["caps + e",             "expose / window picker — fuzzy-search every visible window"],
-        ["caps + r",             "rotate space 90°"],
-        ["caps + shift + r",     "rebalance space (equal BSP splits)"],
+        [":sub", "Focus"],
+        ["caps + hjkl",           "focus window  ←  ↓  ↑  →"],
+        ["caps + shift + hjkl",   "swap window  ←  ↓  ↑  →"],
+        ["caps + e",              "expose / window picker — fuzzy-search every window"],
+        [":sub", "Layout"],
+        ["caps + v",              "toggle float / unfloat  (unfloat = commit to tiling)"],
+        ["caps + shift + v",      "center floating window  (50% inner grid)"],
+        ["caps + r",              "rotate space 90°"],
+        ["caps + shift + r",      "rebalance space (equal BSP splits)"],
+        [":sub", "Cycle"],
         ["caps + n  ·  caps + p", "next / prev workspace (wraps)"],
-        ["caps + tab",           "last / recent workspace"]
+        ["caps + tab",            "last / recent workspace"]
       ]
     },
     {
@@ -63,22 +67,26 @@
       "title": "Tmux",
       "sub": "prefix = C-Space",
       "idea": "C-Space is your prefix. Everything after it is one keystroke — pane, window, or session.",
+      "splitAfter": ["Panes", "Windows", "Sessions"],
       "rows": [
+        [":sub", "Panes"],
         ["C-Space  hjkl",      "select pane  ←  ↓  ↑  →"],
         ["C-Space  v / s",     "split right / below  (mirrors vim C-w)"],
         ["C-Space  | / -",     "split right / below  (aliases)"],
         ["C-Space  z",         "zoom pane (toggle)"],
-        ["C-Space  d",         "detach session"],
-        ["C-Space  r",         "reload tmux.conf"],
         ["C-Space  [",         "copy / scroll mode  (q to exit)"],
-        ["C-Space  f",         "sessionizer — fzf pick → switch/create session"],
+        ["C-Space  x",         "kill pane  (no confirmation)"],
+        ["C-Space  C-Space",   "send literal C-Space (nvim cmp)"],
+        [":sub", "Windows"],
         ["C-Space  c",         "new window"],
         ["C-Space  n / p",     "next / prev window"],
         ["C-Space  0…9",       "go to window N"],
-        ["C-Space  x",         "kill pane  (no confirmation)"],
         ["C-Space  &",         "kill window  (no confirmation)"],
+        [":sub", "Sessions"],
+        ["C-Space  d",         "detach session"],
+        ["C-Space  f",         "sessionizer — fzf pick → switch/create"],
         ["C-Space  $",         "rename current session"],
-        ["C-Space  C-Space",   "send literal C-Space to inner program (nvim cmp)"]
+        ["C-Space  r",         "reload tmux.conf"]
       ]
     },
     {
@@ -108,6 +116,8 @@
       "sub": "neovim · cursor & jumps",
       "idea": "Every motion is a noun. Pair it with a verb (c · d · y) to describe an edit.",
       "customLayout": "keyboard",
+      "allowedSpans": [1, 2],
+      "preferredSpan": 1,
       "rows": [
         ["0  ^  $",         "line: start / first nonblank / end"],
         ["gg  G",           "file: top / bottom"],
