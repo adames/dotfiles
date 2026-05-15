@@ -44,14 +44,14 @@ system settings to toggle. Re-run when validating a release.
 
 | # | Scenario | Setup | Expected |
 |---|---|---|---|
-| 18 | Slot count > 10 overflow | `ws add` until 11 slots | Inside `Caps+space` focus mode, digits `1..0` address slots 1..10 directly; reach slot 11+ via `n`/`p` cycle (wraps through every existing slot) or `yabai -m space --focus 11`. |
-| 19 | New slot is reachable immediately | Run `ws add foo` | Sketchybar pill appears (post-mutate hook → per-display-pills.sh); `Caps+space` focus mode can target the new slot without a reload (skhdrc bindings are static, not generated). |
+| 18 | Slot count > 10 overflow | `ws add` until 11 slots | Inside `Caps+f` focus overlay, digits `1..0` address slots 1..10 directly; reach slot 11+ via name typing + ↵ (all-numeric query addresses slot index) or `yabai -m space --focus 11`. |
+| 19 | New slot is reachable immediately | Run `ws add foo` | Sketchybar pill appears (post-mutate hook → per-display-pills.sh); `Caps+f` focus overlay can target the new slot without a reload (skhdrc bindings are static, not generated). |
 
 ## Performance
 
 | # | Scenario | Setup | Expected |
 |---|---|---|---|
-| 20 | Space switch latency | `Caps+space → 1..0` in rapid succession | No "paint to right then snap" pulse on pills; single `sketchybar --set` transaction per layout change. (The `: true` on-enter in skhdrc flushes the mode-transition event queue — first keystroke after `Caps+space` is never dropped.) |
+| 20 | Space switch latency | `Caps+f → 1..0` in rapid succession | No "paint to right then snap" pulse on pills; single `sketchybar --set` transaction per layout change. (ws-prompt captures keystrokes itself the moment the overlay opens, so the first digit after `Caps+f` is never dropped.) |
 | 21 | Cascade fires once per event | `log stream --predicate 'subsystem == "com.adames.workspace.topology"'` while switching spaces | One emission per space switch (no duplicate cascades from stale signals) |
 
 ## Verification commands

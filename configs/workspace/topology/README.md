@@ -150,7 +150,7 @@ longer read by any consumer.
 | `NOTCH_WIDTH=400` heuristic in `recenter.sh` | recenter retired; left-aligned layout sidesteps the notch geometry entirely. `WS_TOP_REGION_W_<id>` / `WS_NOTCH_W_<id>` still published for diagnostics. |
 | `NOTCH_MAX_VISIBLE=10` constant | `WS_MAX_VISIBLE_SLOTS_<id>` (derived from combined aux width) |
 | Raw Nerd Font PUA bytes in JSON `.icon` | `iconSpec.codepoint = "\uXXXX"`; literal glyph reconstructed only at the env sink |
-| Static `cmd + alt + ctrl + shift - N` block in `skhdrc` | Replaced by transient skhd modes (`Caps + space` focus, `Caps + return` send, `Caps + Shift + return` manage) — digit keys inside each mode address slots 1..10. Bindings are inlined and don't need per-mutation regeneration. (The `ws-topology emit-skhd` subcommand still exists for historical reasons but no consumer calls it.) |
+| Static `cmd + alt + ctrl + shift - N` block in `skhdrc` | Replaced by ws-prompt SwiftUI overlays (`Caps + f` focus, `Caps + g` / `Caps + return` go, `Caps + Shift + return` manage) — digit keys inside each overlay address slots 1..10. Bindings are inlined and don't need per-mutation regeneration. (The `ws-topology emit-skhd` subcommand still exists for historical reasons but no consumer calls it.) |
 | Per-consumer rediscovery of display roles via yabai queries | Single `layout.env` from `ws-topologyd` |
 | `space_changed` triggered full chain rebuild + two-pass write | Single-pass batched writes; `per-display-pills.sh` only re-runs on display events |
 | Duplicate `workspace_on_space_change` signal firing cascade twice | Single `ws_space_changed` registration |

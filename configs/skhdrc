@@ -19,37 +19,42 @@ cmd + alt + ctrl - l : yabai -m window --swap east
 # ws_stage_window signal: cross-space migrated, focused, and (if the
 # app/rule has them floating) centered. Tile-vs-float is the app's call.
 # Floating-staged windows have three exits:
-#   1. caps + return → digit  — send to another workspace (send mode)
-#   2. ⌘W                     — close
-#   3. caps + f               — toggle float (unfloat = commit to tiling)
+#   1. caps + g (or caps + return) → digit  — go (send window to another workspace)
+#   2. ⌘W                                   — close
+#   3. caps + v                             — toggle float (unfloat = commit to tiling)
 #
 # No zoom-fullscreen binding: BSP + plenty of workspaces means covering
 # the whole screen with one tile is rarely the right move — send the
 # window to its own workspace instead.
-cmd + alt + ctrl + shift - f      : yabai -m window --toggle float
+cmd + alt + ctrl + shift - v      : yabai -m window --toggle float
 cmd + alt + ctrl + shift - r      : yabai -m space  --rotate 90
 cmd + alt + ctrl + shift - e      : yabai -m space  --balance
 
 # --- workspace prompts --------------------------------------------------
-# Workspace focus / send / manage are dispatched to a SwiftUI overlay
+# Workspace focus / go / manage are dispatched to a SwiftUI overlay
 # (ws-prompt). The overlay captures keystrokes itself and exits on
 # commit / cancel / blur — so skhd never enters or holds a workspace
 # mode. No mode declarations, no sticky-state worry.
 #
-#   focus   caps+space        → digit (1..0) commits instantly · letters
-#                               fuzzy-match workspace name + Enter
-#   send    caps+return       → digit commits + follow · letters fuzzy-match
-#   manage  caps+shift+return → verb-picker overlay:
-#                                 a add   r rename   i icon   d destroy
-#                                 ⇧L layout (save / load / delete)
-#                                 v verify   ? doctor
-#                               Each verb runs `ws` directly, captures
-#                               output, and shows a result panel.
+#   focus   caps+f               → digit (1..0) commits instantly · letters
+#                                  fuzzy-match workspace name + Enter
+#   go      caps+g (caps+return) → digit commits + follow · letters fuzzy-match
+#                                  (Return alias keeps the most-frequent
+#                                  workspace action on the most-ergonomic
+#                                  chord; "go" because the action follows
+#                                  the window. CLI verb is still `send`.)
+#   manage  caps+shift+return    → verb-picker overlay:
+#                                    a add   r rename   i icon   d destroy
+#                                    ⇧L layout (save / load / delete)
+#                                    v verify   ? doctor
+#                                  Each verb runs `ws` directly, captures
+#                                  output, and shows a result panel.
 #
 # Caps+Esc is preserved as a no-op so users who built muscle memory
 # around the old panic-exit still see "nothing happened" (rather than
 # the chord leaking into the foreground app).
-cmd + alt + ctrl + shift - space  : "$HOME/.local/bin/ws-prompt" focus  >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - f      : "$HOME/.local/bin/ws-prompt" focus  >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - g      : "$HOME/.local/bin/ws-prompt" send   >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - return : "$HOME/.local/bin/ws-prompt" send   >/dev/null 2>&1 &
 cmd + alt + ctrl - return         : "$HOME/.local/bin/ws-prompt" manage >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - escape : :
@@ -87,7 +92,7 @@ cmd + alt + ctrl + shift - b : "$HOME/.local/bin/ws-launch-browser" >/dev/null 2
 
 # --- open Finder / Settings --------------------------------------------
 # Hyper+O → open a new Finder window (o = open). AppleScript dictionary
-# (no Accessibility permission required). Hyper+F is now zoom-fullscreen.
+# (no Accessibility permission required).
 # Hyper+S → activate macOS System Settings.
 cmd + alt + ctrl + shift - o : osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - s : open -a "System Settings"
