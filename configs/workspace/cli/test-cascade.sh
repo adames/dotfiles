@@ -320,6 +320,26 @@ assert_true "doctor green on seed (v2 iconSpec OK)" "$WS_BIN" doctor
 layout_name="harness-test-$$"
 "$WS_BIN" layout save "$layout_name" >/dev/null
 "$WS_BIN" layout list | grep -q "^$layout_name$" && pass "layout list shows saved layout" || fail "layout list missing $layout_name"
+
+# Trim the saved layout to min(json_count, yabai_count) so `layout load`'s
+# reconciliation step is a no-op. Without this, the harness's 7-slot JSON
+# floor (line 77) forces `yabai -m space --create` calls during load, which
+# fail on machines where yabai's scripting-addition isn't loaded — even
+# though the property under test (identity restore) is independent of
+# yabai's space count. Slot 1 is preserved because we trim from the tail.
+layouts_dir="${WS_LAYOUTS_DIR:-$HOME/.config/workspace/layouts}"
+layout_file="$layouts_dir/$layout_name.json"
+if command -v yabai >/dev/null 2>&1 && yabai -m query --spaces >/dev/null 2>&1; then
+  yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+  json_n=$(jq '.spaces | length' "$layout_file" 2>/dev/null || echo 0)
+  if [[ "$yabai_n" =~ ^[0-9]+$ && "$yabai_n" -ge 1 && "$yabai_n" -lt "$json_n" ]]; then
+    tmp=$(mktemp) || { red "mktemp failed"; exit 1; }
+    jq --argjson n "$yabai_n" \
+       '.spaces |= (to_entries | sort_by(.key | tonumber) | .[:$n] | from_entries)' \
+       "$layout_file" > "$tmp" && mv -f "$tmp" "$layout_file"
+  fi
+fi
+
 # Mutate then reload
 "$WS_BIN" name 1 "layout-test-mutated-$$" >/dev/null
 "$WS_BIN" layout load "$layout_name" -y >/dev/null
