@@ -13,6 +13,89 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
+-- ws-cheatsheet content (parsed by lib/cheatsheet-gen.py). One block per
+-- card on the HUD. Each block is fault-isolated: a broken annotation
+-- below only drops its own card, not the rest of the cheatsheet.
+
+-- @cs section Vim · Motion
+-- @cs family vim
+-- @cs sub neovim · cursor & jumps
+-- @cs idea Every motion is a noun. Pair it with a verb (c · d · y) to describe an edit.
+-- @cs custom keyboard
+-- @cs row 0  ^  $          :: line: start / first nonblank / end
+-- @cs row gg  G            :: file: top / bottom
+-- @cs row {  }             :: paragraph: back / forward
+-- @cs row f / F  ·  t / T  :: find / till char in line  ·  uppercase = backwards
+-- @cs row %                :: matching ( [ {
+-- @cs row /pat   n / N     :: search forward · next / prev match
+-- @cs row *  #             :: search word under cursor: fwd / back
+-- @cs row ctrl-o  ctrl-i   :: jumplist: back / forward
+-- @cs row m⟨a-z⟩  '⟨a-z⟩   :: set mark / jump to mark line
+-- @cs end
+
+-- @cs section Vim · Edit
+-- @cs family vim
+-- @cs sub neovim · change & yank
+-- @cs idea Verb + motion = composable change. The . key replays your last verb on the next thing.
+-- @cs row i  a   I  A       :: insert: before / after / line-start / line-end
+-- @cs row o  O               :: open line: below / above
+-- @cs row cc  dd  yy         :: change / delete / yank whole line
+-- @cs row ci⟨x⟩  ca⟨x⟩       :: change inside / around  (" ' ( [ { t p)
+-- @cs row p  P               :: paste: after / before
+-- @cs row u   ctrl-r         :: undo / redo
+-- @cs row .                  :: repeat last change
+-- @cs row ctrl-a  ctrl-x     :: increment / decrement number
+-- @cs row q⟨x⟩ … q     @⟨x⟩  :: record macro to x / replay x
+-- @cs row :%s/foo/bar/g      :: replace all in buffer  (add c for confirm)
+-- @cs end
+
+-- @cs section Neovim · LSP & Find
+-- @cs family nvim
+-- @cs sub leader = space  ·  pyright + ruff attach to *.py
+-- @cs idea Leader is your nvim command palette. Most LSP and fzf actions live one chord away.
+-- @cs row gd   gr        :: go to definition / references
+-- @cs row K              :: hover docs
+-- @cs row ⟨leader⟩ ca    :: code action
+-- @cs row ⟨leader⟩ rn    :: rename symbol
+-- @cs row ⟨leader⟩ =     :: format buffer  (auto-runs ruff on :w for *.py)
+-- @cs row ⟨leader⟩ ff    :: fzf files
+-- @cs row ⟨leader⟩ fg    :: fzf live grep
+-- @cs row ⟨leader⟩ fb    :: fzf buffers
+-- @cs row ]d   [d        :: next / prev diagnostic
+-- @cs row ctrl-w  v / s  :: split right / below
+-- @cs row ctrl-w  hjkl   :: navigate splits
+-- @cs end
+
+-- @cs section Git · Hunks (editor)
+-- @cs family nvim
+-- @cs sub gitsigns · fzf-lua git_status
+-- @cs idea Line-level git lives in the editor. Stage, preview, reset — one hunk at a time.
+-- @cs row ] c   [ c     :: next / prev hunk
+-- @cs row ⟨leader⟩ gs   :: git status (fzf picker)
+-- @cs row ⟨leader⟩ gh   :: stage hunk
+-- @cs row ⟨leader⟩ gp   :: preview hunk
+-- @cs row ⟨leader⟩ gr   :: reset hunk
+-- @cs row ⟨leader⟩ gb   :: blame line (full)
+-- @cs row ⟨leader⟩ gd   :: diff this buffer
+-- @cs end
+
+-- @cs section Python · Debug & Test
+-- @cs family nvim
+-- @cs sub nvim-dap (debugpy)  ·  neotest (pytest)
+-- @cs idea DAP drives execution (d* bindings). neotest drives pytest (t* bindings). Same mental shape.
+-- @cs row ⟨leader⟩ db              :: toggle breakpoint
+-- @cs row ⟨leader⟩ dc              :: continue
+-- @cs row ⟨leader⟩ do              :: step over
+-- @cs row ⟨leader⟩ di              :: step into
+-- @cs row ⟨leader⟩ du              :: step out
+-- @cs row ⟨leader⟩ dr              :: open REPL
+-- @cs row ⟨leader⟩ dx              :: terminate session
+-- @cs row ⟨leader⟩ dU              :: toggle DAP UI
+-- @cs row ⟨leader⟩ tn              :: test nearest
+-- @cs row ⟨leader⟩ t{f, l, s, o}   :: test: file · last · summary · output
+-- @cs row ⟨leader⟩ td              :: debug nearest test  (drops to dap)
+-- @cs end
+
 local opt = vim.opt
 opt.number         = true
 opt.relativenumber = true
