@@ -1,9 +1,10 @@
 import SwiftUI
+import WsUI
 
 // Visual vocabulary (palette, typography, pill geometry) lives in
-// DesignSystem.swift — see `Catppuccin` and `PromptStyle`. The overlay
-// borrows its language from `configs/sketchybar/colors.sh` so switching
-// between the bar and the prompt feels like one app.
+// WsUI/DesignSystem.swift — see `Catppuccin` and `PromptStyle`. The
+// overlay borrows its language from `configs/sketchybar/colors.sh` so
+// switching between the bar and the prompt feels like one app.
 
 /// Binds directly to `PromptController`'s `@Published` state — no
 /// separate view-model. The view re-renders whenever query / selection
