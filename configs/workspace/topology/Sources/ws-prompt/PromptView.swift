@@ -19,11 +19,10 @@ struct PromptView: View {
 
     var body: some View {
         ZStack {
-            // Scrim: same darken-everything-else cue as ws-cheatsheet, a
-            // touch lighter so the catppuccin card's `mantle` background
-            // reads as the focused surface.
-            Color.black.opacity(0.45)
-
+            // No background scrim. The borderless window is transparent
+            // (isOpaque=false in WsPromptApp); the card's own opaque
+            // catppuccin background carries the visual weight so the
+            // prompt floats above the live desktop instead of dimming it.
             VStack(spacing: 14) {
                 Spacer().frame(height: 96)
                 card
