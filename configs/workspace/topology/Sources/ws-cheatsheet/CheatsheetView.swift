@@ -16,14 +16,23 @@ import WsUI   // re-exports `Color(hex:)`
 ///   `customLayout: "keyboard"` — dual coding (Paivio) where it reinforces
 ///   the concept ("h is left because it's the leftmost arrow key").
 ///
-/// Visual cleanup (Tufte, data-ink):
-/// - The redundant 2pt top accent bar is gone — the colored title carries
-///   section identity by itself.
-/// - Per-row dividers are replaced by 6pt vertical breathing room.
-/// - Section title scales up (13pt semibold); subtitle scales down (10pt).
+/// Layout (v3 — span-aware shelf packing):
+/// - 4 fixed columns. Each card occupies 1 or 2 columns based on its
+///   `allowedSpans` hint. The packer (`ShelfLayout.pack`) pre-splits
+///   tall cards (TMUX, WORKSPACE) by their declared subsections and
+///   bin-packs the result into shelves, rebalancing spans inside each
+///   shelf for height + utilization. See ShelfLayout.swift for the
+///   pipeline.
 struct CheatsheetView: View {
     let document: CheatsheetDocument
     let timestamp: String
+
+    private let outerHPadding: CGFloat = 40
+    private let outerTopPadding: CGFloat = 36
+    private let outerBottomPadding: CGFloat = 22
+    private let columnSpacing: CGFloat = 14
+    private let shelfSpacing: CGFloat = 14
+    private let maxPageWidth: CGFloat = 1720
 
     var body: some View {
         ZStack {
@@ -34,34 +43,42 @@ struct CheatsheetView: View {
                 sectionGrid
                 footer
             }
-            .padding(.horizontal, 40)
-            .padding(.top, 36)
-            .padding(.bottom, 22)
-            .frame(maxWidth: 1720, maxHeight: .infinity)
+            .padding(.horizontal, outerHPadding)
+            .padding(.top, outerTopPadding)
+            .padding(.bottom, outerBottomPadding)
+            .frame(maxWidth: maxPageWidth, maxHeight: .infinity)
         }
     }
 
-    /// Single adaptive grid that flows all sections in document order. The
-    /// JSON is authored family-clustered (system → terminal → vim → nvim →
-    /// git), so at any column count, sections of the same family land
-    /// adjacent — proximity grouping without the orphan-card hazard of one
-    /// LazyVGrid per family.
-    ///
-    /// Family color (similarity) does the rest of the Gestalt work: even
-    /// when a family straddles a row boundary, the shared hue still groups
-    /// it visually.
+    /// Shelf-packed body. GeometryReader gives us the inner width so we
+    /// can compute exact column widths; everything below it is sized in
+    /// concrete pt values, which means ScrollView's intrinsic content
+    /// size is well-defined.
     private var sectionGrid: some View {
-        ScrollView {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 300), spacing: 14, alignment: .top)],
-                alignment: .leading,
-                spacing: 14
-            ) {
-                ForEach(document.sections) { sec in
-                    SectionCard(section: sec)
+        GeometryReader { geo in
+            let usableWidth = min(geo.size.width, maxPageWidth - 2 * outerHPadding)
+            let columns = ShelfLayout.columns
+            let totalSpacing = columnSpacing * CGFloat(columns - 1)
+            let columnWidth = (usableWidth - totalSpacing) / CGFloat(columns)
+            let shelves = ShelfLayout.pack(
+                sections: document.sections,
+                pageWidth: usableWidth,
+                pageHeight: geo.size.height
+            )
+
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: shelfSpacing) {
+                    ForEach(shelves) { shelf in
+                        ShelfRow(
+                            shelf: shelf,
+                            columnWidth: columnWidth,
+                            columnSpacing: columnSpacing
+                        )
+                    }
                 }
+                .padding(.bottom, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.bottom, 6)
         }
     }
 
@@ -109,6 +126,35 @@ struct CheatsheetView: View {
     }
 }
 
+// MARK: - ShelfRow
+
+private struct ShelfRow: View {
+    let shelf: ShelfLayout.Shelf
+    let columnWidth: CGFloat
+    let columnSpacing: CGFloat
+
+    var body: some View {
+        HStack(alignment: .top, spacing: columnSpacing) {
+            ForEach(Array(shelf.items.enumerated()), id: \.offset) { _, item in
+                SectionCard(section: item.section)
+                    .frame(
+                        width: cardWidth(span: item.span),
+                        alignment: .topLeading
+                    )
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// One column wide = `columnWidth`. Two columns wide = two columns
+    /// plus the spacer between them (so the card crosses the gutter that
+    /// would otherwise sit between its two host columns).
+    private func cardWidth(span: Int) -> CGFloat {
+        let s = CGFloat(max(1, span))
+        return columnWidth * s + columnSpacing * (s - 1)
+    }
+}
+
 // MARK: - SectionCard
 
 private struct SectionCard: View {
@@ -122,11 +168,15 @@ private struct SectionCard: View {
                     .tracking(0.9)
                     .foregroundColor(accentColor)
                     .padding(.bottom, 3)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
-                Text(section.sub)
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.38))
-                    .padding(.bottom, section.idea == nil ? 12 : 8)
+                if !section.sub.isEmpty {
+                    Text(section.sub)
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.38))
+                        .padding(.bottom, section.idea == nil ? 12 : 8)
+                }
 
                 if let idea = section.idea, !idea.isEmpty {
                     Text(idea)
@@ -137,14 +187,14 @@ private struct SectionCard: View {
                         .padding(.bottom, 12)
                 }
 
-                // Custom-layout sections (currently only "keyboard") render a
-                // diagram above the row table.
+                // Custom-layout sections (currently only "keyboard") render
+                // a diagram above the row table.
                 if section.customLayout?.lowercased() == "keyboard" {
                     SpatialKeyboardView()
-                        .padding(.bottom, section.rows.isEmpty ? 0 : 10)
+                        .padding(.bottom, hasRenderableRows ? 10 : 0)
                 }
 
-                ForEach(Array(section.rows.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(renderableRows.enumerated()), id: \.offset) { _, row in
                     rowView(row)
                 }
             }
@@ -152,6 +202,7 @@ private struct SectionCard: View {
             .padding(.top, 16)
             .padding(.bottom, 16)
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(red: 0.031, green: 0.039, blue: 0.059).opacity(0.88))
@@ -162,6 +213,17 @@ private struct SectionCard: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
+
+    /// Filtered rows: `[":sub", "..."]` markers are layout metadata, not
+    /// rendered content. The packer consumes them; the renderer skips
+    /// them. (Chunks emitted by `splitIntoChunks` don't contain `:sub`
+    /// rows at all, but we filter defensively in case a section opts
+    /// out of `splitAfter` but still has `:sub` markers for the future.)
+    private var renderableRows: [[String]] {
+        section.rows.filter { $0.first != ":sub" }
+    }
+
+    private var hasRenderableRows: Bool { !renderableRows.isEmpty }
 
     private func rowView(_ row: [String]) -> some View {
         let key = row.indices.contains(0) ? row[0] : ""
@@ -222,4 +284,3 @@ struct KeyCap: View {
             .fixedSize(horizontal: true, vertical: false)
     }
 }
-
