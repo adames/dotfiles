@@ -91,10 +91,14 @@ fi
 # Homebrew cask (e.g. docker-desktop pointing into /Applications/Docker.app)
 # can leave broken symlinks under site-functions that compinit then errors
 # on with `:527: no such file or directory` and a cascaded `:529 shift`.
+# Avoids zsh-specific glob qualifiers so the file still passes bash -n
+# (the repo's lint sweep). The ls-precheck dodges zsh's NOMATCH error in
+# the rare case of an fpath dir with no _*-prefixed files.
 for _zd in $fpath; do
   [[ -d $_zd ]] || continue
-  for _zf in "$_zd"/_*(N); do
-    [[ -e $_zf ]] || command rm -f -- "$_zf" 2>/dev/null
+  ls "$_zd"/_* >/dev/null 2>&1 || continue
+  for _zf in "$_zd"/_*; do
+    [[ -L $_zf && ! -e $_zf ]] && command rm -f -- "$_zf" 2>/dev/null
   done
 done
 unset _zd _zf
