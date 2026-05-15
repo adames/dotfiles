@@ -50,20 +50,6 @@ setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE SHARE_HISTORY
 export EDITOR='vim'
 export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
 
-# @cs section Git · Workflow (shell)
-# @cs family git
-# @cs sub aliases · delta pager · gh CLI · lazygit TUI
-# @cs idea Workflow-level git lives in the shell. Aliases for the daily five; gh and lazygit for the rest.
-# @cs row gs  ga  gc            :: status / add / commit  (zsh aliases)
-# @cs row gp  gpl               :: push / pull
-# @cs row git diff / log / show :: delta-rendered, side-by-side off
-# @cs row gh pr create          :: open PR for current branch
-# @cs row gh pr checkout ⟨n⟩    :: check out PR by number
-# @cs row gh pr view --web      :: open PR in browser
-# @cs row gh run watch          :: tail latest workflow run
-# @cs row lazygit               :: full-screen TUI for git (faster than gh for staging / branching)
-# @cs end
-
 alias ll='ls -lah'
 alias la='ls -A'
 alias ..='cd ..'
