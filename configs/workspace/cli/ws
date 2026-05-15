@@ -143,7 +143,7 @@ _ensure_slot() {
         stableLogicalLabel: ("ws" + $k),
         iconSpec: {
           kind: "none",
-          fallbackSfSymbol: "circle",
+          fallbackSfSymbol: "stop.fill",
           fallbackText: ("WS" | ascii_upcase),
           userOverridden: false
         }
@@ -619,7 +619,7 @@ cmd_icon() {
       | .iconSpec = (
           {
             kind: $kind,
-            fallbackSfSymbol: (($s.iconSpec.fallbackSfSymbol) // "circle"),
+            fallbackSfSymbol: (($s.iconSpec.fallbackSfSymbol) // "stop.fill"),
             fallbackText: (($s.iconSpec.fallbackText) // (($s.name // "") | .[0:2] | ascii_upcase)),
             userOverridden: true
           }
@@ -850,8 +850,8 @@ cmd_add() {
       [[ -z "$name" ]] && name="$suggested"
     fi
     # Icon prompt via fzf picker if available; ESC leaves the slot
-    # icon-less (kind=none, fallbackSfSymbol="circle"). Skipped if
-    # fzf or sf-to-nerd map missing — slot still gets the circle
+    # icon-less (kind=none, fallbackSfSymbol="stop.fill"). Skipped if
+    # fzf or sf-to-nerd map missing — slot still gets the stop.fill
     # fallback so the pill renders.
     if [[ -z "$icon" ]] && have fzf && [[ -r "$WS_SF_TO_NERD_MAP" ]]; then
       printf 'icon: opening fzf (ESC to skip) ...\n' >&2
@@ -898,7 +898,7 @@ cmd_add() {
       iconSpec: (
         {
           kind: $kind,
-          fallbackSfSymbol: "circle",
+          fallbackSfSymbol: "stop.fill",
           fallbackText: $ft,
           userOverridden: ($uo == "true")
         }
@@ -1321,7 +1321,7 @@ cmd_theme() {
                   { iconSpec: (
                       {
                         kind: "nerdFont",
-                        fallbackSfSymbol: ($s.iconSpec.fallbackSfSymbol // "circle"),
+                        fallbackSfSymbol: ($s.iconSpec.fallbackSfSymbol // "stop.fill"),
                         fallbackText: ($s.iconSpec.fallbackText // (($s.name // "") | .[0:2] | ascii_upcase)),
                         userOverridden: false,
                         codepoint: $icons[$i-1],

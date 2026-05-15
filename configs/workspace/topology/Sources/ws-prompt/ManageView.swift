@@ -109,7 +109,7 @@ struct ManageView: View {
             // `one`/`two`/…").
             let defaultName = ManageController.defaultName(forSlot: controller.workspaces.count + 1)
             textEntry(prompt: "new workspace name (default: \(defaultName))", buffer: buf)
-        case .addIcon(_, let buf):                     textEntry(prompt: "icon (empty = circle · type to filter SF Symbols)", buffer: buf)
+        case .addIcon(_, let buf):                     textEntry(prompt: "icon (empty = stop.fill · type to filter SF Symbols)", buffer: buf)
         case .renameTarget(let f, let s, _):           targetPicker(filter: f, sel: s)
         case .renameNewName(_, let nm, let buf):       textEntry(prompt: "rename \"\(nm)\" →", buffer: buf)
         case .destroyTarget(let f, let s, _):          targetPicker(filter: f, sel: s)
@@ -450,7 +450,7 @@ struct ManageView: View {
         switch controller.stage {
         case .verbPicker:        return "pick a verb · esc cancels"
         case .addName:           return "type a name or ↵ to accept the default · no leading digit · esc backs out"
-        case .addIcon:           return "type one glyph (Nerd Font / SF Symbol) or ↵ to skip (defaults to circle) · esc backs out"
+        case .addIcon:           return "type one glyph (Nerd Font / SF Symbol) or ↵ to skip (defaults to stop.fill) · esc backs out"
         case .renameTarget:      return "↵ renames focused · digit = slot · letters fuzzy-match · tab cycles · esc backs out"
         case .renameNewName:     return "type a new name · ↵ commits · esc backs out"
         case .destroyTarget:     return "↵ destroys focused · digit = slot · letters fuzzy-match · esc backs out"
