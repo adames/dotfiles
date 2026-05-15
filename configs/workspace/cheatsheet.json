@@ -3,7 +3,7 @@
   "banner": [
     {"k": "caps",        "v": "tap → Esc"},
     {"k": "caps + …",    "v": "Hyper (⌃⌥⌘⇧)  ·  +shift = Mod"},
-    {"k": "C-a …",       "v": "Tmux prefix"},
+    {"k": "C-Space …",   "v": "Tmux prefix"},
     {"k": "⟨leader⟩ …",  "v": "space · Neovim leader"}
   ],
   "sections": [
@@ -17,10 +17,12 @@
         ["caps + hjkl",          "focus window  ←  ↓  ↑  →"],
         ["caps + shift + hjkl",  "swap window  ←  ↓  ↑  →"],
         ["caps + v",             "toggle float / unfloat  (unfloat = commit staged window to tiling)"],
-        ["caps + e",             "balance space"],
+        ["caps + shift + v",     "center floating window  (50% inner grid)"],
+        ["caps + e",             "expose / window picker — fuzzy-search every visible window"],
         ["caps + r",             "rotate space 90°"],
-        ["caps + tab",           "cycle next workspace (wraps 1↔N)"],
-        ["caps + shift + tab",   "cycle prev workspace (wraps N↔1)"]
+        ["caps + shift + r",     "rebalance space (equal BSP splits)"],
+        ["caps + n  ·  caps + p", "next / prev workspace (wraps)"],
+        ["caps + tab",           "last / recent workspace"]
       ]
     },
     {
@@ -30,12 +32,12 @@
       "sub": "number = stable selector · names/icons are cosmetic",
       "idea": "Three overlays. Digit (1..0) commits instantly; type letters to fuzzy-search names + Enter. Esc and click-elsewhere always cancel.",
       "rows": [
-        ["caps + f",                  "focus prompt → digit · letters → name search + ↵"],
-        ["caps + g  ·  caps + return", "go prompt → digit (commit + follow) · letters + ↵"],
-        ["caps + shift + return",     "manage prompt → a add · r rename · i icon · d destroy"],
-        ["    (in manage)",           "⇧L layout save/load/delete · v verify · ? doctor"],
-        ["esc / click-elsewhere",     "cancel any prompt"],
-        ["—",                         "names cannot start with a digit · all-numeric query = slot index (11+)"]
+        ["caps + w",              "focus prompt → digit · letters → name search + ↵"],
+        ["caps + g  ·  caps + m", "go / move prompt → digit (commit + follow) · letters + ↵"],
+        ["caps + shift + w",      "manage prompt → a add · r rename · i icon · d destroy"],
+        ["    (in manage)",       "⇧L layout save/load/delete · v verify · ? doctor"],
+        ["esc / click-elsewhere", "cancel any prompt"],
+        ["—",                     "names cannot start with a digit · all-numeric query = slot index (11+)"]
       ]
     },
     {
@@ -45,10 +47,13 @@
       "sub": "skhd · auto-detected apps",
       "idea": "Each chord spawns a new window of an auto-detected app. Override the choice with $WS_* env vars.",
       "rows": [
-        ["caps + t",  "new terminal  (auto: Ghostty / iTerm / …; $WS_TERMINAL_APP override)"],
-        ["caps + b",  "new browser  (auto: Brave / Arc / … / Safari; $WS_BROWSER_APP override)"],
-        ["caps + o",  "new Finder window  (o = open)"],
-        ["caps + s",  "System Settings"]
+        ["caps + t",          "new terminal  (auto: Ghostty / iTerm / …; $WS_TERMINAL_APP)"],
+        ["caps + b",          "new browser  (auto: Brave / Arc / … / Safari; $WS_BROWSER_APP)"],
+        ["caps + o",          "new Finder window  (o = open)"],
+        ["caps + ,",          "System Settings"],
+        ["caps + q",          "notes  (auto: Raycast Notes → Apple Notes; $WS_NOTES_APP)"],
+        ["caps + shift + q",  "inbox  (auto: Obsidian → Apple Notes; $WS_INBOX_APP / $WS_INBOX_VAULT)"],
+        ["caps + ;",          "this cheatsheet (toggle)"]
       ]
     },
 
@@ -56,23 +61,24 @@
       "family": "terminal",
       "color": "#34d399",
       "title": "Tmux",
-      "sub": "prefix = C-a",
-      "idea": "C-a is your prefix. Everything after it is one keystroke — pane, window, or session.",
+      "sub": "prefix = C-Space",
+      "idea": "C-Space is your prefix. Everything after it is one keystroke — pane, window, or session.",
       "rows": [
-        ["C-a  hjkl",   "select pane  ←  ↓  ↑  →"],
-        ["C-a  v / s",  "split right / below  (mirrors vim C-w)"],
-        ["C-a  z",      "zoom pane (toggle)"],
-        ["C-a  d",      "detach session"],
-        ["C-a  r",      "reload tmux.conf"],
-        ["C-a  [",      "copy / scroll mode  (q to exit)"],
-        ["C-a  f",      "sessionizer — fzf pick → switch/create session"],
-        ["C-a  c",      "new window"],
-        ["C-a  n / p",  "next / prev window"],
-        ["C-a  0…9",    "go to window N"],
-        ["C-a  x",      "kill pane  (no confirmation)"],
-        ["C-a  &",      "kill window  (no confirmation)"],
-        ["C-a  $",      "rename current session"],
-        ["C-a  C-a",    "send literal C-a to program"]
+        ["C-Space  hjkl",      "select pane  ←  ↓  ↑  →"],
+        ["C-Space  v / s",     "split right / below  (mirrors vim C-w)"],
+        ["C-Space  | / -",     "split right / below  (aliases)"],
+        ["C-Space  z",         "zoom pane (toggle)"],
+        ["C-Space  d",         "detach session"],
+        ["C-Space  r",         "reload tmux.conf"],
+        ["C-Space  [",         "copy / scroll mode  (q to exit)"],
+        ["C-Space  f",         "sessionizer — fzf pick → switch/create session"],
+        ["C-Space  c",         "new window"],
+        ["C-Space  n / p",     "next / prev window"],
+        ["C-Space  0…9",       "go to window N"],
+        ["C-Space  x",         "kill pane  (no confirmation)"],
+        ["C-Space  &",         "kill window  (no confirmation)"],
+        ["C-Space  $",         "rename current session"],
+        ["C-Space  C-Space",   "send literal C-Space to inner program (nvim cmp)"]
       ]
     },
     {
