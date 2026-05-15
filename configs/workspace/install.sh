@@ -143,7 +143,23 @@ if command -v sketchybar >/dev/null 2>&1; then
   brew services restart sketchybar >/dev/null 2>&1 || warn "sketchybar restart failed"
 fi
 
-# Prime current.env so the very first new shell already has metadata.
+# Re-fire per-display-pills.sh after sketchybar settles.
+#
+# sketchybarrc invokes this script on bar startup, but its 3-second
+# yabai-RPC retry loop can time out if yabai is still booting from
+# the restart above. When that happens, per-display-pills.sh bails
+# without ever running `sketchybar --add item "workspace.name.<D>"` —
+# the per-display name chip never gets created, and stays missing
+# until a yabai display_* or space_created/destroyed signal happens
+# to re-fire the script (which routine workspace focus changes do
+# NOT). `ws refresh` (and `ws verify` as a side-effect) call this
+# script explicitly for the same reason; do it here so a fresh
+# bootstrap is sufficient on its own.
+PILLS="$HOME/.config/sketchybar/plugins/per-display-pills.sh"
+[[ -x "$PILLS" ]] && "$PILLS" >/dev/null 2>&1 || true
+
+# Prime current.env so the very first new shell already has metadata,
+# AND so paint-all.sh labels the chips per-display-pills.sh just created.
 "$SELF_DIR/on-space-changed.sh" >/dev/null 2>&1 || true
 
 ok "workspace system ready"
