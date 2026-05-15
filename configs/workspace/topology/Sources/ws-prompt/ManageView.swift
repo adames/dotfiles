@@ -1,4 +1,5 @@
 import SwiftUI
+import WsUI
 
 /// Binds directly to `ManageController`'s `@Published var stage`. No
 /// separate view-model — the controller is the model. Workspace list is

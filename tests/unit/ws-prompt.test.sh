@@ -106,12 +106,15 @@ else
 fi
 
 # ── manage mode is wired up (chord present, accepted by binary) ─────────
-if grep -qE '^cmd \+ alt \+ ctrl - return.*ws-prompt.*manage' "$REPO_ROOT/configs/skhdrc"; then
+# Caps+Shift+w (Mod+w) → ws-prompt manage. Migrated from Caps+Shift+Return
+# in the 2026-05 keymap reshuffle; see docs/keymap.md for the canonical
+# binding table.
+if grep -qE '^cmd \+ alt \+ ctrl[[:space:]]+- w[[:space:]].*ws-prompt.*manage' "$REPO_ROOT/configs/skhdrc"; then
   pass=$((pass + 1))
-  printf 'ok   skhdrc binds Caps+Shift+Return to ws-prompt manage\n'
+  printf 'ok   skhdrc binds Caps+Shift+w to ws-prompt manage\n'
 else
   fail=$((fail + 1))
-  printf 'FAIL skhdrc missing Caps+Shift+Return → ws-prompt manage binding\n'
+  printf 'FAIL skhdrc missing Caps+Shift+w → ws-prompt manage binding\n'
 fi
 # Manage mode is live-only (multi-stage state machine + Process exec).
 # Smoke test: binary accepts the mode as an arg without crashing. Use
