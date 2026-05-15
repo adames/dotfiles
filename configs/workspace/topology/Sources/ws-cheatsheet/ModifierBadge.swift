@@ -9,15 +9,13 @@ import SwiftUI
 enum ModifierFamily {
     case hyper           // caps + …            (system layer, ⌃⌥⌘⇧)
     case mod             // caps + shift + …    (system layer modify, ⌃⌥⌘)
-    case tmuxPrefix      // C-a …               (terminal)
-    case leader          // ⟨leader⟩ …          (neovim)
+    case tmuxPrefix      // C-a … / C-Space …   (terminal)
     case raw             // everything else     (vim motion/edit, shell aliases, etc.)
 
     var color: Color {
         switch self {
         case .hyper, .mod:    return FamilyColors.system
         case .tmuxPrefix:     return FamilyColors.terminal
-        case .leader:         return FamilyColors.nvim
         case .raw:            return Color.white.opacity(0.22)
         }
     }
@@ -26,8 +24,7 @@ enum ModifierFamily {
         let s = chord.lowercased()
         if s.hasPrefix("caps + shift")   { return .mod }
         if s.hasPrefix("caps +")         { return .hyper }
-        if s.hasPrefix("c-a")            { return .tmuxPrefix }
-        if s.contains("⟨leader⟩")        { return .leader }
+        if s.hasPrefix("c-a") || s.hasPrefix("c-space") { return .tmuxPrefix }
         return .raw
     }
 }

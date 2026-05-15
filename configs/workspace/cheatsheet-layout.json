@@ -1,15 +1,13 @@
 {
   "_doc": "Banner strip + column-to-family mapping consumed by lib/cheatsheet-gen.py. Reorder the `columns` array to reorder the on-screen layout; swap families to repurpose a column. Keys starting with `_` are documentation, ignored by the generator.",
   "banner": [
-    { "k": "caps",        "v": "tap → Esc" },
-    { "k": "caps + …",    "v": "Hyper (⌃⌥⌘⇧)  ·  +shift = Mod" },
-    { "k": "C-Space …",   "v": "Tmux prefix" },
-    { "k": "⟨leader⟩ …",  "v": "space · Neovim leader" }
+    { "k": "caps",      "v": "tap → Esc" },
+    { "k": "caps + …",  "v": "Hyper (⌃⌥⌘⇧)  ·  +shift = Mod" },
+    { "k": "C-Space …", "v": "Tmux prefix" }
   ],
   "columns": [
     { "families": ["system"] },
     { "families": ["terminal"] },
-    { "families": ["vim"] },
-    { "families": ["nvim", "git"] }
+    { "families": ["vim"] }
   ]
 }

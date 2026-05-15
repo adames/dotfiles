@@ -29,8 +29,6 @@ struct CheatsheetView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.38)
-
             VStack(spacing: 16) {
                 bannerStrip
                 columnGrid
