@@ -113,21 +113,21 @@ private struct SectionCard: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 Text(section.title.uppercased())
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 20, weight: .semibold))
                     .tracking(0.9)
                     .foregroundColor(accentColor)
                     .padding(.bottom, 3)
 
                 if let sub = section.sub, !sub.isEmpty {
                     Text(sub)
-                        .font(.system(size: 10))
+                        .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.38))
                         .padding(.bottom, section.idea == nil ? 12 : 8)
                 }
 
                 if let idea = section.idea, !idea.isEmpty {
                     Text(idea)
-                        .font(.system(size: 11))
+                        .font(.system(size: 15))
                         .italic()
                         .foregroundColor(accentColor.opacity(0.85))
                         .fixedSize(horizontal: false, vertical: true)
@@ -169,21 +169,21 @@ private struct SectionCard: View {
             if key == "—" {
                 // Footnote row: italic muted prose, no badge, no keycap.
                 Text("—")
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.system(size: 18, design: .monospaced))
                     .foregroundColor(.white.opacity(0.22))
                     .frame(width: 78, alignment: .leading)
                 Text(desc)
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 16))
                     .foregroundColor(.white.opacity(0.50))
                     .italic()
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 ModifierBadge(forChord: key)
-                    .padding(.top, 6)
+                    .padding(.top, 8)
                 KeyCap(text: key)
                     .layoutPriority(1)
                 Text(desc)
-                    .font(.system(size: 12.5))
+                    .font(.system(size: 20))
                     .foregroundColor(Color(red: 0.866, green: 0.894, blue: 0.933).opacity(0.68))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -205,10 +205,10 @@ struct KeyCap: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, design: .monospaced))
+            .font(.system(size: 16, design: .monospaced))
             .foregroundColor(Color(red: 0.866, green: 0.894, blue: 0.933))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 5)
                     .fill(Color.white.opacity(0.05))
