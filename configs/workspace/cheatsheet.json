@@ -12,7 +12,7 @@
       "color": "#60a5fa",
       "title": "Windows · Spaces",
       "sub": "yabai · skhd · ws-snap",
-      "idea": "Hyper navigates; Mod modifies. New windows arrive on the focused space + focused; floats are centered. Unfloat to commit, send to relocate, ⌘W to dismiss.",
+      "idea": "Hyper navigates; Mod modifies. New windows arrive on the focused space + focused; floats are centered. Unfloat to commit, go to relocate, ⌘W to dismiss.",
       "rows": [
         ["caps + hjkl",          "focus window  ←  ↓  ↑  →"],
         ["caps + shift + hjkl",  "swap window  ←  ↓  ↑  →"],
