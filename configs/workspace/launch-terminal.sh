@@ -12,12 +12,15 @@
 #   3. Terminal  — always present on macOS, final fallback
 #
 # Spawning talks directly to the app's AppleScript dictionary
-# (`tell application "X" to make new window`). This avoids the
-# System-Events menu-click pattern, which requires Accessibility
-# permission for osascript (`-1719: not allowed assistive access`)
-# and silently fails when permission isn't granted. Fallback to
-# `open -na` if the app doesn't expose `make new window` (rare for
-# terminals; common dictionaries cover it).
+# (`tell application "X" to make new window`) where possible —
+# avoids the System-Events keystroke pattern, which needs
+# Accessibility permission for osascript (-1719) and silently
+# fails when permission isn't granted. Ghostty is the exception:
+# its dictionary doesn't expose `make new window` and its macOS
+# CLI rejects the `+new-window` action, so the Ghostty branch
+# below uses System Events. Grant skhd Accessibility for that
+# path to work (System Settings → Privacy & Security →
+# Accessibility).
 
 set -u
 
@@ -45,17 +48,27 @@ if [[ -z "$app" ]]; then
   exit 1
 fi
 
-# Ghostty special-case. Ghostty's AppleScript dictionary doesn't
-# support `make new window` (returns -2710 / "Can't make class window")
-# AND `tell application "Ghostty" to activate` creates a default window
-# if none is currently visible — so the activate-then-make-window-then-
-# fallback chain we use for iTerm/Terminal/Chrome would land you with
-# TWO windows on Hyper+T when Ghostty has no visible window. Ghostty's
-# architecture is one-window-per-process, so each `open -na` invocation
-# reliably produces exactly one new window regardless of whether the
-# app is already running. Use it directly.
+# Ghostty special-case (1.3.x on macOS).
+#   - `open -na Ghostty` spawns a separate .app instance which gets
+#     its own Dock entry, then exits via single-instance handoff
+#     WITHOUT producing a new window. Result: extra Dock icon, no
+#     window. So drop the -n.
+#   - `+new-window` CLI action is rejected on macOS
+#     ("not supported on this platform").
+#   - AppleScript `make new window` returns -2710 (verb not implemented).
+# Cold start: `open -a` launches Ghostty (single Dock icon). Warm
+# path: activate the running instance and send Cmd+N, which
+# Ghostty's config binds to new_window (see configs/ghostty-config).
+# Requires Accessibility permission for skhd / osascript.
 if [[ "$app" == "Ghostty" ]]; then
-  open -na "$app" >/dev/null 2>&1 || true
+  if pgrep -ixq ghostty 2>/dev/null; then
+    osascript >/dev/null 2>&1 \
+      -e 'tell application "Ghostty" to activate' \
+      -e 'tell application "System Events" to keystroke "n" using command down' \
+      || true
+  else
+    open -a "$app" >/dev/null 2>&1 || true
+  fi
   exit 0
 fi
 
