@@ -1,5 +1,8 @@
 # Architecture
 
+> For chord lookups, file:line pointers, and collision rules, see
+> [keymap.md](keymap.md). This doc is the narrative and rationale.
+
 Caps Lock is king of the dev surface.
 
 ## Layer stack
@@ -14,10 +17,12 @@ graph LR
   Hyper --> skhd
   Mod --> skhd
   skhd -->|"yabai -m ..."| yabai
-  skhd -->|Hyper+T osascript| Ghostty
-  skhd -->|Hyper+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
-  skhd -->|Caps+f / Caps+g / Caps+Return / Caps+Shift+Return| WSPrompt[ws-prompt · SwiftUI overlay]
+  skhd -->|Caps+t / Caps+b| Launchers[ws-launch-* · bash auto-detect]
+  skhd -->|Caps+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
+  skhd -->|Caps+w / Caps+g · Caps+m / Caps+Shift+w| WSPrompt[ws-prompt · SwiftUI overlay]
+  skhd -->|Caps+e| WSPicker[ws-picker · SwiftUI overlay]
   WSPrompt -->|ws-focus / ws-send-follow / ws / yabai| yabai
+  WSPicker -->|yabai window --focus| yabai
   yabai -->|window_created signal| WSStage[stage-window.sh]
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
   WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
@@ -57,8 +62,8 @@ JSON specifics in [`configs/karabiner.md`](../configs/karabiner.md).
 
 | Layer | Role | Examples |
 |---|---|---|
-| **Hyper** | navigate / read-only | focus window (`hjkl`), focus workspace (`f`), go workspace (`g` / `return`), cycle workspace (`tab`), open app (`t`/`b`/`o`/`s`), cheatsheet (`;`) |
-| **Mod**   | modify / destructive | swap window (`hjkl`), manage workspace (`return`) |
+| **Hyper** | navigate / read-only | focus window (`hjkl`), focus workspace (`w`), send window (`g` / `m`), cycle workspace (`n`/`p`/`tab`), window picker (`e`), open app (`t`/`b`/`o`/`,`/`q`), cheatsheet (`;`) |
+| **Mod**   | modify / destructive | swap window (`hjkl`), manage workspace (`w`), rebalance (`r`), center float (`v`), inbox (`q`) |
 
 All workspace operations go through `ws-prompt`, a one-shot SwiftUI
 overlay that captures keystrokes itself and exits on
@@ -66,9 +71,9 @@ commit / cancel / blur / Esc — skhd never holds workspace state:
 
 | Trigger | Prompt | What |
 |---|---|---|
-| `Caps + f`                       | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
-| `Caps + g`  ·  `Caps + return`   | go     | digit commits + follow · letters fuzzy-match name + Enter (Return alias keeps the most-frequent workspace action on the most-ergonomic chord) |
-| `Caps + Shift + return`          | manage | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
+| `Caps + w`         | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
+| `Caps + g`  ·  `Caps + m` | go (move) | digit commits + follow · letters fuzzy-match name + Enter (`m` is an alias — "move" mnemonic) |
+| `Caps + Shift + w` | manage | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
 
 The manage overlay is a multi-stage state machine (verb → target /
 payload → confirm → result). Commits shell straight out to the `ws`
@@ -91,6 +96,7 @@ toggles float to commit a staged window into the BSP tiling.
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
 | Hyper/Mod hotkey dispatch | skhd | `skhdrc` |
 | Workspace focus / send / manage overlays | ws-prompt (SwiftUI; manage = multi-stage state machine over `ws`) | `configs/workspace/topology/Sources/ws-prompt/` |
+| Window picker overlay (Caps+e) | ws-picker (SwiftUI; fuzzy-search every visible yabai window) | `configs/workspace/topology/Sources/ws-picker/` |
 | New-window staging | bash + yabai signal | `configs/workspace/stage-window.sh` |
 | AX absolute-snap CLI (manual use) | ws-snap | `configs/workspace/topology/Sources/ws-snap/` |
 | SketchyBar per-display autohide | ws-autohide (LaunchAgent) | `configs/workspace/topology/Sources/ws-autohide/` |
@@ -106,11 +112,15 @@ it only knows how to fire shell commands. Anything that needs macOS
 API access is its own one-shot binary, shipped by the Swift package
 under `configs/workspace/topology/`:
 
-- **ws-prompt** — SwiftUI overlay for Caps+f / Caps+g / Caps+Return /
-  Caps+Shift+Return. Captures keys itself; exits on commit / cancel /
-  blur. Manage is a multi-stage state machine that shells out to `ws`
-  and yabai and surfaces captured output in a result panel.
-- **ws-cheatsheet** — SwiftUI HUD (Hyper+;). Single-instance toggle
+- **ws-prompt** — SwiftUI overlay for Caps+w / Caps+g · Caps+m / Caps+Shift+w.
+  Captures keys itself; exits on commit / cancel / blur. Manage is a
+  multi-stage state machine that shells out to `ws` and yabai and
+  surfaces captured output in a result panel.
+- **ws-picker** — SwiftUI window picker (Caps+e). Lists every visible
+  yabai window, fuzzy-filters by app + title + space, focuses the pick
+  on Enter. Same overlay shape as ws-prompt — they share the WsUI
+  design tokens (Catppuccin palette, pill geometry, fuzzy matcher).
+- **ws-cheatsheet** — SwiftUI HUD (Caps+;). Single-instance toggle
   via PID file.
 - **ws-snap** — AX-based absolute snap CLI for floating windows. Not
   bound to a chord; manual use only.
@@ -129,11 +139,11 @@ Once you're in the terminal the same hjkl + leader-key model continues:
 
 | Layer | Prefix / leader | Owns |
 |---|---|---|
-| **tmux**   | `C-a` | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
+| **tmux**   | `C-Space` | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
 | **zsh**    | (vi-mode `Esc`) | Vi normal-mode editing on the command line; fzf widgets `Ctrl-R/T`/`Alt-C`; zoxide `z` |
 | **Neovim** | `Space`         | LSP (`gd`/`K`/`gr`/`<leader>ca`/`<leader>rn`), find (`<leader>f*`), debug (`<leader>d*`), test (`<leader>t*`) |
 
-Modifier sets the scope: bare `h` moves the cursor in vim, `C-a + h`
+Modifier sets the scope: bare `h` moves the cursor in vim, `C-Space  h`
 moves the tmux pane focus, `Caps + h` moves the OS window focus. Same
 letter, four contexts, no overlap.
 

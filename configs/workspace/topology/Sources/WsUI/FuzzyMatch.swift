@@ -1,19 +1,20 @@
 import Foundation
 
-/// Shared fuzzy / subsequence matcher used by both the focus/send list
-/// filter and the manage overlay's target + snapshot pickers.
+/// Shared fuzzy / subsequence matcher used by every overlay binary in
+/// this package — ws-prompt's workspace pickers, ws-picker's window
+/// list, ws-cheatsheet's potential future search.
 ///
 /// `query` matches a candidate if its characters appear in order somewhere
 /// in the candidate string — not necessarily contiguously. So `hm` matches
 /// both "home" and "home-management"; `arc` matches "archives". This is
-/// broader than substring matching (which the manage flow used previously)
-/// and lets the user reach a workspace with a few sparse keystrokes.
-enum FuzzyMatch {
+/// broader than substring matching and lets the user reach a target with
+/// a few sparse keystrokes.
+public enum FuzzyMatch {
     /// Returns matched candidates sorted by tightness — earlier first match
     /// + smaller span wins. Lowercase-insensitive. Empty query passes all
     /// candidates through unchanged.
-    static func filter<T>(_ items: [T], query: String,
-                          keyPath: (T) -> String) -> [T] {
+    public static func filter<T>(_ items: [T], query: String,
+                                 keyPath: (T) -> String) -> [T] {
         guard !query.isEmpty else { return items }
         let q = query.lowercased()
         var scored: [(T, Int)] = []
@@ -30,7 +31,7 @@ enum FuzzyMatch {
     /// Returns nil when the query isn't a subsequence of the candidate.
     /// Score = (span between first and last match) × 100 + first-match index.
     /// That ranking prefers tight, leading matches over loose tail matches.
-    static func subseqScore(query: String, name: String) -> Int? {
+    public static func subseqScore(query: String, name: String) -> Int? {
         var qi = query.startIndex
         var firstHit: Int?
         var lastHit: Int = 0
