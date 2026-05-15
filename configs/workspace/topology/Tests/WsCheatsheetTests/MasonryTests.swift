@@ -161,10 +161,11 @@ struct MasonryTests {
 
     // MARK: - columnize: distribution rules
 
-    @Test func equal_height_cards_round_robin_left_to_right() {
-        // Three identical 84pt cards into 3 columns → one per column,
-        // in document order (because leftmost-tiebreak picks col 0
-        // first, then col 1, then col 2).
+    @Test func equal_height_cards_distribute_one_per_column_in_doc_order() {
+        // Three identical 84pt cards into 3 columns. Target = 84,
+        // midpoint of card 0 (42) < target — stays in col 0. Midpoint
+        // of card 1 (126) ≥ target → advance to col 1. Same for card 2.
+        // Result: one card per column, in document order.
         let a = makeSection(title: "A")
         let b = makeSection(title: "B")
         let c = makeSection(title: "C")
@@ -193,18 +194,69 @@ struct MasonryTests {
         #expect(columns[1].sections.map(\.title) == ["S1", "S2", "S3"])
     }
 
-    @Test func eight_equal_cards_into_four_columns_pair_up() {
-        // Eight equal-height cards into 4 columns: after the first 4
-        // round-robin, heights are uniform again, so the next 4 also
-        // round-robin into the same columns in document order.
-        // Col 0 = [A, E], col 1 = [B, F], etc.
+    @Test func eight_equal_cards_into_four_columns_pair_consecutively() {
+        // Eight equal-height cards into 4 columns. Target = 168 (2 cards
+        // per column). Column-major fills each column with TWO
+        // consecutive cards before advancing: col 0 = [A, B], col 1 =
+        // [C, D], col 2 = [E, F], col 3 = [G, H]. (Pure masonry would
+        // round-robin into [A,E] / [B,F] / [C,G] / [D,H] — different
+        // distribution, same density.)
         let titles = ["A", "B", "C", "D", "E", "F", "G", "H"]
         let sections = titles.map { makeSection(title: $0) }
         let columns = Masonry.columnize(sections: sections, columnCount: 4)
-        #expect(columns[0].sections.map(\.title) == ["A", "E"])
-        #expect(columns[1].sections.map(\.title) == ["B", "F"])
-        #expect(columns[2].sections.map(\.title) == ["C", "G"])
-        #expect(columns[3].sections.map(\.title) == ["D", "H"])
+        #expect(columns[0].sections.map(\.title) == ["A", "B"])
+        #expect(columns[1].sections.map(\.title) == ["C", "D"])
+        #expect(columns[2].sections.map(\.title) == ["E", "F"])
+        #expect(columns[3].sections.map(\.title) == ["G", "H"])
+    }
+
+    @Test func document_order_is_preserved_globally() {
+        // For any two sections at input indices i < j, section i must
+        // appear in a column ≤ the column of section j. This is the
+        // monotonic-column invariant of column-major.
+        let titles = (1...20).map { "S\($0)" }
+        let sections = titles.map { makeSection(title: $0) }
+        let columns = Masonry.columnize(sections: sections, columnCount: 4)
+        var lastColumn = -1
+        for (colIdx, column) in columns.enumerated() {
+            for section in column.sections {
+                let position = titles.firstIndex(of: section.title)!
+                // Position in document must be ≥ position of the last
+                // placed card. (Equivalently: scanning by column then
+                // by intra-column order reconstructs the original order.)
+                _ = position  // referenced for clarity; below check covers it
+            }
+            if !column.sections.isEmpty {
+                lastColumn = colIdx
+            }
+        }
+        // Reconstruct the placement order and verify it matches input.
+        let reconstructed = columns.flatMap { $0.sections.map(\.title) }
+        #expect(reconstructed == titles)
+        _ = lastColumn
+    }
+
+    @Test func families_cluster_into_adjacent_columns() {
+        // Document-order side effect: when families are pre-sorted in
+        // the JSON (system → vim), the column-major fill clusters them
+        // automatically without explicit grouping logic.
+        let sys = (1...3).map {
+            Section(
+                title: "Sys\($0)", color: "#fff", sub: "", rows: [["k","d"]],
+                family: "system"
+            )
+        }
+        let vim = (1...3).map {
+            Section(
+                title: "Vim\($0)", color: "#fff", sub: "", rows: [["k","d"]],
+                family: "vim"
+            )
+        }
+        let columns = Masonry.columnize(sections: sys + vim, columnCount: 2)
+        // Six equal-height cards into 2 columns ⇒ 3 per column. Column
+        // 0 gets the system band; column 1 gets vim.
+        #expect(columns[0].sections.map(\.family) == ["system", "system", "system"])
+        #expect(columns[1].sections.map(\.family) == ["vim", "vim", "vim"])
     }
 
     @Test func column_estimated_height_sums_member_heights() {

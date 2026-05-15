@@ -1,57 +1,66 @@
 import CoreGraphics
 import Foundation
 
-/// Masonry packer for the cheatsheet HUD.
+/// Column-major layout for the cheatsheet HUD.
 ///
-/// Distributes sections into N columns by **greedy shortest-column** —
-/// each card lands in the column whose accumulated height is smallest at
-/// the time we place it. Pinterest-style: no row alignment, no wasted
-/// vertical space inside a column, density is the priority.
+/// Walks sections in **document order** and fills column 0 to roughly
+/// `total_height / column_count` before advancing to column 1, etc.
+/// Because the source JSON is family-ordered (system → terminal → vim →
+/// nvim → git), family clustering happens as a *side effect*: a family
+/// flows top-to-bottom inside a single column, occasionally wrapping
+/// to the next column at a natural boundary. No explicit "family band"
+/// logic — the document order does the work.
 ///
-/// Organization is carried by family **color**, not by physical
-/// adjacency. Sections of the same family share a hue (Catppuccin via
-/// FamilyColors) so the eye groups them across columns regardless of
-/// where they land. Same trick the existing LazyVGrid relied on, but
-/// without LazyVGrid's row-alignment penalty (the whole row used to
-/// stretch to the tallest card's height, leaving gaps under shorter
-/// neighbors).
+/// Advance rule: before placing each card, if its **midpoint** would
+/// cross this column's target line (`target × (col + 1)`), advance one
+/// column. Midpoint instead of start/end means a tall card straddling
+/// a target line gets assigned to whichever side has more of its mass —
+/// the assignment that minimizes downstream imbalance.
 ///
-/// The packer is pure: same input → same output, no SwiftUI surface
-/// area. CheatsheetView reads `columnize`'s result and lays out one
-/// VStack per column inside an HStack.
+/// Two guard rails:
+///   - never advance out of an empty column (a tall first card stays
+///     in col 0 even if its midpoint nominally exceeds the target);
+///   - **single-step only** — even a card 4× target wide can only push
+///     the cursor forward by one column, so each subsequent placement
+///     walks the cursor along instead of skipping. Result: no empty
+///     trailing columns when there are enough cards to fill them.
+///
+/// Variance is acceptable, not optimal. Linear-partition with binary
+/// search would minimize max-column-height to within ~1pt, but at the
+/// cost of breaking the "advance at most one per card" invariant
+/// (and the resulting ordering can put adjacent cards in non-adjacent
+/// columns, defeating the family-flow side effect). The simple rule
+/// here keeps the visual model legible and the code under 30 lines.
 enum Masonry {
-    /// One column of the packed output. `sections` are in document order
-    /// for the cards landed in this column (greedy + left-bias tiebreak
-    /// preserves something close to document order top-to-bottom).
     struct Column: Identifiable {
         let id: Int
         let sections: [CheatsheetDocument.Section]
-        /// Sum of estimated heights of every card in this column. The
-        /// renderer doesn't need this — it's exposed so `--dump-layout`
-        /// can print a balance diagnostic.
+        /// Sum of estimated heights of cards in this column. Exposed for
+        /// `--dump-layout` diagnostics; the renderer doesn't need it.
         let estimatedHeight: CGFloat
     }
 
     // MARK: - Adaptive column count
 
     /// Minimum visual width a card needs to remain readable. Below this
-    /// the title line wraps awkwardly and key/desc rows lose room for the
-    /// description column. 320pt matches the LazyVGrid `.adaptive(minimum:
-    /// 300)` baseline the previous layout used (plus a small bump because
-    /// we drop the gutter padding from the per-column width).
+    /// the title line wraps awkwardly and the key/desc rows lose room
+    /// for the description column. 320pt matches the prior LazyVGrid
+    /// `.adaptive(minimum: 300)` baseline plus a small bump for the
+    /// per-column gutter we account for explicitly.
     static let minColumnWidth: CGFloat = 320
 
-    /// Clamp the column count so a tiny window doesn't degenerate to one
-    /// column (loses scannability) and a huge ultrawide doesn't fan out
-    /// past 6 (titles become disconnected from their family band).
+    /// Clamp the column count so a tiny window doesn't degenerate to
+    /// one column (loses scannability) and an ultrawide doesn't fan out
+    /// past 6 (titles disconnect from their family band).
     static let columnBounds: ClosedRange<Int> = 2...6
 
-    /// Pick a column count from the available width. Conservative: each
-    /// column gets at least `minColumnWidth + spacing` worth of horizontal
-    /// room. Falls back to `lowerBound` when the width is degenerate.
+    /// Derive a column count from the available width. Conservative —
+    /// each column needs at least `minColumnWidth + spacing` worth of
+    /// horizontal room. Falls back to the lower bound when width is
+    /// degenerate (≤ 0).
     static func columnCount(forWidth width: CGFloat, spacing: CGFloat) -> Int {
         guard width > 0 else { return columnBounds.lowerBound }
-        // Width fits N columns when: N × minColumnWidth + (N-1) × spacing ≤ width
+        // N columns fit when N × minColumnWidth + (N-1) × spacing ≤ width
         // → N ≤ (width + spacing) / (minColumnWidth + spacing)
         let raw = Int((width + spacing) / (minColumnWidth + spacing))
         return min(columnBounds.upperBound, max(columnBounds.lowerBound, raw))
@@ -59,32 +68,47 @@ enum Masonry {
 
     // MARK: - Pack
 
-    /// Distribute `sections` into `columnCount` columns by greedy
-    /// shortest-column-first placement. Document order is the input order;
-    /// within each column, cards remain in input-relative order because we
-    /// always append to whichever column is currently shortest.
+    /// Distribute `sections` into `columnCount` columns by column-major
+    /// document-order fill. Each card is placed in the current column;
+    /// after placement, the cursor advances by at most one column if
+    /// the cumulative height has crossed a target line.
     ///
-    /// Tiebreaker: if multiple columns are equally short, the leftmost
-    /// wins. This preserves a hint of left-to-right reading order: cards
-    /// in the first 4 input slots end up in columns 0..3 left-to-right.
+    /// The result preserves input order absolutely — for any two
+    /// sections i < j, section i is in an earlier or same column as
+    /// section j.
     static func columnize(
         sections: [CheatsheetDocument.Section],
         columnCount: Int
     ) -> [Column] {
         let cols = max(1, columnCount)
-        var buckets: [[CheatsheetDocument.Section]] =
-            Array(repeating: [], count: cols)
-        var heights: [CGFloat] = Array(repeating: 0, count: cols)
+        guard !sections.isEmpty else {
+            return (0..<cols).map { Column(id: $0, sections: [], estimatedHeight: 0) }
+        }
 
-        for section in sections {
-            let h = estimateHeight(section)
-            // Pick the leftmost shortest column.
-            var pick = 0
-            for i in 1..<cols where heights[i] < heights[pick] {
-                pick = i
+        let weights = sections.map(estimateHeight)
+        let total = weights.reduce(0, +)
+        let target = total / CGFloat(cols)
+
+        var buckets: [[CheatsheetDocument.Section]] = Array(repeating: [], count: cols)
+        var heights: [CGFloat] = Array(repeating: 0, count: cols)
+        var col = 0
+        var cumsum: CGFloat = 0
+
+        for (i, section) in sections.enumerated() {
+            let h = weights[i]
+            let midpoint = cumsum + h / 2
+            // Advance one column if: (a) we have more columns left,
+            // (b) the current column isn't empty (a tall first card
+            // stays in col 0), and (c) this card's midpoint has
+            // crossed the next target line.
+            if col < cols - 1
+               && heights[col] > 0
+               && midpoint >= target * CGFloat(col + 1) {
+                col += 1
             }
-            buckets[pick].append(section)
-            heights[pick] += h
+            buckets[col].append(section)
+            heights[col] += h
+            cumsum += h
         }
 
         return (0..<cols).map { i in
@@ -104,10 +128,9 @@ enum Masonry {
     ///   - Custom layout "keyboard": ~150pt block
     ///   - Each table row: ~30pt
     ///
-    /// The numbers slightly overestimate on purpose. Overestimating means
-    /// the packer assigns less aggressively to "small-looking" columns,
-    /// which keeps a tall card from creating a deeply-imbalanced tail
-    /// where one column dwarfs the others.
+    /// Slight overestimate on purpose. Overestimating means the packer
+    /// hits target lines slightly early, which keeps any single column
+    /// from being dominated by an underestimated tall card.
     static func estimateHeight(_ s: CheatsheetDocument.Section) -> CGFloat {
         var h: CGFloat = 32                // padding
         h += 22                            // title
