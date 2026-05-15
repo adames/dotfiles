@@ -143,7 +143,7 @@ _ensure_slot() {
         stableLogicalLabel: ("ws" + $k),
         iconSpec: {
           kind: "none",
-          fallbackSfSymbol: "circle.fill",
+          fallbackSfSymbol: "circle",
           fallbackText: ("WS" | ascii_upcase),
           userOverridden: false
         }
@@ -313,9 +313,10 @@ cmd_help() {
   cat <<'EOF_HELP'
 ws — manage the workspace identity (name / icon) of each slot.
 
-Colors are positional: slot N keeps its color across moves and reorders.
-(name, icon) are what flow when you swap / move / rotate / reverse /
-reorder. Use `ws color N #HEX` to change a slot's color directly.
+Colors are theme-driven. Slot N keeps its color across moves and
+reorders; (name, icon) are what flow when you swap / move / rotate /
+reverse / reorder. Use `ws theme NAME [--with-icons]` to change the
+palette across all slots — there is no per-slot color override.
 (`workspace` remains as a compat alias for muscle-memory.)
 
 USAGE
@@ -332,10 +333,10 @@ INSPECTION
 
 MUTATION  (every mutation fires the cascade + post-mutate hook)
   name <SLOT> <NEW_NAME>           rename a slot
-  color <SLOT> <#HEX>              set slot color
   icon <SLOT> [GLYPH]              set slot icon (no arg → fzf picker)
   icon search <TERM>               non-interactive list of SF Symbols
-  add [NAME] [COLOR] [ICON]        append a new slot
+  add [NAME] [ICON]                append a new slot (both args optional;
+                                    color comes from the active theme)
   remove <SLOT> [-y]               delete a slot, renumber the rest
   swap <A> <B>                     swap two slots' (name, icon)
   move <SRC> <DEST>                move SRC to position DEST
@@ -467,16 +468,9 @@ cmd_name() {
   _fire_cascade
 }
 
-cmd_color() {
-  _require_config
-  [[ $# -eq 2 ]] || { err "usage: ws color <SLOT_OR_NAME> <#HEX>"; exit 2; }
-  local slot; slot=$(_resolve_slot "$1") || exit $?
-  _validate_color "$2"
-  _ensure_slot "$slot"
-  _write '.spaces[$k] = ((.spaces[$k] // {}) + {color: $v})' --arg k "$slot" --arg v "$2"
-  _fire_post color "$slot"
-  _fire_cascade
-}
+# `ws color N #hex` was retired — slot colors are theme-driven, not
+# user-supplied. Use `ws theme NAME` to change the palette; per-slot
+# overrides are no longer part of the CLI surface.
 
 WS_SF_TO_NERD_MAP="${WS_SF_MAP:-$HOME/.config/workspace/lib/sf-to-nerd.json}"
 readonly WS_NF_FALLBACK_GLYPH='\uf128'   # nf-fa-question_circle — placeholder when SF has no mapping
@@ -625,7 +619,7 @@ cmd_icon() {
       | .iconSpec = (
           {
             kind: $kind,
-            fallbackSfSymbol: (($s.iconSpec.fallbackSfSymbol) // "circle.fill"),
+            fallbackSfSymbol: (($s.iconSpec.fallbackSfSymbol) // "circle"),
             fallbackText: (($s.iconSpec.fallbackText) // (($s.name // "") | .[0:2] | ascii_upcase)),
             userOverridden: true
           }
@@ -777,16 +771,51 @@ _host_list() {
 }
 
 # Default name for a newly-added slot. The old WORKSPACE_LABELS array
-# (core / forge / codex / …) is retired — yabai owns existence and we
-# don't pre-name slots. Return empty so cmd_add's "ws$slot" fallback
-# kicks in; the user names the slot themselves via `ws name N <new>`.
-_label_for_slot() { : ; }
+# Default name for a slot that the user hasn't named. Slots 1–20 get
+# the spelled-out cardinal (`one`, `two`, …, `twenty`); slot 21+ falls
+# through to the `ws${N}` shape (which the codebase has used as a
+# defensive default for years).
+#
+# Spelled-out cardinals are chosen for two reasons:
+#   1. They preserve the ordinal-to-name mapping — knowing the slot
+#      number is enough to predict the name and vice versa.
+#   2. They satisfy `_validate_name_format`'s "must not start with a
+#      digit" rule (since the same rule lets the workspace prompt
+#      treat all-numeric input as a literal slot index).
+_default_name_for_slot() {
+  local slot="${1:-}"
+  case "$slot" in
+    1)  printf 'one' ;;
+    2)  printf 'two' ;;
+    3)  printf 'three' ;;
+    4)  printf 'four' ;;
+    5)  printf 'five' ;;
+    6)  printf 'six' ;;
+    7)  printf 'seven' ;;
+    8)  printf 'eight' ;;
+    9)  printf 'nine' ;;
+    10) printf 'ten' ;;
+    11) printf 'eleven' ;;
+    12) printf 'twelve' ;;
+    13) printf 'thirteen' ;;
+    14) printf 'fourteen' ;;
+    15) printf 'fifteen' ;;
+    16) printf 'sixteen' ;;
+    17) printf 'seventeen' ;;
+    18) printf 'eighteen' ;;
+    19) printf 'nineteen' ;;
+    20) printf 'twenty' ;;
+    *)  printf 'ws%s' "$slot" ;;
+  esac
+}
 
 cmd_add() {
   _require_config
   # Flag parse: --no-prompt / -q skips interactive prompts even on a TTY.
-  # Positional args (name, color, icon) still supported for back-compat
-  # and for the hotkey wrapper that wants a one-shot non-interactive add.
+  # Positional args are `[name] [icon]` — both optional, color is always
+  # theme-derived. Old `ws add NAME COLOR ICON` callers will misbehave
+  # silently (the old "color" string would now be interpreted as the
+  # icon), so this is a hard CLI break.
   local no_prompt=0
   local positional=()
   while [[ $# -gt 0 ]]; do
@@ -798,12 +827,11 @@ cmd_add() {
   done
   set -- "${positional[@]}"
 
-  local n new_slot name color icon
+  local n new_slot name icon color
   n=$(_count)
   new_slot=$((n + 1))
   name="${1:-}"
-  color="${2:-}"
-  icon="${3:-}"
+  icon="${2:-}"
 
   # Interactive path: TTY + no --no-prompt. Skipped under skhdrc and
   # other no-tty contexts (the hotkey wrapper opens a Ghostty window
@@ -812,47 +840,30 @@ cmd_add() {
   [[ $no_prompt -eq 0 && -t 0 && -t 1 ]] && interactive=1
 
   if (( interactive )); then
-    # Name prompt with the seed-label suggestion. ENTER on empty input
-    # accepts the suggestion (matches the existing label_for_slot path).
+    # Name prompt with the spelled-out default. ENTER on empty input
+    # accepts the default (one, two, …, twenty, then ws${N}).
     local suggested
-    suggested=$(_label_for_slot "$new_slot")
-    [[ -z "$suggested" ]] && suggested="ws${new_slot}"
+    suggested=$(_default_name_for_slot "$new_slot")
     if [[ -z "$name" ]]; then
       printf 'name [%s]: ' "$suggested" >&2
       read -r name
       [[ -z "$name" ]] && name="$suggested"
     fi
     # Icon prompt via fzf picker if available; ESC leaves the slot
-    # icon-less (kind=none). Skipped if fzf or sf-to-nerd map missing.
+    # icon-less (kind=none, fallbackSfSymbol="circle"). Skipped if
+    # fzf or sf-to-nerd map missing — slot still gets the circle
+    # fallback so the pill renders.
     if [[ -z "$icon" ]] && have fzf && [[ -r "$WS_SF_TO_NERD_MAP" ]]; then
       printf 'icon: opening fzf (ESC to skip) ...\n' >&2
       icon=$(_pick_icon_fzf "icon for new slot $new_slot> " || true)
     fi
-    # Color prompt with the slot's positional default from
-    # spaces.default.json. Accepts blank (uses default) or any #RRGGBB
-    # hex. The default file's positional colors are catppuccin pastels —
-    # keeps fresh slots visually consistent with the seeded set.
-    if [[ -z "$color" ]]; then
-      local default_color="#cdd6f4"
-      if [[ -r "$WS_DEFAULTS" ]] && have jq; then
-        local seeded
-        seeded=$(jq -r --arg k "$new_slot" '.spaces[$k].color // empty' "$WS_DEFAULTS" 2>/dev/null)
-        [[ -n "$seeded" ]] && default_color="$seeded"
-      fi
-      printf 'color [%s]: ' "$default_color" >&2
-      read -r color
-      [[ -z "$color" ]] && color="$default_color"
-    fi
+    # No color prompt: color is theme-driven via _default_color_for_slot.
   fi
 
   # Non-interactive fallbacks (or post-prompt defaulting if any field
-  # is still unset).
-  if [[ -z "$name" ]]; then
-    name=$(_label_for_slot "$new_slot")
-    [[ -z "$name" ]] && name="ws${new_slot}"
-  fi
-  [[ -z "$color" ]] && color="#cdd6f4"
-  _validate_color "$color"
+  # is still unset). Color is ALWAYS derived; the user never supplies it.
+  [[ -z "$name" ]] && name=$(_default_name_for_slot "$new_slot")
+  color=$(_default_color_for_slot "$new_slot")
   _validate_name_format "$name"
   _validate_name_unique "$name"
 
@@ -887,7 +898,7 @@ cmd_add() {
       iconSpec: (
         {
           kind: $kind,
-          fallbackSfSymbol: "circle.fill",
+          fallbackSfSymbol: "circle",
           fallbackText: $ft,
           userOverridden: ($uo == "true")
         }
@@ -1310,7 +1321,7 @@ cmd_theme() {
                   { iconSpec: (
                       {
                         kind: "nerdFont",
-                        fallbackSfSymbol: ($s.iconSpec.fallbackSfSymbol // "circle.fill"),
+                        fallbackSfSymbol: ($s.iconSpec.fallbackSfSymbol // "circle"),
                         fallbackText: ($s.iconSpec.fallbackText // (($s.name // "") | .[0:2] | ascii_upcase)),
                         userOverridden: false,
                         codepoint: $icons[$i-1],
@@ -1490,7 +1501,6 @@ case "${1:-}" in
   count)             shift; cmd_count    "$@" ;;
   themes)            shift; cmd_themes   "$@" ;;
   name)              shift; cmd_name     "$@" ;;
-  color)             shift; cmd_color    "$@" ;;
   icon)              shift; cmd_icon     "$@" ;;
   add)               shift; cmd_add      "$@" ;;
   remove)            shift; cmd_remove   "$@" ;;
