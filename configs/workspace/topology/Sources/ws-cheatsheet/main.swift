@@ -20,6 +20,59 @@ let pidPath = FileManager.default
 let args = Array(CommandLine.arguments.dropFirst())
 let isToggle = args.contains("--toggle")
 
+// MARK: - Config-path override (test fixture support)
+//
+// $WS_CHEATSHEET, when set, points at an alternate cheatsheet.json. The
+// bash test harness uses this to feed fixture documents in without
+// touching ~/.config/workspace/cheatsheet.json. Empty/unset → default
+// production path.
+let configPath: URL = {
+    if let override = ProcessInfo.processInfo.environment["WS_CHEATSHEET"],
+       !override.isEmpty {
+        return URL(fileURLWithPath: override)
+    }
+    return CheatsheetLoader.defaultPath
+}()
+
+// MARK: - Headless layout dump (--dump-layout)
+//
+// Skip the GUI entirely; run the ShelfLayout pipeline against the loaded
+// document with simulated page dimensions and print a stable line-oriented
+// format. Used by tests/unit/ws-cheatsheet.test.sh to assert on packing
+// behavior without spawning a window. Page dims default to a "typical
+// laptop" (1640×1000); --page-width/--page-height override.
+if let dumpIdx = args.firstIndex(of: "--dump-layout") {
+    var pageW: CGFloat = 1640
+    var pageH: CGFloat = 1000
+    if let i = args.firstIndex(of: "--page-width"), i + 1 < args.count,
+       let v = Double(args[i + 1]) { pageW = CGFloat(v) }
+    if let i = args.firstIndex(of: "--page-height"), i + 1 < args.count,
+       let v = Double(args[i + 1]) { pageH = CGFloat(v) }
+    _ = dumpIdx  // silence unused
+
+    let doc: CheatsheetDocument
+    do {
+        doc = try CheatsheetLoader.load(from: configPath)
+    } catch {
+        FileHandle.standardError.write(Data(
+            "ws-cheatsheet: load failed: \(error)\n".utf8))
+        exit(2)
+    }
+    let shelves = ShelfLayout.pack(
+        sections: doc.sections,
+        pageWidth: pageW,
+        pageHeight: pageH
+    )
+    print("total_shelves=\(shelves.count)")
+    for shelf in shelves {
+        print("shelf=\(shelf.id) items=\(shelf.items.count) max_height=\(Int(shelf.estimatedHeight))")
+        for (i, item) in shelf.items.enumerated() {
+            print("  item=\(i) title=\"\(item.section.title)\" span=\(item.span) height=\(Int(item.estimatedHeight))")
+        }
+    }
+    exit(0)
+}
+
 func readExistingPID() -> Int32? {
     guard let data = try? Data(contentsOf: pidPath),
           let str = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -67,7 +120,7 @@ app.setActivationPolicy(.accessory)
 // error card rather than crashing — the user can fix the JSON and reopen.
 let document: CheatsheetDocument
 do {
-    document = try CheatsheetLoader.load()
+    document = try CheatsheetLoader.load(from: configPath)
 } catch {
     let fallback = CheatsheetDocument(
         banner: [.init(k: "ERR", v: "cheatsheet.json not loadable")],
