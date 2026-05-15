@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ws-focus <SLOT|next|prev> — focus space N (or cycle).
-# Called from ws-prompt's focus overlay (Caps+Space → digit/name) AND
+# Called from ws-prompt's focus overlay (Caps+f → digit/name) AND
 # directly from skhd's Caps+Tab / Caps+Shift+Tab chords for wrap-around
 # cycling. yabai's `space --focus N` silently no-ops for nonexistent N
 # (its stderr message never surfaces), which is the existing UX bug

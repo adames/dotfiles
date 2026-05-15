@@ -66,33 +66,33 @@ _run() {
 }
 
 # ── focus mode ──────────────────────────────────────────────────────────
-_run "caps+space 1 focuses slot 1"    0 "helper=ws-focus arg=1" \
+_run "caps+f 1 focuses slot 1"    0 "helper=ws-focus arg=1" \
   focus --simulate-keys "1"
-_run "caps+space 0 focuses slot 10"   0 "helper=ws-focus arg=10" \
+_run "caps+f 0 focuses slot 10"   0 "helper=ws-focus arg=10" \
   focus --simulate-keys "0"
-_run "caps+space 5 focuses slot 5"    0 "helper=ws-focus arg=5" \
+_run "caps+f 5 focuses slot 5"    0 "helper=ws-focus arg=5" \
   focus --simulate-keys "5"
 
-# ── send mode ───────────────────────────────────────────────────────────
-_run "caps+return 3 sends to slot 3"  0 "helper=ws-send-follow arg=3" \
+# ── go (send) mode ──────────────────────────────────────────────────────
+_run "caps+g 3 sends to slot 3"  0 "helper=ws-send-follow arg=3" \
   send --simulate-keys "3"
-_run "caps+return 0 sends to slot 10" 0 "helper=ws-send-follow arg=10" \
+_run "caps+g 0 sends to slot 10" 0 "helper=ws-send-follow arg=10" \
   send --simulate-keys "0"
 
 # ── name fuzzy match (Enter commits) ────────────────────────────────────
-_run "caps+space home<CR> focuses by name (slot 1)" 0 "helper=ws-focus arg=1" \
+_run "caps+f home<CR> focuses by name (slot 1)" 0 "helper=ws-focus arg=1" \
   focus --simulate-keys "home<CR>"
-_run "caps+return docs<CR> sends by name (slot 3)"  0 "helper=ws-send-follow arg=3" \
+_run "caps+g docs<CR> sends by name (slot 3)"  0 "helper=ws-send-follow arg=3" \
   send --simulate-keys "docs<CR>"
 
 # ── all-numeric query via backspace-erasure → slot 11 ───────────────────
-_run "caps+space x<BS>11<CR> focuses slot 11" 0 "helper=ws-focus arg=11" \
+_run "caps+f x<BS>11<CR> focuses slot 11" 0 "helper=ws-focus arg=11" \
   focus --simulate-keys "x<BS>11<CR>"
 
 # ── Esc cancels ─────────────────────────────────────────────────────────
-_run "caps+space <ESC> cancels" 1 "action=cancel" \
+_run "caps+f <ESC> cancels" 1 "action=cancel" \
   focus --simulate-keys "<ESC>"
-_run "caps+return <ESC> cancels" 1 "action=cancel" \
+_run "caps+g <ESC> cancels" 1 "action=cancel" \
   send --simulate-keys "<ESC>"
 
 # ── structural: no sticky skhd modes remain (only `default` is allowed) ─
