@@ -103,8 +103,13 @@ struct ManageView: View {
     private var stageBody: some View {
         switch controller.stage {
         case .verbPicker:                              verbPickerView
-        case .addName(let buf):                        textEntry(prompt: "new workspace name", buffer: buf)
-        case .addIcon(_, let buf):                     textEntry(prompt: "icon (single glyph, Enter to skip)", buffer: buf)
+        case .addName(let buf):
+            // Show the spelled-out default for the next slot so ↵ on an
+            // empty buffer has an obvious effect ("ok, that one's named
+            // `one`/`two`/…").
+            let defaultName = ManageController.defaultName(forSlot: controller.workspaces.count + 1)
+            textEntry(prompt: "new workspace name (default: \(defaultName))", buffer: buf)
+        case .addIcon(_, let buf):                     textEntry(prompt: "icon (empty = circle · type to filter SF Symbols)", buffer: buf)
         case .renameTarget(let f, let s, _):           targetPicker(filter: f, sel: s)
         case .renameNewName(_, let nm, let buf):       textEntry(prompt: "rename \"\(nm)\" →", buffer: buf)
         case .destroyTarget(let f, let s, _):          targetPicker(filter: f, sel: s)
@@ -444,8 +449,8 @@ struct ManageView: View {
     private var hintText: String {
         switch controller.stage {
         case .verbPicker:        return "pick a verb · esc cancels"
-        case .addName:           return "type a name (no leading digit) · esc backs out"
-        case .addIcon:           return "type one glyph (Nerd Font / SF Symbol) or ↵ to skip · esc backs out"
+        case .addName:           return "type a name or ↵ to accept the default · no leading digit · esc backs out"
+        case .addIcon:           return "type one glyph (Nerd Font / SF Symbol) or ↵ to skip (defaults to circle) · esc backs out"
         case .renameTarget:      return "↵ renames focused · digit = slot · letters fuzzy-match · tab cycles · esc backs out"
         case .renameNewName:     return "type a new name · ↵ commits · esc backs out"
         case .destroyTarget:     return "↵ destroys focused · digit = slot · letters fuzzy-match · esc backs out"

@@ -159,8 +159,14 @@ final class ManageController: ObservableObject {
         case .backspace:
             stage = .addName(buffer: String(buf.dropLast())); return .idle
         case .enter:
-            let name = buf.trimmingCharacters(in: .whitespaces)
-            guard !name.isEmpty else { return .idle }
+            // Empty input → fall back to the spelled-out cardinal for the
+            // next slot index (matches `_default_name_for_slot` in the
+            // bash CLI). Names never start with a digit, so the default
+            // is always shape-legal.
+            let trimmed = buf.trimmingCharacters(in: .whitespaces)
+            let name = trimmed.isEmpty
+                ? Self.defaultName(forSlot: workspaces.count + 1)
+                : trimmed
             guard !name.first!.isNumber else {
                 stage = .result(title: "add: rejected",
                                 body: "name cannot start with a digit (reserved for slot indices)",
@@ -182,6 +188,21 @@ final class ManageController: ObservableObject {
             return .idle
         case .tab, .backTab:         return .idle
         }
+    }
+
+    /// Default workspace name for slot N. Mirrors `_default_name_for_slot`
+    /// in `configs/workspace/cli/ws` so the overlay produces the same
+    /// shape the CLI does when the user accepts the prompt's empty
+    /// default (one … twenty, then ws${N} for 21+).
+    static func defaultName(forSlot slot: Int) -> String {
+        let cardinals = [
+            "one", "two", "three", "four", "five",
+            "six", "seven", "eight", "nine", "ten",
+            "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+            "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+        ]
+        if slot >= 1, slot <= cardinals.count { return cardinals[slot - 1] }
+        return "ws\(slot)"
     }
 
     private func handleAddIcon(_ key: PromptKey, name: String, buf: String) -> ManageAction {
