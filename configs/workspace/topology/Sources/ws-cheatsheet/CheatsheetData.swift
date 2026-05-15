@@ -1,58 +1,98 @@
 import Foundation
 
-/// Wire shape of ~/.config/workspace/cheatsheet.json. The file is hand-edited
-/// (and synced from `dotfiles/configs/workspace/cheatsheet.json`), so the
-/// decoder is intentionally permissive about extra keys (anything starting
-/// with `_` is ignored).
+/// Wire shape of ~/.config/workspace/cheatsheet.json. The file is GENERATED
+/// by `lib/cheatsheet-gen.py` from `@cs` annotations in the upstream
+/// config files (skhdrc, tmux.conf, nvim-init.lua, …) plus a layout
+/// description at `configs/workspace/cheatsheet-layout.json`. The
+/// renderer treats it as static input — column count, column ordering,
+/// and section assignments are all decided at generation time.
 ///
-/// Schema v2 (back-compat): `family`, `idea`, and `customLayout` are all
-/// optional. An older JSON without them still decodes; the renderer falls
-/// back to the legacy per-section `color`.
+/// The decoder is permissive about extra keys (anything starting with
+/// `_` is ignored) so the layout file's `_doc` annotations and any
+/// future per-column metadata don't blow up older binaries.
 struct CheatsheetDocument: Decodable {
     let banner: [BannerItem]
-    let sections: [Section]
+    let columns: [Column]
+
+    // Memberwise init kept explicit so the in-code fallback in main.swift
+    // (the "couldn't load cheatsheet.json" error card) can construct a
+    // document directly without round-tripping through JSON.
+    init(banner: [BannerItem], columns: [Column]) {
+        self.banner = banner
+        self.columns = columns
+    }
 
     struct BannerItem: Decodable {
         let k: String
         let v: String
+
+        init(k: String, v: String) {
+            self.k = k
+            self.v = v
+        }
+    }
+
+    /// One vertical column in the family-column mosaic. The generator
+    /// produces these from `cheatsheet-layout.json`'s `columns` array:
+    /// each entry concatenates the sections of one or more families,
+    /// in family-then-source-order.
+    struct Column: Decodable, Identifiable {
+        let sections: [Section]
+        /// Identity for `ForEach`. Stable across rebuilds: the first
+        /// section's title doubles as the column ID (titles are unique
+        /// across the document by construction). Falls back to a UUID
+        /// only for genuinely empty columns, which shouldn't happen on
+        /// the production layout but is safe defensive code.
+        var id: String { sections.first?.title ?? UUID().uuidString }
+
+        init(sections: [Section]) {
+            self.sections = sections
+        }
     }
 
     struct Section: Decodable, Identifiable {
         let title: String
-        let color: String         // hex, e.g. "#60a5fa" (legacy / per-section override)
-        let sub: String
         let rows: [[String]]      // wire is [["key", "desc"], ...]
 
-        /// One of the family tokens (system, terminal, vim, nvim, git). When
-        /// set, the renderer prefers `FamilyColors[family]` over `color`.
+        /// Optional `color` (legacy hex per-section) and `family`
+        /// (preferred Catppuccin token). `family` wins via
+        /// `FamilyColors.resolve`; `color` is the v1-back-compat fallback.
+        /// The current generator emits `family` for every section, but
+        /// the decoder keeps `color` decodable so a hand-edited fixture
+        /// for tests doesn't have to follow the generator's conventions.
+        let color: String?
         let family: String?
 
-        /// Optional one-line "mental model" caption rendered between the
-        /// subtitle and the rows.
+        /// Small subtitle line under the title (e.g. "yabai · skhd").
+        let sub: String?
+
+        /// Optional one-line "mental model" caption — italicized below
+        /// the subtitle. Sweller's worked-example move: tell the reader
+        /// what the section is about before showing the keys.
         let idea: String?
 
-        /// Opt-in to a non-table body. Currently the only recognized value is
-        /// `"keyboard"`, which routes the rendering through `SpatialKeyboardView`.
+        /// Opt-in to a non-table body. Currently the only recognized
+        /// value is `"keyboard"`, routed through `SpatialKeyboardView`
+        /// (vim motion section).
         let customLayout: String?
 
         var id: String { title }
 
-        // Memberwise init kept explicit so the fallback in main.swift continues
-        // to compile with only the required fields.
+        // Memberwise init kept for tests / fallbacks built in code.
         init(
             title: String,
-            color: String,
-            sub: String,
             rows: [[String]],
+            color: String? = nil,
             family: String? = nil,
+            sub: String? = nil,
             idea: String? = nil,
             customLayout: String? = nil
         ) {
             self.title = title
-            self.color = color
-            self.sub = sub
             self.rows = rows
+            self.color = color
             self.family = family
+            self.sub = sub
             self.idea = idea
             self.customLayout = customLayout
         }

@@ -164,19 +164,6 @@ let package = Package(
             swiftSettings: swiftTestingSettings,
             linkerSettings: swiftTestingLinkerSettings
         ),
-        // Pure-logic tests for the cheatsheet layout pipeline (Section
-        // split + ShelfLayout pack). Uses `@testable import ws_cheatsheet`
-        // to reach the executable target's non-main symbols. Bash-side
-        // coverage of the same surface lives at
-        // tests/unit/ws-cheatsheet.test.sh and drives the binary via
-        // `--dump-layout`.
-        .testTarget(
-            name: "WsCheatsheetTests",
-            dependencies: ["ws-cheatsheet"],
-            path: "Tests/WsCheatsheetTests",
-            swiftSettings: swiftTestingSettings,
-            linkerSettings: swiftTestingLinkerSettings
-        ),
     ],
     swiftLanguageModes: [.v5]
 )

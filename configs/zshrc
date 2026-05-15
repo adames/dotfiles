@@ -1,6 +1,22 @@
 export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
 typeset -U PATH
 
+# @cs section Shell
+# @cs family terminal
+# @cs sub zsh · vi mode · fzf · zoxide
+# @cs idea fzf, zoxide and vi-mode turn the shell into a navigable surface, not a typewriter.
+# @cs row ctrl-r         :: fzf history search
+# @cs row ctrl-t         :: fzf file picker (insert path)
+# @cs row alt-c          :: fzf cd into subdir
+# @cs row ⟨pat⟩**<tab>   :: fzf completion on the current word
+# @cs row esc            :: enter vi-mode normal (then hjkl, /, w, b, …)
+# @cs row z ⟨pat⟩        :: zoxide: jump to most-frecent matching dir
+# @cs row zi             :: zoxide: interactive picker
+# @cs row rg ⟨pat⟩       :: ripgrep — uses ~/.ripgreprc defaults
+# @cs row fd ⟨pat⟩       :: fd — fast find replacement
+# @cs row direnv allow   :: trust this dir's .envrc on first entry
+# @cs end
+
 # vi-mode FIRST: ZLE consumers (fzf, autosuggestions) bind to the active
 # keymap at source time. Switching after them loses Ctrl-R / Ctrl-T.
 bindkey -v
@@ -33,6 +49,20 @@ setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE SHARE_HISTORY
 
 export EDITOR='vim'
 export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
+
+# @cs section Git · Workflow (shell)
+# @cs family git
+# @cs sub aliases · delta pager · gh CLI · lazygit TUI
+# @cs idea Workflow-level git lives in the shell. Aliases for the daily five; gh and lazygit for the rest.
+# @cs row gs  ga  gc            :: status / add / commit  (zsh aliases)
+# @cs row gp  gpl               :: push / pull
+# @cs row git diff / log / show :: delta-rendered, side-by-side off
+# @cs row gh pr create          :: open PR for current branch
+# @cs row gh pr checkout ⟨n⟩    :: check out PR by number
+# @cs row gh pr view --web      :: open PR in browser
+# @cs row gh run watch          :: tail latest workflow run
+# @cs row lazygit               :: full-screen TUI for git (faster than gh for staging / branching)
+# @cs end
 
 alias ll='ls -lah'
 alias la='ls -A'

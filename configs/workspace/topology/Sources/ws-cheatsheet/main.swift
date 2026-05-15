@@ -20,67 +20,6 @@ let pidPath = FileManager.default
 let args = Array(CommandLine.arguments.dropFirst())
 let isToggle = args.contains("--toggle")
 
-// MARK: - Config-path override (test fixture support)
-//
-// $WS_CHEATSHEET, when set, points at an alternate cheatsheet.json. The
-// bash test harness uses this to feed fixture documents in without
-// touching ~/.config/workspace/cheatsheet.json. Empty/unset → default
-// production path.
-let configPath: URL = {
-    if let override = ProcessInfo.processInfo.environment["WS_CHEATSHEET"],
-       !override.isEmpty {
-        return URL(fileURLWithPath: override)
-    }
-    return CheatsheetLoader.defaultPath
-}()
-
-// MARK: - Headless layout dump (--dump-layout)
-//
-// Skip the GUI entirely; run the Masonry packer against the loaded
-// document at a simulated page width and print a stable line-oriented
-// format. Used by tests/unit/ws-cheatsheet.test.sh to assert on
-// distribution behavior without spawning a window.
-//
-//   --page-width N    inner usable width (default 1640pt, matches
-//                     1720pt window minus outer padding)
-//   --columns N       force a specific column count (default: derived
-//                     from --page-width via Masonry.columnCount)
-//
-// Output:
-//   total_columns=N
-//   column=N cards=N height=N
-//     card=N title="..." height=N
-//     ...
-if args.firstIndex(of: "--dump-layout") != nil {
-    var pageW: CGFloat = 1640
-    var explicitColumns: Int? = nil
-    if let i = args.firstIndex(of: "--page-width"), i + 1 < args.count,
-       let v = Double(args[i + 1]) { pageW = CGFloat(v) }
-    if let i = args.firstIndex(of: "--columns"), i + 1 < args.count,
-       let v = Int(args[i + 1]) { explicitColumns = v }
-
-    let doc: CheatsheetDocument
-    do {
-        doc = try CheatsheetLoader.load(from: configPath)
-    } catch {
-        FileHandle.standardError.write(Data(
-            "ws-cheatsheet: load failed: \(error)\n".utf8))
-        exit(2)
-    }
-    let cols = explicitColumns
-        ?? Masonry.columnCount(forWidth: pageW, spacing: 14)
-    let columns = Masonry.columnize(sections: doc.sections, columnCount: cols)
-    print("total_columns=\(columns.count)")
-    for column in columns {
-        print("column=\(column.id) cards=\(column.sections.count) height=\(Int(column.estimatedHeight))")
-        for (i, section) in column.sections.enumerated() {
-            let h = Masonry.estimateHeight(section)
-            print("  card=\(i) title=\"\(section.title)\" height=\(Int(h))")
-        }
-    }
-    exit(0)
-}
-
 func readExistingPID() -> Int32? {
     guard let data = try? Data(contentsOf: pidPath),
           let str = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -128,23 +67,21 @@ app.setActivationPolicy(.accessory)
 // error card rather than crashing — the user can fix the JSON and reopen.
 let document: CheatsheetDocument
 do {
-    document = try CheatsheetLoader.load(from: configPath)
+    document = try CheatsheetLoader.load()
 } catch {
-    let fallback = CheatsheetDocument(
-        banner: [.init(k: "ERR", v: "cheatsheet.json not loadable")],
-        sections: [
-            .init(
-                title: "Error",
-                color: "#ef4444",
-                sub: "ws-cheatsheet — load failure",
-                rows: [
-                    ["path", CheatsheetLoader.defaultPath.path],
-                    ["reason", "\(error)"],
-                ]
-            )
-        ]
+    let errorSection = CheatsheetDocument.Section(
+        title: "Error",
+        rows: [
+            ["path", CheatsheetLoader.defaultPath.path],
+            ["reason", "\(error)"],
+        ],
+        color: "#ef4444",
+        sub: "ws-cheatsheet — load failure"
     )
-    document = fallback
+    document = CheatsheetDocument(
+        banner: [.init(k: "ERR", v: "cheatsheet.json not loadable")],
+        columns: [.init(sections: [errorSection])]
+    )
 }
 
 let formatter = DateFormatter()
