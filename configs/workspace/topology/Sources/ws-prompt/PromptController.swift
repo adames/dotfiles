@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import WsUI
 
 /// Three prompts the overlay can render. Picked from the first CLI arg.
 /// focus/send share the PromptController state machine here; manage has
