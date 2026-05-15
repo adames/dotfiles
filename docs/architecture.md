@@ -221,17 +221,18 @@ ones.
   optional IDENTITY (name, color, icon) on top.
 - **The CLI** (`~/.local/bin/ws`; `workspace` kept as a compat
   symlink) is the public mutation API. Subcommands cover name /
-  color / icon / theme / add / remove / swap / move / rotate /
-  reverse / reorder / layout / edit / reset / doctor / verify.
-  Every mutation is atomic (mktemp + jq + mv) and fires the cascade.
-  Slot count is derived dynamically from yabai. Any subcommand that
-  takes a slot accepts either a numeric index or a unique slot name.
-  Workspace lifecycle is also available through the manage overlay,
-  which shells out to the same CLI.
+  icon / theme / add / remove / swap / move / rotate / reverse /
+  reorder / layout / edit / reset / doctor / verify. Every mutation
+  is atomic (mktemp + jq + mv) and fires the cascade. Slot count is
+  derived dynamically from yabai. Any subcommand that takes a slot
+  accepts either a numeric index or a unique slot name. Workspace
+  lifecycle is also available through the manage overlay, which
+  shells out to the same CLI.
 - **Positional colors.** Reordering ops (`swap`/`move`/`rotate`/
   `reverse`/`reorder`) permute only the `(name, icon)` tuples — color
   stays anchored to slot index. Muscle memory: "orange always means
-  slot 2." Change a slot's color directly with `ws color N #HEX`.
+  slot 2." Color is theme-driven (`ws theme NAME`); there is no
+  per-slot color override.
 - **`on-space-changed.sh`** is the cascade entry point — called by
   yabai's `space_changed` signal *and* by every CLI mutation. Writes
   `current.env` atomically, pushes env into tmux, triggers sketchybar.
