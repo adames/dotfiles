@@ -82,9 +82,9 @@ Caps tap                       → Esc
 
 # Hyper — navigate / open / commit (single-chord ops)
 Caps + hjkl                    → focus window
-Caps + space  → digit | name+↵ → focus workspace (overlay)
-Caps + return → digit | name+↵ → send window to workspace + follow (overlay)
-Caps + f                       → toggle float / unfloat
+Caps + f      → digit | name+↵ → focus workspace (overlay)
+Caps + g  ·  Caps + return     → go: send window to workspace + follow (overlay)
+Caps + v                       → toggle float / unfloat
 Caps + e / r                   → balance / rotate space
 Caps + t / b / o / s           → terminal / browser / Finder / System Settings
 Caps + ;                       → toggle cheatsheet HUD
@@ -177,7 +177,7 @@ hash changes and the sudoers entry needs to track it.
 
 Don't use macOS green-button fullscreen on apps you want yabai to
 manage; it creates a native fullscreen space yabai can't touch. Send
-the window to its own slot with `Caps+Return → digit` instead.
+the window to its own slot with `Caps+G → digit` instead.
 
 ## OrbStack (Docker Desktop replacement)
 
@@ -247,7 +247,7 @@ under `configs/workspace/topology/` and rebuild on every bootstrap.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | "Karabiner installed but `.app` missing" | `installer -pkg` interrupted — `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
-| `Caps + space` / `Caps + return` / `Caps + Shift + return` does nothing | `ws-prompt` missing — re-run `~/.config/workspace/topology/install.sh` |
+| `Caps + f` / `Caps + g` / `Caps + Shift + return` does nothing | `ws-prompt` missing — re-run `~/.config/workspace/topology/install.sh` |
 | `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — same fix |
 | Manage overlay's `add` / `destroy` fails with "scripting-addition" | yabai SA not loaded — `sudo yabai --load-sa && killall Dock`, or re-run `yabai-sa-install.sh` |
 | Workspace pills missing | `sketchybar` not running — `brew services restart sketchybar`. Glyphs blank → Nerd Font missing (`brew install --cask font-jetbrains-mono-nerd-font`) |

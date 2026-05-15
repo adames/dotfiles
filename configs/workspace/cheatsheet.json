@@ -16,7 +16,7 @@
       "rows": [
         ["caps + hjkl",          "focus window  ←  ↓  ↑  →"],
         ["caps + shift + hjkl",  "swap window  ←  ↓  ↑  →"],
-        ["caps + f",             "toggle float / unfloat  (unfloat = commit staged window to tiling)"],
+        ["caps + v",             "toggle float / unfloat  (unfloat = commit staged window to tiling)"],
         ["caps + e",             "balance space"],
         ["caps + r",             "rotate space 90°"],
         ["caps + tab",           "cycle next workspace (wraps 1↔N)"],
@@ -30,12 +30,12 @@
       "sub": "number = stable selector · names/icons are cosmetic",
       "idea": "Three overlays. Digit (1..0) commits instantly; type letters to fuzzy-search names + Enter. Esc and click-elsewhere always cancel.",
       "rows": [
-        ["caps + space",          "focus prompt → digit · letters → name search + ↵"],
-        ["caps + return",         "send prompt → digit (commit + follow) · letters + ↵"],
-        ["caps + shift + return", "manage prompt → a add · r rename · i icon · d destroy"],
-        ["    (in manage)",       "⇧L layout save/load/delete · v verify · ? doctor"],
-        ["esc / click-elsewhere", "cancel any prompt"],
-        ["—",                     "names cannot start with a digit · all-numeric query = slot index (11+)"]
+        ["caps + f",                  "focus prompt → digit · letters → name search + ↵"],
+        ["caps + g  ·  caps + return", "go prompt → digit (commit + follow) · letters + ↵"],
+        ["caps + shift + return",     "manage prompt → a add · r rename · i icon · d destroy"],
+        ["    (in manage)",           "⇧L layout save/load/delete · v verify · ? doctor"],
+        ["esc / click-elsewhere",     "cancel any prompt"],
+        ["—",                         "names cannot start with a digit · all-numeric query = slot index (11+)"]
       ]
     },
     {

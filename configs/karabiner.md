@@ -94,8 +94,9 @@ directly to `ws-prompt <mode>`, a SwiftUI overlay that captures
 keystrokes itself and exits on commit / cancel / blur. There are no
 sticky skhd modes anywhere in the system anymore.
 
-- `Caps + space`          (Hyper+Space)    → focus prompt  (digit commits · letters fuzzy-match name + ↵)
-- `Caps + return`         (Hyper+Return)   → send prompt   (digit commits + follow · letters fuzzy-match name + ↵)
+- `Caps + f`              (Hyper+F)        → focus prompt  (digit commits · letters fuzzy-match name + ↵)
+- `Caps + g`              (Hyper+G)        → go prompt     (digit commits + follow · letters fuzzy-match name + ↵)
+- `Caps + return`         (Hyper+Return)   → go prompt     (alias for Caps+g; preserves muscle memory + keeps the most-frequent workspace action on the most-ergonomic chord)
 - `Caps + Shift + return` (Mod+Return)     → manage prompt (verb-picker → multi-stage flow):
                                               a add · r rename · i icon · d destroy
                                               ⇧L layout save/load/delete

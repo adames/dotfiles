@@ -25,7 +25,7 @@
 # Non-goals:
 #   - No burst guard: if an app restores N windows on launch, they all
 #     migrate + focus in sequence. Cheap to add later if it bites.
-#   - We do not toggle float ourselves. caps+f is the user's
+#   - We do not toggle float ourselves. caps+v is the user's
 #     unfloat-to-commit chord on a staged floating window.
 
 set -u

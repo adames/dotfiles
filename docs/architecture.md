@@ -16,7 +16,7 @@ graph LR
   skhd -->|"yabai -m ..."| yabai
   skhd -->|Hyper+T osascript| Ghostty
   skhd -->|Hyper+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
-  skhd -->|Caps+Space / Caps+Return / Caps+Shift+Return| WSPrompt[ws-prompt · SwiftUI overlay]
+  skhd -->|Caps+f / Caps+g / Caps+Return / Caps+Shift+Return| WSPrompt[ws-prompt · SwiftUI overlay]
   WSPrompt -->|ws-focus / ws-send-follow / ws / yabai| yabai
   yabai -->|window_created signal| WSStage[stage-window.sh]
   yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
@@ -57,7 +57,7 @@ JSON specifics in [`configs/karabiner.md`](../configs/karabiner.md).
 
 | Layer | Role | Examples |
 |---|---|---|
-| **Hyper** | navigate / read-only | focus window (`hjkl`), focus workspace (`space`), cycle workspace (`tab`), open app (`t`/`b`/`o`/`s`), cheatsheet (`;`) |
+| **Hyper** | navigate / read-only | focus window (`hjkl`), focus workspace (`f`), go workspace (`g` / `return`), cycle workspace (`tab`), open app (`t`/`b`/`o`/`s`), cheatsheet (`;`) |
 | **Mod**   | modify / destructive | swap window (`hjkl`), manage workspace (`return`) |
 
 All workspace operations go through `ws-prompt`, a one-shot SwiftUI
@@ -66,9 +66,9 @@ commit / cancel / blur / Esc — skhd never holds workspace state:
 
 | Trigger | Prompt | What |
 |---|---|---|
-| `Caps + space`          | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
-| `Caps + return`         | send   | digit commits + follow · letters fuzzy-match name + Enter |
-| `Caps + Shift + return` | manage | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
+| `Caps + f`                       | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
+| `Caps + g`  ·  `Caps + return`   | go     | digit commits + follow · letters fuzzy-match name + Enter (Return alias keeps the most-frequent workspace action on the most-ergonomic chord) |
+| `Caps + Shift + return`          | manage | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
 
 The manage overlay is a multi-stage state machine (verb → target /
 payload → confirm → result). Commits shell straight out to the `ws`
@@ -80,7 +80,7 @@ slot index — the path to slot 11+ via numeric input.
 New windows are auto-staged centered on the focused space by yabai's
 `window_created` signal
 ([stage-window.sh](../configs/workspace/stage-window.sh)). Tile-vs-float
-is the app/rule decision; staging just centers + focuses, and `Caps+f`
+is the app/rule decision; staging just centers + focuses, and `Caps+v`
 toggles float to commit a staged window into the BSP tiling.
 
 ## Who owns what
@@ -106,7 +106,7 @@ it only knows how to fire shell commands. Anything that needs macOS
 API access is its own one-shot binary, shipped by the Swift package
 under `configs/workspace/topology/`:
 
-- **ws-prompt** — SwiftUI overlay for Caps+Space / Caps+Return /
+- **ws-prompt** — SwiftUI overlay for Caps+f / Caps+g / Caps+Return /
   Caps+Shift+Return. Captures keys itself; exits on commit / cancel /
   blur. Manage is a multi-stage state machine that shells out to `ws`
   and yabai and surfaces captured output in a result panel.
