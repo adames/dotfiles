@@ -4,7 +4,7 @@
 # instead of the Alt modifier vim/tmux expect.
 macos-option-as-alt = left
 
-font-size = 13
+font-size = 16
 mouse-hide-while-typing = true
 window-padding-x = 8
 window-padding-y = 8
@@ -18,6 +18,9 @@ window-padding-y = 8
 keybind = cmd+t=new_window
 keybind = cmd+n=new_window
 
-# (Hyper+Space is now the skhd focus-mode entry; the previous
-# Hyper+Space→tmux-prefix bridge was removed. Use C-a directly inside
-# Ghostty for the tmux prefix.)
+# Hyper+A → tmux prefix (C-a). Karabiner remaps Caps Lock to Hyper
+# (cmd+alt+ctrl+shift), so without this bridge `Caps+A` falls through to
+# Ghostty's default `cmd+a = select_all` and the tmux prefix is unreachable
+# via the Caps modifier. Sending \x01 (literal C-a) inside Ghostty only
+# means the chord doesn't leak system-wide.
+keybind = cmd+alt+ctrl+shift+a=text:"\x01"
