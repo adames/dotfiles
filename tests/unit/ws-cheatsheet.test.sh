@@ -161,8 +161,11 @@ _assert_dump_contains "single section: column 0 takes it; others empty" single \
   'column=3 cards=0' \
   'title="Solo"'
 
-# Equal-height triplet across 3 forced columns — round-robin.
-_assert_dump_contains "three equal cards across 3 columns: one each" three-equal \
+# Equal-height triplet across 3 forced columns. With column-major fill
+# the boundary lands exactly at target so each card crosses one line:
+# Alpha → col 0, Beta → col 1, Gamma → col 2 (document order, one per
+# column).
+_assert_dump_contains "three equal cards: one per column in doc order" three-equal \
   --columns 3 \
   'total_columns=3' \
   'column=0 cards=1' \
@@ -177,16 +180,52 @@ _assert_dump_contains "tall+3short in 2 cols: tall solo, shorts in col 1" tall-p
   'column=0 cards=1' \
   'column=1 cards=3'
 
-# Eight equal-height cards into 4 columns: round-robin (col i gets cards
-# i and i+4). Spot-check three: title="A" is the FIRST card in col 0;
-# title="E" is the second; title="H" is the second in col 3.
-_assert_dump_contains "eight equal into 4 columns: A→0, B→1, C→2, D→3, E→0" eight-into-four \
+# Eight equal-height cards into 4 columns: column-major fills two per
+# column in document order — col 0 = [A, B], col 1 = [C, D], etc.
+# Distinct from pure-masonry round-robin (which would interleave).
+_assert_dump_contains "eight equal: consecutive pairs per column" eight-into-four \
   --columns 4 \
   'total_columns=4' \
   'column=0 cards=2' \
   'column=1 cards=2' \
   'column=2 cards=2' \
   'column=3 cards=2'
+
+# Family-flow check: with families in document order (system → system →
+# vim → vim), column-major should cluster the system pair into col 0
+# and the vim pair into col 1. Pure masonry would interleave them.
+cat > "$TMP/family-flow.json" <<'JSON'
+{
+  "banner": [],
+  "sections": [
+    { "title": "Sys1", "color": "#fff", "sub": "", "family": "system",   "rows": [["k","d"]] },
+    { "title": "Sys2", "color": "#fff", "sub": "", "family": "system",   "rows": [["k","d"]] },
+    { "title": "Vim1", "color": "#fff", "sub": "", "family": "vim",      "rows": [["k","d"]] },
+    { "title": "Vim2", "color": "#fff", "sub": "", "family": "vim",      "rows": [["k","d"]] }
+  ]
+}
+JSON
+# Expected output (each title appears once, in document order, paired by
+# family). Grep the dump and assert ordering by line numbers.
+ff_out=$(_dump family-flow --columns 2)
+if [[ "$?" == "0" ]]; then
+  sys1_line=$(grep -n 'title="Sys1"' <<<"$ff_out" | head -1 | cut -d: -f1)
+  sys2_line=$(grep -n 'title="Sys2"' <<<"$ff_out" | head -1 | cut -d: -f1)
+  vim1_line=$(grep -n 'title="Vim1"' <<<"$ff_out" | head -1 | cut -d: -f1)
+  vim2_line=$(grep -n 'title="Vim2"' <<<"$ff_out" | head -1 | cut -d: -f1)
+  # Sys1 and Sys2 should appear consecutively (both in col 0); Vim1 and
+  # Vim2 should appear consecutively after them (both in col 1).
+  if (( sys1_line < sys2_line && sys2_line < vim1_line && vim1_line < vim2_line )); then
+    pass=$((pass + 1))
+    printf 'ok   family flow: system pair clusters in col 0, vim pair in col 1\n'
+  else
+    fail=$((fail + 1))
+    printf 'FAIL family flow ordering wrong\n  dump:\n%s\n' "$ff_out"
+  fi
+else
+  fail=$((fail + 1))
+  printf 'FAIL family flow: dump returned non-zero\n'
+fi
 
 # ── Column-count derivation from page width ───────────────────────────────
 

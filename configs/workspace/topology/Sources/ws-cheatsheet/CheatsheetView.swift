@@ -16,13 +16,14 @@ import WsUI   // re-exports `Color(hex:)`
 ///   `customLayout: "keyboard"` — dual coding (Paivio) where it reinforces
 ///   the concept ("h is left because it's the leftmost arrow key").
 ///
-/// Layout: **masonry** (see Masonry.swift). Cards drop into the shortest
-/// column at the time of placement — same trick CSS column-count gives
-/// you for free. This trades the previous LazyVGrid's row-alignment
-/// (which forced every card in a row to match the tallest one's height,
-/// wasting vertical room under shorter neighbors) for tight Pinterest-
-/// style packing. Family color carries the organizational cue: same hue
-/// = same world, regardless of which column the card landed in.
+/// Layout: **column-major masonry** (see Masonry.swift). Cards stay in
+/// document order, filling column 0 to roughly `total_height /
+/// column_count` before advancing to column 1, etc. Because the JSON is
+/// family-ordered (system → terminal → vim → nvim → git), family
+/// clustering happens as a side effect — a family flows down a single
+/// column instead of being scattered across the grid. Cards within a
+/// column are tight against each other (no row alignment), so vertical
+/// space inside a column is fully used.
 struct CheatsheetView: View {
     let document: CheatsheetDocument
     let timestamp: String
