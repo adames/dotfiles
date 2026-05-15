@@ -1,29 +1,21 @@
 import SwiftUI
 import WsUI   // re-exports `Color(hex:)`
 
-/// The HUD view, redesigned as a *learning aid* rather than a haystack:
+/// The HUD view, a *learning aid* shaped as a category mosaic:
 ///
-/// - Sections sit inside **family bands** (system · terminal · editor · git)
-///   so spatial neighbors are stable across display widths. The mental
-///   model "which world am I in" is carried by the band, not by 12 unique
-///   per-section colors.
-/// - Each section has a one-line **idea caption** under its title — the
-///   worked-example move from Sweller's cognitive-load work, translated to
-///   "tell the learner what the section is *about* before showing the keys".
-/// - Each key chord gets a leading **ModifierBadge** dot — Gestalt similarity
-///   reinforcing the proximity grouping of the band.
-/// - The vim-motion section opts in to a spatial **keyboard diagram** via
-///   `customLayout: "keyboard"` — dual coding (Paivio) where it reinforces
-///   the concept ("h is left because it's the leftmost arrow key").
+/// - Each **column** is one family (system / terminal / vim / nvim+git).
+///   Family color carries the categorical cue; physical adjacency
+///   reinforces it.
+/// - Within a column, cards stack tightly (no row alignment, no algorithm).
+/// - Card layout is **declared** by `cheatsheet-layout.json` and produced
+///   by `lib/cheatsheet-gen.py` from `@cs` annotations in the upstream
+///   config files. The renderer just iterates the columns the JSON gave
+///   it — no computation.
 ///
-/// Layout: **column-major masonry** (see Masonry.swift). Cards stay in
-/// document order, filling column 0 to roughly `total_height /
-/// column_count` before advancing to column 1, etc. Because the JSON is
-/// family-ordered (system → terminal → vim → nvim → git), family
-/// clustering happens as a side effect — a family flows down a single
-/// column instead of being scattered across the grid. Cards within a
-/// column are tight against each other (no row alignment), so vertical
-/// space inside a column is fully used.
+/// Within a card:
+///   - section header → idea caption → row table.
+///   - The vim-motion card opts into `customLayout: "keyboard"` and
+///     renders a spatial keyboard above the table (Paivio dual-coding).
 struct CheatsheetView: View {
     let document: CheatsheetDocument
     let timestamp: String
@@ -41,7 +33,7 @@ struct CheatsheetView: View {
 
             VStack(spacing: 16) {
                 bannerStrip
-                sectionGrid
+                columnGrid
                 footer
             }
             .padding(.horizontal, outerHPadding)
@@ -51,35 +43,22 @@ struct CheatsheetView: View {
         }
     }
 
-    /// Masonry grid. GeometryReader gives us the inner width so we can
-    /// adapt the column count to the screen (2..6 columns) and compute an
-    /// exact column width. ScrollView keeps each column independently
-    /// scrollable when the tallest column exceeds the page.
-    private var sectionGrid: some View {
-        GeometryReader { geo in
-            let usableWidth = min(geo.size.width, maxPageWidth - 2 * outerHPadding)
-            let cols = Masonry.columnCount(forWidth: usableWidth, spacing: columnSpacing)
-            let totalSpacing = columnSpacing * CGFloat(cols - 1)
-            let columnWidth = (usableWidth - totalSpacing) / CGFloat(cols)
-            let columns = Masonry.columnize(
-                sections: document.sections,
-                columnCount: cols
-            )
-
-            ScrollView(.vertical, showsIndicators: false) {
-                HStack(alignment: .top, spacing: columnSpacing) {
-                    ForEach(columns) { column in
-                        VStack(spacing: cardSpacing) {
-                            ForEach(column.sections) { section in
-                                SectionCard(section: section)
-                            }
+    /// Static family columns. Each column gets an equal share of the
+    /// available width via `.frame(maxWidth: .infinity)`; SwiftUI's
+    /// `HStack` splits leftover space evenly across its children.
+    private var columnGrid: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            HStack(alignment: .top, spacing: columnSpacing) {
+                ForEach(document.columns) { column in
+                    VStack(spacing: cardSpacing) {
+                        ForEach(column.sections) { section in
+                            SectionCard(section: section)
                         }
-                        .frame(width: columnWidth, alignment: .top)
                     }
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
-                .padding(.bottom, 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .padding(.bottom, 6)
         }
     }
 
@@ -141,10 +120,12 @@ private struct SectionCard: View {
                     .foregroundColor(accentColor)
                     .padding(.bottom, 3)
 
-                Text(section.sub)
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.38))
-                    .padding(.bottom, section.idea == nil ? 12 : 8)
+                if let sub = section.sub, !sub.isEmpty {
+                    Text(sub)
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.38))
+                        .padding(.bottom, section.idea == nil ? 12 : 8)
+                }
 
                 if let idea = section.idea, !idea.isEmpty {
                     Text(idea)
@@ -214,7 +195,7 @@ private struct SectionCard: View {
     }
 
     private var accentColor: Color {
-        FamilyColors.resolve(family: section.family, fallbackHex: section.color)
+        FamilyColors.resolve(family: section.family, fallbackHex: section.color ?? "")
     }
 }
 
