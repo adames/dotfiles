@@ -1178,18 +1178,24 @@ cmd_layout() {
         _confirm "load layout '$name' (will reconcile yabai $current_count → $saved_count spaces, then replace spaces.json)?" "$yes" \
           || { warn "aborted"; exit 1; }
 
-        local i
+        local i yerr
         if (( saved_count > current_count )); then
           for ((i = current_count; i < saved_count; i++)); do
-            if ! yabai -m space --create 2>/dev/null; then
-              err "yabai space --create failed (scripting-addition?). aborted with $i/$saved_count spaces; spaces.json untouched."
+            if ! yerr=$(yabai -m space --create 2>&1); then
+              err "yabai space --create failed; aborted with $i/$saved_count spaces; spaces.json untouched."
+              err "yabai: ${yerr:-<no output>}"
+              [[ "$yerr" == *"scripting-addition"* ]] && \
+                err "fix: ~/dotfiles/macos/yabai-sa-install.sh --force"
               exit 1
             fi
           done
         elif (( saved_count < current_count )); then
           for ((i = current_count; i > saved_count; i--)); do
-            if ! yabai -m space --destroy "$i" 2>/dev/null; then
-              err "yabai space --destroy $i failed (scripting-addition?). aborted; spaces.json untouched."
+            if ! yerr=$(yabai -m space --destroy "$i" 2>&1); then
+              err "yabai space --destroy $i failed; aborted; spaces.json untouched."
+              err "yabai: ${yerr:-<no output>}"
+              [[ "$yerr" == *"scripting-addition"* ]] && \
+                err "fix: ~/dotfiles/macos/yabai-sa-install.sh --force"
               exit 1
             fi
           done
