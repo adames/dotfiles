@@ -3,6 +3,19 @@
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
+-- @cs section Neovim · Files & Buffers
+-- @cs family nvim
+-- @cs sub harpoon · oil · :b*
+-- @cs idea Harpoon pins four files; oil edits the filesystem as text; buffers are everything else.
+-- @cs row -                :: open parent dir (oil — edit names like text)
+-- @cs row ⟨leader⟩ ha      :: harpoon: add file
+-- @cs row ⟨leader⟩ hh      :: harpoon: toggle quick menu
+-- @cs row ⟨leader⟩ 1…4     :: harpoon: jump to pinned slot N
+-- @cs row ⟨leader⟩ bn  bp  :: buffer: next / prev
+-- @cs row ⟨leader⟩ bd      :: buffer: delete current
+-- @cs row ⟨leader⟩ bo      :: buffer: close others
+-- @cs end
+
 local map = vim.keymap.set
 
 -- <leader>b* — buffer ops. Symmetric with the window/space layer:

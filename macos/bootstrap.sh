@@ -114,8 +114,20 @@ phase_configs() {
   # hammerspoon-init.lua. The cheatsheet HUD is the SwiftUI
   # ws-cheatsheet — all reachable via the topology Swift package below.
 
-  # Cheatsheet HUD content (hand-editable). ws-cheatsheet reads this on
-  # every toggle so changes are picked up without rebuilding.
+  # Cheatsheet HUD content. Regenerated from @cs annotations in the
+  # upstream config files (skhdrc, tmux.conf, nvim-init.lua, …) plus the
+  # column→family layout. Generator failure is non-fatal: install_file
+  # then deploys whatever cheatsheet.json is on disk (the committed
+  # artifact acts as a safety net).
+  step "regenerating workspace/cheatsheet.json from annotated configs"
+  if python3 "$DOTFILES_DIR/lib/cheatsheet-gen.py" \
+       --repo-root "$DOTFILES_DIR" \
+       --layout    "$CONFIGS_DIR/workspace/cheatsheet-layout.json" \
+       --out       "$CONFIGS_DIR/workspace/cheatsheet.json"; then
+    ok "cheatsheet.json regenerated"
+  else
+    warn "cheatsheet generator failed; falling back to committed cheatsheet.json"
+  fi
   install_file "$CONFIGS_DIR/workspace/cheatsheet.json"   "$HOME/.config/workspace/cheatsheet.json"
 
   # SketchyBar workspace-pill strip. Persistent workspace indicator,
