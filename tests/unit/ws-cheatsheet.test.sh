@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # Unit tests for configs/workspace/topology/Sources/ws-cheatsheet — focused
-# on the ShelfLayout packer (CheatsheetData.splitIntoChunks +
-# ShelfLayout.pack). Drives the binary in --dump-layout (headless) mode
-# with $WS_CHEATSHEET pointed at a fixture document. Asserts on the
-# stable text dump: line-oriented `key=value` records.
+# on the Masonry packer (Masonry.columnize + Masonry.columnCount). Drives
+# the binary in --dump-layout (headless) mode with $WS_CHEATSHEET pointed
+# at a fixture document. Asserts on the stable text dump:
 #
-# Dump format:
-#   total_shelves=N
-#   shelf=N items=N max_height=N
-#     item=N title="..." span=N height=N
+#   total_columns=N
+#   column=N cards=N height=N
+#     card=N title="..." height=N
 #     ...
+#
+# Bash-side coverage for what the user actually deploys; Swift Testing
+# (Tests/WsCheatsheetTests/) covers the same pure functions with finer
+# numeric assertions.
 
 set -u
 
@@ -35,27 +37,37 @@ trap 'rm -rf "$TMP"' EXIT INT TERM
 
 pass=0; fail=0
 
-# Run --dump-layout against a fixture and capture stdout.
-# Usage: _dump <fixture-name> [extra args...]
+# Run --dump-layout against a fixture (by basename, no `.json`) and
+# capture stdout. Extra args (e.g. --page-width, --columns) pass
+# through.
 _dump() {
   local fixture="$1"; shift
   WS_CHEATSHEET="$TMP/$fixture.json" "$BIN" --dump-layout "$@" 2>/dev/null
 }
 
-# Assert that the named fixture produces a dump containing every given
-# substring (one per arg after the fixture name). Useful when we care
-# about presence rather than exact ordering.
 _assert_dump_contains() {
   local label="$1" fixture="$2"; shift 2
+  # The last N args are needle strings; but we want to optionally pass
+  # extra flags like --page-width before them. Convention: the first
+  # token after the label is the fixture name; if any of the remaining
+  # args starts with `--`, treat as flag; everything else is a needle.
+  local flags=() needles=()
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" == --* ]]; then
+      flags+=("$1" "$2"); shift 2
+    else
+      needles+=("$1"); shift
+    fi
+  done
   local out
-  out=$(_dump "$fixture")
+  out=$(_dump "$fixture" "${flags[@]+"${flags[@]}"}")
   local exit=$?
   if [[ "$exit" != "0" ]]; then
     fail=$((fail + 1))
     printf 'FAIL %s\n  exit %s\n  out: %s\n' "$label" "$exit" "$out"
     return
   fi
-  for needle in "$@"; do
+  for needle in "${needles[@]}"; do
     if ! grep -qF "$needle" <<<"$out"; then
       fail=$((fail + 1))
       printf 'FAIL %s\n  missing: %s\n  dump:\n%s\n' \
@@ -67,299 +79,237 @@ _assert_dump_contains() {
   printf 'ok   %s\n' "$label"
 }
 
-# Assert that a dump does NOT contain any of the given substrings.
-_assert_dump_missing() {
-  local label="$1" fixture="$2"; shift 2
-  local out
-  out=$(_dump "$fixture")
-  for needle in "$@"; do
-    if grep -qF "$needle" <<<"$out"; then
-      fail=$((fail + 1))
-      printf 'FAIL %s\n  unexpectedly present: %s\n  dump:\n%s\n' \
-        "$label" "$needle" "$out"
-      return
-    fi
-  done
-  pass=$((pass + 1))
-  printf 'ok   %s\n' "$label"
-}
-
 # ── Fixtures ──────────────────────────────────────────────────────────────
 
-# Minimal: one short section. Expectation: one shelf, one item.
-cat > "$TMP/minimal.json" <<'JSON'
+cat > "$TMP/single.json" <<'JSON'
 {
   "banner": [],
   "sections": [
-    { "title": "Solo", "color": "#fff", "sub": "", "rows": [["a", "alpha"]] }
+    { "title": "Solo", "color": "#fff", "sub": "", "rows": [["a","alpha"]] }
   ]
 }
 JSON
 
-# Five narrow sections: fills shelf 0 (4 cards) and overflows to shelf 1.
-cat > "$TMP/five-narrow.json" <<'JSON'
+# Three identical-height cards. With --columns 3, greedy distributes
+# them one-per-column (leftmost-tiebreak on equal heights).
+cat > "$TMP/three-equal.json" <<'JSON'
 {
   "banner": [],
   "sections": [
-    { "title": "A", "color": "#fff", "sub": "", "rows": [["k","d"]] },
-    { "title": "B", "color": "#fff", "sub": "", "rows": [["k","d"]] },
-    { "title": "C", "color": "#fff", "sub": "", "rows": [["k","d"]] },
-    { "title": "D", "color": "#fff", "sub": "", "rows": [["k","d"]] },
-    { "title": "E", "color": "#fff", "sub": "", "rows": [["k","d"]] }
+    { "title": "Alpha", "color": "#fff", "sub": "", "rows": [["a","desc"]] },
+    { "title": "Beta",  "color": "#fff", "sub": "", "rows": [["b","desc"]] },
+    { "title": "Gamma", "color": "#fff", "sub": "", "rows": [["c","desc"]] }
   ]
 }
 JSON
 
-# Tall section declares splitAfter; its rows ARE tagged with the labels.
-# Total height (~30pt × 30 rows + header ≈ 970pt) should exceed the
-# default 1000pt * 0.38 = 380pt threshold and trigger a split.
-cat > "$TMP/tall-with-splits.json" <<'JSON'
+# One tall card + three short. With --columns 2, the tall card pushes
+# its column WAY above the other, so all three shorts land in column 1.
+# Tall=10 rows → 32+22+0+10×30 = 354pt; short=1 row → 84pt.
+# After tall: heights [354, 0]. Short 1 → col 1 (84). Short 2 → col 1
+# (168). Short 3 → col 1 (252). Final: [354, 252].
+cat > "$TMP/tall-plus-three.json" <<'JSON'
 {
   "banner": [],
   "sections": [
-    {
-      "title": "Big",
-      "color": "#fff",
-      "sub": "tall section",
-      "idea": "this is a tall section",
-      "splitAfter": ["First", "Second", "Third"],
-      "rows": [
-        [":sub", "First"],
-        ["k1","d1"],["k2","d2"],["k3","d3"],["k4","d4"],["k5","d5"],
-        ["k6","d6"],["k7","d7"],["k8","d8"],["k9","d9"],["k10","d10"],
-        [":sub", "Second"],
-        ["k11","d11"],["k12","d12"],["k13","d13"],["k14","d14"],["k15","d15"],
-        ["k16","d16"],["k17","d17"],["k18","d18"],["k19","d19"],["k20","d20"],
-        [":sub", "Third"],
-        ["k21","d21"],["k22","d22"],["k23","d23"],["k24","d24"],["k25","d25"],
-        ["k26","d26"],["k27","d27"],["k28","d28"],["k29","d29"],["k30","d30"]
-      ]
-    }
+    { "title": "Tall", "color": "#fff", "sub": "", "rows": [
+      ["k1","d"],["k2","d"],["k3","d"],["k4","d"],["k5","d"],
+      ["k6","d"],["k7","d"],["k8","d"],["k9","d"],["k10","d"]
+    ]},
+    { "title": "S1", "color": "#fff", "sub": "", "rows": [["k","d"]] },
+    { "title": "S2", "color": "#fff", "sub": "", "rows": [["k","d"]] },
+    { "title": "S3", "color": "#fff", "sub": "", "rows": [["k","d"]] }
   ]
 }
 JSON
 
-# Same shape but short — sum of rows is well under threshold, so no split.
-cat > "$TMP/short-with-splits.json" <<'JSON'
+# Eight equal-height cards into 4 columns — each column gets 2 cards
+# in document-pair order: col 0 = [A,E], col 1 = [B,F], col 2 = [C,G],
+# col 3 = [D,H]. Greedy round-robins because every column is tied at
+# each step (heights climb uniformly).
+cat > "$TMP/eight-into-four.json" <<'JSON'
 {
   "banner": [],
   "sections": [
-    {
-      "title": "Tiny",
-      "color": "#fff",
-      "sub": "short section",
-      "splitAfter": ["First", "Second"],
-      "rows": [
-        [":sub", "First"],
-        ["k1","d1"],
-        [":sub", "Second"],
-        ["k2","d2"]
-      ]
-    }
+    { "title": "A","color":"#fff","sub":"","rows":[["k","d"]] },
+    { "title": "B","color":"#fff","sub":"","rows":[["k","d"]] },
+    { "title": "C","color":"#fff","sub":"","rows":[["k","d"]] },
+    { "title": "D","color":"#fff","sub":"","rows":[["k","d"]] },
+    { "title": "E","color":"#fff","sub":"","rows":[["k","d"]] },
+    { "title": "F","color":"#fff","sub":"","rows":[["k","d"]] },
+    { "title": "G","color":"#fff","sub":"","rows":[["k","d"]] },
+    { "title": "H","color":"#fff","sub":"","rows":[["k","d"]] }
   ]
 }
 JSON
 
-# Card with splitAfter that doesn't match any actual rows — should be a
-# no-op even if the section is tall enough to trigger the threshold.
-cat > "$TMP/orphan-splits.json" <<'JSON'
-{
-  "banner": [],
-  "sections": [
-    {
-      "title": "Orphan",
-      "color": "#fff",
-      "sub": "",
-      "splitAfter": ["NotInRows", "AlsoMissing"],
-      "rows": [
-        ["k1","d1"],["k2","d2"],["k3","d3"],["k4","d4"],["k5","d5"],
-        ["k6","d6"],["k7","d7"],["k8","d8"],["k9","d9"],["k10","d10"],
-        ["k11","d11"],["k12","d12"],["k13","d13"],["k14","d14"],["k15","d15"]
-      ]
-    }
-  ]
-}
+cat > "$TMP/empty.json" <<'JSON'
+{ "banner": [], "sections": [] }
 JSON
 
-# Wide-card span promotion: a 2-span-capable card lands on a shelf with
-# only one other narrow card. Rebalancer should promote to span 2 so
-# the empty-slot penalty (40 × empty count) drops to zero.
-cat > "$TMP/wide-on-light-shelf.json" <<'JSON'
-{
-  "banner": [],
-  "sections": [
-    {
-      "title": "Wide",
-      "color": "#fff",
-      "sub": "",
-      "allowedSpans": [1, 2],
-      "preferredSpan": 2,
-      "rows": [["k","d"]]
-    },
-    { "title": "Narrow", "color": "#fff", "sub": "", "rows": [["k","d"]] }
-  ]
-}
-JSON
-
-# Wide-card with preferred=2 in a 4-card lineup. Greedy takes span 2
-# immediately, filling the shelf at A+Wide+C (1+2+1=4); D overflows to
-# shelf 1. Distinct from "wide-on-full-shelf" — the preferredSpan hint
-# is the dominant signal in phase 3, so the shelf isn't "full" so much
-# as "filled-to-budget-by-Wide".
-cat > "$TMP/wide-preferred-2.json" <<'JSON'
-{
-  "banner": [],
-  "sections": [
-    { "title": "A", "color": "#fff", "sub": "", "rows": [["k","d"]] },
-    {
-      "title": "Wide",
-      "color": "#fff",
-      "sub": "",
-      "allowedSpans": [1, 2],
-      "preferredSpan": 2,
-      "rows": [["k","d"]]
-    },
-    { "title": "C", "color": "#fff", "sub": "", "rows": [["k","d"]] },
-    { "title": "D", "color": "#fff", "sub": "", "rows": [["k","d"]] }
-  ]
-}
-JSON
-
-# Wide-capable card with preferred=1 amongst three narrow siblings on
-# one shelf. Greedy takes preferred=1, so all four pack onto shelf 0
-# (1+1+1+1=4). Rebalance enumerates: [1,1,1,1] sums to 4 (no empties,
-# zero preferred-miss); any [.,2,.,.] combo sums ≥5 and is skipped.
-# So Wide stays at span 1 — preferredSpan wins when balance ties.
-cat > "$TMP/wide-preferred-1-on-full.json" <<'JSON'
-{
-  "banner": [],
-  "sections": [
-    { "title": "A", "color": "#fff", "sub": "", "rows": [["k","d"]] },
-    {
-      "title": "Wide",
-      "color": "#fff",
-      "sub": "",
-      "allowedSpans": [1, 2],
-      "preferredSpan": 1,
-      "rows": [["k","d"]]
-    },
-    { "title": "C", "color": "#fff", "sub": "", "rows": [["k","d"]] },
-    { "title": "D", "color": "#fff", "sub": "", "rows": [["k","d"]] }
-  ]
-}
-JSON
-
-# Bare-minimum split: tall section with splitAfter triggering. Each
-# emitted chunk should carry the subsection label into its title.
-# (Repeat from tall-with-splits but assert on the title format.)
+echo '{ not valid json' > "$TMP/broken.json"
 
 # ── Cases ─────────────────────────────────────────────────────────────────
 
-_assert_dump_contains "minimal: one shelf with one span-1 item" minimal \
-  'total_shelves=1' \
-  'shelf=0 items=1' \
-  'title="Solo" span=1'
+# Default width derives 4 columns; one section lands in column 0, the
+# rest sit empty.
+_assert_dump_contains "single section: column 0 takes it; others empty" single \
+  'total_columns=4' \
+  'column=0 cards=1' \
+  'column=1 cards=0' \
+  'column=2 cards=0' \
+  'column=3 cards=0' \
+  'title="Solo"'
 
-_assert_dump_contains "five narrow cards: two shelves [4 + 1]" five-narrow \
-  'total_shelves=2' \
-  'shelf=0 items=4' \
-  'shelf=1 items=1' \
-  'title="A" span=1' \
-  'title="E" span=1'
+# Equal-height triplet across 3 forced columns. With column-major fill
+# the boundary lands exactly at target so each card crosses one line:
+# Alpha → col 0, Beta → col 1, Gamma → col 2 (document order, one per
+# column).
+_assert_dump_contains "three equal cards: one per column in doc order" three-equal \
+  --columns 3 \
+  'total_columns=3' \
+  'column=0 cards=1' \
+  'column=1 cards=1' \
+  'column=2 cards=1' \
+  'title="Alpha"' 'title="Beta"' 'title="Gamma"'
 
-_assert_dump_contains "tall card with splitAfter: produces three chunks" tall-with-splits \
-  'title="Big · First"' \
-  'title="Big · Second"' \
-  'title="Big · Third"'
+# Tall card forces all subsequent siblings to the other column.
+_assert_dump_contains "tall+3short in 2 cols: tall solo, shorts in col 1" tall-plus-three \
+  --columns 2 \
+  'total_columns=2' \
+  'column=0 cards=1' \
+  'column=1 cards=3'
 
-# After splitting, the original "Big" title should NOT appear standalone
-# (every emitted chunk carries a suffix).
-_assert_dump_missing "tall-split: original title gone" tall-with-splits \
-  'title="Big" '
+# Eight equal-height cards into 4 columns: column-major fills two per
+# column in document order — col 0 = [A, B], col 1 = [C, D], etc.
+# Distinct from pure-masonry round-robin (which would interleave).
+_assert_dump_contains "eight equal: consecutive pairs per column" eight-into-four \
+  --columns 4 \
+  'total_columns=4' \
+  'column=0 cards=2' \
+  'column=1 cards=2' \
+  'column=2 cards=2' \
+  'column=3 cards=2'
 
-# A 30-row tall section emits 3 chunks; with 4 columns per shelf they
-# all fit on a single shelf alongside no other cards.
-_assert_dump_contains "tall-split: three chunks pack to one shelf" tall-with-splits \
-  'total_shelves=1' \
-  'shelf=0 items=3'
+# Family-flow check: with families in document order (system → system →
+# vim → vim), column-major should cluster the system pair into col 0
+# and the vim pair into col 1. Pure masonry would interleave them.
+cat > "$TMP/family-flow.json" <<'JSON'
+{
+  "banner": [],
+  "sections": [
+    { "title": "Sys1", "color": "#fff", "sub": "", "family": "system",   "rows": [["k","d"]] },
+    { "title": "Sys2", "color": "#fff", "sub": "", "family": "system",   "rows": [["k","d"]] },
+    { "title": "Vim1", "color": "#fff", "sub": "", "family": "vim",      "rows": [["k","d"]] },
+    { "title": "Vim2", "color": "#fff", "sub": "", "family": "vim",      "rows": [["k","d"]] }
+  ]
+}
+JSON
+# Expected output (each title appears once, in document order, paired by
+# family). Grep the dump and assert ordering by line numbers.
+ff_out=$(_dump family-flow --columns 2)
+if [[ "$?" == "0" ]]; then
+  sys1_line=$(grep -n 'title="Sys1"' <<<"$ff_out" | head -1 | cut -d: -f1)
+  sys2_line=$(grep -n 'title="Sys2"' <<<"$ff_out" | head -1 | cut -d: -f1)
+  vim1_line=$(grep -n 'title="Vim1"' <<<"$ff_out" | head -1 | cut -d: -f1)
+  vim2_line=$(grep -n 'title="Vim2"' <<<"$ff_out" | head -1 | cut -d: -f1)
+  # Sys1 and Sys2 should appear consecutively (both in col 0); Vim1 and
+  # Vim2 should appear consecutively after them (both in col 1).
+  if (( sys1_line < sys2_line && sys2_line < vim1_line && vim1_line < vim2_line )); then
+    pass=$((pass + 1))
+    printf 'ok   family flow: system pair clusters in col 0, vim pair in col 1\n'
+  else
+    fail=$((fail + 1))
+    printf 'FAIL family flow ordering wrong\n  dump:\n%s\n' "$ff_out"
+  fi
+else
+  fail=$((fail + 1))
+  printf 'FAIL family flow: dump returned non-zero\n'
+fi
 
-# Short section with splitAfter declared but under threshold: no split.
-_assert_dump_contains "short section: splitAfter ignored, single card" short-with-splits \
-  'total_shelves=1' \
-  'shelf=0 items=1' \
-  'title="Tiny" span=1'
+# ── Column-count derivation from page width ───────────────────────────────
 
-# Orphan splitAfter (labels don't match any :sub markers) on a tall
-# section: split still triggers, but produces 1 chunk (no markers to
-# split at). The single chunk keeps the original title.
-_assert_dump_contains "orphan splitAfter: one chunk, original title kept" orphan-splits \
-  'total_shelves=1' \
-  'title="Orphan"'
+# Default 1640 width → 4 columns (matches CheatsheetView's max).
+_assert_dump_contains "default width: 4 columns" single \
+  'total_columns=4'
 
-# Wide card on a light shelf: promotes to span 2 (no empty slots ⇒
-# scoring prefers it).
-_assert_dump_contains "wide+narrow: wide promotes to span 2" wide-on-light-shelf \
-  'total_shelves=1' \
-  'title="Wide" span=2' \
-  'title="Narrow" span=1'
+# Narrow 1024 width → 3 columns. ⌊(1024+14)/(320+14)⌋ = ⌊3.11⌋ = 3.
+_assert_dump_contains "1024pt width: 3 columns" single --page-width 1024 \
+  'total_columns=3'
 
-# Wide with preferred=2: greedy fills shelf with A+Wide(2)+C; D overflows.
-_assert_dump_contains "wide preferred=2: fills shelf at span 2, D overflows" wide-preferred-2 \
-  'total_shelves=2' \
-  'shelf=0 items=3' \
-  'shelf=1 items=1' \
-  'title="Wide" span=2' \
-  'title="D" span=1'
+# Very narrow 700 width → 2 columns (lower bound). Raw would be
+# ⌊(700+14)/334⌋ = 2.
+_assert_dump_contains "700pt width: 2 columns" single --page-width 700 \
+  'total_columns=2'
 
-# Wide with preferred=1 amongst 3 narrows: stays span 1 because the
-# rebalancer's preferred-miss penalty + empty-slot zero on [1,1,1,1]
-# beats any promotion (which would sum > 4 and be skipped).
-_assert_dump_contains "wide preferred=1 with 3 narrows: stays span 1" wide-preferred-1-on-full \
-  'total_shelves=1' \
-  'shelf=0 items=4' \
-  'title="Wide" span=1'
+# Tiny 300 width → still 2 columns (clamped to lower bound; raw=0).
+_assert_dump_contains "300pt width: clamps up to 2 columns" single --page-width 300 \
+  'total_columns=2'
+
+# Ultrawide 2560 width → 6 columns (upper bound). Raw =
+# ⌊(2560+14)/334⌋ = 7, clamped to 6.
+_assert_dump_contains "2560pt width: clamps down to 6 columns" single --page-width 2560 \
+  'total_columns=6'
+
+# --columns flag overrides the width-based derivation.
+_assert_dump_contains "--columns 5 overrides width derivation" single --columns 5 \
+  'total_columns=5'
 
 # ── End-to-end: real cheatsheet.json ──────────────────────────────────────
 
-# Reuse the deployed cheatsheet.json (the worktree copy). Expect both
-# TMUX and WINDOWS·SPACES to be split into the named chunks.
-e2e_out=$(WS_CHEATSHEET="$REPO_ROOT/configs/workspace/cheatsheet.json" \
+# Production document has 12 sections. At the default 4 columns, every
+# title should appear exactly once across the dump.
+real_out=$(WS_CHEATSHEET="$REPO_ROOT/configs/workspace/cheatsheet.json" \
   "$BIN" --dump-layout 2>/dev/null)
-e2e_exit=$?
-if [[ "$e2e_exit" != "0" ]]; then
+real_exit=$?
+real_titles=(
+  "Windows · Spaces" "Workspace · Slots" "Launch"
+  "Tmux" "Shell"
+  "Vim · Motion" "Vim · Edit"
+  "Neovim · LSP & Find" "Neovim · Files & Buffers"
+  "Git · Hunks (editor)" "Python · Debug & Test" "Git · Workflow (shell)"
+)
+if [[ "$real_exit" != "0" ]]; then
   fail=$((fail + 1))
-  printf 'FAIL e2e: --dump-layout exited %s\n' "$e2e_exit"
+  printf 'FAIL e2e: --dump-layout exited %s\n' "$real_exit"
 else
-  for needle in \
-    'title="Tmux · Panes"' \
-    'title="Tmux · Windows"' \
-    'title="Tmux · Sessions"' \
-    'title="Windows · Spaces · Focus"' \
-    'title="Windows · Spaces · Layout"' \
-    'title="Windows · Spaces · Cycle"'; do
-    if ! grep -qF "$needle" <<<"$e2e_out"; then
+  e2e_ok=1
+  for t in "${real_titles[@]}"; do
+    if ! grep -qF "title=\"$t\"" <<<"$real_out"; then
       fail=$((fail + 1))
-      printf 'FAIL e2e: missing chunk %s\n' "$needle"
-      e2e_exit=1
+      printf 'FAIL e2e: title %q missing from dump\n' "$t"
+      e2e_ok=0
       break
     fi
   done
-  if [[ "$e2e_exit" == "0" ]]; then
-    pass=$((pass + 1))
-    printf 'ok   e2e: real cheatsheet.json splits Tmux + Windows·Spaces\n'
+  if (( e2e_ok )); then
+    # Also assert balance: max column height / min column height < 2.
+    # Greedy shortest-column should never produce gross imbalance on a
+    # real document — if it does, something has regressed.
+    heights=$(grep -oE 'column=[0-9]+ cards=[0-9]+ height=[0-9]+' <<<"$real_out" \
+      | grep -oE 'height=[0-9]+' | grep -oE '[0-9]+')
+    max=$(echo "$heights" | sort -n | tail -1)
+    min=$(echo "$heights" | sort -n | head -1)
+    if (( min > 0 )) && (( max * 100 / min < 200 )); then
+      pass=$((pass + 1))
+      printf 'ok   e2e: 12 cards distributed across 4 cols, max/min < 2\n'
+    else
+      fail=$((fail + 1))
+      printf 'FAIL e2e: column heights imbalanced (max=%s min=%s)\n  dump:\n%s\n' \
+        "$max" "$min" "$real_out"
+    fi
   fi
 fi
 
 # ── Edge cases ────────────────────────────────────────────────────────────
 
-# Empty fixture (no sections) — should produce zero shelves cleanly.
-cat > "$TMP/empty.json" <<'JSON'
-{ "banner": [], "sections": [] }
-JSON
-_assert_dump_contains "empty document: zero shelves" empty 'total_shelves=0'
+# Empty document — at default width derives 4 columns, all with 0 cards.
+_assert_dump_contains "empty document: 4 columns, all empty" empty \
+  'total_columns=4' \
+  'column=0 cards=0' \
+  'column=3 cards=0'
 
-# Malformed JSON: binary should exit non-zero with stderr message.
-echo '{ not valid json' > "$TMP/broken.json"
+# Malformed JSON: exit 2 with stderr message (not crash).
 broken_out=$(WS_CHEATSHEET="$TMP/broken.json" "$BIN" --dump-layout 2>&1)
 broken_exit=$?
 if [[ "$broken_exit" != "2" ]]; then
@@ -369,23 +319,6 @@ if [[ "$broken_exit" != "2" ]]; then
 else
   pass=$((pass + 1))
   printf 'ok   malformed json: exits 2\n'
-fi
-
-# ── Page-dimension overrides ──────────────────────────────────────────────
-
-# Same tall fixture, but page-height=100 makes the threshold (38) very
-# small, so even short sections would trigger splits. Use this to verify
-# the page-height flag is respected.
-small_page_out=$(WS_CHEATSHEET="$TMP/short-with-splits.json" \
-  "$BIN" --dump-layout --page-height 100 2>/dev/null)
-if grep -qF 'title="Tiny · First"' <<<"$small_page_out" \
-   && grep -qF 'title="Tiny · Second"' <<<"$small_page_out"; then
-  pass=$((pass + 1))
-  printf 'ok   --page-height shrinks threshold and forces split\n'
-else
-  fail=$((fail + 1))
-  printf 'FAIL --page-height did not affect split decision\n  dump:\n%s\n' \
-    "$small_page_out"
 fi
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
