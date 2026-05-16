@@ -9,15 +9,18 @@ struct ManageView: View {
     @ObservedObject var controller: ManageController
 
     var body: some View {
+        // Fill the full hosting view so the VStack's default `.center`
+        // alignment centers the card horizontally on screen — see
+        // PromptView.swift for the same call.
         ZStack {
             // No background scrim — the card floats over the live desktop.
-            // See PromptView.swift for the same call.
             VStack(spacing: 14) {
-                Spacer().frame(height: 96)
+                Spacer().frame(height: PromptStyle.topInset)
                 card
                 Spacer()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var card: some View {
