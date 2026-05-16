@@ -93,7 +93,7 @@ require("lazy").setup({
     "neovim/nvim-lspconfig",
     dependencies = {
       { "williamboman/mason.nvim",          opts = {} },
-      { "williamboman/mason-lspconfig.nvim", opts = { ensure_installed = { "pyright", "ruff", "ts_ls" } } },
+      { "williamboman/mason-lspconfig.nvim", opts = { ensure_installed = { "pyright", "ruff", "ts_ls", "bashls" } } },
       { "WhoIsSethDaniel/mason-tool-installer.nvim", opts = { ensure_installed = { "debugpy" } } },
       "hrsh7th/cmp-nvim-lsp",
     },
