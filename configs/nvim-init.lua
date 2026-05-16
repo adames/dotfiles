@@ -297,4 +297,26 @@ require("lazy").setup({
       map("n", "<leader>td", function() neotest.run.run({ strategy = "dap" }) end,  { desc = "Debug"    })
     end,
   },
+
+  -- Vim training triad: drills (:VimBeGood), adversarial habit-breaker
+  -- (hardtime, always on), motion hints (:Precognition toggle).
+  { "ThePrimeagen/vim-be-good", cmd = "VimBeGood" },
+
+  {
+    "m4xshen/hardtime.nvim",
+    dependencies = { "MunifTanjim/nui.nvim" },
+    event = "BufEnter",
+    opts = {
+      max_count    = 4,
+      disable_mouse = false,
+      hint         = true,
+      notification = true,
+    },
+  },
+
+  {
+    "tris203/precognition.nvim",
+    cmd = "Precognition",
+    opts = { startVisible = false },
+  },
 })
