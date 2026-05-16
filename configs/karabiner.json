@@ -14,6 +14,26 @@
       "complex_modifications": {
         "rules": [
           {
+            "description": "Hyper+Space -> Ctrl+Space (so Caps+Space sends the tmux prefix)",
+            "manipulators": [
+              {
+                "type": "basic",
+                "from": {
+                  "key_code": "spacebar",
+                  "modifiers": {
+                    "mandatory": ["left_control", "left_option", "left_command", "left_shift"]
+                  }
+                },
+                "to": [
+                  {
+                    "key_code": "spacebar",
+                    "modifiers": ["left_control"]
+                  }
+                ]
+              }
+            ]
+          },
+          {
             "description": "Caps Lock+Shift -> Mod (Ctrl+Opt+Cmd) so Hyper+Shift+key is distinguishable in skhd",
             "manipulators": [
               {

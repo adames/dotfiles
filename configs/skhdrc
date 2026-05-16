@@ -1,8 +1,4 @@
-# Caps-prefix keymap. Karabiner emits Hyper (cmd+alt+ctrl+shift) for
-# Caps and Mod (cmd+alt+ctrl) for Caps+Shift. Layer rule:
-#   Hyper navigates · Mod modifies (shift = "do the variant")
-# Full inventory + collision matrix: docs/keymap.md.
-# yabai tiling config: ~/.yabairc.
+# Hyper (Caps) navigates; Mod (Caps+Shift) modifies. Full inventory: docs/keymap.md.
 
 # @cs section Windows · Spaces
 # @cs family system
@@ -20,7 +16,6 @@
 # @cs end
 
 # --- focus / swap ---------------------------------------------------------
-# Caps+h/j/k/l → focus W/S/N/E.  Caps+Shift+h/j/k/l → swap W/S/N/E.
 cmd + alt + ctrl + shift - h : yabai -m window --focus west
 cmd + alt + ctrl + shift - j : yabai -m window --focus south
 cmd + alt + ctrl + shift - k : yabai -m window --focus north
@@ -32,14 +27,6 @@ cmd + alt + ctrl - k : yabai -m window --swap north
 cmd + alt + ctrl - l : yabai -m window --swap east
 
 # --- layout / float -------------------------------------------------------
-# Caps+v       toggle float on the focused window
-# Caps+Shift+v center the focused window at 50% (inner 2x2 of a 4x4 grid).
-#              Designed for floating windows; on a tiled window yabai
-#              re-grids it in place which is rarely useful but harmless.
-# Caps+r       rotate the BSP layout 90 degrees
-# Caps+Shift+r rebalance the BSP grid (equal splits along the major axis)
-# Caps+e       expose / window picker — fuzzy-search every visible window
-#              and focus the pick. ws-picker SwiftUI overlay.
 cmd + alt + ctrl + shift - v : yabai -m window --toggle float
 cmd + alt + ctrl         - v : yabai -m window --grid 4:4:1:1:2:2
 cmd + alt + ctrl + shift - r : yabai -m space  --rotate 90
@@ -47,10 +34,6 @@ cmd + alt + ctrl         - r : yabai -m space  --balance
 cmd + alt + ctrl + shift - e : "$HOME/.local/bin/ws-picker" >/dev/null 2>&1 &
 
 # --- workspace cycle ------------------------------------------------------
-# Caps+n / Caps+p walk through workspaces in slot order with wrap-around.
-# Caps+Tab jumps to the recently-focused workspace (yabai --focus recent).
-# All three go through ws-focus so the sketchybar optimistic pre-paint
-# fires (where applicable) and we get loud-fail notifications.
 cmd + alt + ctrl + shift - n   : "$HOME/.local/bin/ws-focus" next
 cmd + alt + ctrl + shift - p   : "$HOME/.local/bin/ws-focus" prev
 cmd + alt + ctrl + shift - tab : "$HOME/.local/bin/ws-focus" last
@@ -68,36 +51,16 @@ cmd + alt + ctrl + shift - tab : "$HOME/.local/bin/ws-focus" last
 # @cs end
 
 # --- workspace prompts ----------------------------------------------------
-# Workspace focus / send / manage are dispatched to a SwiftUI overlay
-# (ws-prompt). The overlay captures keystrokes itself and exits on
-# commit / cancel / blur — skhd never enters or holds a workspace mode.
-#
-#   focus   caps+w               → digit (1..0) commits instantly · letters
-#                                  fuzzy-match workspace name + Enter
-#   send    caps+g · caps+m      → digit commits + follow · letters fuzzy-match
-#   manage  caps+shift+w         → verb-picker overlay:
-#                                    a add  r rename  i icon  d destroy
-#                                    ⇧L layout (save / load / delete)
-#                                    v verify  ? doctor
-#                                  Each verb runs `ws` directly, captures
-#                                  output, shows a result panel.
-#
-# Caps+Esc is preserved as a no-op so users who built muscle memory
-# around the old panic-exit still see "nothing happened" (rather than
-# the chord leaking into the foreground app).
+# Caps+Esc no-op: chord must not leak into focused app.
 cmd + alt + ctrl + shift - w      : "$HOME/.local/bin/ws-prompt" focus  >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - g      : "$HOME/.local/bin/ws-prompt" send   >/dev/null 2>&1 &
-# Caps+m is an alias for Caps+g — "m for move" is a more intuitive
-# mnemonic when the action is "move this window somewhere", which is
-# what send actually does (yabai window --space + space --focus).
+# Caps+m aliases Caps+g — "move" mnemonic.
 cmd + alt + ctrl + shift - m      : "$HOME/.local/bin/ws-prompt" send   >/dev/null 2>&1 &
 cmd + alt + ctrl         - w      : "$HOME/.local/bin/ws-prompt" manage >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - escape : :
 
 # --- cheatsheet -----------------------------------------------------------
-# Caps+; toggles the native SwiftUI HUD (ws-cheatsheet). Previously-tried
-# Caps+/ alias was retired (key code never reliably fired on this
-# machine; long-standing issue, not worth reviving). 0x29 = ; on US ANSI.
+# 0x29 = ; on US ANSI.
 cmd + alt + ctrl + shift - 0x29 : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/null 2>&1 &
 
 # @cs section Launch
@@ -114,17 +77,8 @@ cmd + alt + ctrl + shift - 0x29 : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/
 # @cs end
 
 # --- launchers ------------------------------------------------------------
-# Each launcher is a small bash helper under ~/.local/bin/ that
-# auto-detects the user's preferred app (or honors an env var override).
-# Keeping app names out of skhdrc means swapping a tool — terminal,
-# browser, notes — is a one-file change, not a key-map edit.
-#
-# Caps+t       terminal   ($WS_TERMINAL_APP)
-# Caps+b       browser    ($WS_BROWSER_APP)
-# Caps+o       Finder     (AppleScript — no Accessibility permission needed)
-# Caps+,       System Settings (0x2B = , on US ANSI)
-# Caps+q       notes      ($WS_NOTES_APP)        — Raycast Notes fallback
-# Caps+Shift+q inbox      ($WS_INBOX_APP / $WS_INBOX_VAULT) — Obsidian fallback
+# Helpers under ~/.local/bin/ auto-detect the app; $WS_* env vars override.
+# 0x2B = , on US ANSI.
 cmd + alt + ctrl + shift - t    : "$HOME/.local/bin/ws-launch-terminal" >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - b    : "$HOME/.local/bin/ws-launch-browser"  >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - o    : osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' >/dev/null 2>&1 &
