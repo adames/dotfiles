@@ -253,6 +253,7 @@ Cross-layer conflicts that already exist + how they're resolved.
 | nvim `<C-Space>` (cmp complete) vs tmux prefix `C-Space` | tmux grabs first; use `prefix → C-Space` ([tmux.conf:19](../configs/tmux.conf:19)) to send a literal `C-Space` to nvim. | tmux.conf:19 |
 | Caps + Esc → no-op | By design — muscle-memory preservation; chord must not leak into focused app. | [karabiner.md:105](../configs/karabiner.md:105), [skhdrc:68](../configs/skhdrc:68) |
 | **Caps + /** (workspace help, historical) | **Retired.** The key code never reliably fired on this machine — long-standing skhd / hardware quirk, not worth debugging. Use Caps + ; instead. | [skhdrc:71–73](../configs/skhdrc:71) |
+| **Held-Caps + injected `Cmd+X`** in a launcher | Synthetic keystrokes pass through skhd's CGEvent tap and get OR'd with the live Hyper modifier state — `Cmd+N` becomes `Hyper+N` when Caps is still held, firing `ws-focus next`. Fix: use `click menu item …` (AX API, bypasses skhd) or pick a letter unbound at Hyper. `ws-doctor` lints for this. | [bin/ws-doctor](../bin/ws-doctor), [launch-terminal.sh:63](../configs/workspace/launch-terminal.sh:63) |
 
 ## Free-key register
 
@@ -288,7 +289,36 @@ adding a binding — plugins can shadow defaults.
    - Karabiner: live reload (file watcher in Karabiner-Elements)
    - nvim: `:Lazy reload <plugin>` or restart
 5. **Verify.** Fire the chord. If it's an OS chord, also confirm it doesn't
-   leak into the focused app (the Caps+Esc no-op rule).
+   leak into the focused app (the Caps+Esc no-op rule). Then run `ws-doctor`
+   — it checks skhd freshness, source/deploy drift, keystroke-injection
+   collisions, menu-item resolution, and yabai app-name casing.
+
+## Things that will bite you
+
+Failure modes that have actually shipped in this stack. `ws-doctor` checks
+all of them — run it before declaring a keymap change done.
+
+- **Stale skhd.** `skhd --reload` is a SIGUSR1 to the running process; `ps`
+  still shows the original launch time. If a chord does nothing, the rc
+  may have been edited without a reload. `skhd --reload` is idempotent.
+- **Keystroke contamination.** Any `osascript ... keystroke "X" using ...`
+  in a launcher fires *as Hyper+X* if the user is still holding Caps when
+  it runs. If Hyper+X is bound in skhd, the wrong action fires. Mitigations,
+  in order of preference: (a) drive the app via `click menu item` (AX call,
+  bypasses skhd entirely); (b) drive it via the app's AppleScript dictionary
+  (`make new window`); (c) pick a letter that's unbound at Hyper.
+- **Source / deploy drift.** `configs/workspace/launch-*.sh` is *copied*
+  to `~/.local/bin/ws-launch-*` by bootstrap. Patching only one side either
+  reverts the fix on next bootstrap or leaves the running system stale.
+  Always edit `configs/` and re-run bootstrap (or copy both).
+- **Menu item renamed by upstream.** `click menu item "New Window"` fails
+  silently if a release renames the item. `ws-doctor menu-items` resolves
+  every reference against the live app's menu tree.
+- **yabai app-name casing.** `yabai -m query --windows` reports the
+  *process* name, which can diverge from the Finder display name (e.g.
+  `ghostty` vs `Ghostty`). Filters that exact-match on `.app == "X"` fail
+  silently. Prefer case-insensitive compare or fix the case to whatever
+  yabai actually returns.
 
 ## File index
 
@@ -315,3 +345,4 @@ Every file referenced above, with role + runtime path.
 | [configs/workspace/topology/Sources/ws-cheatsheet/](../configs/workspace/topology/Sources/ws-cheatsheet/) | `~/.local/bin/ws-cheatsheet` | Cheatsheet HUD |
 | [configs/workspace/cheatsheet.json](../configs/workspace/cheatsheet.json) | `~/.config/workspace/cheatsheet.json` | Cheatsheet HUD content |
 | [macos/bootstrap.sh](../macos/bootstrap.sh) | (run directly) | Idempotent apply path |
+| [bin/ws-doctor](../bin/ws-doctor) | `~/.local/bin/ws-doctor` | Keymap / launcher health check |

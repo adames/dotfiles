@@ -227,6 +227,9 @@ phase_configs() {
   install_file "$CONFIGS_DIR/workspace/launch-browser.sh"   "$HOME/.local/bin/ws-launch-browser"              755
   install_file "$CONFIGS_DIR/workspace/launch-notes.sh"     "$HOME/.local/bin/ws-launch-notes"                755
   install_file "$CONFIGS_DIR/workspace/launch-inbox.sh"     "$HOME/.local/bin/ws-launch-inbox"                755
+  # ws-doctor: keymap / launcher health check. Catches keystroke-injection
+  # collisions, source/deploy drift, broken menu-item refs, stale skhd.
+  install_file "$DOTFILES_DIR/bin/ws-doctor"                "$HOME/.local/bin/ws-doctor"                       755
   # Clean up the notch-padding tuning env retired by the left-aligned
   # navbar refactor. The file had user edits, but the only consumer
   # (recenter.sh) is gone — nothing reads it now. Idempotent.

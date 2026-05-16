@@ -1,0 +1,581 @@
+#!/usr/bin/env bash
+# ws-doctor — keymap / launcher health check.
+#
+# Catches the failure modes the workspace stack has actually shipped:
+#
+#   1. stale skhd                 — `.skhdrc` edited after skhd started, so
+#                                   new bindings aren't live (you have to
+#                                   `skhd --reload`). Symptom: chord does
+#                                   nothing.
+#
+#   2. keystroke collision        — `osascript … keystroke "X" using …` in a
+#                                   launcher fires while the user is still
+#                                   holding Caps. The synthetic event picks
+#                                   up the live Hyper modifier state and
+#                                   becomes Hyper+X. If Hyper+X is bound in
+#                                   skhd, the wrong action fires.
+#                                   (This is what made Caps+T move spaces
+#                                   when held: ws-launch-terminal sent Cmd+N,
+#                                   which became Hyper+N → ws-focus next.)
+#
+#   3. source/deploy drift        — `configs/workspace/launch-foo.sh` was
+#                                   patched but the deployed copy at
+#                                   `~/.local/bin/ws-launch-foo` is stale
+#                                   (or vice versa — fixing only the deployed
+#                                   copy lets the next `bootstrap.sh` clobber
+#                                   the fix).
+#
+#   4. menu item drift            — a launcher uses
+#                                   `click menu item "New Window" of menu "File"`
+#                                   to drive an app whose menu item silently
+#                                   got renamed by an upstream release.
+#
+#   5. missing target app         — `tell application "Foo"` where Foo isn't
+#                                   installed; AppleScript prompts for the
+#                                   app and the launcher hangs.
+#
+# Each check is independent; the script keeps going on failure so one report
+# covers everything. Exit code is the number of FAILED checks (0 = clean).
+# Warnings don't count against exit code; use --strict to promote them.
+#
+# Usage:
+#   ws-doctor                # run every check, human report
+#   ws-doctor --strict       # warnings become failures
+#   ws-doctor --only=NAME    # run a single check (see CHECKS array)
+#   ws-doctor --list         # print check names + descriptions
+#   ws-doctor --quiet        # only print failures
+#
+# The Hyper layer is discovered at runtime by parsing `.skhdrc`, so adding
+# / removing a Hyper binding automatically updates the collision matrix.
+
+set -u
+
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+. "$DOTFILES_DIR/lib/common.sh"
+
+STRICT=
+ONLY=
+QUIET=
+LIST=
+for arg in "$@"; do
+  case "$arg" in
+    --strict)  STRICT=1 ;;
+    --quiet)   QUIET=1 ;;
+    --list)    LIST=1 ;;
+    --only=*)  ONLY="${arg#--only=}" ;;
+    -h|--help)
+      sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *) err "unknown arg: $arg"; exit 2 ;;
+  esac
+done
+
+# Run state. Each check appends one line:
+#   <status>\t<check>\t<message>
+# Status ∈ {PASS, WARN, FAIL, SKIP}. Tab-separated so we can re-render
+# without re-running.
+REPORT=$(mktemp)
+trap 'rm -f "$REPORT"' EXIT
+
+_record() {
+  local status="$1" check="$2" msg="$3"
+  printf '%s\t%s\t%s\n' "$status" "$check" "$msg" >> "$REPORT"
+}
+PASS() { _record PASS "$1" "${2:-ok}"; }
+WARN() { _record WARN "$1" "$2"; }
+FAIL() { _record FAIL "$1" "$2"; }
+SKIP() { _record SKIP "$1" "$2"; }
+
+# ─── 1. skhd freshness ──────────────────────────────────────────────────────
+# Compare the running skhd's start time against ~/.skhdrc mtime. If the rc
+# is newer, skhd is serving stale bindings — `skhd --reload` fixes it.
+check_skhd_freshness() {
+  local rc="$HOME/.skhdrc"
+  [[ -r "$rc" ]] || { SKIP skhd-freshness "$rc missing"; return; }
+
+  local pid
+  pid=$(pgrep -x skhd | head -1)
+  if [[ -z "$pid" ]]; then
+    FAIL skhd-freshness "skhd is not running (start it: brew services start skhd)"
+    return
+  fi
+
+  # `ps -o lstart=` returns a string like "Thu May 14 20:40:11 2026".
+  # `date -j -f` parses it into epoch seconds. stat -f %m gives the
+  # config's epoch mtime. If rc is newer than skhd's start time, skhd
+  # was launched before the config was edited and needs --reload.
+  local skhd_start_str rc_mtime skhd_start_epoch
+  skhd_start_str=$(ps -o lstart= -p "$pid" | xargs)
+  skhd_start_epoch=$(date -j -f '%a %b %d %T %Y' "$skhd_start_str" +%s 2>/dev/null) || {
+    WARN skhd-freshness "couldn't parse skhd start time ($skhd_start_str)"
+    return
+  }
+  rc_mtime=$(stat -f %m "$rc")
+
+  if (( rc_mtime > skhd_start_epoch )); then
+    local age=$(( rc_mtime - skhd_start_epoch ))
+    # We can't distinguish "rc edited and skhd never reloaded" (broken)
+    # from "rc edited then skhd --reload'd" (fine) — `--reload` is a
+    # SIGUSR1 to the running PID, so `ps lstart` still reports the
+    # original launch time. WARN is honest: maybe stale, run reload to
+    # be sure. The reload itself is idempotent and cheap.
+    WARN skhd-freshness ".skhdrc is $(_humanize_age $age) newer than running skhd PID — if Caps chords feel stale, run: skhd --reload"
+  else
+    PASS skhd-freshness "skhd up since $(date -r "$skhd_start_epoch" '+%Y-%m-%d %H:%M'); rc untouched since"
+  fi
+}
+
+_humanize_age() {
+  local s="$1"
+  if   (( s > 86400 )); then printf '%dd' $(( s / 86400 ))
+  elif (( s > 3600  )); then printf '%dh' $(( s / 3600 ))
+  elif (( s > 60    )); then printf '%dm' $(( s / 60 ))
+  else                       printf '%ds' "$s"
+  fi
+}
+
+# ─── 2. keystroke collision ─────────────────────────────────────────────────
+# Find every osascript `keystroke X using <modifiers>` invocation in the
+# repo + deployed launchers. For each, compute: if Caps/Hyper is still held,
+# the event becomes Hyper+X. If Hyper+X is a real skhd binding, flag it.
+#
+# Hyper-bound letters are read live from ~/.skhdrc — adding a binding
+# automatically tightens the lint.
+check_keystroke_collision() {
+  local rc="$HOME/.skhdrc"
+  [[ -r "$rc" ]] || { SKIP keystroke-collision "$rc missing"; return; }
+
+  # Extract letters bound under the full Hyper layer
+  # (cmd + alt + ctrl + shift - X). Strip comments, normalize spaces.
+  # `0x29` (;), `0x2B` (,) and named keys (tab, escape, return) keep
+  # their raw form — we compare letter-for-letter against the keystroke.
+  local hyper_keys
+  hyper_keys=$(awk '
+    /^[[:space:]]*#/ { next }
+    /cmd[[:space:]]*\+[[:space:]]*alt[[:space:]]*\+[[:space:]]*ctrl[[:space:]]*\+[[:space:]]*shift[[:space:]]*-[[:space:]]*[A-Za-z0-9_]+/ {
+      match($0, /-[[:space:]]*[A-Za-z0-9_]+/)
+      k = substr($0, RSTART+1, RLENGTH-1)
+      gsub(/[[:space:]]/, "", k)
+      print tolower(k)
+    }
+  ' "$rc" | sort -u)
+
+  # Hex code map. .skhdrc uses 0x29 for `;` and 0x2B for `,`; osascript
+  # `keystroke ";"` would collide with Hyper+0x29 — keep the table small,
+  # only what's bound today.
+  declare -A hex_to_char=( [0x29]=";" [0x2b]="," )
+
+  # Resolve "0x29" → ";". Names that aren't in the table stay as-is.
+  local key letter resolved=""
+  for key in $hyper_keys; do
+    if [[ -n "${hex_to_char[$key]:-}" ]]; then
+      resolved+="${hex_to_char[$key]} "
+    else
+      resolved+="$key "
+    fi
+  done
+
+  # Scan scope: source + deployed launchers + .skhdrc actions.
+  local scope=(
+    "$DOTFILES_DIR/configs/workspace/launch-"*.sh
+    "$DOTFILES_DIR/configs/workspace/cli/"*
+    "$DOTFILES_DIR/bin/"*
+    "$HOME/.local/bin/ws-"*
+    "$rc"
+  )
+
+  local hits=0 first_msg=""
+  local file line content lit
+  # Grep for: osascript ... keystroke "X" using ...
+  # The literal could be a single character ("n") or named ("tab").
+  while IFS= read -r match; do
+    [[ -z "$match" ]] && continue
+    file="${match%%:*}"
+    line="${match#*:}"; line="${line%%:*}"
+    content="${match#*:*:}"
+
+    # Extract the literal inside `keystroke "X"` or `keystroke "X" using ...`.
+    # Skip menu-click and other patterns that contain "keystroke" only in
+    # comments — only react to a real call site.
+    lit=$(printf '%s\n' "$content" | sed -nE 's/.*keystroke[[:space:]]+"([^"]+)".*/\1/p')
+    [[ -z "$lit" ]] && continue
+    lit=$(printf '%s' "$lit" | tr '[:upper:]' '[:lower:]')
+
+    # Only single-character literals can be hit by simple Hyper contamination;
+    # named keys (return, tab, etc.) are different code paths in skhd. Keep
+    # the multi-char branch open in case we ever bind hyper - return.
+    local is_collision=
+    if printf '%s\n' $resolved | grep -Fxq -- "$lit"; then
+      is_collision=1
+    fi
+
+    if [[ -n "$is_collision" ]]; then
+      hits=$((hits + 1))
+      local rel="${file/#$HOME/~}"
+      [[ -z "$first_msg" ]] && first_msg="$rel:$line: keystroke \"$lit\" collides with Hyper+$lit"
+      [[ -n "${VERBOSE:-}" ]] && warn "  $rel:$line: keystroke \"$lit\" → Hyper+$lit collision"
+    fi
+  done < <(grep -rHn -E 'osascript|keystroke' "${scope[@]}" 2>/dev/null \
+           | grep -E 'keystroke[[:space:]]+"[^"]+"' \
+           | grep -v -E '^\s*#|^[^:]+:[0-9]+:[[:space:]]*#')
+
+  if (( hits == 0 )); then
+    PASS keystroke-collision "no osascript keystrokes collide with Hyper layer"
+  else
+    FAIL keystroke-collision "$hits collision(s); first: $first_msg"
+  fi
+}
+
+# ─── 3. source/deploy drift ─────────────────────────────────────────────────
+# Configs in `~/dotfiles/configs/` are *copied* to runtime locations by
+# bootstrap.sh. If a fix lands in only one of the two, the next bootstrap
+# either reverts the fix (source stale) or the running system stays
+# vulnerable (deploy stale).
+#
+# We don't reimplement the full source→dest mapping; we just compare every
+# pair we know matters for keystroke safety.
+check_source_deploy_drift() {
+  # Pairs: source ↔ deployed. Anything keystroke-relevant goes here.
+  local pairs=(
+    "$DOTFILES_DIR/configs/skhdrc::$HOME/.skhdrc"
+    "$DOTFILES_DIR/configs/karabiner.json::$HOME/.config/karabiner/karabiner.json"
+    "$DOTFILES_DIR/configs/ghostty-config::$HOME/.config/ghostty/config"
+    "$DOTFILES_DIR/configs/workspace/launch-terminal.sh::$HOME/.local/bin/ws-launch-terminal"
+    "$DOTFILES_DIR/configs/workspace/launch-browser.sh::$HOME/.local/bin/ws-launch-browser"
+    "$DOTFILES_DIR/configs/workspace/launch-notes.sh::$HOME/.local/bin/ws-launch-notes"
+    "$DOTFILES_DIR/configs/workspace/launch-inbox.sh::$HOME/.local/bin/ws-launch-inbox"
+  )
+
+  local drifted=0 missing=0 detail=""
+  local pair src dst
+  for pair in "${pairs[@]}"; do
+    src="${pair%%::*}"; dst="${pair#*::}"
+    if [[ ! -f "$src" ]]; then
+      missing=$((missing + 1))
+      detail+="  missing source: ${src/#$HOME/~}\n"
+      continue
+    fi
+    if [[ ! -f "$dst" ]]; then
+      missing=$((missing + 1))
+      detail+="  not deployed: ${dst/#$HOME/~}\n"
+      continue
+    fi
+    if ! cmp -s "$src" "$dst"; then
+      drifted=$((drifted + 1))
+      detail+="  drift: ${src/#$HOME/~} vs ${dst/#$HOME/~}\n"
+    fi
+  done
+
+  if (( drifted == 0 && missing == 0 )); then
+    PASS source-deploy-drift "${#pairs[@]} keystroke configs in sync"
+  elif (( drifted == 0 )); then
+    WARN source-deploy-drift "$missing config(s) missing on one side"$'\n'"$detail"
+  else
+    FAIL source-deploy-drift "$drifted config(s) drifted; run: bash $DOTFILES_DIR/macos/bootstrap.sh"$'\n'"$detail"
+  fi
+}
+
+# ─── 4. menu item resolution ────────────────────────────────────────────────
+# Any launcher that uses `click menu item "X" of menu "Y" of menu bar 1`
+# fails *silently* if upstream renames the menu item. We resolve each
+# (app, menu, item) tuple against the live app via osascript. The app must
+# be running for the AX query to work, so an unreachable app is reported
+# as SKIP, not FAIL — the menu might be correct, we just can't tell.
+check_menu_items() {
+  # Scope: source launchers + deployed launchers + skhdrc. Exclude
+  # ws-doctor itself — its own docs quote the literal patterns we lint
+  # for, which the parser would otherwise pick up as real references.
+  local files=(
+    "$DOTFILES_DIR/configs/workspace/launch-"*.sh
+    "$DOTFILES_DIR/configs/workspace/cli/"*
+    "$HOME/.local/bin/ws-"*
+    "$HOME/.skhdrc"
+  )
+
+  # Parse: `click menu item "ITEM" of menu "MENU" ...` and figure out
+  # which app the surrounding `tell application "APP"` or
+  # `tell process "APP"` refers to. We accept either form.
+  local refs=() seen=()
+  local file
+  for file in "${files[@]}"; do
+    [[ -r "$file" ]] || continue
+    # awk: track the last `tell application "X"` or `tell process "X"`
+    # we saw on the same osascript chain. Lines come in either as
+    # `-e '…'` continuations or as one long string.
+    local extracted
+    extracted=$(awk '
+      function unquote(s) {
+        # Strip everything before the first quote, then everything from
+        # the next quote onward. Non-greedy [^"]* keeps us safe against
+        # lines with multiple quoted segments.
+        sub(/^[^"]*"/, "", s)
+        sub(/".*$/, "", s)
+        return s
+      }
+      {
+        # Walk every tell-application/process on the line; the last one
+        # before the click determines the target app context.
+        line = $0
+        while (match(line, /tell[[:space:]]+(application|process)[[:space:]]+"[^"]+"/)) {
+          last_app = unquote(substr(line, RSTART, RLENGTH))
+          line = substr(line, RSTART + RLENGTH)
+        }
+        # Now scan the original line for click-menu-item references.
+        if (match($0, /click[[:space:]]+menu[[:space:]]+item[[:space:]]+"[^"]+"[[:space:]]+of[[:space:]]+menu[[:space:]]+"[^"]+"/)) {
+          frag = substr($0, RSTART, RLENGTH)
+          # frag = `click menu item "ITEM" of menu "MENU"`
+          item_part = frag
+          sub(/^click[[:space:]]+menu[[:space:]]+item[[:space:]]+"/, "", item_part)
+          sub(/"[[:space:]]+of[[:space:]]+menu.*$/, "", item_part)
+          menu_part = frag
+          sub(/^.*of[[:space:]]+menu[[:space:]]+"/, "", menu_part)
+          sub(/".*$/, "", menu_part)
+          printf "%s\t%s\t%s\n", last_app, menu_part, item_part
+        }
+      }
+    ' "$file")
+    while IFS=$'\t' read -r app menu item; do
+      # Need a real (app, menu, item) tuple. Empty app means the menu
+      # click had no surrounding tell-application context (probably a
+      # doc snippet), and obvious placeholders like ITEM/MENU/APP get
+      # skipped — they're not real references.
+      [[ -z "$app" || -z "$menu" || -z "$item" ]] && continue
+      [[ "$item" =~ ^(ITEM|MENU|APP|X|Y)$ ]] && continue
+      [[ "$menu" =~ ^(MENU|ITEM|X|Y)$ ]] && continue
+      local key="$app|$menu|$item"
+      # Dedup
+      local already=
+      for s in "${seen[@]}"; do [[ "$s" == "$key" ]] && already=1 && break; done
+      [[ -n "$already" ]] && continue
+      seen+=("$key")
+      refs+=("$file"$'\t'"$app"$'\t'"$menu"$'\t'"$item")
+    done <<< "$extracted"
+  done
+
+  if (( ${#refs[@]} == 0 )); then
+    PASS menu-items "no menu-click references found"
+    return
+  fi
+
+  local ok_count=0 fail_count=0 skipped=0 detail=""
+  local ref
+  for ref in "${refs[@]}"; do
+    IFS=$'\t' read -r file app menu item <<< "$ref"
+    if ! pgrep -ixq "$app" 2>/dev/null && ! pgrep -ix "$(printf '%s' "$app" | tr '[:upper:]' '[:lower:]')" >/dev/null 2>&1; then
+      skipped=$((skipped + 1))
+      detail+="  skip ($app not running): $menu › $item\n"
+      continue
+    fi
+    # Probe: list every menu-item name under (app, menu). If our item
+    # is in the list, pass. Errors → fail.
+    local names
+    names=$(osascript 2>/dev/null \
+      -e "tell application \"System Events\" to tell process \"$app\" to get name of every menu item of menu \"$menu\" of menu bar 1" \
+      || true)
+    if [[ -z "$names" ]]; then
+      fail_count=$((fail_count + 1))
+      detail+="  FAIL: $app menu \"$menu\" unreadable (Accessibility?)\n"
+      continue
+    fi
+    # Names come back comma-separated. Match exactly.
+    if printf '%s' "$names" | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -Fxq -- "$item"; then
+      ok_count=$((ok_count + 1))
+    else
+      fail_count=$((fail_count + 1))
+      detail+="  FAIL: $app › $menu has no item \"$item\" (${file##*/})\n"
+    fi
+  done
+
+  if (( fail_count > 0 )); then
+    FAIL menu-items "$fail_count broken / $ok_count ok / $skipped not-running"$'\n'"$detail"
+  elif (( skipped > 0 )); then
+    WARN menu-items "$ok_count ok, $skipped skipped (apps not running)"$'\n'"$detail"
+  else
+    PASS menu-items "$ok_count menu reference(s) resolve"
+  fi
+}
+
+# ─── 5. app references ──────────────────────────────────────────────────────
+# Every `tell application "X"` resolves to an app via Launch Services. If X
+# isn't installed and isn't a stock system app, AppleScript prompts the user
+# to locate it — the launcher then blocks on the dialog. Report any reference
+# whose .app bundle is missing.
+#
+# Stock system apps (Finder, System Events, System Settings) live under
+# /System and don't need a Launch Services check.
+check_app_references() {
+  local files=(
+    "$DOTFILES_DIR/configs/workspace/launch-"*.sh
+    "$DOTFILES_DIR/configs/workspace/cli/"*
+    "$DOTFILES_DIR/bin/"*
+    "$HOME/.local/bin/ws-"*
+    "$HOME/.skhdrc"
+  )
+
+  # Apps whose presence is guaranteed by the OS / never resolved via LS.
+  local stock_regex='^(Finder|System Events|System Settings|System Preferences|Automator|Calculator|Calendar|Clock|Console|Contacts|Dictionary|FaceTime|Home|Image Capture|Launchpad|Mail|Maps|Messages|Mission Control|Music|News|Notes|Photo Booth|Photos|Podcasts|Preview|QuickTime Player|Reminders|Safari|Shortcuts|Siri|Stickies|Stocks|Terminal|TextEdit|Time Machine|TV|Voice Memos|Weather|App Store)$'
+
+  local apps=()
+  local file
+  for file in "${files[@]}"; do
+    [[ -r "$file" ]] || continue
+    # Pull every `tell application "X"` and `tell process "X"`.
+    while IFS= read -r app; do
+      [[ -z "$app" ]] && continue
+      apps+=("$file"$'\t'"$app")
+    done < <(grep -oE 'tell[[:space:]]+(application|process)[[:space:]]+"[^"]+"' "$file" \
+             | sed -E 's/^tell[[:space:]]+(application|process)[[:space:]]+"([^"]+)"$/\2/')
+  done
+
+  if (( ${#apps[@]} == 0 )); then
+    PASS app-references "no `tell application` references found"
+    return
+  fi
+
+  local seen=() missing=0 ok_count=0 detail=""
+  local entry app file
+  for entry in "${apps[@]}"; do
+    IFS=$'\t' read -r file app <<< "$entry"
+    local key="$app"
+    local already=
+    for s in "${seen[@]}"; do [[ "$s" == "$key" ]] && already=1 && break; done
+    [[ -n "$already" ]] && continue
+    seen+=("$key")
+
+    if printf '%s' "$app" | grep -Eq "$stock_regex"; then
+      ok_count=$((ok_count + 1))
+      continue
+    fi
+    if [[ -d "/Applications/$app.app" || -d "$HOME/Applications/$app.app" \
+       || -d "/System/Applications/$app.app" || -d "/System/Library/CoreServices/$app.app" ]]; then
+      ok_count=$((ok_count + 1))
+    else
+      # Only fail if the script unconditionally talks to it. Most launchers
+      # try multiple candidates (Ghostty / iTerm / Alacritty / …) and pick
+      # the first one installed. We treat all references as WARN — a
+      # missing optional candidate isn't a bug.
+      missing=$((missing + 1))
+      detail+="  missing: $app (${file##*/})\n"
+    fi
+  done
+
+  if (( missing == 0 )); then
+    PASS app-references "$ok_count app reference(s) resolve"
+  else
+    WARN app-references "$missing app(s) referenced but not installed (may be optional fallbacks)"$'\n'"$detail"
+  fi
+}
+
+# ─── 6. yabai app-name casing ───────────────────────────────────────────────
+# yabai reports `.app` as the app's *process* name, which doesn't always
+# match the Finder display name. Anything that filters on `.app == "Foo"`
+# breaks silently if the process is actually "foo". This is the trap I
+# hit during the original investigation: `select(.app == "Ghostty")`
+# returned [] because yabai called the process `ghostty`.
+#
+# Find every script that does an exact app-name match against a yabai
+# query and verify it lines up with what yabai currently reports.
+check_yabai_app_casing() {
+  command -v yabai >/dev/null 2>&1 || { SKIP yabai-app-casing "yabai not installed"; return; }
+  if ! yabai -m query --windows >/dev/null 2>&1; then
+    SKIP yabai-app-casing "yabai not responding"
+    return
+  fi
+
+  # Live app names yabai is currently reporting.
+  local live_names
+  live_names=$(yabai -m query --windows 2>/dev/null \
+               | sed -nE 's/.*"app":[[:space:]]*"([^"]+)".*/\1/p' \
+               | sort -u)
+
+  local files=(
+    "$DOTFILES_DIR/configs/workspace/"*.sh
+    "$DOTFILES_DIR/configs/workspace/cli/"*
+    "$DOTFILES_DIR/bin/"*
+    "$HOME/.local/bin/ws-"*
+  )
+
+  local mismatches=0 detail=""
+  # Pattern: `select(.app == "Foo")` or `.app == "Foo"` in jq filters.
+  local match name match_norm live_norm hit
+  while IFS= read -r match; do
+    [[ -z "$match" ]] && continue
+    name=$(sed -nE 's/.*\.app[[:space:]]*==[[:space:]]*"([^"]+)".*/\1/p' <<<"$match")
+    [[ -z "$name" ]] && continue
+    # Skip yabai-stub fixtures.
+    [[ "$match" == *yabai-stub* ]] && continue
+    # Pass if any live name matches case-sensitively.
+    if printf '%s\n' $live_names | grep -Fxq -- "$name"; then continue; fi
+    # Case-insensitive match → likely casing mismatch.
+    match_norm=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')
+    hit=
+    while IFS= read -r live; do
+      live_norm=$(printf '%s' "$live" | tr '[:upper:]' '[:lower:]')
+      [[ "$live_norm" == "$match_norm" ]] && hit="$live" && break
+    done <<< "$live_names"
+    if [[ -n "$hit" ]]; then
+      mismatches=$((mismatches + 1))
+      detail+="  casing: script uses \"$name\" but yabai reports \"$hit\" — ${match%%:*}\n"
+    fi
+  done < <(grep -rHn -E '\.app[[:space:]]*==[[:space:]]*"[^"]+"' "${files[@]}" 2>/dev/null \
+           | grep -v -E '#.*\.app[[:space:]]*==')
+
+  if (( mismatches == 0 )); then
+    PASS yabai-app-casing "no script/yabai app-name casing mismatches"
+  else
+    FAIL yabai-app-casing "$mismatches mismatch(es)"$'\n'"$detail"
+  fi
+}
+
+# ─── render ─────────────────────────────────────────────────────────────────
+declare -a CHECKS=(
+  "skhd-freshness:check_skhd_freshness:Is skhd serving the current ~/.skhdrc?"
+  "keystroke-collision:check_keystroke_collision:osascript keystrokes vs Hyper layer"
+  "source-deploy-drift:check_source_deploy_drift:configs/ matches deployed copies"
+  "menu-items:check_menu_items:click-menu-item refs resolve in live apps"
+  "app-references:check_app_references:tell application targets are installed"
+  "yabai-app-casing:check_yabai_app_casing:script .app filters match yabai output"
+)
+
+if [[ -n "$LIST" ]]; then
+  for spec in "${CHECKS[@]}"; do
+    name="${spec%%:*}"; rest="${spec#*:}"
+    fn="${rest%%:*}";  desc="${rest#*:}"
+    printf '%-22s %s\n' "$name" "$desc"
+  done
+  exit 0
+fi
+
+[[ -z "$QUIET" ]] && banner "ws-doctor" "keymap / launcher health"
+
+for spec in "${CHECKS[@]}"; do
+  name="${spec%%:*}"; rest="${spec#*:}"
+  fn="${rest%%:*}"
+  [[ -n "$ONLY" && "$ONLY" != "$name" ]] && continue
+  "$fn"
+done
+
+# Render. Sort failures first so they're visible without scrolling.
+fails=0 warns=0 passes=0 skips=0
+while IFS=$'\t' read -r status check msg; do
+  case "$status" in
+    PASS) passes=$((passes + 1))
+          [[ -z "$QUIET" ]] && ok "$(printf '%-22s %s' "$check" "$msg")" ;;
+    WARN) warns=$((warns + 1))
+          warn "$(printf '%-22s %s' "$check" "$msg")" ;;
+    FAIL) fails=$((fails + 1))
+          err  "$(printf '%-22s %s' "$check" "$msg")" ;;
+    SKIP) skips=$((skips + 1))
+          [[ -z "$QUIET" ]] && info "$(printf 'skip %-17s %s' "$check" "$msg")" ;;
+  esac
+done < "$REPORT"
+
+[[ -z "$QUIET" ]] && printf '\n'
+[[ -z "$QUIET" ]] && info "summary: $passes pass · $warns warn · $fails fail · $skips skip"
+
+# Exit code: fails (or fails+warns under --strict).
+if [[ -n "$STRICT" ]]; then
+  exit $(( fails + warns ))
+fi
+exit "$fails"
