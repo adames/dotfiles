@@ -127,7 +127,7 @@ Fresh installs ship an empty `spaces.json` — pills render as bare gray
 ```sh
 ws name 1 home            # rename slot 1
 ws icon 1 code            # SF Symbol name → auto-maps to Nerd Font
-ws color 1 "#a6e3a1"      # any hex
+ws theme catppuccin       # palette across all slots (color is theme-driven)
 ```
 
 Identity surfaces in four places: **tmux statusline**, **starship
@@ -146,14 +146,15 @@ Most-used:
 ```sh
 ws status                  # all slots with color swatches
 ws name N <new>            # rename (accepts current name or index)
-ws color N "#RRGGBB"       # recolor
 ws icon N <glyph|sf-name>  # icon (Nerd Font glyph or SF Symbol name)
+ws theme <name> [--with-icons]      # palette across all slots
 ws add / ws remove N       # lifecycle (also available via manage overlay)
 ws layout save/load/delete <name>   # snapshot / restore
 ws doctor / ws verify      # schema check + end-to-end cascade test
 ```
 
-Color is **positional** — `swap`/`move`/`rotate`/`reverse`/`reorder`
+Color is **theme-driven and positional** — `ws theme NAME` sets the
+palette across all slots; `swap`/`move`/`rotate`/`reverse`/`reorder`
 permute only `(name, icon)`; the palette stays anchored to slot index.
 Slot identifiers accept either a numeric index or a unique name.
 `~/.config/workspace/{spaces.json,layouts/,themes/}` are per-machine
