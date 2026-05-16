@@ -13,9 +13,7 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
--- ws-cheatsheet content (parsed by lib/cheatsheet-gen.py). One block per
--- card on the HUD. Each block is fault-isolated: a broken annotation
--- below only drops its own card, not the rest of the cheatsheet.
+-- @cs annotations: parsed by cheatsheet-gen.py into HUD cards.
 
 -- @cs section Vim · Motion
 -- @cs family vim
@@ -90,8 +88,7 @@ require("lazy").setup({
     end,
   },
 
-  -- LSP: mason installs servers, mason-lspconfig auto-enables them via vim.lsp.
-  -- mason-tool-installer handles non-LSP packages (debugpy).
+  -- mason installs LSP servers; mason-tool-installer handles non-LSP tools (debugpy).
   {
     "neovim/nvim-lspconfig",
     dependencies = {
@@ -224,10 +221,6 @@ require("lazy").setup({
       vim.keymap.set("n", "-", "<cmd>Oil<cr>", { desc = "Open parent dir" })
     end,
   },
-
-  -- (lazygit.nvim retired — the `lazygit` brew CLI is used standalone
-  -- from any tmux pane / terminal. The floating-window wrapper was
-  -- dead weight: every keypress did the same as typing `lazygit`.)
 
   {
     "folke/which-key.nvim",

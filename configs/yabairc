@@ -1,13 +1,6 @@
 #!/usr/bin/env sh
 # yabai BSP tiling. Hotkeys in ~/.skhdrc.
-#
-# Philosophy: yabai owns existence (which spaces exist, on which
-# display). macOS / Mission Control is the source of truth — we don't
-# create, destroy, label, or relocate spaces here. spaces.json layers
-# optional identity (name / color / icon) on top of whatever yabai
-# reports. New space via Mission Control "+" → bar gets a bare pill;
-# `ws name N foo` paints it. Destroy via Mission Control "×" → bar
-# pill drops, spaces.json entry prunes.
+# Mission Control owns space lifecycle; spaces.json layers name/color/icon on top.
 
 yabai -m config layout                      bsp
 yabai -m config window_placement            second_child
@@ -17,11 +10,7 @@ yabai -m config bottom_padding              8
 yabai -m config left_padding                8
 yabai -m config right_padding               8
 
-# Reserve 26px at the top of every display for the SketchyBar workspace
-# strip. With macOS auto-hide menu bar on, the menu bar overlays the
-# strip only while the cursor is at the top — yabai's tiling never
-# encroaches, so the strip is always exposed (and clickable) the rest
-# of the time. Format: <edge>:<top_offset>:<bottom_offset>.
+# 26px top: SketchyBar workspace strip. Format: <edge>:<top_offset>:<bottom_offset>.
 yabai -m config external_bar               all:26:0
 yabai -m config split_ratio                 0.50
 yabai -m config auto_balance                off
@@ -33,49 +22,25 @@ yabai -m config mouse_action1               move
 yabai -m config mouse_action2               resize
 yabai -m config mouse_drop_action           swap
 
-# Float system dialogs / utility apps.
-#
-# sub-layer=above keeps the floating window in the "above-normal" CGS
-# layer so it can't be buried by tiled windows. Without it, alerts &
-# installers spawn over the tiles, then sink behind them on the next
-# focus event — easy to lose (notably the xcode-select install dialog).
+# Float system dialogs. sub-layer=above prevents them sinking behind tiled windows.
 yabai -m rule --add app="^System Settings$"     manage=off sub-layer=above
 yabai -m rule --add app="^System Preferences$"  manage=off sub-layer=above
 yabai -m rule --add app="^Calculator$"          manage=off sub-layer=above
 yabai -m rule --add app="^Karabiner-Elements$"  manage=off sub-layer=above
 yabai -m rule --add app="^Finder$" title="^(Copy|Move|Info)" manage=off sub-layer=above
 
-# Generic catch-alls for anything that announces itself as a dialog /
-# alert / system floating window via Accessibility. Covers most save
-# sheets, alerts, and modal panels regardless of host app. Matched by
-# AX subrole so it works without enumerating apps.
+# AX subrole catch-alls: covers save sheets, alerts, modals without enumerating apps.
 yabai -m rule --add subrole="^AXDialog$"               manage=off sub-layer=above
 yabai -m rule --add subrole="^AXSystemDialog$"         manage=off sub-layer=above
 yabai -m rule --add subrole="^AXSystemFloatingWindow$" manage=off sub-layer=above
 
-# Installer-class apps. Apple uses both `Installer.app` and (for the CLT
-# package) a separately-named `Install Command Line Developer Tools`
-# helper — anchor on the leading "Install" to cover both. Software Update
-# pane sometimes spawns its own window too.
+# Installer-class: anchor on "Install" prefix to catch CLT helper + Installer.app.
 yabai -m rule --add app="^Install( |$)"          manage=off sub-layer=above
 yabai -m rule --add app="^Installer$"            manage=off sub-layer=above
 yabai -m rule --add app="^Software Update$"      manage=off sub-layer=above
 
-# Stage every new window: migrate to the user's currently focused space,
-# center it iff yabai/app rules already have it floating, and focus it.
-# Tile-vs-float is left to yabai's app rules / subrole rules — the
-# helper never toggles float. Supersedes the older ws_float_raise
-# signal (which only raised already-floating windows; the focus call
-# below covers that).
-#
-# Three behaviours, each independently gated in stage-window.sh:
-#   - cross-space migrate (always)
-#   - center @ 50% grid (only if already floating)
-#   - focus (always)
-#
-# Skips non-AXWindow roles and AXDialog/AXSheet/AXSystem* subroles so
-# modal sheets stay attached and system overlays stay put. Silent on
-# vanish for quick-flash windows.
+# New windows: migrate to focused space, center if floating, then focus.
+# Skips AXDialog/AXSheet so modal sheets stay attached.
 yabai -m signal --remove ws_float_raise   2>/dev/null || true
 yabai -m signal --remove ws_stage_window  2>/dev/null || true
 yabai -m signal --add \
@@ -83,33 +48,19 @@ yabai -m signal --add \
   label=ws_stage_window \
   action="\"\$HOME/.config/workspace/stage-window.sh\""
 
-# Ghostty: yabai-managed. The old "halve-on-Cmd+T" bug is fixed at the
-# source — Ghostty's config rebinds cmd+t and cmd+n to new_window so each
-# new terminal arrives as a top-level NSWindow yabai expects, rather than
-# a phantom tab-window. tmux handles in-window splits (C-Space + v/s).
+# Ghostty: cmd+t/n → new_window (not tab) so yabai sees one NSWindow per terminal.
 yabai -m signal --remove ghostty_tab_dance 2>/dev/null   # remove old approach if present
 
-# ── workspace identity signals ──────────────────────────────────────────
-# space_changed → refresh tmux/shell env. Single point of integration;
-# everything else subscribes by reading ~/.cache/workspace/current.env
-# or env vars in tmux's global session.
+# ── workspace signals ────────────────────────────────────────────────────
+# space_changed → refresh tmux/shell env via on-space-changed.sh.
 yabai -m signal --remove ws_space_changed 2>/dev/null || true
 yabai -m signal --add \
   event=space_changed \
   label=ws_space_changed \
   action="\"$HOME/.config/workspace/on-space-changed.sh\""
 
-# display_changed → also refresh the cascade. Empirically, focus
-# transitions across monitors (mouse click on a window on the other
-# display, some app-launch interactions) do not always trip the
-# space_changed signal even though the focused space index DOES change.
-# That left current.env stale and downstream consumers (tmux statusline,
-# starship prompt, sketchybar chip color) pointing at the old display.
-# Wiring the same cascade to display_changed closes the gap; the
-# handler is idempotent and silent-on-absence, so the extra firings
-# on display reconfig are harmless. paint-all.sh queries yabai directly
-# for chip color, so this is belt-and-suspenders for the OTHER cached
-# consumers.
+# display_changed: cross-monitor focus doesn't always fire space_changed;
+# wiring the same cascade here closes the gap.
 yabai -m signal --remove ws_cascade_display_changed 2>/dev/null || true
 yabai -m signal --add \
   event=display_changed \
@@ -119,14 +70,8 @@ yabai -m signal --add \
 # Retired: ws_borders_window_focused — JankyBorders was removed.
 yabai -m signal --remove ws_borders_window_focused 2>/dev/null || true
 
-# Sync sketchybar pill set with yabai's per-display assignment whenever
-# a display attaches/detaches or its index changes. per-display-pills.sh
-# is idempotent + silent-on-absence.
-#
-# NOT subscribed to space_changed: per-pill display assignment doesn't
-# change on focus (paint-all.sh handles the active-pill highlight via
-# workspace_changed). A previous iteration subscribed and produced
-# visible "paint then snap" flicker.
+# Sync sketchybar pills on display events.
+# Not subscribed to space_changed: previous attempt caused visible "paint then snap" flicker.
 yabai -m signal --remove ws_pills_space_changed 2>/dev/null || true
 for ev in display_added display_removed display_changed; do
   yabai -m signal --remove "ws_pills_${ev}" 2>/dev/null || true
@@ -136,15 +81,7 @@ for ev in display_added display_removed display_changed; do
     action="\"$HOME/.config/sketchybar/plugins/per-display-pills.sh\""
 done
 
-# Space lifecycle: track macOS-native Space creation / destruction so
-# the bar stays in sync with Mission Control gestures. These signals
-# fire on BOTH `yabai -m space --create/--destroy` AND Mission
-# Control's `+`/`×` controls.
-#
-# space_created  → per-display-pills.sh adds the new pill.
-# space_destroyed → on-space-destroyed.sh prunes the now-orphan slot
-#                  from spaces.json + per-display-pills.sh drops the
-#                  dead pill.
+# Space lifecycle: keeps bar in sync with Mission Control gestures.
 for ev in space_created space_destroyed; do
   yabai -m signal --remove "ws_pills_${ev}" 2>/dev/null || true
   yabai -m signal --add \
@@ -158,9 +95,7 @@ yabai -m signal --add \
   label=ws_prune_space_destroyed \
   action="\"$HOME/.config/workspace/on-space-destroyed.sh\""
 
-# Prime current.env so a fresh shell launched before any space switch
-# already has identity metadata. Cheap; fails silently if the workspace
-# subsystem hasn't been installed yet.
+# Prime current.env on startup so new shells have identity metadata immediately.
 [ -x "$HOME/.config/workspace/on-space-changed.sh" ] && \
   "$HOME/.config/workspace/on-space-changed.sh" >/dev/null 2>&1 || true
 

@@ -17,8 +17,7 @@ typeset -U PATH
 # @cs row direnv allow   :: trust this dir's .envrc on first entry
 # @cs end
 
-# vi-mode FIRST: ZLE consumers (fzf, autosuggestions) bind to the active
-# keymap at source time. Switching after them loses Ctrl-R / Ctrl-T.
+# vi-mode first: fzf/autosuggestions bind to the active keymap at source time.
 bindkey -v
 
 eval "$(starship init zsh)"
@@ -68,10 +67,7 @@ fi
 command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 
-# Workspace identity: source the env file written by the yabai
-# space_changed signal so MACOS_SPACE_NAME / COLOR / ICON / INDEX are
-# available to starship's custom workspace module. precmd refresh keeps
-# the prompt in sync after a space switch without requiring a new shell.
+# Source workspace env on each prompt so starship shows the current space.
 _workspace_env() {
   [[ -r "$HOME/.cache/workspace/current.env" ]] && \
     source "$HOME/.cache/workspace/current.env"
@@ -80,20 +76,12 @@ _workspace_env
 typeset -ag precmd_functions
 precmd_functions+=(_workspace_env)
 
-# ws CLI completion (installed by bootstrap to ~/.config/zsh/completions).
-# Adds the dir to fpath, then compinit picks up _ws (also completes
-# the `workspace` compat symlink).
+# ws CLI completion from ~/.config/zsh/completions.
 if [[ -d "$HOME/.config/zsh/completions" ]]; then
   fpath=("$HOME/.config/zsh/completions" $fpath)
 fi
 
-# Prune dangling _completion symlinks from fpath dirs. An uninstalled
-# Homebrew cask (e.g. docker-desktop pointing into /Applications/Docker.app)
-# can leave broken symlinks under site-functions that compinit then errors
-# on with `:527: no such file or directory` and a cascaded `:529 shift`.
-# Avoids zsh-specific glob qualifiers so the file still passes bash -n
-# (the repo's lint sweep). The ls-precheck dodges zsh's NOMATCH error in
-# the rare case of an fpath dir with no _*-prefixed files.
+# Prune broken completion symlinks (e.g. uninstalled Homebrew casks) before compinit.
 for _zd in $fpath; do
   [[ -d $_zd ]] || continue
   ls "$_zd"/_* >/dev/null 2>&1 || continue

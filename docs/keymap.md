@@ -246,7 +246,7 @@ Cross-layer conflicts that already exist + how they're resolved.
 
 | Apparent collision | Resolution | Source |
 |---|---|---|
-| `Caps + Space` (Hyper+Space) vs tmux `C-Space` prefix | Physically distinct keystrokes; Karabiner only remaps Caps. Hyper+Space is currently unbound. | n/a |
+| `Caps + Space` (Hyper+Space) vs tmux `C-Space` prefix | Resolved by Karabiner rule #1: Hyper+Space → Ctrl+Space, so both Caps+Space and physical Ctrl+Space fire the prefix. Don't bind Hyper+Space in skhd — Karabiner consumes it first. | [karabiner.json:16](../configs/karabiner.json:16) |
 | `Caps + T` (terminal launch) vs Ghostty `Cmd + T` (new_window) | Different modifier sets; both fire in their own contexts. | skhdrc:80, ghostty-config:18 |
 | Caps-tap-Esc vs Ghostty option-as-alt | `escape-time 10` gives the ESC byte time to arrive; "no Option/M-* bindings" in tmux prevents the ambiguity from mattering. | [tmux.conf:9–12, 51](../configs/tmux.conf:9) |
 | zsh vi-mode `Esc` vs Caps-tap-Esc | Same key — Caps-tap IS the canonical way to enter vi normal mode. | [zshrc:6](../configs/zshrc:6) |
