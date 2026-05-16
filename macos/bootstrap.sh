@@ -140,6 +140,7 @@ phase_configs() {
   install_file "$CONFIGS_DIR/sketchybar/colors.sh"                  "$HOME/.config/sketchybar/colors.sh"
   install_file "$CONFIGS_DIR/sketchybar/plugins/paint-all.sh"       "$HOME/.config/sketchybar/plugins/paint-all.sh"       755
   install_file "$CONFIGS_DIR/sketchybar/plugins/per-display-pills.sh" "$HOME/.config/sketchybar/plugins/per-display-pills.sh" 755
+  install_file "$CONFIGS_DIR/sketchybar/plugins/clock.sh"           "$HOME/.config/sketchybar/plugins/clock.sh"           755
   install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"               "$HOME/.config/sketchybar/bootstrap.sh"               755
   # Clean up plugins retired across recent refactors:
   # space.sh (per-pill renderer; replaced by paint-all.sh sentinel),

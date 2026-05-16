@@ -125,6 +125,19 @@ sketchybar --add item workspace.paint left \
               script="$PLUGIN_DIR/paint-all.sh" \
            --subscribe workspace.paint workspace_changed
 
+##### clock ##################################################################
+# Right-anchored HH:MM. Updates every 20s; the --default block has
+# label.drawing=off (icon-only pills), so this item enables it.
+# Background stays transparent (no fill) so the clock reads as
+# ambient info alongside the colored workspace pills rather than
+# competing with the active-pill focus cue.
+sketchybar --add item clock right \
+           --set clock \
+              update_freq=20 \
+              script="$PLUGIN_DIR/clock.sh" \
+              label.drawing=on \
+              label.color="$INACTIVE_LABEL"
+
 ##### init paint + per-display assignment ####################################
 # Order matters: per-display-pills.sh creates the workspace.name.<D>
 # chips and assigns display=<N> to every item, THEN trigger the paint
