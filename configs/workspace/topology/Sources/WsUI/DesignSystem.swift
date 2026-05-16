@@ -40,6 +40,11 @@ public struct PromptStyle {
     public static let pillHeight: CGFloat = 22
     public static let cardCorner: CGFloat = 10
 
+    /// Distance from the top of the screen to the top of the overlay
+    /// card. Matches Raycast's search-box top so the two surfaces feel
+    /// like part of the same launcher family.
+    public static let topInset: CGFloat = 120
+
     private init() {}
 }
 

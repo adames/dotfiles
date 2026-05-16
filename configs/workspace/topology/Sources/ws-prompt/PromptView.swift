@@ -18,17 +18,22 @@ struct PromptView: View {
     private var matches: [Workspace] { controller.currentMatches() }
 
     var body: some View {
+        // Fill the full hosting view so the VStack's default `.center`
+        // alignment centers the card horizontally on screen. Without
+        // maxWidth/maxHeight the ZStack shrinks to the card's 520pt and
+        // NSHostingView pins it to the top-leading corner.
         ZStack {
             // No background scrim. The borderless window is transparent
             // (isOpaque=false in WsPromptApp); the card's own opaque
             // catppuccin background carries the visual weight so the
             // prompt floats above the live desktop instead of dimming it.
             VStack(spacing: 14) {
-                Spacer().frame(height: 96)
+                Spacer().frame(height: PromptStyle.topInset)
                 card
                 Spacer()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var card: some View {
