@@ -73,6 +73,17 @@ require("lazy").setup({
     config = function() vim.cmd.colorscheme("catppuccin-mocha") end,
   },
 
+  -- Icons for fzf-lua, which-key, oil. Mocks nvim-web-devicons so plugins
+  -- that look for it by name still resolve.
+  {
+    "echasnovski/mini.icons",
+    lazy = false,
+    config = function()
+      require("mini.icons").setup()
+      MiniIcons.mock_nvim_web_devicons()
+    end,
+  },
+
   {
     "nvim-treesitter/nvim-treesitter",
     lazy = false, build = ":TSUpdate",
@@ -319,4 +330,6 @@ require("lazy").setup({
     cmd = "Precognition",
     opts = { startVisible = false },
   },
+}, {
+  rocks = { enabled = false },
 })
