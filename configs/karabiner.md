@@ -3,9 +3,30 @@
 Companion to `karabiner.json` — JSON doesn't allow comments, so the
 explanation lives here.
 
-The config has **two complex modifications**, ordered intentionally:
+The config has **three complex modifications**, ordered intentionally:
 
-## Rule 1 — Caps Lock + Shift → Mod
+## Rule 1 — Hyper + Space → Ctrl + Space
+
+```
+from: spacebar with mandatory ctrl+opt+cmd+shift   (Hyper)
+to:   spacebar with left_control
+```
+
+When Hyper is held (from Rule 3) and Space is pressed, Karabiner emits
+`Ctrl+Space` — which is tmux's prefix. Net effect: **Caps + Space sends the
+tmux prefix**.
+
+**Why not just set tmux's prefix to something else?** Terminal emulators
+can't reliably pass a 4-modifier chord (`Ctrl+Opt+Cmd+Shift+Space`) through
+to tmux, and `Ctrl+Space` is already the well-trodden tmux default. Doing
+the downgrade in Karabiner keeps tmux's config portable and lets the same
+ergonomic chord (Caps+Space) reach tmux from any terminal.
+
+This rule operates on `spacebar` input, not `caps_lock`, so it doesn't
+conflict with Rules 2 or 3 — it fires on the *emitted* Hyper+Space event
+that those rules produce.
+
+## Rule 2 — Caps Lock + Shift → Mod
 
 ```
 from: caps_lock with mandatory shift
@@ -34,7 +55,7 @@ cmd + alt + ctrl         - h : yabai -m window --swap  west
 
 Two different bindings, both intuitive ("Caps+H" vs "Caps+Shift+H").
 
-## Rule 2 — Caps Lock alone → Hyper, or Esc on tap
+## Rule 3 — Caps Lock alone → Hyper, or Esc on tap
 
 ```
 from: caps_lock (with any optional modifiers)
@@ -48,14 +69,18 @@ is tapped alone** (pressed and released without any other key), it emits
 useful for everything" — vim users get a cheap Esc, the rest of us get Hyper.
 
 `optional: ["any"]` means: don't be picky about other modifiers being held
-at press-time; just remap Caps Lock itself. (Rule 1 fires first when Shift
+at press-time; just remap Caps Lock itself. (Rule 2 fires first when Shift
 is present, so this rule covers all other cases.)
 
 ## Order matters
 
-Karabiner evaluates rules top-to-bottom. Rule 1 (with `mandatory shift`)
-must come first; otherwise Rule 2's `optional any` would consume the
-Shift+Caps case and the 3-mod Mod would never fire.
+Karabiner evaluates rules top-to-bottom. Rule 2 (with `mandatory shift`)
+must come before Rule 3; otherwise Rule 3's `optional any` would consume
+the Shift+Caps case and the 3-mod Mod would never fire. Rule 1 operates on
+a different input key (`spacebar`) so its position relative to Rules 2/3 is
+not load-bearing, but the documented order — and the one enforced by
+`.github/workflows/lint.yml` — is `Hyper+Space → Caps+Shift Mod → Caps
+Hyper/Esc`.
 
 ## What this implies for tooling downstream
 
@@ -66,7 +91,7 @@ Shift+Caps case and the 3-mod Mod would never fire.
 
 ## App launchers live in skhd, not here
 
-The Karabiner config has only the two rules above. Every Hyper chord
+The Karabiner config has only the three rules above. Every Hyper chord
 — `Caps + T` (terminal), `Caps + B` (browser), `Caps + O` (Finder),
 `Caps + S` (System Settings), `Caps + ;` (cheatsheet) — is bound in
 [`skhdrc`](skhdrc). Karabiner's job ends at re-emitting the
