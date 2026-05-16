@@ -210,6 +210,7 @@ tmux show -gv prefix                              # → C-a
 zsh -ic 'type z' | head -1                        # zoxide function
 nvim --headless -c 'edit /tmp/x.py' -c 'sleep 3' \
      -c 'lua print(#vim.lsp.get_clients({bufnr=0}))' -c qall   # → 2
+ws-doctor                                         # keymap/launcher health
 ```
 
 Cheatsheet: `Caps + ;` (live overlay; nothing on disk to inspect).

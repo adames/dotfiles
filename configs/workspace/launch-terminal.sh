@@ -57,14 +57,22 @@ fi
 #     ("not supported on this platform").
 #   - AppleScript `make new window` returns -2710 (verb not implemented).
 # Cold start: `open -a` launches Ghostty (single Dock icon). Warm
-# path: activate the running instance and send Cmd+N, which
-# Ghostty's config binds to new_window (see configs/ghostty-config).
+# path: activate the running instance and click File > New Window.
+#
+# Why menu click instead of keystroke "n" using command down:
+#   Keystroke injection goes through skhd's CGEvent tap. When Caps is
+#   held (e.g. user holds Caps+T), the injected Cmd+N gets OR'd with
+#   the live Hyper modifier state, turning it into Hyper+N which skhd
+#   intercepts as ws-focus-next. Clicking a menu item is an AX API
+#   call — it bypasses skhd entirely regardless of held modifiers.
+#   ws-doctor lints for this collision class.
 # Requires Accessibility permission for skhd / osascript.
 if [[ "$app" == "Ghostty" ]]; then
   if pgrep -ixq ghostty 2>/dev/null; then
     osascript >/dev/null 2>&1 \
       -e 'tell application "Ghostty" to activate' \
-      -e 'tell application "System Events" to keystroke "n" using command down' \
+      -e 'delay 0.1' \
+      -e 'tell application "System Events" to tell process "Ghostty" to click menu item "New Window" of menu "File" of menu bar 1' \
       || true
   else
     open -a "$app" >/dev/null 2>&1 || true
