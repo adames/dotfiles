@@ -35,17 +35,18 @@ jobs:
                  -print0 \
             | xargs -0 -n1 jq -e . >/dev/null
 
-      # Structural invariants on karabiner.json — guards against a
-      # fictional Rule 3 (or any other shape drift) silently landing.
-      # Both rules must be present and described as expected; the docs
-      # explainer in configs/karabiner.md describes exactly two rules.
+      # Structural invariants on karabiner.json — guards against shape
+      # drift silently landing. All three rules must be present and
+      # described as expected, in the documented evaluation order
+      # (Hyper+Space remap → Caps+Shift Mod → Caps Hyper/Esc).
       - name: karabiner.json structural lint
         run: |
           jq -e '
             .profiles[0].complex_modifications.rules
-            | length == 2
-            and (.[0].description | test("Caps Lock\\+Shift -> Mod"))
-            and (.[1].description | test("Caps Lock -> Hyper"))
+            | length == 3
+            and (.[0].description | test("Hyper\\+Space -> Ctrl\\+Space"))
+            and (.[1].description | test("Caps Lock\\+Shift -> Mod"))
+            and (.[2].description | test("Caps Lock -> Hyper"))
           ' configs/karabiner.json >/dev/null
 
       - name: bash unit tests
