@@ -93,12 +93,19 @@ Hyper/Esc`.
 
 The Karabiner config has only the three rules above. Every Hyper chord
 — `Caps + T` (terminal), `Caps + B` (browser), `Caps + O` (Finder),
-`Caps + S` (System Settings), `Caps + ;` (cheatsheet) — is bound in
+`Caps + ,` (System Settings), `Caps + ;` (cheatsheet) — is bound in
 [`skhdrc`](skhdrc). Karabiner's job ends at re-emitting the
 Hyper/Mod modifier set; skhd dispatches.
 
-`Caps + g`, `Caps + v`, `Caps + c`, `Caps + m` are unbound and
-available.
+**Free-key register** — chords currently unbound at each layer:
+
+- Hyper (Caps held): `c`, `space`, most punctuation. (Caps+Space is
+  consumed by Karabiner Rule 1 → tmux prefix.)
+- Mod (Caps+Shift held): everything except `hjkl` and `q` (inbox).
+  Notably free: `v`, `r`, `w`, `e`, `f`, `g`, `m`, `n`, `p`, `t`,
+  `b`, `o` — the Hyper-layer counterparts pulled their Mod siblings
+  with them when the manage prompt moved from Mod+W to Hyper+W. Verify
+  before claiming with `grep -nE 'cmd \+ alt \+ ctrl - <key>' skhdrc`.
 
 ## Layer semantic: Hyper = navigate, Mod = modify
 
@@ -112,22 +119,27 @@ The two layers carry a consistent split — useful when adding new bindings:
 When in doubt about where a new binding belongs, ask: does it *move* state
 (Mod) or *show* state (Hyper)?
 
-## Workspace control prompts (lives in ws-prompt, dispatched by skhd)
+## Workspace prompts (lives in ws-prompt + ws-picker, dispatched by skhd)
 
-Karabiner doesn't grab any of these keys. skhd binds the three chords
-directly to `ws-prompt <mode>`, a SwiftUI overlay that captures
-keystrokes itself and exits on commit / cancel / blur. There are no
-sticky skhd modes anywhere in the system anymore.
+Karabiner doesn't grab any of these keys. skhd binds each chord to
+either `ws-prompt <mode>` or `ws-picker` — SwiftUI overlays that
+capture keystrokes themselves and exit on commit / cancel / blur.
+There are no sticky skhd modes anywhere in the system.
 
-- `Caps + f`              (Hyper+F)        → focus prompt  (digit commits · letters fuzzy-match name + ↵)
-- `Caps + g`              (Hyper+G)        → go prompt     (digit commits + follow · letters fuzzy-match name + ↵)
-- `Caps + return`         (Hyper+Return)   → go prompt     (alias for Caps+g; preserves muscle memory + keeps the most-frequent workspace action on the most-ergonomic chord)
-- `Caps + Shift + return` (Mod+Return)     → manage prompt (verb-picker → multi-stage flow):
-                                              a add · r rename · i icon · d destroy
-                                              ⇧L layout save/load/delete
-                                              v verify · ? doctor
-- `Esc` / click-elsewhere (inside overlay) → cancel (manage backs up one stage; verb-picker cancels)
-- `Caps + Esc`            (Hyper+Esc)      → no-op (preserved for muscle memory; nothing to escape)
+Four overlays, one pattern: **digit commits · letters fuzzy-search ·
+↵ accepts · esc cancels**. Pick by intent — expose to *see*, focus to
+*land*, go to *send*, manage (the workspace prompt) to *edit*.
+
+- `Caps + e` (Hyper+E)        → expose prompt    (`ws-picker`; fuzzy-search every visible window)
+- `Caps + f` (Hyper+F)        → focus prompt     (digit commits · letters fuzzy-match + ↵)
+- `Caps + g` (Hyper+G)        → go prompt        (digit commits + follow · letters fuzzy-match + ↵)
+- `Caps + m` (Hyper+M)        → go prompt        (alias for Caps+g; "m" for move)
+- `Caps + w` (Hyper+W)        → manage (workspace) prompt (verb-picker → multi-stage flow):
+                                  a add · r rename · i icon · d destroy
+                                  ⇧L layout save/load/delete
+                                  v verify · ? doctor
+- `Esc` / click-elsewhere     → cancel (manage backs up one stage; verb-picker cancels)
+- `Caps + Esc` (Hyper+Esc)    → no-op (preserved for muscle memory; nothing to escape)
 
 The manage flow shells out to the `ws` CLI directly and surfaces
 stdout + stderr in an in-overlay result panel — no AppleScript

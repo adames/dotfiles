@@ -96,6 +96,10 @@ phase_packages() {
 phase_configs() {
   section "Phase 3/5 · deploy configs"
 
+  # Suppress the macOS login banner ("Last login: ...") that login(1)
+  # prints into every new terminal. Empty file is the canonical opt-out.
+  : > "$HOME/.hushlogin"
+
   # Window/keyboard
   install_file "$CONFIGS_DIR/karabiner.json"             "$HOME/.config/karabiner/karabiner.json"
   install_file "$CONFIGS_DIR/skhdrc"                     "$HOME/.skhdrc"
@@ -230,6 +234,10 @@ phase_configs() {
   # ws-doctor: keymap / launcher health check. Catches keystroke-injection
   # collisions, source/deploy drift, broken menu-item refs, stale skhd.
   install_file "$DOTFILES_DIR/bin/ws-doctor"                "$HOME/.local/bin/ws-doctor"                       755
+  # ws-dir: direction-aware Caps+hjkl. Floating → ws-snap; tiled →
+  # yabai --window --focus. Single source of truth for the float/tile
+  # branch so skhdrc rows stay one-liners.
+  install_file "$DOTFILES_DIR/bin/ws-dir"                   "$HOME/.local/bin/ws-dir"                          755
   # Clean up the notch-padding tuning env retired by the left-aligned
   # navbar refactor. The file had user edits, but the only consumer
   # (recenter.sh) is gone — nothing reads it now. Idempotent.

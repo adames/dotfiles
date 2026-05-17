@@ -21,7 +21,7 @@
           "rows": [
             [
               "caps + hjkl",
-              "focus window  ←  ↓  ↑  →"
+              "focus neighbour (tiled)  ·  snap h l = halves · j = center · k = fill (floating)"
             ],
             [
               "caps + shift + hjkl",
@@ -29,27 +29,15 @@
             ],
             [
               "caps + v",
-              "toggle float / unfloat  (unfloat = commit staged window to tiling)"
-            ],
-            [
-              "caps + shift + v",
-              "center floating window  (50% inner grid)"
-            ],
-            [
-              "caps + e",
-              "expose / window picker — fuzzy-search every visible window"
+              "toggle float (unfloat = snap to grid)"
             ],
             [
               "caps + r",
               "rotate space 90°"
             ],
             [
-              "caps + shift + r",
-              "rebalance space (equal BSP splits)"
-            ],
-            [
               "caps + n  ·  caps + p",
-              "next / prev workspace (wraps)"
+              "prev / next workspace (wraps)"
             ],
             [
               "caps + tab",
@@ -58,22 +46,26 @@
           ],
           "family": "system",
           "sub": "yabai · skhd · ws-snap",
-          "idea": "Hyper navigates; Mod modifies. New windows arrive on the focused space + focused; floats are centered. Unfloat to commit, go to relocate, ⌘W to dismiss."
+          "idea": "Hyper navigates; Mod modifies. Caps+hjkl is direction-aware — on a floating window it snaps (h/l = halves · j = center · k = fill); on a tiled window it focuses the neighbour. New windows arrive on the focused space + focused; floats are centered. Unfloat to commit, go to relocate, ⌘W to dismiss."
         },
         {
-          "title": "Workspace · Slots",
+          "title": "Workspace Prompts",
           "rows": [
             [
-              "caps + w",
+              "caps + e",
+              "expose prompt → fuzzy-search every visible window"
+            ],
+            [
+              "caps + f",
               "focus prompt → digit · letters → name search + ↵"
             ],
             [
               "caps + g  ·  caps + m",
-              "go / move prompt → digit (commit + follow) · letters + ↵"
+              "go prompt → digit (commit + follow) · letters + ↵"
             ],
             [
-              "caps + shift + w",
-              "manage prompt → a add · r rename · i icon · d destroy"
+              "caps + w",
+              "manage (workspace) prompt → a add · r rename · i icon · d destroy"
             ],
             [
               "(in manage)",
@@ -89,23 +81,23 @@
             ]
           ],
           "family": "system",
-          "sub": "number = stable selector · names/icons are cosmetic",
-          "idea": "Three overlays. Digit (1..0) commits instantly; type letters to fuzzy-search names + Enter. Esc and click-elsewhere always cancel."
+          "sub": "four overlays · one pattern",
+          "idea": "Four overlays, one pattern: digit commits · letters fuzzy-search · ↵ accepts · esc cancels. Pick by intent — expose to see, focus to land, go to send, manage to edit."
         },
         {
           "title": "Launch",
           "rows": [
             [
               "caps + t",
-              "new terminal  (auto: Ghostty / iTerm / …; $WS_TERMINAL_APP)"
+              "new terminal"
             ],
             [
               "caps + b",
-              "new browser  (auto: Brave / Arc / … / Safari; $WS_BROWSER_APP)"
+              "new browser"
             ],
             [
               "caps + o",
-              "new Finder window  (o = open)"
+              "new Finder window"
             ],
             [
               "caps + ,",
@@ -113,11 +105,11 @@
             ],
             [
               "caps + q",
-              "notes  (auto: Raycast Notes → Apple Notes; $WS_NOTES_APP)"
+              "notes"
             ],
             [
               "caps + shift + q",
-              "inbox  (auto: Obsidian → Apple Notes; $WS_INBOX_APP / $WS_INBOX_VAULT)"
+              "inbox"
             ],
             [
               "caps + ;",
