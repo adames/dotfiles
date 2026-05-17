@@ -253,13 +253,13 @@ Cross-layer conflicts that already exist + how they're resolved.
 | Apparent collision | Resolution | Source |
 |---|---|---|
 | `Caps + Space` (Hyper+Space) vs tmux `C-Space` prefix | Resolved by Karabiner rule #1: Hyper+Space → Ctrl+Space, so both Caps+Space and physical Ctrl+Space fire the prefix. Don't bind Hyper+Space in skhd — Karabiner consumes it first. | [karabiner.json:16](../configs/karabiner.json:16) |
-| `Caps + T` (terminal launch) vs Ghostty `Cmd + T` (new_window) | Different modifier sets; both fire in their own contexts. | skhdrc:82, ghostty-config:18 |
+| `Caps + T` (terminal launch) vs Ghostty `Cmd + T` (new_window) | Different modifier sets; both fire in their own contexts. | [skhdrc:82](../configs/skhdrc:82), [ghostty-config:18](../configs/ghostty-config:18) |
 | Caps-tap-Esc vs Ghostty option-as-alt | `escape-time 10` gives the ESC byte time to arrive; "no Option/M-* bindings" in tmux prevents the ambiguity from mattering. | [tmux.conf:9–12, 51](../configs/tmux.conf:9) |
 | zsh vi-mode `Esc` vs Caps-tap-Esc | Same key — Caps-tap IS the canonical way to enter vi normal mode. | [zshrc:6](../configs/zshrc:6) |
 | nvim `<C-Space>` (cmp complete) vs tmux prefix `C-Space` | tmux grabs first; use `prefix → C-Space` ([tmux.conf:19](../configs/tmux.conf:19)) to send a literal `C-Space` to nvim. | tmux.conf:19 |
 | Caps + Esc → no-op | By design — muscle-memory preservation; chord must not leak into focused app. | [karabiner.md](../configs/karabiner.md), [skhdrc:60](../configs/skhdrc:60) |
 | **Caps + /** (workspace help, historical) | **Retired.** The key code never reliably fired on this machine — long-standing skhd / hardware quirk, not worth debugging. Use Caps + ; instead. | n/a (binding removed) |
-| **Held-Caps + injected `Cmd+X`** in a launcher | Synthetic keystrokes pass through skhd's CGEvent tap and get OR'd with the live Hyper modifier state — `Cmd+N` becomes `Hyper+N` when Caps is still held, firing `ws-focus next`. Fix: use `click menu item …` (AX API, bypasses skhd) or pick a letter unbound at Hyper. `ws-doctor` lints for this. | [bin/ws-doctor](../bin/ws-doctor), [launch-terminal.sh:63](../configs/workspace/launch-terminal.sh:63) |
+| **Held-Caps + injected `Cmd+X`** in a launcher | Synthetic keystrokes pass through skhd's CGEvent tap and get OR'd with the live Hyper modifier state — `Cmd+N` becomes `Hyper+N` when Caps is still held, firing `ws-focus next`. Fix: use `click menu item …` (AX API, bypasses skhd) or pick a letter unbound at Hyper. `ws-doctor` lints for this. | [bin/ws-doctor](../bin/ws-doctor), [launch-terminal.sh:75](../configs/workspace/launch-terminal.sh:75) |
 
 ## Free-key register
 
