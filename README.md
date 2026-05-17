@@ -59,13 +59,16 @@ default-shell); skips yabai + Karabiner + Docker.
 | Caps → Hyper / Mod / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
 | Per-display workspace pill strip | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
-| Hyper/Mod hotkeys → yabai · launchers · cheatsheet · ws-prompt | skhd | [`skhdrc`](configs/skhdrc) |
-| Workspace focus / send / manage overlays | ws-prompt (SwiftUI) | [`workspace/topology/Sources/ws-prompt/`](configs/workspace/topology/Sources/ws-prompt) |
+| Hyper/Mod hotkeys → yabai · launchers · cheatsheet · ws-prompt · ws-picker | skhd | [`skhdrc`](configs/skhdrc) |
+| Workspace focus / send / edit overlays | ws-prompt (SwiftUI) | [`workspace/topology/Sources/ws-prompt/`](configs/workspace/topology/Sources/ws-prompt) |
+| Change-workspace overlay (Caps+e) | ws-picker (SwiftUI) | [`workspace/topology/Sources/ws-picker/`](configs/workspace/topology/Sources/ws-picker) |
 | Cheatsheet HUD (SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Per-display SketchyBar autohide | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
 | Cross-display topology + notch detection | ws-topologyd | [`workspace/topology/`](configs/workspace/topology) |
 | New-window staging (center · focus · cross-space) | yabai signal + bash | [`workspace/stage-window.sh`](configs/workspace/stage-window.sh) |
-| AX absolute-snap CLI | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
+| AX absolute-snap CLI (driven by Caps+h/j/k/l on floats) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
+| Direction-aware Caps+h/j/k/l dispatch (floating→snap, tiled→focus) | ws-dir | [`bin/ws-dir`](bin/ws-dir) |
+| Keymap / launcher health check (chord collisions, source-deploy drift, menu refs) | ws-doctor | [`bin/ws-doctor`](bin/ws-doctor) |
 | Terminal · tmux · zsh · nvim | Ghostty + tmux + zsh + Neovim | [`ghostty-config`](configs/ghostty-config) · [`tmux.conf`](configs/tmux.conf) · [`zshrc`](configs/zshrc) · [`nvim-init.lua`](configs/nvim-init.lua) |
 | LSP + DAP + tests for Python | Mason (pyright, ruff, debugpy, neotest) | same |
 | Lazygit · OrbStack (Docker replacement) · git-delta | brew | — |
@@ -217,7 +220,7 @@ tmux show -gv prefix                              # → C-a
 zsh -ic 'type z' | head -1                        # zoxide function
 nvim --headless -c 'edit /tmp/x.py' -c 'sleep 3' \
      -c 'lua print(#vim.lsp.get_clients({bufnr=0}))' -c qall   # → 2
-ws-doctor                                         # keymap/launcher health
+ws-doctor                                         # keymap/launcher health — run this first if any chord feels off
 ```
 
 Cheatsheet: `Caps + ;` (live overlay; nothing on disk to inspect).

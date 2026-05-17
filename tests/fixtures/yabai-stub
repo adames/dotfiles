@@ -74,7 +74,7 @@ case "$domain $action" in
       printf '[]\n'
     fi
     ;;
-  "space --focus" | "window --space" | "space --create")
+  "space --focus" | "window --space" | "space --create" | "window --focus")
     [[ -n "${YABAI_STUB_FAIL:-}" ]] && exit 1
     exit 0
     ;;
