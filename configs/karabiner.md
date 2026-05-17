@@ -114,7 +114,7 @@ The two layers carry a consistent split — useful when adding new bindings:
 - **Hyper** (Caps held)        — navigate / non-destructive
   (focus window/space, launch app, new terminal, open cheatsheet)
 - **Mod**   (Caps+Shift held)  — modify / destructive
-  (swap window, manage workspaces, manual snap)
+  (swap window, manual snap)
 
 When in doubt about where a new binding belongs, ask: does it *move* state
 (Mod) or *show* state (Hyper)?
@@ -127,20 +127,21 @@ capture keystrokes themselves and exit on commit / cancel / blur.
 There are no sticky skhd modes anywhere in the system.
 
 Four overlays, one pattern: **digit commits · letters fuzzy-search ·
-↵ accepts · esc cancels**. Pick by intent — expose to *see*, focus to
-*land*, go to *send*, manage (the workspace prompt) to *edit*.
+↵ accepts · esc cancels**. Pick by intent — change to *jump* to a
+window's space, focus to *land* on a space, go to *send* a window,
+edit to *modify* the space set.
 
-- `Caps + e` (Hyper+E)        → expose prompt    (`ws-picker`; fuzzy-search every visible window)
-- `Caps + f` (Hyper+F)        → focus prompt     (digit commits · letters fuzzy-match + ↵)
-- `Caps + g` (Hyper+G)        → go prompt        (digit commits + follow · letters fuzzy-match + ↵)
-- `Caps + m` (Hyper+M)        → go prompt        (alias for Caps+g; "m" for move)
-- `Caps + w` (Hyper+W)        → manage (workspace) prompt (verb-picker → multi-stage flow):
+- `Caps + e` (Hyper+E)        → change workspace (`ws-picker`; fuzzy-search every window in every space — ↵ jumps to its space)
+- `Caps + f` (Hyper+F)        → focus workspace  (digit commits · letters fuzzy-match + ↵)
+- `Caps + g` (Hyper+G)        → go (send window) (digit commits + follow · letters fuzzy-match + ↵)
+- `Caps + m` (Hyper+M)        → go (send window) (alias for Caps+g; "m" for move)
+- `Caps + w` (Hyper+W)        → edit workspace   (verb-picker → multi-stage flow):
                                   a add · r rename · i icon · d destroy
                                   ⇧L layout save/load/delete
                                   v verify · ? doctor
-- `Esc` / click-elsewhere     → cancel (manage backs up one stage; verb-picker cancels)
+- `Esc` / click-elsewhere     → cancel (edit backs up one stage; verb-picker cancels)
 - `Caps + Esc` (Hyper+Esc)    → no-op (preserved for muscle memory; nothing to escape)
 
-The manage flow shells out to the `ws` CLI directly and surfaces
+The edit flow shells out to the `ws` CLI directly and surfaces
 stdout + stderr in an in-overlay result panel — no AppleScript
 dialogs, no helper shell shims.

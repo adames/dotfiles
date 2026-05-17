@@ -53,22 +53,22 @@
           "rows": [
             [
               "caps + e",
-              "expose prompt → fuzzy-search every visible window"
+              "change workspace → fuzzy-search every window in every space, ↵ jumps to its space"
             ],
             [
               "caps + f",
-              "focus prompt → digit · letters → name search + ↵"
+              "focus workspace → digit · letters → name search + ↵"
             ],
             [
               "caps + g  ·  caps + m",
-              "go prompt → digit (commit + follow) · letters + ↵"
+              "go (send window) → digit (commit + follow) · letters + ↵"
             ],
             [
               "caps + w",
-              "manage (workspace) prompt → a add · r rename · i icon · d destroy"
+              "edit workspace → a add · r rename · i icon · d destroy"
             ],
             [
-              "(in manage)",
+              "(in edit)",
               "⇧L layout save/load/delete · v verify · ? doctor"
             ],
             [
@@ -82,7 +82,7 @@
           ],
           "family": "system",
           "sub": "four overlays · one pattern",
-          "idea": "Four overlays, one pattern: digit commits · letters fuzzy-search · ↵ accepts · esc cancels. Pick by intent — expose to see, focus to land, go to send, manage to edit."
+          "idea": "Four overlays, one pattern: digit commits · letters fuzzy-search · ↵ accepts · esc cancels. Pick by intent — change to jump to a window's space, focus to land on a space, go to send a window, edit to modify the space set."
         },
         {
           "title": "Launch",
