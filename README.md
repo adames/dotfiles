@@ -81,22 +81,29 @@ letters fuzzy-search names + Enter, Esc and click-elsewhere cancel.
 Caps tap                       → Esc
 
 # Hyper — navigate / open / commit (single-chord ops)
-Caps + hjkl                    → focus window
-Caps + f      → digit | name+↵ → focus workspace (overlay)
-Caps + g  ·  Caps + return     → go: send window to workspace + follow (overlay)
-Caps + v                       → toggle float / unfloat
-Caps + e / r                   → balance / rotate space
-Caps + t / b / o / s           → terminal / browser / Finder / System Settings
+Caps + hjkl  (tiled)           → focus neighbour window
+Caps + hjkl  (floating)        → snap: h left · l right · j center · k fill
+Caps + v                       → toggle float (unfloat = snap to grid)
+Caps + r                       → rotate space 90°
+Caps + n  ·  Caps + p          → prev / next workspace (wraps)
+Caps + tab                     → last / recent workspace
+Caps + t / b / o / , / q       → terminal / browser / Finder / System Settings / notes
 Caps + ;                       → toggle cheatsheet HUD
-Caps + tab / Shift + tab       → cycle next / prev workspace (wraps 1↔N)
 Caps + Esc                     → no-op (preserved as muscle-memory panic key)
 
-# Mod — modify (destructive / lifecycle)
-Caps + Shift + hjkl            → swap window
-Caps + Shift + return          → manage workspace (overlay):
+# Workspace prompts — four overlays, one pattern
+# digit commits · letters fuzzy-search · ↵ accepts · esc cancels
+Caps + e                       → expose prompt  — fuzzy-search every visible window
+Caps + f                       → focus prompt   — land on a workspace
+Caps + g  ·  Caps + m          → go prompt      — send window to workspace + follow
+Caps + w                       → manage (workspace) prompt:
                                   a add · r rename · i icon · d destroy
                                   ⇧L layout (save / load / delete)
                                   v verify · ? doctor
+
+# Mod — modify (destructive / lifecycle)
+Caps + Shift + hjkl            → swap window (tiled only)
+Caps + Shift + q               → inbox
 
 # Terminal
 C-a  hjkl / v / s / z          → tmux pane nav / split / zoom (prefix = C-a)
@@ -117,9 +124,9 @@ C-a  f                         → fzf project sessionizer
 ## Workspace identity
 
 **yabai owns space existence. `spaces.json` owns optional identity.**
-Mission Control's `+` / `×` add and remove yabai spaces; `Caps+Shift+Return`
-(the manage overlay) drives the same operations through yabai's
-scripting addition. The bar reflects whatever yabai reports.
+Mission Control's `+` / `×` add and remove yabai spaces; `Caps+W`
+(the manage / workspace overlay) drives the same operations through
+yabai's scripting addition. The bar reflects whatever yabai reports.
 
 Fresh installs ship an empty `spaces.json` — pills render as bare gray
 `ws1`, `ws2`, … until you customize one:
@@ -162,7 +169,7 @@ and never committed.
 
 ### yabai scripting addition
 
-`Caps+Shift+Return → a` / `d` (add / destroy) call
+`Caps+W → a` / `d` (the manage prompt's add / destroy verbs) call
 `yabai -m space --create` / `--destroy`, which need yabai's scripting
 addition loaded into Dock.app. Mission Control's `+` / `×` doesn't —
 those go through macOS directly. One-time SIP-gated install:
@@ -249,7 +256,7 @@ under `configs/workspace/topology/` and rebuild on every bootstrap.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | "Karabiner installed but `.app` missing" | `installer -pkg` interrupted — `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
-| `Caps + f` / `Caps + g` / `Caps + Shift + return` does nothing | `ws-prompt` missing — re-run `~/.config/workspace/topology/install.sh` |
+| `Caps + e` / `Caps + f` / `Caps + g` / `Caps + w` does nothing | `ws-prompt` / `ws-picker` missing — re-run `~/.config/workspace/topology/install.sh` |
 | `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — same fix |
 | Manage overlay's `add` / `destroy` fails with "scripting-addition" | yabai SA not loaded — `sudo yabai --load-sa && killall Dock`, or re-run `yabai-sa-install.sh` |
 | Workspace pills missing | `sketchybar` not running — `brew services restart sketchybar`. Glyphs blank → Nerd Font missing (`brew install --cask font-jetbrains-mono-nerd-font`) |

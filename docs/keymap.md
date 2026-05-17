@@ -56,41 +56,47 @@ Narrative & free-key register: [`configs/karabiner.md`](../configs/karabiner.md)
 
 [`configs/skhdrc`](../configs/skhdrc). `hyper` = `cmd+alt+ctrl+shift`. `mod` = `cmd+alt+ctrl`.
 
-### Focus / swap
+### Focus / swap / snap (direction-aware)
 
 | Chord | Action | skhdrc |
 |---|---|---|
-| Caps + h/j/k/l | `yabai -m window --focus west/south/north/east` | [:9–12](../configs/skhdrc:9) |
-| Caps + Shift + h/j/k/l | `yabai -m window --swap west/south/north/east` | [:14–17](../configs/skhdrc:14) |
+| Caps + h/j/k/l | `ws-dir` — *floating*: snap h/l = halves · j = center · k = fill; *tiled*: `yabai --window --focus west/south/north/east` | [:19–22](../configs/skhdrc:19) |
+| Caps + Shift + h/j/k/l | `yabai -m window --swap west/south/north/east` (tiled only — swap is meaningless when floating) | [:24–27](../configs/skhdrc:24) |
 
 ### Layout / float
 
 | Chord | Action | skhdrc |
 |---|---|---|
-| Caps + v | toggle float on the focused window | [:28](../configs/skhdrc:28) |
-| Caps + Shift + v | center floating window (`--grid 4:4:1:1:2:2`) | [:29](../configs/skhdrc:29) |
-| Caps + r | rotate BSP layout 90° | [:30](../configs/skhdrc:30) |
-| Caps + Shift + r | rebalance BSP grid (`--balance`) | [:31](../configs/skhdrc:31) |
-| Caps + e | expose / window picker (`ws-picker`) | [:32](../configs/skhdrc:32) |
+| Caps + v | toggle float on the focused window (unfloat returns the window to the grid) | [:30](../configs/skhdrc:30) |
+| Caps + r | rotate BSP layout 90° | [:31](../configs/skhdrc:31) |
+
+Centering / snapping / filling a floating window now lives on Caps+h/j/k/l
+(see "Focus / swap / snap" above). Caps+Shift+v and Caps+Shift+r are free.
 
 ### Workspace cycle
 
 | Chord | Action | skhdrc |
 |---|---|---|
-| Caps + n | next workspace (wraps) — `ws-focus next` | [:39](../configs/skhdrc:39) |
-| Caps + p | previous workspace (wraps) — `ws-focus prev` | [:40](../configs/skhdrc:40) |
-| Caps + Tab | last/recent workspace — `ws-focus last` (→ `yabai --focus recent`) | [:41](../configs/skhdrc:41) |
+| Caps + n | previous workspace (wraps) — `ws-focus prev` | [:35](../configs/skhdrc:35) |
+| Caps + p | next workspace (wraps) — `ws-focus next` | [:36](../configs/skhdrc:36) |
+| Caps + Tab | last/recent workspace — `ws-focus last` (→ `yabai --focus recent`) | [:37](../configs/skhdrc:37) |
+
+n/p ordering is positional on QWERTY: P sits right of N → "next = right" matches forward-motion intuition.
 
 ### Workspace prompts (SwiftUI overlays)
 
+Four overlays, one pattern: **digit commits · letters fuzzy-search · ↵ accepts · esc cancels**.
+Pick by intent — expose to *see*, focus to *land*, go to *send*, manage to *edit*.
+
 | Chord | Action | skhdrc |
 |---|---|---|
-| Caps + w | focus prompt — digit / fuzzy name | [:61](../configs/skhdrc:61) |
-| Caps + g | send prompt — digit / fuzzy name, follows window | [:62](../configs/skhdrc:62) |
-| Caps + m | send prompt — alias for Caps+g ("m for move") | [:66](../configs/skhdrc:66) |
-| Caps + Shift + w | manage prompt — add / rename / icon / destroy / layout / verify / doctor | [:67](../configs/skhdrc:67) |
-| Caps + Esc | no-op (muscle-memory preservation; chord must not leak) | [:68](../configs/skhdrc:68) |
-| Caps + ; | cheatsheet toggle (`ws-cheatsheet`) — key code `0x29` | [:74](../configs/skhdrc:74) |
+| Caps + e | expose prompt (`ws-picker`) — fuzzy-search every visible window | [:54](../configs/skhdrc:54) |
+| Caps + f | focus prompt (`ws-prompt focus`) — digit / fuzzy name | [:55](../configs/skhdrc:55) |
+| Caps + g | go prompt (`ws-prompt send`) — digit / fuzzy name, follows window | [:56](../configs/skhdrc:56) |
+| Caps + m | go prompt — alias for Caps+g ("m for move") | [:58](../configs/skhdrc:58) |
+| Caps + w | manage (workspace) prompt (`ws-prompt manage`) — add / rename / icon / destroy / layout / verify / doctor | [:59](../configs/skhdrc:59) |
+| Caps + Esc | no-op (muscle-memory preservation; chord must not leak) | [:60](../configs/skhdrc:60) |
+| Caps + ; | cheatsheet toggle (`ws-cheatsheet`) — key code `0x29` | [:64](../configs/skhdrc:64) |
 
 ### Launchers
 
@@ -99,12 +105,12 @@ mean swapping a tool is a one-file change, not a key-map edit.
 
 | Chord | Action | skhdrc | Helper |
 |---|---|---|---|
-| Caps + t | new terminal window | [:88](../configs/skhdrc:88) | [`ws-launch-terminal`](../configs/workspace/launch-terminal.sh) · `$WS_TERMINAL_APP` |
-| Caps + b | new browser window | [:89](../configs/skhdrc:89) | [`ws-launch-browser`](../configs/workspace/launch-browser.sh) · `$WS_BROWSER_APP` |
-| Caps + o | new Finder window | [:90](../configs/skhdrc:90) | inline AppleScript |
-| Caps + , | System Settings — key code `0x2B` | [:91](../configs/skhdrc:91) | inline `open -a` |
-| Caps + q | notes (Raycast Notes → Apple Notes) | [:92](../configs/skhdrc:92) | [`ws-launch-notes`](../configs/workspace/launch-notes.sh) · `$WS_NOTES_APP` |
-| Caps + Shift + q | inbox (Obsidian vault → Apple Notes) | [:93](../configs/skhdrc:93) | [`ws-launch-inbox`](../configs/workspace/launch-inbox.sh) · `$WS_INBOX_APP` · `$WS_INBOX_VAULT` |
+| Caps + t | new terminal window | [:82](../configs/skhdrc:82) | [`ws-launch-terminal`](../configs/workspace/launch-terminal.sh) · `$WS_TERMINAL_APP` |
+| Caps + b | new browser window | [:83](../configs/skhdrc:83) | [`ws-launch-browser`](../configs/workspace/launch-browser.sh) · `$WS_BROWSER_APP` |
+| Caps + o | new Finder window | [:84](../configs/skhdrc:84) | inline AppleScript |
+| Caps + , | System Settings — key code `0x2B` | [:85](../configs/skhdrc:85) | inline `open -a` |
+| Caps + q | notes (Raycast Notes → Apple Notes) | [:86](../configs/skhdrc:86) | [`ws-launch-notes`](../configs/workspace/launch-notes.sh) · `$WS_NOTES_APP` |
+| Caps + Shift + q | inbox (Obsidian vault → Apple Notes) | [:87](../configs/skhdrc:87) | [`ws-launch-inbox`](../configs/workspace/launch-inbox.sh) · `$WS_INBOX_APP` · `$WS_INBOX_VAULT` |
 
 ## yabai
 
@@ -247,12 +253,12 @@ Cross-layer conflicts that already exist + how they're resolved.
 | Apparent collision | Resolution | Source |
 |---|---|---|
 | `Caps + Space` (Hyper+Space) vs tmux `C-Space` prefix | Resolved by Karabiner rule #1: Hyper+Space → Ctrl+Space, so both Caps+Space and physical Ctrl+Space fire the prefix. Don't bind Hyper+Space in skhd — Karabiner consumes it first. | [karabiner.json:16](../configs/karabiner.json:16) |
-| `Caps + T` (terminal launch) vs Ghostty `Cmd + T` (new_window) | Different modifier sets; both fire in their own contexts. | skhdrc:80, ghostty-config:18 |
+| `Caps + T` (terminal launch) vs Ghostty `Cmd + T` (new_window) | Different modifier sets; both fire in their own contexts. | skhdrc:82, ghostty-config:18 |
 | Caps-tap-Esc vs Ghostty option-as-alt | `escape-time 10` gives the ESC byte time to arrive; "no Option/M-* bindings" in tmux prevents the ambiguity from mattering. | [tmux.conf:9–12, 51](../configs/tmux.conf:9) |
 | zsh vi-mode `Esc` vs Caps-tap-Esc | Same key — Caps-tap IS the canonical way to enter vi normal mode. | [zshrc:6](../configs/zshrc:6) |
 | nvim `<C-Space>` (cmp complete) vs tmux prefix `C-Space` | tmux grabs first; use `prefix → C-Space` ([tmux.conf:19](../configs/tmux.conf:19)) to send a literal `C-Space` to nvim. | tmux.conf:19 |
-| Caps + Esc → no-op | By design — muscle-memory preservation; chord must not leak into focused app. | [karabiner.md:105](../configs/karabiner.md:105), [skhdrc:68](../configs/skhdrc:68) |
-| **Caps + /** (workspace help, historical) | **Retired.** The key code never reliably fired on this machine — long-standing skhd / hardware quirk, not worth debugging. Use Caps + ; instead. | [skhdrc:71–73](../configs/skhdrc:71) |
+| Caps + Esc → no-op | By design — muscle-memory preservation; chord must not leak into focused app. | [karabiner.md](../configs/karabiner.md), [skhdrc:60](../configs/skhdrc:60) |
+| **Caps + /** (workspace help, historical) | **Retired.** The key code never reliably fired on this machine — long-standing skhd / hardware quirk, not worth debugging. Use Caps + ; instead. | n/a (binding removed) |
 | **Held-Caps + injected `Cmd+X`** in a launcher | Synthetic keystrokes pass through skhd's CGEvent tap and get OR'd with the live Hyper modifier state — `Cmd+N` becomes `Hyper+N` when Caps is still held, firing `ws-focus next`. Fix: use `click menu item …` (AX API, bypasses skhd) or pick a letter unbound at Hyper. `ws-doctor` lints for this. | [bin/ws-doctor](../bin/ws-doctor), [launch-terminal.sh:63](../configs/workspace/launch-terminal.sh:63) |
 
 ## Free-key register
@@ -260,8 +266,8 @@ Cross-layer conflicts that already exist + how they're resolved.
 Per layer, what's currently unbound and safe to claim. Always re-verify before
 adding a binding — plugins can shadow defaults.
 
-- **Hyper-level free** (per [karabiner.md:75–76](../configs/karabiner.md:75) + sweep of skhdrc): `c`, `m`, `space`, most punctuation. Verify with `grep -E 'cmd \+ alt \+ ctrl \+ shift - <key>' configs/skhdrc`.
-- **Mod-level free** (everything except `hjkl`, `v`, `r`, `w`, `q`): most letters + punctuation. Verify with `grep -E 'cmd \+ alt \+ ctrl - <key>' configs/skhdrc`.
+- **Hyper-level free** (per [karabiner.md](../configs/karabiner.md) + sweep of skhdrc): `c`, `space`, most punctuation. Verify with `grep -E 'cmd \+ alt \+ ctrl \+ shift - <key>' configs/skhdrc`.
+- **Mod-level free** (everything except `hjkl` and `q`): most letters + punctuation, including `v`/`r`/`w`/`e`/`f`/`g`/`m`/`n`/`p`/`t`/`b`/`o`. Verify with `grep -E 'cmd \+ alt \+ ctrl - <key>' configs/skhdrc`.
 - **tmux prefix free**: most letters not in `h/j/k/l/v/s/|/-/z/d/r/x/f/[`. Verify with `tmux list-keys -T prefix`.
 - **nvim leader free**: most letters not under `f/g/h/d/t/b/c/r/=` + `1..4`. Verify with `:WhichKey <leader>` (or `:map <leader>X` for one prefix).
 
