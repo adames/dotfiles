@@ -3,23 +3,23 @@
 # @cs section Windows · Spaces
 # @cs family system
 # @cs sub yabai · skhd · ws-snap
-# @cs idea Hyper navigates; Mod modifies. New windows arrive on the focused space + focused; floats are centered. Unfloat to commit, go to relocate, ⌘W to dismiss.
-# @cs row caps + hjkl              :: focus window  ←  ↓  ↑  →
+# @cs idea Hyper navigates; Mod modifies. Caps+hjkl is direction-aware — on a floating window it snaps (h/l = halves · j = center · k = fill); on a tiled window it focuses the neighbour. New windows arrive on the focused space + focused; floats are centered. Unfloat to commit, go to relocate, ⌘W to dismiss.
+# @cs row caps + hjkl              :: focus neighbour (tiled)  ·  snap h l = halves · j = center · k = fill (floating)
 # @cs row caps + shift + hjkl      :: swap window  ←  ↓  ↑  →
-# @cs row caps + v                 :: toggle float / unfloat  (unfloat = commit staged window to tiling)
-# @cs row caps + shift + v         :: center floating window  (50% inner grid)
-# @cs row caps + e                 :: expose / window picker — fuzzy-search every visible window
+# @cs row caps + v                 :: toggle float (unfloat = snap to grid)
 # @cs row caps + r                 :: rotate space 90°
-# @cs row caps + shift + r         :: rebalance space (equal BSP splits)
-# @cs row caps + n  ·  caps + p    :: next / prev workspace (wraps)
+# @cs row caps + n  ·  caps + p    :: prev / next workspace (wraps)
 # @cs row caps + tab               :: last / recent workspace
 # @cs end
 
-# --- focus / swap ---------------------------------------------------------
-cmd + alt + ctrl + shift - h : yabai -m window --focus west
-cmd + alt + ctrl + shift - j : yabai -m window --focus south
-cmd + alt + ctrl + shift - k : yabai -m window --focus north
-cmd + alt + ctrl + shift - l : yabai -m window --focus east
+# --- focus / swap / snap (direction-aware) -------------------------------
+# Caps+hjkl is routed through ws-dir, which queries yabai for the focused
+# window's is-floating state and dispatches to either ws-snap (floating)
+# or yabai --window --focus (tiled). Single chord, two affordances.
+cmd + alt + ctrl + shift - h : "$HOME/.local/bin/ws-dir" h
+cmd + alt + ctrl + shift - j : "$HOME/.local/bin/ws-dir" j
+cmd + alt + ctrl + shift - k : "$HOME/.local/bin/ws-dir" k
+cmd + alt + ctrl + shift - l : "$HOME/.local/bin/ws-dir" l
 
 cmd + alt + ctrl - h : yabai -m window --swap west
 cmd + alt + ctrl - j : yabai -m window --swap south
@@ -28,23 +28,22 @@ cmd + alt + ctrl - l : yabai -m window --swap east
 
 # --- layout / float -------------------------------------------------------
 cmd + alt + ctrl + shift - v : yabai -m window --toggle float
-cmd + alt + ctrl         - v : yabai -m window --grid 4:4:1:1:2:2
 cmd + alt + ctrl + shift - r : yabai -m space  --rotate 90
-cmd + alt + ctrl         - r : yabai -m space  --balance
-cmd + alt + ctrl + shift - e : "$HOME/.local/bin/ws-picker" >/dev/null 2>&1 &
 
 # --- workspace cycle ------------------------------------------------------
-cmd + alt + ctrl + shift - n   : "$HOME/.local/bin/ws-focus" next
-cmd + alt + ctrl + shift - p   : "$HOME/.local/bin/ws-focus" prev
+# n = prev, p = next (positional on QWERTY: p sits right of n → "next" = right).
+cmd + alt + ctrl + shift - n   : "$HOME/.local/bin/ws-focus" prev
+cmd + alt + ctrl + shift - p   : "$HOME/.local/bin/ws-focus" next
 cmd + alt + ctrl + shift - tab : "$HOME/.local/bin/ws-focus" last
 
-# @cs section Workspace · Slots
+# @cs section Workspace Prompts
 # @cs family system
-# @cs sub number = stable selector · names/icons are cosmetic
-# @cs idea Three overlays. Digit (1..0) commits instantly; type letters to fuzzy-search names + Enter. Esc and click-elsewhere always cancel.
-# @cs row caps + w                  :: focus prompt → digit · letters → name search + ↵
-# @cs row caps + g  ·  caps + m     :: go / move prompt → digit (commit + follow) · letters + ↵
-# @cs row caps + shift + w          :: manage prompt → a add · r rename · i icon · d destroy
+# @cs sub four overlays · one pattern
+# @cs idea Four overlays, one pattern: digit commits · letters fuzzy-search · ↵ accepts · esc cancels. Pick by intent — expose to see, focus to land, go to send, manage to edit.
+# @cs row caps + e                  :: expose prompt → fuzzy-search every visible window
+# @cs row caps + f                  :: focus prompt → digit · letters → name search + ↵
+# @cs row caps + g  ·  caps + m     :: go prompt → digit (commit + follow) · letters + ↵
+# @cs row caps + w                  :: manage (workspace) prompt → a add · r rename · i icon · d destroy
 # @cs row     (in manage)           :: ⇧L layout save/load/delete · v verify · ? doctor
 # @cs row esc / click-elsewhere     :: cancel any prompt
 # @cs row —                         :: names cannot start with a digit · all-numeric query = slot index (11+)
@@ -52,11 +51,12 @@ cmd + alt + ctrl + shift - tab : "$HOME/.local/bin/ws-focus" last
 
 # --- workspace prompts ----------------------------------------------------
 # Caps+Esc no-op: chord must not leak into focused app.
-cmd + alt + ctrl + shift - w      : "$HOME/.local/bin/ws-prompt" focus  >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - e      : "$HOME/.local/bin/ws-picker"  >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - f      : "$HOME/.local/bin/ws-prompt" focus  >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - g      : "$HOME/.local/bin/ws-prompt" send   >/dev/null 2>&1 &
 # Caps+m aliases Caps+g — "move" mnemonic.
 cmd + alt + ctrl + shift - m      : "$HOME/.local/bin/ws-prompt" send   >/dev/null 2>&1 &
-cmd + alt + ctrl         - w      : "$HOME/.local/bin/ws-prompt" manage >/dev/null 2>&1 &
+cmd + alt + ctrl + shift - w      : "$HOME/.local/bin/ws-prompt" manage >/dev/null 2>&1 &
 cmd + alt + ctrl + shift - escape : :
 
 # --- cheatsheet -----------------------------------------------------------
@@ -67,12 +67,12 @@ cmd + alt + ctrl + shift - 0x29 : $HOME/.local/bin/ws-cheatsheet --toggle >/dev/
 # @cs family system
 # @cs sub skhd · auto-detected apps
 # @cs idea Each chord spawns a new window of an auto-detected app. Override the choice with $WS_* env vars.
-# @cs row caps + t          :: new terminal  (auto: Ghostty / iTerm / …; $WS_TERMINAL_APP)
-# @cs row caps + b          :: new browser  (auto: Brave / Arc / … / Safari; $WS_BROWSER_APP)
-# @cs row caps + o          :: new Finder window  (o = open)
+# @cs row caps + t          :: new terminal
+# @cs row caps + b          :: new browser
+# @cs row caps + o          :: new Finder window
 # @cs row caps + ,          :: System Settings
-# @cs row caps + q          :: notes  (auto: Raycast Notes → Apple Notes; $WS_NOTES_APP)
-# @cs row caps + shift + q  :: inbox  (auto: Obsidian → Apple Notes; $WS_INBOX_APP / $WS_INBOX_VAULT)
+# @cs row caps + q          :: notes
+# @cs row caps + shift + q  :: inbox
 # @cs row caps + ;          :: this cheatsheet (toggle)
 # @cs end
 

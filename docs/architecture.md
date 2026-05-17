@@ -19,7 +19,7 @@ graph LR
   skhd -->|"yabai -m ..."| yabai
   skhd -->|Caps+t / Caps+b| Launchers[ws-launch-* · bash auto-detect]
   skhd -->|Caps+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
-  skhd -->|Caps+w / Caps+g · Caps+m / Caps+Shift+w| WSPrompt[ws-prompt · SwiftUI overlay]
+  skhd -->|Caps+f / Caps+g · Caps+m / Caps+w| WSPrompt[ws-prompt · SwiftUI overlay]
   skhd -->|Caps+e| WSPicker[ws-picker · SwiftUI overlay]
   WSPrompt -->|ws-focus / ws-send-follow / ws / yabai| yabai
   WSPicker -->|yabai window --focus| yabai
@@ -62,18 +62,21 @@ JSON specifics in [`configs/karabiner.md`](../configs/karabiner.md).
 
 | Layer | Role | Examples |
 |---|---|---|
-| **Hyper** | navigate / read-only | focus window (`hjkl`), focus workspace (`w`), send window (`g` / `m`), cycle workspace (`n`/`p`/`tab`), window picker (`e`), open app (`t`/`b`/`o`/`,`/`q`), cheatsheet (`;`) |
-| **Mod**   | modify / destructive | swap window (`hjkl`), manage workspace (`w`), rebalance (`r`), center float (`v`), inbox (`q`) |
+| **Hyper** | navigate / read-only | focus neighbour (`hjkl` tiled) · snap float (`hjkl` floating), focus workspace (`f`), send window (`g` / `m`), manage workspace (`w`), cycle workspace (`n`/`p`/`tab`), expose (`e`), toggle float (`v`), rotate space (`r`), open app (`t`/`b`/`o`/`,`/`q`), cheatsheet (`;`) |
+| **Mod**   | modify / destructive | swap window (`hjkl`), inbox (`q`) |
 
 All workspace operations go through `ws-prompt`, a one-shot SwiftUI
 overlay that captures keystrokes itself and exits on
-commit / cancel / blur / Esc — skhd never holds workspace state:
+commit / cancel / blur / Esc — skhd never holds workspace state. Four
+overlays, one pattern: **digit commits · letters fuzzy-search · ↵
+accepts · esc cancels** — pick by intent.
 
 | Trigger | Prompt | What |
 |---|---|---|
-| `Caps + w`         | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
+| `Caps + e`         | expose | `ws-picker` — fuzzy-search every visible window |
+| `Caps + f`         | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
 | `Caps + g`  ·  `Caps + m` | go (move) | digit commits + follow · letters fuzzy-match name + Enter (`m` is an alias — "move" mnemonic) |
-| `Caps + Shift + w` | manage | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
+| `Caps + w`         | manage (workspace) | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
 
 The manage overlay is a multi-stage state machine (verb → target /
 payload → confirm → result). Commits shell straight out to the `ws`
@@ -112,18 +115,21 @@ it only knows how to fire shell commands. Anything that needs macOS
 API access is its own one-shot binary, shipped by the Swift package
 under `configs/workspace/topology/`:
 
-- **ws-prompt** — SwiftUI overlay for Caps+w / Caps+g · Caps+m / Caps+Shift+w.
-  Captures keys itself; exits on commit / cancel / blur. Manage is a
-  multi-stage state machine that shells out to `ws` and yabai and
-  surfaces captured output in a result panel.
-- **ws-picker** — SwiftUI window picker (Caps+e). Lists every visible
-  yabai window, fuzzy-filters by app + title + space, focuses the pick
-  on Enter. Same overlay shape as ws-prompt — they share the WsUI
-  design tokens (Catppuccin palette, pill geometry, fuzzy matcher).
+- **ws-prompt** — SwiftUI overlay for Caps+f (focus) / Caps+g · Caps+m
+  (go) / Caps+w (manage = the workspace prompt). Captures keys itself;
+  exits on commit / cancel / blur. Manage is a multi-stage state
+  machine that shells out to `ws` and yabai and surfaces captured
+  output in a result panel.
+- **ws-picker** — SwiftUI window picker (Caps+e — the "expose"
+  prompt). Lists every visible yabai window, fuzzy-filters by app +
+  title + space, focuses the pick on Enter. Same overlay shape as
+  ws-prompt — they share the WsUI design tokens (Catppuccin palette,
+  pill geometry, fuzzy matcher).
 - **ws-cheatsheet** — SwiftUI HUD (Caps+;). Single-instance toggle
   via PID file.
-- **ws-snap** — AX-based absolute snap CLI for floating windows. Not
-  bound to a chord; manual use only.
+- **ws-snap** — AX-based absolute snap CLI for floating windows.
+  Invoked by `ws-dir` from Caps+h/j/k/l when the focused window is
+  floating (h=left, l=right, j=center, k=max).
 - **ws-autohide** — only long-running helper. LaunchAgent-managed
   cursor poller (100 ms) that hides each display's SketchyBar pills
   when the cursor approaches its top edge. Yabai display indices are

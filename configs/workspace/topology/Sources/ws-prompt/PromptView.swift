@@ -214,9 +214,20 @@ struct PromptView: View {
     // MARK: - Hint
 
     private var hint: some View {
-        Text("1–0 commits · letters fuzzy-match · ↵ commits · tab cycles · esc cancels")
+        Text(hintText)
             .font(.system(size: 10, weight: .medium))
             .foregroundColor(Catppuccin.overlay0)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var hintText: String {
+        switch controller.mode {
+        case .focus:
+            return "1–0 focuses · letters fuzzy-match · ↵ commits · tab cycles · esc cancels"
+        case .send:
+            return "1–0 sends + follows · letters fuzzy-match · ↵ commits · tab cycles · esc cancels"
+        case .manage:
+            return ""  // unreachable — ManageView owns the manage rendering
+        }
     }
 }
