@@ -82,11 +82,14 @@ if [[ -d "$HOME/.config/zsh/completions" ]]; then
 fi
 
 # Prune broken completion symlinks (e.g. uninstalled Homebrew casks) before compinit.
-# The (N) null-glob qualifier silently expands to nothing when a dir has no _*
-# entries — otherwise zsh's default NOMATCH errors before the loop body runs.
+# Gate on a directory listing instead of a glob: zsh's default NOMATCH errors
+# at glob-expansion time, before any `ls`/`test` guard can intercept. Listing
+# the dir with ls + grep keeps the for-loop's glob safe (only enters the body
+# when ≥1 match exists) and keeps the whole block bash-parseable for CI lint.
 for _zd in $fpath; do
   [[ -d $_zd ]] || continue
-  for _zf in "$_zd"/_*(N); do
+  ls -A "$_zd" 2>/dev/null | grep -q '^_' || continue
+  for _zf in "$_zd"/_*; do
     [[ -L $_zf && ! -e $_zf ]] && command rm -f -- "$_zf" 2>/dev/null
   done
 done
