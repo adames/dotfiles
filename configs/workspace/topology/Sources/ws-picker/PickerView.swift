@@ -2,24 +2,32 @@ import AppKit
 import SwiftUI
 import WsUI
 
-/// SwiftUI overlay for ws-picker. Visual contract matches ws-prompt's
-/// PromptView so the two overlays feel like one tool: same scrim, same
-/// card geometry, same Catppuccin palette + pill style.
+/// SwiftUI overlay for the **change workspace** prompt (binary: ws-picker).
+/// Lists every visible window across every space; selecting one focuses
+/// that window, which yabai follows by jumping to its space. Visual
+/// contract matches ws-prompt's PromptView so the workspace-prompt suite
+/// feels like one tool: same card geometry, Catppuccin palette, pill style.
 struct PickerView: View {
     @ObservedObject var controller: PickerController
 
     private var matches: [WindowItem] { controller.currentMatches() }
 
     var body: some View {
+        // Fill the full hosting view so the VStack's default `.center`
+        // alignment centers the card horizontally on screen — without
+        // maxWidth/maxHeight the ZStack shrinks to the card's 520pt and
+        // NSHostingView pins it to the top-leading corner. Mirrors the
+        // ws-prompt PromptView body for visual parity across overlays.
         ZStack {
             // No background scrim — the card floats over the live desktop.
             // Borderless window is already transparent (WsPickerApp).
             VStack(spacing: 14) {
-                Spacer().frame(height: 96)
+                Spacer().frame(height: PromptStyle.topInset)
                 card
                 Spacer()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var card: some View {
@@ -47,7 +55,7 @@ struct PickerView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Text("pick window")
+            Text("change workspace")
                 .font(PromptStyle.nerd(13))
                 .foregroundColor(Catppuccin.text)
             Spacer()
@@ -56,7 +64,7 @@ struct PickerView: View {
     }
 
     private var modeChip: some View {
-        Text("PICK")
+        Text("CHANGE")
             .font(PromptStyle.nerd(11))
             .foregroundColor(Catppuccin.base)
             .padding(.horizontal, 10)
@@ -97,7 +105,7 @@ struct PickerView: View {
 
     private var displayQuery: String {
         controller.query.isEmpty
-            ? "type app or title · ↵ focus · tab cycles · esc cancels"
+            ? "type app or title · ↵ jumps to that window's workspace · esc cancels"
             : controller.query
     }
 
@@ -181,7 +189,7 @@ struct PickerView: View {
     }
 
     private var hint: some View {
-        Text("letters fuzzy-match · ↵ focuses · tab/⇧tab cycles · esc cancels")
+        Text("letters fuzzy-match · ↵ jumps to that workspace · tab/⇧tab cycles · esc cancels")
             .font(.system(size: 10, weight: .medium))
             .foregroundColor(Catppuccin.overlay0)
             .frame(maxWidth: .infinity, alignment: .leading)

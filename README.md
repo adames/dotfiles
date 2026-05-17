@@ -93,10 +93,10 @@ Caps + Esc                     → no-op (preserved as muscle-memory panic key)
 
 # Workspace prompts — four overlays, one pattern
 # digit commits · letters fuzzy-search · ↵ accepts · esc cancels
-Caps + e                       → expose prompt  — fuzzy-search every visible window
-Caps + f                       → focus prompt   — land on a workspace
-Caps + g  ·  Caps + m          → go prompt      — send window to workspace + follow
-Caps + w                       → manage (workspace) prompt:
+Caps + e                       → change workspace — fuzzy-search every window in every space; ↵ jumps to its space
+Caps + f                       → focus workspace  — land on a workspace
+Caps + g  ·  Caps + m          → go / send window — send window to workspace + follow
+Caps + w                       → edit workspace:
                                   a add · r rename · i icon · d destroy
                                   ⇧L layout (save / load / delete)
                                   v verify · ? doctor

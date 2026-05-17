@@ -39,12 +39,12 @@ cmd + alt + ctrl + shift - tab : "$HOME/.local/bin/ws-focus" last
 # @cs section Workspace Prompts
 # @cs family system
 # @cs sub four overlays · one pattern
-# @cs idea Four overlays, one pattern: digit commits · letters fuzzy-search · ↵ accepts · esc cancels. Pick by intent — expose to see, focus to land, go to send, manage to edit.
-# @cs row caps + e                  :: expose prompt → fuzzy-search every visible window
-# @cs row caps + f                  :: focus prompt → digit · letters → name search + ↵
-# @cs row caps + g  ·  caps + m     :: go prompt → digit (commit + follow) · letters + ↵
-# @cs row caps + w                  :: manage (workspace) prompt → a add · r rename · i icon · d destroy
-# @cs row     (in manage)           :: ⇧L layout save/load/delete · v verify · ? doctor
+# @cs idea Four overlays, one pattern: digit commits · letters fuzzy-search · ↵ accepts · esc cancels. Pick by intent — change to jump to a window's space, focus to land on a space, go to send a window, edit to modify the space set.
+# @cs row caps + e                  :: change workspace → fuzzy-search every window in every space, ↵ jumps to its space
+# @cs row caps + f                  :: focus workspace → digit · letters → name search + ↵
+# @cs row caps + g  ·  caps + m     :: go (send window) → digit (commit + follow) · letters + ↵
+# @cs row caps + w                  :: edit workspace → a add · r rename · i icon · d destroy
+# @cs row     (in edit)             :: ⇧L layout save/load/delete · v verify · ? doctor
 # @cs row esc / click-elsewhere     :: cancel any prompt
 # @cs row —                         :: names cannot start with a digit · all-numeric query = slot index (11+)
 # @cs end
