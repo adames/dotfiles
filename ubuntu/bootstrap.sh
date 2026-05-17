@@ -116,13 +116,6 @@ phase_runtimes() {
   fi
   step "mise install (per ~/.tool-versions / .mise.toml)"
   "$HOME/.local/bin/mise" install || mise install || true
-
-  if ! have claude; then
-    step "installing Claude CLI"
-    curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh
-    bash /tmp/claude-install.sh
-    ok "Claude CLI installed"
-  fi
 }
 
 # ─── phase 5 · configs ──────────────────────────────────────────────────────

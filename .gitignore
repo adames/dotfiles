@@ -9,7 +9,3 @@
 .vscode/
 .idea/
 *.swp
-
-# Claude Code persona file — canonical source lives in private repo
-# adames/personas (~/personas/devops.md), symlinked here at CLAUDE.md.
-CLAUDE.md
