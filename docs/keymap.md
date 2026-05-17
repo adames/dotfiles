@@ -86,15 +86,15 @@ n/p ordering is positional on QWERTY: P sits right of N → "next = right" match
 ### Workspace prompts (SwiftUI overlays)
 
 Four overlays, one pattern: **digit commits · letters fuzzy-search · ↵ accepts · esc cancels**.
-Pick by intent — expose to *see*, focus to *land*, go to *send*, manage to *edit*.
+Pick by intent — change to *jump* to a window's space, focus to *land* on a space, go to *send* a window, edit to *modify* the space set.
 
 | Chord | Action | skhdrc |
 |---|---|---|
-| Caps + e | expose prompt (`ws-picker`) — fuzzy-search every visible window | [:54](../configs/skhdrc:54) |
-| Caps + f | focus prompt (`ws-prompt focus`) — digit / fuzzy name | [:55](../configs/skhdrc:55) |
-| Caps + g | go prompt (`ws-prompt send`) — digit / fuzzy name, follows window | [:56](../configs/skhdrc:56) |
-| Caps + m | go prompt — alias for Caps+g ("m for move") | [:58](../configs/skhdrc:58) |
-| Caps + w | manage (workspace) prompt (`ws-prompt manage`) — add / rename / icon / destroy / layout / verify / doctor | [:59](../configs/skhdrc:59) |
+| Caps + e | change workspace (`ws-picker`) — fuzzy-search every window in every space; ↵ jumps to that window's space | [:54](../configs/skhdrc:54) |
+| Caps + f | focus workspace (`ws-prompt focus`) — digit / fuzzy name | [:55](../configs/skhdrc:55) |
+| Caps + g | go / send window (`ws-prompt send`) — digit / fuzzy name, follows window | [:56](../configs/skhdrc:56) |
+| Caps + m | go / send window — alias for Caps+g ("m for move") | [:58](../configs/skhdrc:58) |
+| Caps + w | edit workspace (`ws-prompt manage`) — add / rename / icon / destroy / layout / verify / doctor | [:59](../configs/skhdrc:59) |
 | Caps + Esc | no-op (muscle-memory preservation; chord must not leak) | [:60](../configs/skhdrc:60) |
 | Caps + ; | cheatsheet toggle (`ws-cheatsheet`) — key code `0x29` | [:64](../configs/skhdrc:64) |
 
@@ -276,7 +276,7 @@ adding a binding — plugins can shadow defaults.
 "I want to bind X to Y" — five steps.
 
 1. **Pick the layer** by what fires the action:
-   - OS-level (focus window, launch app, manage workspace) → skhd (`hyper - X` or `mod - X`).
+   - OS-level (focus window, launch app, edit workspace) → skhd (`hyper - X` or `mod - X`).
    - App launcher with auto-detect logic → bash helper in `configs/workspace/launch-*.sh` + 1 line in `macos/bootstrap.sh`.
    - tmux-multiplexer scope → `tmux.conf` `bind-key`.
    - Shell editing → `zshrc` `bindkey`.
