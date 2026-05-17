@@ -62,23 +62,23 @@ JSON specifics in [`configs/karabiner.md`](../configs/karabiner.md).
 
 | Layer | Role | Examples |
 |---|---|---|
-| **Hyper** | navigate / read-only | focus neighbour (`hjkl` tiled) · snap float (`hjkl` floating), focus workspace (`f`), send window (`g` / `m`), manage workspace (`w`), cycle workspace (`n`/`p`/`tab`), expose (`e`), toggle float (`v`), rotate space (`r`), open app (`t`/`b`/`o`/`,`/`q`), cheatsheet (`;`) |
+| **Hyper** | navigate / read-only | focus neighbour (`hjkl` tiled) · snap float (`hjkl` floating), change workspace (`e`), focus workspace (`f`), go / send window (`g` / `m`), edit workspace (`w`), cycle workspace (`n`/`p`/`tab`), toggle float (`v`), rotate space (`r`), open app (`t`/`b`/`o`/`,`/`q`), cheatsheet (`;`) |
 | **Mod**   | modify / destructive | swap window (`hjkl`), inbox (`q`) |
 
-All workspace operations go through `ws-prompt`, a one-shot SwiftUI
-overlay that captures keystrokes itself and exits on
-commit / cancel / blur / Esc — skhd never holds workspace state. Four
-overlays, one pattern: **digit commits · letters fuzzy-search · ↵
-accepts · esc cancels** — pick by intent.
+All workspace operations go through `ws-prompt` and `ws-picker` —
+one-shot SwiftUI overlays that capture keystrokes themselves and exit
+on commit / cancel / blur / Esc; skhd never holds workspace state.
+Four overlays, one pattern: **digit commits · letters fuzzy-search ·
+↵ accepts · esc cancels** — pick by intent.
 
 | Trigger | Prompt | What |
 |---|---|---|
-| `Caps + e`         | expose | `ws-picker` — fuzzy-search every visible window |
-| `Caps + f`         | focus  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
-| `Caps + g`  ·  `Caps + m` | go (move) | digit commits + follow · letters fuzzy-match name + Enter (`m` is an alias — "move" mnemonic) |
-| `Caps + w`         | manage (workspace) | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
+| `Caps + e`         | change workspace | `ws-picker` — fuzzy-search every window in every space; ↵ jumps to that window's space |
+| `Caps + f`         | focus workspace  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
+| `Caps + g`  ·  `Caps + m` | go (send window) | digit commits + follow · letters fuzzy-match name + Enter (`m` is an alias — "move" mnemonic) |
+| `Caps + w`         | edit workspace | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
 
-The manage overlay is a multi-stage state machine (verb → target /
+The edit overlay is a multi-stage state machine (verb → target /
 payload → confirm → result). Commits shell straight out to the `ws`
 CLI and yabai; stdout + stderr surface in an in-overlay result panel.
 Names are constrained to start with a non-digit (enforced by `ws
@@ -98,8 +98,8 @@ toggles float to commit a staged window into the BSP tiling.
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
 | Hyper/Mod hotkey dispatch | skhd | `skhdrc` |
-| Workspace focus / send / manage overlays | ws-prompt (SwiftUI; manage = multi-stage state machine over `ws`) | `configs/workspace/topology/Sources/ws-prompt/` |
-| Window picker overlay (Caps+e) | ws-picker (SwiftUI; fuzzy-search every visible yabai window) | `configs/workspace/topology/Sources/ws-picker/` |
+| Workspace focus / send / edit overlays | ws-prompt (SwiftUI; edit = multi-stage state machine over `ws`) | `configs/workspace/topology/Sources/ws-prompt/` |
+| Change-workspace overlay (Caps+e) | ws-picker (SwiftUI; fuzzy-search every window in every space, ↵ jumps to its space) | `configs/workspace/topology/Sources/ws-picker/` |
 | New-window staging | bash + yabai signal | `configs/workspace/stage-window.sh` |
 | AX absolute-snap CLI (manual use) | ws-snap | `configs/workspace/topology/Sources/ws-snap/` |
 | SketchyBar per-display autohide | ws-autohide (LaunchAgent) | `configs/workspace/topology/Sources/ws-autohide/` |
@@ -115,16 +115,17 @@ it only knows how to fire shell commands. Anything that needs macOS
 API access is its own one-shot binary, shipped by the Swift package
 under `configs/workspace/topology/`:
 
-- **ws-prompt** — SwiftUI overlay for Caps+f (focus) / Caps+g · Caps+m
-  (go) / Caps+w (manage = the workspace prompt). Captures keys itself;
-  exits on commit / cancel / blur. Manage is a multi-stage state
+- **ws-prompt** — SwiftUI overlay for Caps+f (focus workspace) / Caps+g · Caps+m
+  (go / send window) / Caps+w (edit workspace). Captures keys itself;
+  exits on commit / cancel / blur. Edit is a multi-stage state
   machine that shells out to `ws` and yabai and surfaces captured
   output in a result panel.
-- **ws-picker** — SwiftUI window picker (Caps+e — the "expose"
-  prompt). Lists every visible yabai window, fuzzy-filters by app +
-  title + space, focuses the pick on Enter. Same overlay shape as
-  ws-prompt — they share the WsUI design tokens (Catppuccin palette,
-  pill geometry, fuzzy matcher).
+- **ws-picker** — SwiftUI window picker (Caps+e — the "change workspace"
+  prompt). Lists every visible yabai window across every space,
+  fuzzy-filters by app + title + space; focusing the pick implicitly
+  jumps to that window's space (yabai follows the window). Same
+  overlay shape as ws-prompt — they share the WsUI design tokens
+  (Catppuccin palette, pill geometry, fuzzy matcher).
 - **ws-cheatsheet** — SwiftUI HUD (Caps+;). Single-instance toggle
   via PID file.
 - **ws-snap** — AX-based absolute snap CLI for floating windows.

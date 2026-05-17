@@ -47,7 +47,7 @@ struct ManageView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Text("manage workspaces")
+            Text("edit workspace")
                 .font(PromptStyle.nerd(13))
                 .foregroundColor(Catppuccin.text)
             Spacer()
