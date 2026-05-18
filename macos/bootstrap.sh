@@ -161,6 +161,7 @@ phase_configs() {
   # spaces.json is NOT install_file'd because that would clobber the
   # user's renames; workspace/install.sh below seeds it only when missing.
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
+  install_file "$CONFIGS_DIR/workspace/on-space-created.sh"   "$HOME/.config/workspace/on-space-created.sh"   755
   install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
   install_file "$CONFIGS_DIR/workspace/stage-window.sh"       "$HOME/.config/workspace/stage-window.sh"       755
   install_file "$CONFIGS_DIR/workspace/install.sh"          "$HOME/.config/workspace/install.sh"          755
@@ -207,6 +208,7 @@ phase_configs() {
   # bare "ws1", "ws2", etc. until you `ws name N <name>`.
   install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
   install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
+  install_file "$CONFIGS_DIR/workspace/on-space-created.sh"   "$HOME/.config/workspace/on-space-created.sh"   755
   install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
   # Retired: borders-refresh.sh — JankyBorders removed. Clean up if
   # present from older deploys.
