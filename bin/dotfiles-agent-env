@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# dotfiles-agent-env: Setup environment for AI agents working on dotfiles
+# Usage: eval "$(~/dotfiles/bin/dotfiles-agent-env)"
+# Or: source ~/dotfiles/bin/dotfiles-agent-env
+
+set -euo pipefail
+
+DOTFILES_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PERSONAS_DIR="${PERSONAS_DIR:-$HOME/personas}"
+
+# Detect agent from environment or prompt
+_detect_agent() {
+  if [[ -n "${CLAUDE_CODE:-}" ]]; then
+    echo "claude"
+  elif [[ -n "${WINDSURF:-}" ]] || [[ -n "${CODEIUM:-}" ]]; then
+    echo "windsurf"
+  elif [[ -n "${DEVIN:-}" ]]; then
+    echo "devin"
+  elif [[ -n "${CURSOR:-}" ]]; then
+    echo "cursor"
+  else
+    # Try to detect from process tree
+    if pgrep -x "Claude" >/dev/null 2>&1; then
+      echo "claude"
+    elif pgrep -x "Windsurf" >/dev/null 2>&1; then
+      echo "windsurf"
+    elif pgrep -x "Cursor" >/dev/null 2>&1; then
+      echo "cursor"
+    else
+      echo "unknown"
+    fi
+  fi
+}
+
+AGENT="${1:-$(_detect_agent)}"
+
+# Export environment variables
+echo "# dotfiles agent environment for: $AGENT"
+echo "export DOTFILES_ROOT='$DOTFILES_ROOT'"
+echo "export DOTFILES_AGENT='$AGENT'"
+echo "export DOTFILES_PERSONA='$PERSONAS_DIR/ricer.md'"
+echo "export DOTFILES_WORKSPACE='$PERSONAS_DIR/.$AGENT'"
+
+# Ensure workspace directory exists
+if [[ "$AGENT" != "unknown" ]]; then
+  mkdir -p "$PERSONAS_DIR/.$AGENT"
+fi
+
+# Read settings if available
+if [[ -f "$DOTFILES_ROOT/settings.json" ]]; then
+  echo "# settings.json found at $DOTFILES_ROOT/settings.json"
+elif [[ -f "$DOTFILES_ROOT/.settings.json" ]]; then
+  echo "# Copy .settings.json to settings.json to customize"
+fi
+
+echo "# To use:"
+echo "#   cd \$DOTFILES_ROOT"
+echo "#   cat \$DOTFILES_PERSONA  # View project instructions"

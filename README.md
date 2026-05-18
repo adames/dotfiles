@@ -301,3 +301,41 @@ under `configs/workspace/topology/` and rebuild on every bootstrap.
 - **Drift-resistant.** What's in `configs/` is what gets deployed; nvim
   `init.lua` and `lazy-lock.json` are tracked, so the editor is reproducible.
 - **No paid Apple Developer ID.** Wizard chains through System Settings.
+- **Agent-agnostic.** No AI assistant references in any tracked file.
+
+## AI Agent Collaboration
+
+This repository is designed for collaboration with multiple AI assistants (Claude, Windsurf, Devin, Cursor, etc.) without conflicts or agent-specific branding.
+
+### Agent Workspace Locations
+
+Agent-specific files live in `~/personas/`, **never** in this repository:
+
+| Agent | Workspace Directory | Persona File |
+|-------|---------------------|--------------|
+| Claude | `~/personas/.claude/` | `~/personas/ricer.md` |
+| Windsurf | `~/personas/.windsurf/` | `~/personas/ricer.md` |
+| Devin | `~/personas/.devin/` | `~/personas/ricer.md` |
+| Cursor | `~/personas/.cursor/` | `~/personas/ricer.md` |
+
+The persona file (`~/personas/ricer.md`) contains project-specific instructions for AI assistants working on this dotfiles repository.
+
+### Shared Settings
+
+`.settings.json` (tracked template) → `settings.json` (gitignored, live):
+
+```sh
+# Copy template to live settings
+cp ~/dotfiles/.settings.json ~/dotfiles/settings.json
+
+# Edit as needed
+```
+
+The shared settings file defines allowed tools, workflows, and constraints that apply to all AI agents working on this project.
+
+### Rules for AI Assistants
+
+1. **Leave no trace.** No agent references in commits, PRs, branches, code, or documentation.
+2. **Use intent-based branch names:** `feat/`, `fix/`, `chore/`, `refactor/`, `docs/`, `ci/`.
+3. **Author attribution:** Human identity only; no `Co-Authored-By:` or generation badges.
+4. **Workspace isolation:** Each agent uses its own directory in `~/personas/`, never in `~/dotfiles/`.
