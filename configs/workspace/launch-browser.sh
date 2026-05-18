@@ -8,7 +8,7 @@
 #
 # Browser app detection order (no hardcoding any one app):
 #   1. $WS_BROWSER_APP env var  — explicit override
-#   2. Brave Browser → Arc → Vivaldi → Chrome → Edge → Firefox
+#   2. Helium → Brave Browser → Arc → Vivaldi → Chrome → Edge → Firefox
 #   3. Safari  — always present on macOS, final fallback
 #
 # Same two-window-on-cold-start gotcha as launch-terminal.sh: when the
@@ -21,7 +21,7 @@ set -u
 
 app="${WS_BROWSER_APP:-}"
 if [[ -z "$app" ]]; then
-  for candidate in "Brave Browser" "Arc" "Vivaldi" "Google Chrome" "Microsoft Edge" "Firefox" "Safari"; do
+  for candidate in "Helium" "Brave Browser" "Arc" "Vivaldi" "Google Chrome" "Microsoft Edge" "Firefox" "Safari"; do
     if [[ -d "/Applications/$candidate.app" \
        || -d "$HOME/Applications/$candidate.app" ]]; then
       app="$candidate"
