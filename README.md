@@ -35,7 +35,7 @@ Keyboard-first dev environment. Three rules:
 
 Inside the terminal: Ghostty → tmux (`C-a`) → zsh → Neovim (`Space`
 leader). Shell extras: fzf, zoxide, starship, direnv, vi-mode. Neovim:
-pyright + ruff + dap-python + neotest.
+pyright + ruff via brew; simple lspconfig; terminal-based debug/test.
 
 Deep dive: [`docs/architecture.md`](docs/architecture.md). Permission
 flow: [`docs/wizard.md`](docs/wizard.md). Karabiner JSON:
@@ -116,12 +116,13 @@ C-a  f                         → fzf project sessionizer
 <leader>ff / fg / fb           → fzf files / live-grep / buffers
 <leader>ca / rn / =            → LSP code action / rename / format
 -                              → oil (parent dir as a buffer)
-<leader>ha / hh / 1…4          → harpoon add / menu / jump
+<leader>m{a-z} / '{a-z}         → marks (set / jump) — simpler than harpoon
 <leader>bn / bp / bd / bo      → buffer next / prev / delete / close-others
-]c / [c                        → next / prev git hunk (gitsigns)
-<leader>gs / gh / gp / gb      → git status / stage hunk / preview / blame
-<leader>db / dc / do / di      → DAP breakpoint / continue / over / into
-<leader>tn / tf / ts           → test nearest / file / summary
+<leader>gs                     → git status (fzf-lua)
+
+# Debug & Test (terminal-based, simpler for learning)
+# Use `python -m pdb script.py` or add `breakpoint()` in code
+# Use `pytest -xvs test_file.py` in a tmux split
 ```
 
 ## Workspace identity
@@ -228,12 +229,11 @@ Cheatsheet: `Caps + ;` (live overlay; nothing on disk to inspect).
 ## Testing
 
 ```sh
-tests/run-all.sh        # ~1.5 s — every tests/unit/*.test.sh
+tests/run-all.sh        # ~1.5 s — 4 critical path tests in tests/critical/
 ```
 
-Pure-bash unit tests; stub yabai/osascript via `tests/fixtures/`. CI
-also runs `bash -n`, `jq -e`, a karabiner.json structural invariant,
-and a tmux config parse on every PR.
+Pure-bash critical path tests covering bootstrap idempotency, yabai SA
+drift, config drift, and ws-doctor. CI also runs `bash -n` on all scripts.
 
 `ws verify` runs the end-to-end harness against your real
 `~/.config/workspace/spaces.json` under a trap-based restore — treat
@@ -266,7 +266,7 @@ under `configs/workspace/topology/` and rebuild on every bootstrap.
 | Workspace pill doesn't update on space switch | `sketchybar --trigger workspace_changed`; if no-op, `brew services restart sketchybar` |
 | Workspace chip missing from prompt / tmux | `~/.config/workspace/on-space-changed.sh` to prime current.env |
 | Slot 1 lands on the wrong display | yabai owns space-to-display. Drag the space in Mission Control; yabai persists. |
-| Neovim plugins missing | First-launch install in progress — open `nvim`, wait or `:Lazy sync`, then `:MasonToolsInstall` |
+| Neovim plugins missing | First-launch install in progress — open `nvim`, wait for lazy.nvim to install, then restart |
 | SSH'ing into Ubuntu from Ghostty: doubled chars, broken backspace | `TERM=xterm-ghostty` not in remote terminfo. From local: `infocmp -x xterm-ghostty | ssh user@host -- tic -x -`. Or run bootstrap on the VPS once. |
 
 ## Repository layout
@@ -275,7 +275,7 @@ under `configs/workspace/topology/` and rebuild on every bootstrap.
 ~/dotfiles/
 ├── bootstrap.sh                  # OS dispatcher
 ├── lib/                          # shared bash helpers (logging, install_file, TCC probes)
-├── macos/                        # 5 phases + permissions wizard + yabai-sa-install
+├── macos/                        # 4 phases (sudo, packages, apply, wizard) + yabai-sa-install
 ├── ubuntu/bootstrap.sh           # 6 phases
 ├── docs/{architecture,wizard}.md
 └── configs/
