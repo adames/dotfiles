@@ -44,6 +44,10 @@
 #   ws-doctor --only=NAME    # run a single check (see CHECKS array)
 #   ws-doctor --list         # print check names + descriptions
 #   ws-doctor --quiet        # only print failures
+#   ws-doctor --fix          # after diagnostics, attempt to repair any
+#                            # FAILed check that has a registered fixer.
+#                            # SA reload uses sudo (one password prompt);
+#                            # slot drift is pure jq, no sudo needed.
 #
 # The Hyper layer is discovered at runtime by parsing `.skhdrc`, so adding
 # / removing a Hyper binding automatically updates the collision matrix.
@@ -57,11 +61,13 @@ STRICT=
 ONLY=
 QUIET=
 LIST=
+FIX=
 for arg in "$@"; do
   case "$arg" in
     --strict)  STRICT=1 ;;
     --quiet)   QUIET=1 ;;
     --list)    LIST=1 ;;
+    --fix)     FIX=1 ;;
     --only=*)  ONLY="${arg#--only=}" ;;
     -h|--help)
       sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
@@ -575,9 +581,72 @@ check_yabai_sa_load() {
     # the trailing killall kills the SA-loaded Dock and the new one
     # respawns without the SA. The installer script handles the full
     # sequence (load-sa, sudoers re-pin, yabai restart, verify).
-    FAIL yabai-sa-load "SA not loaded — run: $DOTFILES_DIR/macos/yabai-sa-install.sh --force (re-pins sudoers to the current yabai binary; needs your sudo password once)"
+    FAIL yabai-sa-load "SA not loaded — run: $DOTFILES_DIR/macos/yabai-sa-install.sh --force (re-pins sudoers to the current yabai binary; needs your sudo password once) — or: ws-doctor --fix"
   else
     WARN yabai-sa-load "yabai space --create failed (non-SA reason): ${out:-unknown error}"
+  fi
+}
+
+# ─── 8. slot drift (yabai count vs spaces.json count) ──────────────────────
+# yabai owns space EXISTENCE; spaces.json owns space IDENTITY. The two
+# diverge when:
+#   - Mission Control's + adds a yabai space and the on-space-created.sh
+#     signal handler is missing / not wired / failed
+#   - A pre-PR-#55 `ws add` silently swallowed an SA error and left
+#     identity entries with no matching yabai space (phantom slots)
+#
+# Detection: compare counts. Either direction is drift, surfaced with
+# the matching auto-fix command in the FAIL message.
+check_slot_drift() {
+  local cfg="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
+  command -v yabai >/dev/null 2>&1 || { SKIP slot-drift "yabai not installed"; return; }
+  if ! yabai -m query --windows >/dev/null 2>&1; then
+    SKIP slot-drift "yabai not responding"
+    return
+  fi
+  [[ -r "$cfg" ]] || { SKIP slot-drift "$cfg missing"; return; }
+
+  local yabai_n json_n
+  yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null)
+  json_n=$(jq '.spaces | length' "$cfg" 2>/dev/null || echo 0)
+  [[ -z "$yabai_n" || -z "$json_n" ]] && { WARN slot-drift "could not read both counts"; return; }
+
+  if (( yabai_n == json_n )); then
+    PASS slot-drift "yabai and spaces.json agree on $yabai_n slot(s)"
+  elif (( yabai_n > json_n )); then
+    FAIL slot-drift "yabai has $yabai_n space(s), spaces.json has $json_n — $((yabai_n - json_n)) missing identity entry(ies); fix: ws-doctor --fix (or run: ~/.config/workspace/on-space-created.sh)"
+  else
+    FAIL slot-drift "spaces.json has $json_n entry(ies), yabai has only $yabai_n space(s) — $((json_n - yabai_n)) phantom slot(s); fix: ws-doctor --fix (or run: ~/.config/workspace/on-space-destroyed.sh)"
+  fi
+}
+
+# ─── fixers (paired with checks via FIXERS map) ────────────────────────────
+# Each fix_<name> function takes no args. It's called by the --fix
+# dispatcher AFTER all checks have run, only for checks whose status
+# was FAIL. Fixers print their own banner; their exit code drives the
+# overall --fix exit status (0 = all attempted fixes succeeded).
+
+fix_yabai_sa_load() {
+  info "fix: running yabai-sa-install.sh --force (needs sudo)"
+  sudo "$DOTFILES_DIR/macos/yabai-sa-install.sh" --force
+}
+
+fix_slot_drift() {
+  local handler_grow="$HOME/.config/workspace/on-space-created.sh"
+  local handler_prune="$HOME/.config/workspace/on-space-destroyed.sh"
+  local cfg="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
+  local yabai_n json_n
+  yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null)
+  json_n=$(jq '.spaces | length' "$cfg" 2>/dev/null || echo 0)
+
+  if (( yabai_n > json_n )); then
+    info "fix: yabai has $yabai_n, spaces.json has $json_n — growing identity via on-space-created.sh"
+    [[ -x "$handler_grow" ]] || { err "fix: $handler_grow missing or not executable"; return 1; }
+    "$handler_grow"
+  elif (( json_n > yabai_n )); then
+    info "fix: spaces.json has $json_n, yabai has only $yabai_n — pruning via on-space-destroyed.sh"
+    [[ -x "$handler_prune" ]] || { err "fix: $handler_prune missing or not executable"; return 1; }
+    "$handler_prune"
   fi
 }
 
@@ -590,6 +659,14 @@ declare -a CHECKS=(
   "app-references:check_app_references:tell application targets are installed"
   "yabai-app-casing:check_yabai_app_casing:script .app filters match yabai output"
   "yabai-sa-load:check_yabai_sa_load:yabai SA is loaded (needed for ws add / manage prompt)"
+  "slot-drift:check_slot_drift:yabai space count matches spaces.json slot count"
+)
+
+# Map check-name → fixer-function-name. Only entries here are
+# eligible for --fix dispatch; everything else is detect-only.
+declare -A FIXERS=(
+  ["yabai-sa-load"]="fix_yabai_sa_load"
+  ["slot-drift"]="fix_slot_drift"
 )
 
 if [[ -n "$LIST" ]]; then
@@ -627,6 +704,32 @@ done < "$REPORT"
 
 [[ -z "$QUIET" ]] && printf '\n'
 [[ -z "$QUIET" ]] && info "summary: $passes pass · $warns warn · $fails fail · $skips skip"
+
+# --fix: for each FAILed check that has a fixer in FIXERS, invoke it.
+# Order matters — fix yabai-sa-load BEFORE slot-drift because growing
+# spaces.json via ws add requires yabai's SA to be loaded (well, it
+# doesn't strictly, since WS_GROW_YABAI_ON_ADD=0 disables the yabai
+# call; but the order keeps the user's mental model right). The
+# CHECKS array order is the dispatch order.
+if [[ -n "$FIX" ]] && (( fails > 0 )); then
+  [[ -z "$QUIET" ]] && printf '\n' && banner "--fix" "attempting to repair $fails FAIL(s)"
+  fix_fails=0
+  while IFS=$'\t' read -r status check _; do
+    [[ "$status" == "FAIL" ]] || continue
+    fixer="${FIXERS[$check]:-}"
+    if [[ -z "$fixer" ]]; then
+      warn "no fixer registered for $check; skipping"
+      continue
+    fi
+    if ! "$fixer"; then
+      err "fixer for $check exited non-zero"
+      fix_fails=$((fix_fails + 1))
+    fi
+  done < "$REPORT"
+  [[ -z "$QUIET" ]] && printf '\n' && info "fix summary: $((fails - fix_fails))/$fails repaired"
+  # Re-exit reflects how many fixes failed (not how many checks failed).
+  exit "$fix_fails"
+fi
 
 # Exit code: fails (or fails+warns under --strict).
 if [[ -n "$STRICT" ]]; then
