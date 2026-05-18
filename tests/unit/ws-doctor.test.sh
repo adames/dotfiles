@@ -58,7 +58,7 @@ _assert_contains "SA loaded → PASS line"          "SA loaded"
 # ── FAIL: stub emits the canonical scripting-addition error ─────────────
 export YABAI_STUB_FAIL=sa
 _assert_contains "SA missing → FAIL line"         "SA not loaded"
-_assert_contains "FAIL message points at the fix" "yabai-sa-install.sh --force"
+_assert_contains "FAIL message points at the installer" "yabai-sa-install.sh --force"
 
 # ── WARN: stub exits 1 without the SA-specific stderr ──────────────────
 export YABAI_STUB_FAIL=1
