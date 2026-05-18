@@ -528,6 +528,54 @@ check_yabai_app_casing() {
   fi
 }
 
+# ─── 7. yabai scripting-addition load state ─────────────────────────────────
+# `ws add`, the manage (workspace) prompt's `a`/`d` verbs, and Caps+W → a
+# all path through `yabai -m space --create`, which silently fails when
+# the SA isn't loaded into Dock.app. Most common trigger: brew upgrade
+# yabai changed the binary hash, invalidating the /etc/sudoers.d/yabai
+# pin that lets the boot-time `--load-sa` run without a password.
+#
+# Probe: attempt `space --create`. On success, immediately destroy the
+# new space (last index) and restore focus to the originally-focused
+# space — keeps the side effect to a brief flash. On failure, parse
+# stderr to distinguish a real SA-missing error from yabai-down /
+# SIP-still-enabled / other failure modes.
+check_yabai_sa_load() {
+  command -v yabai >/dev/null 2>&1 || { SKIP yabai-sa-load "yabai not installed"; return; }
+  if ! yabai -m query --windows >/dev/null 2>&1; then
+    SKIP yabai-sa-load "yabai not responding (check: brew services list | grep yabai)"
+    return
+  fi
+
+  local focused_before
+  focused_before=$(yabai -m query --spaces --space 2>/dev/null | jq -r '.index' 2>/dev/null)
+
+  local out exit_code
+  out=$(yabai -m space --create 2>&1)
+  exit_code=$?
+
+  if (( exit_code == 0 )); then
+    # SA loaded — clean up. Destroy the newly-created space (highest index)
+    # and restore focus in case the create/destroy shifted it.
+    local last_idx
+    last_idx=$(yabai -m query --spaces 2>/dev/null | jq 'map(.index) | max' 2>/dev/null)
+    if [[ -n "$last_idx" && "$last_idx" != "$focused_before" ]]; then
+      yabai -m space --destroy "$last_idx" >/dev/null 2>&1 || true
+    fi
+    if [[ -n "$focused_before" ]]; then
+      yabai -m space --focus "$focused_before" >/dev/null 2>&1 || true
+    fi
+    PASS yabai-sa-load "SA loaded (space --create/--destroy round-trip succeeded)"
+    return
+  fi
+
+  if [[ "$out" == *"scripting-addition"* ]]; then
+    FAIL yabai-sa-load "SA not loaded — quick fix: sudo yabai --load-sa && killall Dock; durable (re-pins sudoers): $DOTFILES_DIR/macos/yabai-sa-install.sh --force"
+  else
+    WARN yabai-sa-load "yabai space --create failed (non-SA reason): ${out:-unknown error}"
+  fi
+}
+
 # ─── render ─────────────────────────────────────────────────────────────────
 declare -a CHECKS=(
   "skhd-freshness:check_skhd_freshness:Is skhd serving the current ~/.skhdrc?"
@@ -536,6 +584,7 @@ declare -a CHECKS=(
   "menu-items:check_menu_items:click-menu-item refs resolve in live apps"
   "app-references:check_app_references:tell application targets are installed"
   "yabai-app-casing:check_yabai_app_casing:script .app filters match yabai output"
+  "yabai-sa-load:check_yabai_sa_load:yabai SA is loaded (needed for ws add / manage prompt)"
 )
 
 if [[ -n "$LIST" ]]; then

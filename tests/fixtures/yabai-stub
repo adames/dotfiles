@@ -17,8 +17,13 @@
 #                                simulate "no focused window". Default:
 #                                {"id":12345}.
 #   YABAI_STUB_FAIL              If set non-empty, the action commands
-#                                (`--space N`, `--focus N`) exit 1 to
-#                                simulate yabai not running / SA missing.
+#                                (`--space N`, `--focus N`, `--create`,
+#                                `--destroy`) exit 1 to simulate yabai
+#                                not running. The special value "sa"
+#                                additionally emits the canonical
+#                                scripting-addition error to stderr so
+#                                ws-doctor's SA-load check can be
+#                                exercised end-to-end.
 #   YABAI_STUB_CALL_LOG          File path. If set, every invocation
 #                                is appended as a single line of
 #                                space-separated args. Tests assert
@@ -74,7 +79,13 @@ case "$domain $action" in
       printf '[]\n'
     fi
     ;;
-  "space --focus" | "window --space" | "space --create" | "window --focus")
+  "space --focus" | "window --space" | "space --create" | "window --focus" | "space --destroy")
+    # Special FAIL value "sa" emits the real yabai SA-missing error so
+    # ws-doctor's yabai-sa-load check can be exercised end-to-end.
+    if [[ "${YABAI_STUB_FAIL:-}" == "sa" ]]; then
+      printf 'cannot create space due to an error with the scripting-addition.\n' >&2
+      exit 1
+    fi
     [[ -n "${YABAI_STUB_FAIL:-}" ]] && exit 1
     exit 0
     ;;
