@@ -678,7 +678,7 @@ if [[ -n "$LIST" ]]; then
   exit 0
 fi
 
-[[ -z "$QUIET" ]] && banner "ws-doctor" "keymap / launcher health"
+[[ -z "$QUIET" ]] && section "ws-doctor (keymap / launcher health)"
 
 for spec in "${CHECKS[@]}"; do
   name="${spec%%:*}"; rest="${spec#*:}"
@@ -712,7 +712,7 @@ done < "$REPORT"
 # call; but the order keeps the user's mental model right). The
 # CHECKS array order is the dispatch order.
 if [[ -n "$FIX" ]] && (( fails > 0 )); then
-  [[ -z "$QUIET" ]] && printf '\n' && banner "--fix" "attempting to repair $fails FAIL(s)"
+  [[ -z "$QUIET" ]] && printf '\n' && section "--fix: attempting to repair $fails FAIL(s)"
   fix_fails=0
   while IFS=$'\t' read -r status check _; do
     [[ "$status" == "FAIL" ]] || continue

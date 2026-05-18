@@ -27,7 +27,7 @@ DOTFILES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 FORCE=0
 [[ "${1:-}" == "--force" ]] && FORCE=1
 
-banner "yabai SA installer" "Apple Silicon · macOS Sequoia · run AFTER SIP disable in Recovery"
+section "yabai SA installer (Apple Silicon · macOS Sequoia · run AFTER SIP disable in Recovery)"
 
 # ── 1. Prerequisite checks ────────────────────────────────────────────────
 section "1. Preflight"
@@ -185,4 +185,5 @@ fi
 
 ok "SA verified loaded · yabai can manage spaces"
 
-banner "done" "log out / log in (or run 'yabai --restart-service') and the yabairc 5-space bootstrap will run"
+section "done"
+ok "log out / log in (or run 'yabai --restart-service') and the yabairc 5-space bootstrap will run"

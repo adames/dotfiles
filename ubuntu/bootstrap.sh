@@ -168,7 +168,7 @@ phase_default_shell() {
 
 # ─── entry ──────────────────────────────────────────────────────────────────
 main() {
-  banner "Hyper-key dotfiles bootstrap" "Ubuntu · minerva dev env"
+  section "Hyper-key dotfiles bootstrap (Ubuntu · minerva dev env)"
   export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 
   phase_sparse_checkout

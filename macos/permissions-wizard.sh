@@ -94,7 +94,7 @@ missing_system_extensions() {
 }
 
 main() {
-  banner "TCC permission walk-through" "probes first — only opens panes that need attention"
+  section "TCC permission walk-through (probes first)"
 
   # First-pass probe. Some probes (Karabiner core service) need the app to
   # be running. On re-bootstrap it usually is; on first install it isn't.
@@ -171,9 +171,11 @@ ${se:-    • Karabiner-DriverKit-VirtualHIDDevice}"
   fi
 
   if [[ -z "$need_kick" ]]; then
-    banner "All permissions already in place" "no panes opened — re-run with --force to re-verify"
+    ok "All permissions already in place"
+    step "no panes opened — re-run with --force to re-verify"
   else
-    banner "Done" "press Caps + ; to verify the ws-cheatsheet HUD"
+    ok "Done"
+    step "press Caps + ; to verify the ws-cheatsheet HUD"
   fi
 }
 
