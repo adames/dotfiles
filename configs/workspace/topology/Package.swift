@@ -54,6 +54,7 @@ let package = Package(
         .executable(name: "ws-picker", targets: ["ws-picker"]),
         .executable(name: "ws-autohide", targets: ["ws-autohide"]),
         .executable(name: "ws-snap", targets: ["ws-snap"]),
+        .executable(name: "ws-statusbar", targets: ["ws-statusbar"]),
         .library(name: "DisplayTopology", targets: ["DisplayTopology"]),
         .library(name: "LayoutPolicy", targets: ["LayoutPolicy"]),
         .library(name: "WorkspaceState", targets: ["WorkspaceState"]),
@@ -129,6 +130,11 @@ let package = Package(
         .executableTarget(
             name: "ws-snap",
             path: "Sources/ws-snap"
+        ),
+        .executableTarget(
+            name: "ws-statusbar",
+            dependencies: ["WorkspaceState"],
+            path: "Sources/ws-statusbar"
         ),
         // Test targets use Swift Testing (`import Testing`) rather than
         // XCTest. The framework ships with the Swift toolchain, but

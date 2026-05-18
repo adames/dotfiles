@@ -54,9 +54,10 @@ phase_packages() {
   brew install --quiet koekeishiya/formulae/skhd  >/dev/null || true
   ok "yabai + skhd"
 
-  step "installing SketchyBar (FelixKratz tap) — workspace pill strip"
-  brew install --quiet FelixKratz/formulae/sketchybar >/dev/null || true
-  ok "sketchybar"
+  step "workspace status bar (ws-statusbar) — built from Swift"
+  # ws-statusbar replaces sketchybar for workspace pills
+  # Built as part of topology install below
+  ok "ws-statusbar (topology build)"
 
   # JetBrains Mono Nerd Font: required for the pill strip's PUA glyphs
   # (registered Core Text family is "JetBrainsMono Nerd Font"). Without
@@ -110,11 +111,11 @@ phase_apply() {
   # Retired: yabai owns existence (Mission Control runs it), spaces.json
   # owns optional identity. Idempotent: no-op once gone.
   rm -f "$HOME/.config/yabai/ensure-spaces.sh"
-  # Hammerspoon is retired. ws-autohide (configs/workspace/topology/Sources/
-  # ws-autohide) is the launchd-managed SketchyBar autohide poller, ws-snap
-  # is an AX absolute-snap CLI (not bound to a chord today; new windows
-  # are auto-staged via stage-window.sh from the yabai window_created
-  # signal), and skhd owns the rest of what used to live in
+  # Hammerspoon is retired. ws-autohide is no longer needed since we're
+  # using native macOS status bar (always visible, no autohide needed).
+  # ws-snap is an AX absolute-snap CLI (not bound to a chord today; new
+  # windows are auto-staged via stage-window.sh from the yabai
+  # window_created signal), and skhd owns the rest of what used to live in
   # hammerspoon-init.lua. The cheatsheet HUD is the SwiftUI
   # ws-cheatsheet — all reachable via the topology Swift package below.
 
@@ -134,28 +135,10 @@ phase_apply() {
   fi
   install_file "$CONFIGS_DIR/workspace/cheatsheet.json"   "$HOME/.config/workspace/cheatsheet.json"
 
-  # SketchyBar workspace-pill strip. Persistent workspace indicator,
-  # always visible. Items, colours and plugins live under
-  # configs/sketchybar/. brew service is started by workspace/install.sh.
-  # Per-display autohide is owned by ws-autohide (Swift launchd agent).
-  # paint-all.sh is the centralized batched-repaint plugin subscribed
-  # via the workspace.paint sentinel item in sketchybarrc.
-  install_file "$CONFIGS_DIR/sketchybar/sketchybarrc"               "$HOME/.config/sketchybar/sketchybarrc"               755
-  install_file "$CONFIGS_DIR/sketchybar/colors.sh"                  "$HOME/.config/sketchybar/colors.sh"
-  install_file "$CONFIGS_DIR/sketchybar/plugins/paint-all.sh"       "$HOME/.config/sketchybar/plugins/paint-all.sh"       755
-  install_file "$CONFIGS_DIR/sketchybar/plugins/per-display-pills.sh" "$HOME/.config/sketchybar/plugins/per-display-pills.sh" 755
-  install_file "$CONFIGS_DIR/sketchybar/plugins/clock.sh"           "$HOME/.config/sketchybar/plugins/clock.sh"           755
-  install_file "$CONFIGS_DIR/sketchybar/bootstrap.sh"               "$HOME/.config/sketchybar/bootstrap.sh"               755
-  # Clean up plugins retired across recent refactors:
-  # space.sh (per-pill renderer; replaced by paint-all.sh sentinel),
-  # recenter.sh (split-around-notch geometry; left-aligned now),
-  # notch-detect.sh (gated a visibility cap that's now gone),
-  # ssh-chip.sh (outbound-SSH presence chip; removed as complexity).
-  # Idempotent: no-op once gone.
-  rm -f "$HOME/.config/sketchybar/plugins/space.sh"
-  rm -f "$HOME/.config/sketchybar/plugins/recenter.sh"
-  rm -f "$HOME/.config/sketchybar/plugins/notch-detect.sh"
-  rm -f "$HOME/.config/sketchybar/plugins/ssh-chip.sh"
+  # Workspace status bar (ws-statusbar) — native macOS status bar
+  # No sketchybar configs needed; the Swift app manages its own display.
+  # Clean up old sketchybar configs if present.
+  rm -rf "$HOME/.config/sketchybar"
 
   # Workspace-awareness layer: yabai signal handler + window staging.
   # spaces.json is NOT install_file'd because that would clobber the
@@ -240,9 +223,7 @@ phase_apply() {
   # yabai --window --focus. Single source of truth for the float/tile
   # branch so skhdrc rows stay one-liners.
   install_file "$DOTFILES_DIR/bin/ws-dir"                   "$HOME/.local/bin/ws-dir"                          755
-  # Clean up the notch-padding tuning env retired by the left-aligned
-  # navbar refactor. The file had user edits, but the only consumer
-  # (recenter.sh) is gone — nothing reads it now. Idempotent.
+  # Clean up legacy sketchybar-related files
   rm -f "$HOME/.config/workspace/sketchybar-tuning.env"
   # Retired: ~/.config/borders/ (JankyBorders removed). Clean up if
   # present from older deploys.

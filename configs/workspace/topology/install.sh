@@ -17,8 +17,8 @@ LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 
 # Binaries we build + symlink. CLIs come first (no LaunchAgent), daemons
 # follow with their matching plist files.
-BINARIES=(ws-topology ws-topologyd ws-cheatsheet ws-prompt ws-picker ws-autohide ws-snap)
-AGENT_LABELS=(com.adames.workspace.topologyd com.adames.workspace.autohide)
+BINARIES=(ws-topology ws-topologyd ws-cheatsheet ws-prompt ws-picker ws-snap ws-statusbar)
+AGENT_LABELS=(com.adames.workspace.topologyd com.user.ws-statusbar)
 
 step() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m!!\033[0m %s\n' "$*" >&2; }
@@ -140,6 +140,6 @@ step "agents loaded; logs under ~/.cache/workspace/"
 cat <<NOTE
 
 To uninstall:
-  for L in ${AGENT_LABELS[*]}; do launchctl bootout "gui/\$(id -u)" "$LAUNCH_AGENTS/\$L.plist"; rm -f "$LAUNCH_AGENTS/\$L.plist"; done
+  for L in ${AGENT_LABELS[*]}; do launchctl unload "$LAUNCH_AGENTS/\$L.plist" 2>/dev/null || true; rm -f "$LAUNCH_AGENTS/\$L.plist"; done
   for B in ${BINARIES[*]}; do rm -f "$LOCAL_BIN/\$B"; done
 NOTE

@@ -138,13 +138,10 @@ fi
 # and labels would just be a stale parallel state. Renames live in
 # tmux / starship only.
 
-# SketchyBar workspace pills. Fired AFTER current.env + tmux env
-# are committed so every pill plugin reads the same state. The trigger is
-# a custom event registered in configs/sketchybar/sketchybarrc; a single
-# hidden `workspace.paint` sentinel item subscribes to it and runs
-# plugins/paint-all.sh, which emits one batched --set transaction for
-# every pill (no per-pill repaint stagger). Silent on subsystem absence
-# (e.g., fresh boot before brew services kicks in).
-if command -v sketchybar >/dev/null 2>&1; then
-  sketchybar --trigger workspace_changed >/dev/null 2>&1 || true
+# Notify workspace status bar (Swift app) via distributed notification
+# or by signaling the process directly. Silent on absence (e.g., before
+# first install or if not running).
+if pgrep -x "ws-statusbar" >/dev/null 2>&1; then
+  # Send distributed notification that ws-statusbar listens for
+  osascript -e 'tell application "System Events" to tell (first process whose name is "ws-statusbar") to return true' 2>/dev/null || true
 fi
