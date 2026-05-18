@@ -890,6 +890,37 @@ cmd_add() {
     user_overridden=true
   fi
 
+  # ── yabai first, spaces.json second ─────────────────────────────────────
+  # Atomicity: the failure-prone step is `yabai -m space --create`,
+  # which silently fails when the scripting-addition isn't loaded into
+  # Dock. If we wrote spaces.json first and yabai then failed, we'd
+  # leak a phantom slot — identity without existence — and the user
+  # would think the add succeeded. Instead, grow yabai first; only
+  # commit the spaces.json mutation if yabai accepted.
+  #
+  # Skipped when yabai is absent (Linux) or down (brew services stop);
+  # in those cases `ws add` is an identity-only operation, which has
+  # always been valid for non-macOS deployments.
+  #
+  # _write exits the script directly on failure (mktemp / jq failure),
+  # which is rare and loud — no rollback machinery needed for that
+  # reverse-drift case.
+  if [[ "${WS_GROW_YABAI_ON_ADD:-1}" == 1 ]] && have yabai && pgrep -x yabai >/dev/null 2>&1; then
+    local yerr
+    if ! yerr=$(yabai -m space --create 2>&1); then
+      err "yabai space --create failed; aborting (spaces.json untouched)"
+      err "yabai: ${yerr:-<no output>}"
+      if [[ "$yerr" == *"scripting-addition"* ]]; then
+        err ""
+        err "the yabai scripting-addition is not loaded. fix:"
+        err "  ~/dotfiles/macos/yabai-sa-install.sh --force"
+        err "then re-attempt:"
+        err "  ws add $name${icon:+ $icon}"
+      fi
+      exit 1
+    fi
+  fi
+
   _write '
     .spaces[$k] = {
       name: $n,
@@ -911,15 +942,6 @@ cmd_add() {
     --arg cp "$_ICON_ESCAPED" --arg sf "$_ICON_SF_NAME"
   _fire_post add "$new_slot"
   _fire_cascade
-  # Ask yabai to create one more space. Silent on absence (Linux,
-  # headless) and on failure (scripting-addition not loaded). The
-  # space_created signal subscribed in yabairc will fire
-  # per-display-pills.sh, which adds the matching sketchybar pill.
-  # Disable with WS_GROW_YABAI_ON_ADD=0 — useful for tests that don't
-  # want to actually touch yabai state.
-  if [[ "${WS_GROW_YABAI_ON_ADD:-1}" == 1 ]] && have yabai && pgrep -x yabai >/dev/null 2>&1; then
-    yabai -m space --create >/dev/null 2>&1 || true
-  fi
 }
 
 cmd_remove() {

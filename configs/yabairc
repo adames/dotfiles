@@ -95,6 +95,17 @@ yabai -m signal --add \
   label=ws_prune_space_destroyed \
   action="\"$HOME/.config/workspace/on-space-destroyed.sh\""
 
+# Symmetric handler for the inverse: Mission Control's `+` (or any
+# yabai --space --create that doesn't write spaces.json itself) gains
+# a yabai space but leaves spaces.json behind. on-space-created.sh
+# appends a default identity for any new yabai index missing from
+# spaces.json. Idempotent — no-op if ws add already wrote the entry.
+yabai -m signal --remove ws_grow_space_created 2>/dev/null || true
+yabai -m signal --add \
+  event=space_created \
+  label=ws_grow_space_created \
+  action="\"$HOME/.config/workspace/on-space-created.sh\""
+
 # Prime current.env on startup so new shells have identity metadata immediately.
 [ -x "$HOME/.config/workspace/on-space-changed.sh" ] && \
   "$HOME/.config/workspace/on-space-changed.sh" >/dev/null 2>&1 || true
