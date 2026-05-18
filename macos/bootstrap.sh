@@ -70,14 +70,13 @@ phase_packages() {
   # README.md → "Switching from Docker Desktop".
   local casks="karabiner-elements ghostty raycast orbstack"
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
-    step "installing GUI casks"
-    info "$casks"
+    step "installing GUI casks: $casks"
     # shellcheck disable=SC2086
     brew install --cask $casks 2>&1 | sed "s/^/    /" || true
     ok "casks installed (or already present)"
   else
     warn "skipping cask installs (no TTY or BOOTSTRAP_SKIP_CASKS=1)"
-    info "later: brew install --cask $casks"
+    step "later: brew install --cask $casks"
   fi
 
   # brew can mark a cask installed but skip the .pkg if interrupted mid-sudo.
