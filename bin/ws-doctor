@@ -570,7 +570,12 @@ check_yabai_sa_load() {
   fi
 
   if [[ "$out" == *"scripting-addition"* ]]; then
-    FAIL yabai-sa-load "SA not loaded — quick fix: sudo yabai --load-sa && killall Dock; durable (re-pins sudoers): $DOTFILES_DIR/macos/yabai-sa-install.sh --force"
+    # NB: do NOT recommend `sudo yabai --load-sa && killall Dock` — in
+    # yabai 7.x, --load-sa already injects into the running Dock, so
+    # the trailing killall kills the SA-loaded Dock and the new one
+    # respawns without the SA. The installer script handles the full
+    # sequence (load-sa, sudoers re-pin, yabai restart, verify).
+    FAIL yabai-sa-load "SA not loaded — run: $DOTFILES_DIR/macos/yabai-sa-install.sh --force (re-pins sudoers to the current yabai binary; needs your sudo password once)"
   else
     WARN yabai-sa-load "yabai space --create failed (non-SA reason): ${out:-unknown error}"
   fi
