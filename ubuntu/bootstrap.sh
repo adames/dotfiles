@@ -181,7 +181,7 @@ main() {
 
   section "Done"
   ok "bootstrap complete"
-  info "log out / log in for the shell change to apply"
+  step "log out / log in for the shell change to apply"
 }
 
 main "$@"

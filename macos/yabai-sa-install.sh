@@ -109,7 +109,7 @@ if (( FORCE == 0 )) && pgrep -x yabai >/dev/null 2>&1; then
       yabai -m space --destroy "$POST_COUNT" >/dev/null 2>&1 || true
     fi
     ok "yabai SA already loaded — nothing to do"
-    info "rerun with --force after a yabai upgrade to re-pin the sudoers hash"
+    printf "      rerun with --force after a yabai upgrade to re-pin the sudoers hash\n"
     exit 0
   fi
   step "SA not loaded yet — proceeding with full install"
@@ -117,7 +117,7 @@ fi
 
 # ── 2. Install + load the scripting addition ──────────────────────────────
 section "2. sudo yabai --load-sa"
-info "yabai 7.x installs + loads the SA into Dock.app in one shot; SIP-disable required"
+printf "      yabai 7.x installs + loads the SA into Dock.app in one shot; SIP-disable required\n"
 # Note: the sudoers entry doesn't exist yet, so this WILL prompt for password
 # the first time. After the entry below is in place, future --load-sa runs
 # (including yabai's auto-load at login) are passwordless.
@@ -146,7 +146,7 @@ fi
 
 sudo install -o root -g wheel -m 0440 "$SUDOERS_TMP" /etc/sudoers.d/yabai
 ok "/etc/sudoers.d/yabai installed"
-info "user=$USER_NAME · sha256=${YABAI_HASH:0:12}…"
+printf "      user=$USER_NAME · sha256=${YABAI_HASH:0:12}…\n"
 
 # ── 4. Restart yabai ──────────────────────────────────────────────────────
 section "4. restart yabai"
@@ -180,7 +180,7 @@ step "spaces after test:  $POST_COUNT"
 # Roll back the test create so we don't leave a stray space behind.
 if [ "$POST_COUNT" -gt "$PRE_COUNT" ]; then
   yabai -m space --destroy "$POST_COUNT" 2>/dev/null || true
-  info "destroyed test space; back to $PRE_COUNT"
+  printf "      destroyed test space; back to $PRE_COUNT\n"
 fi
 
 ok "SA verified loaded · yabai can manage spaces"

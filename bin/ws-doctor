@@ -627,7 +627,7 @@ check_slot_drift() {
 # overall --fix exit status (0 = all attempted fixes succeeded).
 
 fix_yabai_sa_load() {
-  info "fix: running yabai-sa-install.sh --force (needs sudo)"
+  printf "fix: running yabai-sa-install.sh --force (needs sudo)\n"
   sudo "$DOTFILES_DIR/macos/yabai-sa-install.sh" --force
 }
 
@@ -640,11 +640,11 @@ fix_slot_drift() {
   json_n=$(jq '.spaces | length' "$cfg" 2>/dev/null || echo 0)
 
   if (( yabai_n > json_n )); then
-    info "fix: yabai has $yabai_n, spaces.json has $json_n — growing identity via on-space-created.sh"
+    printf "fix: yabai has $yabai_n, spaces.json has $json_n — growing identity via on-space-created.sh\n"
     [[ -x "$handler_grow" ]] || { err "fix: $handler_grow missing or not executable"; return 1; }
     "$handler_grow"
   elif (( json_n > yabai_n )); then
-    info "fix: spaces.json has $json_n, yabai has only $yabai_n — pruning via on-space-destroyed.sh"
+    printf "fix: spaces.json has $json_n, yabai has only $yabai_n — pruning via on-space-destroyed.sh\n"
     [[ -x "$handler_prune" ]] || { err "fix: $handler_prune missing or not executable"; return 1; }
     "$handler_prune"
   fi
@@ -698,12 +698,12 @@ while IFS=$'\t' read -r status check msg; do
     FAIL) fails=$((fails + 1))
           err  "$(printf '%-22s %s' "$check" "$msg")" ;;
     SKIP) skips=$((skips + 1))
-          [[ -z "$QUIET" ]] && info "$(printf 'skip %-17s %s' "$check" "$msg")" ;;
+          [[ -z "$QUIET" ]] && printf "skip %-17s %s\n" "$check" "$msg" ;;
   esac
 done < "$REPORT"
 
 [[ -z "$QUIET" ]] && printf '\n'
-[[ -z "$QUIET" ]] && info "summary: $passes pass · $warns warn · $fails fail · $skips skip"
+[[ -z "$QUIET" ]] && printf "summary: %d pass · %d warn · %d fail · %d skip\n" "$passes" "$warns" "$fails" "$skips"
 
 # --fix: for each FAILed check that has a fixer in FIXERS, invoke it.
 # Order matters — fix yabai-sa-load BEFORE slot-drift because growing
@@ -726,7 +726,7 @@ if [[ -n "$FIX" ]] && (( fails > 0 )); then
       fix_fails=$((fix_fails + 1))
     fi
   done < "$REPORT"
-  [[ -z "$QUIET" ]] && printf '\n' && info "fix summary: $((fails - fix_fails))/$fails repaired"
+  [[ -z "$QUIET" ]] && printf '\n' && printf "fix summary: %d/%d repaired\n" "$((fails - fix_fails))" "$fails"
   # Re-exit reflects how many fixes failed (not how many checks failed).
   exit "$fix_fails"
 fi
