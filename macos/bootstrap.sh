@@ -92,9 +92,9 @@ phase_packages() {
   fi
 }
 
-# ─── phase 3 · configs ──────────────────────────────────────────────────────
-phase_configs() {
-  section "Phase 3/5 · deploy configs"
+# ─── phase 3 · apply configs + macOS defaults ───────────────────────────────
+phase_apply() {
+  section "Phase 3/4 · deploy configs & defaults"
 
   # Suppress the macOS login banner ("Last login: ...") that login(1)
   # prints into every new terminal. Empty file is the canonical opt-out.
@@ -298,37 +298,28 @@ EOF
   # nudges running daemons. Safe to re-run; preserves user renames.
   step "configuring workspace-awareness layer"
   "$HOME/.config/workspace/install.sh"
-}
 
-# ─── phase 4 · macOS defaults ───────────────────────────────────────────────
-phase_defaults() {
-  section "Phase 4/5 · macOS defaults"
-
-  # yabai needs "Displays have separate Spaces" (re-read on fresh login only).
+  # macOS defaults (folded into apply phase)
   if [[ "$(defaults read com.apple.spaces spans-displays 2>/dev/null)" != "0" ]]; then
-    step "spans-displays → false"
+    step "spans-displays → false (yabai requirement)"
     defaults write com.apple.spaces spans-displays -bool false
-    info "logout required to take effect"
-  else
-    ok "spans-displays already false"
+    ok "logout required to take effect"
   fi
-
 }
 
-# ─── phase 5 · permission wizard ────────────────────────────────────────────
+# ─── phase 4 · permission wizard ────────────────────────────────────────────
 phase_wizard() {
-  section "Phase 5/5 · permission wizard"
+  section "Phase 4/4 · permission wizard"
   step "handing off to permissions-wizard.sh"
   exec "$DOTFILES_DIR/macos/permissions-wizard.sh"
 }
 
 # ─── entry ──────────────────────────────────────────────────────────────────
 main() {
-  banner "Hyper-key dotfiles bootstrap" "macOS · Apple Silicon"
+  section "Hyper-key dotfiles bootstrap (macOS)"
   phase_sudo
   phase_packages
-  phase_configs
-  phase_defaults
+  phase_apply    # configs + defaults combined
   phase_wizard   # exec-replaces
 }
 
