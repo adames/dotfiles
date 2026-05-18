@@ -144,32 +144,7 @@ require("lazy").setup({
       map("n", "<leader>ff", "<cmd>FzfLua files<cr>",     { desc = "Files" })
       map("n", "<leader>fg", "<cmd>FzfLua live_grep<cr>", { desc = "Live grep" })
       map("n", "<leader>fb", "<cmd>FzfLua buffers<cr>",   { desc = "Buffers" })
-    end,
-  },
-
-  -- Git gutter: shows added/modified/removed lines in sidebar
-  -- <leader>gh stage hunk, <leader>gp preview, <leader>gr reset, <leader>gb blame
-  {
-    "lewis6991/gitsigns.nvim",
-    config = function()
-      local gs = require("gitsigns")
-      gs.setup({
-        on_attach = function(bufnr)
-          local map = function(k, fn, d) vim.keymap.set("n", k, fn, { buffer = bufnr, desc = d }) end
-          map("]c", function()
-            if vim.wo.diff then vim.cmd("normal! ]c") else gs.nav_hunk("next") end
-          end, "Next hunk")
-          map("[c", function()
-            if vim.wo.diff then vim.cmd("normal! [c") else gs.nav_hunk("prev") end
-          end, "Prev hunk")
-          map("<leader>gh", gs.stage_hunk,   "Stage hunk")
-          map("<leader>gp", gs.preview_hunk, "Preview hunk")
-          map("<leader>gr", gs.reset_hunk,   "Reset hunk")
-          map("<leader>gb", function() gs.blame_line({ full = true }) end, "Blame line")
-          map("<leader>gd", gs.diffthis,     "Diff this")
-        end,
-      })
-      vim.keymap.set("n", "<leader>gs", "<cmd>FzfLua git_status<cr>", { desc = "Git status" })
+      map("n", "<leader>gs", "<cmd>FzfLua git_status<cr>", { desc = "Git status" })
     end,
   },
 
