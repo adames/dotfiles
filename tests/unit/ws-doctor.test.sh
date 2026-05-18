@@ -33,14 +33,15 @@ pass=0; fail=0
 # guards against patterns that start with `-`.
 _grep_qF() { command grep -qF -- "$1" "${2:-/dev/null}"; }
 
-# Run ws-doctor --only=yabai-sa-load and assert the result line
-# matches a content needle. We don't use --quiet because it suppresses
-# PASS/SKIP lines and we want to see them.
+# Run ws-doctor with --only=<check> and assert the result line contains
+# a needle. Defaults to yabai-sa-load for backward compatibility with
+# the existing call sites; pass a third arg to target a different check.
+# No --quiet (it suppresses PASS / SKIP).
 _assert_contains() {
-  local label="$1" needle="$2"
+  local label="$1" needle="$2" check="${3:-yabai-sa-load}"
   : > "$YABAI_STUB_CALL_LOG"
   local out
-  out=$("$DOCTOR" --only=yabai-sa-load 2>&1 || true)
+  out=$("$DOCTOR" "--only=$check" 2>&1 || true)
   if command grep -qF -- "$needle" <<<"$out"; then
     pass=$((pass + 1))
     printf 'ok   %s\n' "$label"
@@ -58,7 +59,7 @@ _assert_contains "SA loaded → PASS line"          "SA loaded"
 # ── FAIL: stub emits the canonical scripting-addition error ─────────────
 export YABAI_STUB_FAIL=sa
 _assert_contains "SA missing → FAIL line"         "SA not loaded"
-_assert_contains "FAIL message points at the fix" "yabai-sa-install.sh --force"
+_assert_contains "FAIL message points at the installer" "yabai-sa-install.sh --force"
 
 # ── WARN: stub exits 1 without the SA-specific stderr ──────────────────
 export YABAI_STUB_FAIL=1
@@ -79,6 +80,33 @@ else
   printf 'FAIL probe restores focus to original space\n  yabai log:\n%s\n' \
     "$(cat "$YABAI_STUB_CALL_LOG")"
 fi
+
+# ── slot-drift check ───────────────────────────────────────────────────
+# WS_CONFIG-driven; seed a spaces.json with K slots, point yabai stub
+# at K' spaces, assert the check picks the right verdict.
+unset YABAI_STUB_FAIL
+unset YABAI_STUB_FOCUSED_SPACE
+export WS_CONFIG="$TMP/spaces.json"
+_seed_spaces() {
+  local n="$1" entries=""
+  for (( i = 1; i <= n; i++ )); do
+    [[ -n "$entries" ]] && entries+=","
+    entries+="\"$i\":{\"name\":\"slot$i\",\"color\":\"#cba6f7\",\"stableLogicalLabel\":\"slot$i\",\"iconSpec\":{\"kind\":\"none\",\"fallbackSfSymbol\":\"stop.fill\",\"fallbackText\":\"S$i\",\"userOverridden\":false}}"
+  done
+  printf '{"palette":"catppuccin-mocha","spaces":{%s}}\n' "$entries" > "$WS_CONFIG"
+}
+
+_seed_spaces 3
+export YABAI_STUB_SPACES_JSON='[{"index":1,"display":1},{"index":2,"display":1},{"index":3,"display":1}]'
+_assert_contains "drift matched (yabai=3, json=3) → PASS" "agree on 3" slot-drift
+
+_seed_spaces 2
+export YABAI_STUB_SPACES_JSON='[{"index":1,"display":1},{"index":2,"display":1},{"index":3,"display":1},{"index":4,"display":1}]'
+_assert_contains "drift: yabai>json → FAIL names missing count" "missing identity entry" slot-drift
+
+_seed_spaces 5
+export YABAI_STUB_SPACES_JSON='[{"index":1,"display":1},{"index":2,"display":1},{"index":3,"display":1}]'
+_assert_contains "drift: json>yabai → FAIL describes phantom slots" "phantom slot" slot-drift
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 (( fail == 0 ))
