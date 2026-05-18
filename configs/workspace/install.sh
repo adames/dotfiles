@@ -58,7 +58,8 @@ fi
 # ── 2.6 · post-mutate hook stub (gitconfig.local-style: never clobber) ───
 # The CLI invokes this hook after every successful mutation. Empty by
 # default; users (or other programs) populate it to integrate with
-# sketchybar pill management, notifications, logging, etc.
+# notifications, logging, etc. The workspace status bar (ws-statusbar)
+# listens for workspace changes via polling and distributed notifications.
 mkdir -p "$HOME/.config/workspace/hooks"
 hook="$HOME/.config/workspace/hooks/post-mutate.sh"
 if [[ ! -f "$hook" ]]; then
@@ -69,34 +70,24 @@ if [[ ! -f "$hook" ]]; then
 #                        reverse|reorder|theme|edit|reset|layout)
 #   $2..$N = slot indices touched (varies per subcommand)
 #
-# Default behavior: keep SketchyBar's pill set in lock-step with
-# spaces.json on add/remove. All other mutations only need a repaint,
-# which the cascade (on-space-changed.sh) already fires via the
-# workspace_changed event.
+# The workspace status bar (ws-statusbar) is a Swift app that polls
+# spaces.json and shows workspace pills in the macOS status bar.
+# It updates automatically; no explicit hook action needed.
 #
 # Customize freely — this file is per-machine, never clobbered.
 
 set -u
 cmd="${1:-}"
 
-if ! command -v sketchybar >/dev/null 2>&1; then exit 0; fi
-if ! pgrep -x sketchybar >/dev/null 2>&1; then exit 0; fi
+# Example: send a notification on workspace add
+# case "$cmd" in
+#   add) osascript -e 'display notification "New workspace created" with title "Workspace"' ;;
+# esac
 
-plugin_dir="$HOME/.config/sketchybar/plugins"
-
-case "$cmd" in
-  add|remove|swap|move|rotate|reverse|reorder|theme|edit|reset|layout)
-    # per-display-pills.sh is the single source of truth for "what
-    # pills exist and where". It adds/removes items as needed, applies
-    # display=<N> per item, hides overflow on notched laptops, then
-    # triggers workspace_changed so paint-all.sh repaints.
-    [[ -x "$plugin_dir/per-display-pills.sh" ]] && "$plugin_dir/per-display-pills.sh"
-    ;;
-esac
 exit 0
 EOF
   chmod 755 "$hook"
-  ok "created ~/.config/workspace/hooks/post-mutate.sh (sketchybar-aware default)"
+  ok "created ~/.config/workspace/hooks/post-mutate.sh (default)"
 fi
 
 # ── 3 · dependency assertions ────────────────────────────────────────────
@@ -108,11 +99,11 @@ if (( ${#missing[@]} )); then
   warn "missing: ${missing[*]} — install via brew or run macos/bootstrap.sh"
 fi
 
-# SketchyBar drives the workspace-pill strip. Optional —
-# system stays usable without it (on-space-changed.sh is silent on
-# absence), but the persistent indicator is gone until installed.
-if ! command -v sketchybar >/dev/null 2>&1; then
-  warn "sketchybar not installed — workspace pills disabled. Install: brew tap FelixKratz/formulae && brew install sketchybar"
+# ws-statusbar shows workspace pills in the macOS status bar.
+# Built from Swift; no brew dependency. It will be started by
+# launchd after the topology build step in bootstrap.
+if [[ ! -x "$HOME/.local/bin/ws-statusbar" ]]; then
+  step "ws-statusbar not yet built — will be installed by topology build"
 fi
 
 # tmux ≥ 3.2 required for #{E:VAR} interpolation in statusline.
@@ -135,31 +126,16 @@ if pgrep -x skhd >/dev/null 2>&1; then
   skhd --reload >/dev/null 2>&1 || warn "skhd --reload failed"
 fi
 
-# Start (or restart) sketchybar via its brew service so the workspace
-# pills appear. brew services restart is idempotent — replaces the
-# running instance cleanly with the (re-read) sketchybarrc.
-if command -v sketchybar >/dev/null 2>&1; then
-  step "(re)starting sketchybar service"
-  brew services restart sketchybar >/dev/null 2>&1 || warn "sketchybar restart failed"
+# Start (or restart) ws-statusbar via launchd so the workspace
+# pills appear in the macOS menu bar.
+launchd_plist="$HOME/Library/LaunchAgents/com.user.ws-statusbar.plist"
+if [[ -f "$launchd_plist" ]] && [[ -x "$HOME/.local/bin/ws-statusbar" ]]; then
+  step "(re)starting ws-statusbar service"
+  launchctl unload "$launchd_plist" 2>/dev/null || true
+  launchctl load "$launchd_plist" 2>/dev/null || warn "ws-statusbar launchctl load failed"
 fi
 
-# Re-fire per-display-pills.sh after sketchybar settles.
-#
-# sketchybarrc invokes this script on bar startup, but its 3-second
-# yabai-RPC retry loop can time out if yabai is still booting from
-# the restart above. When that happens, per-display-pills.sh bails
-# without ever running `sketchybar --add item "workspace.name.<D>"` —
-# the per-display name chip never gets created, and stays missing
-# until a yabai display_* or space_created/destroyed signal happens
-# to re-fire the script (which routine workspace focus changes do
-# NOT). `ws refresh` (and `ws verify` as a side-effect) call this
-# script explicitly for the same reason; do it here so a fresh
-# bootstrap is sufficient on its own.
-PILLS="$HOME/.config/sketchybar/plugins/per-display-pills.sh"
-[[ -x "$PILLS" ]] && "$PILLS" >/dev/null 2>&1 || true
-
-# Prime current.env so the very first new shell already has metadata,
-# AND so paint-all.sh labels the chips per-display-pills.sh just created.
+# Prime current.env so the very first new shell already has metadata.
 "$SELF_DIR/on-space-changed.sh" >/dev/null 2>&1 || true
 
 ok "workspace system ready"
