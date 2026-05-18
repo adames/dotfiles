@@ -1,9 +1,4 @@
-# Shared bootstrap helpers. Source: `. "$DOTFILES_DIR/lib/common.sh"`.
-#
-# `set -u` here catches typos in this file AND any caller that sources us
-# without its own `set -u` — every current caller already runs under -u
-# or -euo pipefail so this is a no-op today; the value is in keeping
-# future callers honest.
+# Shared bootstrap helpers. Source: `. "$DOTFILES_DIR/lib/common.sh"`
 
 set -u
 
@@ -11,45 +6,26 @@ set -u
 : "${CONFIGS_DIR:=$DOTFILES_DIR/configs}"
 : "${DOTFILES_REPO:=git@github.com:adames/dotfiles.git}"
 
-# Colour off when stdout isn't a tty or NO_COLOR is set.
+# Colour off when stdout isn't a tty or NO_COLOR is set
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
-  C_RESET=$'\033[0m';   C_DIM=$'\033[2m';     C_BOLD=$'\033[1m'
-  C_BLUE=$'\033[34m';   C_GREEN=$'\033[32m';  C_YELLOW=$'\033[33m'
-  C_RED=$'\033[31m';    C_CYAN=$'\033[36m';   C_MAGENTA=$'\033[35m'
+  C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'
+  C_BLUE=$'\033[34m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_RED=$'\033[31m'
 else
-  C_RESET=''; C_DIM=''; C_BOLD=''
-  C_BLUE=''; C_GREEN=''; C_YELLOW=''; C_RED=''; C_CYAN=''; C_MAGENTA=''
+  C_RESET=''; C_BOLD=''; C_BLUE=''; C_GREEN=''; C_YELLOW=''; C_RED=''
 fi
 
-banner() {
-  local rule; rule=$(printf '═%.0s' {1..68})
-  printf '\n%s%s%s\n' "$C_BOLD$C_MAGENTA" "$rule" "$C_RESET"
-  printf '  %s%s%s\n' "$C_BOLD" "$1" "$C_RESET"
-  [[ -n "${2:-}" ]] && printf '  %s%s%s\n' "$C_DIM" "$2" "$C_RESET"
-  printf '%s%s%s\n\n' "$C_BOLD$C_MAGENTA" "$rule" "$C_RESET"
-}
+section() { printf '\n%s==>%s %s\n' "$C_BOLD" "$C_RESET" "$*"; }
 
-section() {
-  local rule; rule=$(printf '━%.0s' {1..68})
-  printf '\n%s%s%s\n  %s%s%s\n%s%s%s\n' \
-    "$C_BOLD$C_CYAN" "$rule" "$C_RESET" \
-    "$C_BOLD" "$1" "$C_RESET" \
-    "$C_DIM"  "$rule" "$C_RESET"
-}
-
-step() { printf '%s•%s %s\n'   "$C_BLUE"   "$C_RESET" "$*"; }
-ok()   { printf '%s✓%s %s\n'   "$C_GREEN"  "$C_RESET" "$*"; }
-warn() { printf '%s!%s %s\n'   "$C_YELLOW" "$C_RESET" "$*" >&2; }
-err()  { printf '%s✗%s %s\n'   "$C_RED"    "$C_RESET" "$*" >&2; }
-info() { printf '%s  ↳ %s%s\n' "$C_DIM"    "$*"       "$C_RESET"; }
+step() { printf '%s-->%s %s\n' "$C_BLUE" "$C_RESET" "$*"; }
+ok()   { printf '%s[ok]%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
+warn() { printf '%s[warn]%s %s\n' "$C_YELLOW" "$C_RESET" "$*" >&2; }
+err()  { printf '%s[err]%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; }
 log()  { step "$@"; }   # back-compat alias
 
-have()    { command -v "$1" >/dev/null 2>&1; }
+have() { command -v "$1" >/dev/null 2>&1; }
 has_tty() { [[ -t 0 && -t 1 ]]; }
 
-# install_file <src> <dst> [mode]  — byte-compare; no-op if identical.
-# No backup of an existing dst: source-of-truth is configs/ under git, history
-# lives in the repo, not in *.bak clutter scattered across home directories.
+# install_file <src> <dst> [mode] — byte-compare; no-op if identical
 install_file() {
   local src="$1" dst="$2" mode="${3:-644}"
   [[ -f "$src" ]] || { warn "skip $dst (source missing: $src)"; return 0; }
@@ -59,4 +35,3 @@ install_file() {
   ok "installed ${dst/#$HOME/~}"
 }
 
-ensure_dir() { mkdir -p "$1"; }

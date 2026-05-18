@@ -281,7 +281,7 @@ phase_configs() {
   # Editor — lazy.nvim self-installs on first nvim launch
   install_file "$CONFIGS_DIR/nvim-init.lua"              "$HOME/.config/nvim/init.lua"
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json"        "$HOME/.config/nvim/lazy-lock.json"
-  ensure_dir "$HOME/.config/nvim/after/plugin"
+  mkdir -p "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"           "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
   # User info lives in ~/.gitconfig.local (not tracked, [include]'d by gitconfig).

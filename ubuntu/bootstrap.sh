@@ -137,7 +137,7 @@ phase_configs() {
   install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
   install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
 
-  ensure_dir "$HOME/.config/nvim/after/plugin"
+  mkdir -p "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-init.lua"       "$HOME/.config/nvim/init.lua"
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"    "$HOME/.config/nvim/after/plugin/keymaps.lua"
