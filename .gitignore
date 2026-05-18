@@ -9,3 +9,35 @@
 .vscode/
 .idea/
 *.swp
+
+# ============================================================================
+# AI AGENT WORKSPACES — These belong in ~/personas/.<agent>/, NOT in this repo
+# See: README.md → AI Agent Collaboration
+# ============================================================================
+
+# Agent directories (if accidentally created here)
+.agent/
+.claude/
+.windsurf/
+.windsurf-cascade/
+.devin/
+.cursor/
+.aider/
+.github-copilot/
+.codewhisperer/
+
+# Agent instruction files (if accidentally created here)
+AGENT.md
+AGENTS.md
+CLAUDE.md
+WINDSURF.md
+DEVIN.md
+.cursorrules
+.agentrc
+
+# Agent settings (per-agent or shared live copies)
+.settings.local.json
+settings.local.json
+settings.*.json
+*.agent.json
+.agent.env
