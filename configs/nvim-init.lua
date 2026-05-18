@@ -13,7 +13,7 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
--- @cs annotations: parsed by cheatsheet-gen.py into HUD cards.
+-- Annotations below (@cs ...) are parsed by cheatsheet-gen.py into HUD cards.
 
 -- @cs section Vim · Motion
 -- @cs family vim
