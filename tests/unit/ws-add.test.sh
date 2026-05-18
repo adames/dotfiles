@@ -26,6 +26,23 @@ trap 'rm -rf "$TMP"' EXIT INT TERM
 # yabai stub via PATH override.
 ln -sf "$FIXTURES/yabai-stub" "$TMP/yabai"
 
+# pgrep stub: cmd_add's yabai-create gate is `have yabai && pgrep -x yabai
+# >/dev/null`. On Linux CI there's no actual yabai process running, so the
+# gate would skip the branch we're trying to test and the test would
+# trivially pass with the yabai-create code never executing. Pretend
+# yabai is running (PID 12345) when queried for yabai; fall through to
+# the real pgrep for anything else.
+cat > "$TMP/pgrep" <<'EOF'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  case "$arg" in
+    yabai) echo 12345; exit 0 ;;
+  esac
+done
+exec /usr/bin/pgrep "$@" 2>/dev/null
+EOF
+chmod 755 "$TMP/pgrep"
+
 # Sandbox the ws env so the test never touches the real spaces.json
 # or fires real cascade/hook scripts.
 export WS_CONFIG="$TMP/spaces.json"
