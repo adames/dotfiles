@@ -43,10 +43,11 @@ phase_packages() {
 
   step "installing CLI formulae"
   brew install --quiet \
-    git zsh tmux neovim direnv jq starship fzf \
+    git zsh tmux neovim direnv starship fzf \
     ripgrep fd git-delta zoxide gh lazygit \
+    pyright ruff \
     zsh-autosuggestions zsh-syntax-highlighting >/dev/null
-  ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, …)"
+  ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, pyright, ruff …)"
 
   step "installing yabai + skhd (koekeishiya tap)"
   brew install --quiet koekeishiya/formulae/yabai >/dev/null || true

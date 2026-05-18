@@ -73,7 +73,7 @@ require("lazy").setup({
     config = function() vim.cmd.colorscheme("catppuccin-mocha") end,
   },
 
-  -- Icons for fzf-lua, which-key, oil. Mocks nvim-web-devicons so plugins
+  -- Icons for fzf-lua and oil.nvim. Mocks nvim-web-devicons so plugins
   -- that look for it by name still resolve.
   {
     "echasnovski/mini.icons",
@@ -99,71 +99,40 @@ require("lazy").setup({
     end,
   },
 
-  -- mason installs LSP servers; mason-tool-installer handles non-LSP tools (debugpy).
+  -- Simple LSP using system-installed pyright and ruff (brew)
+  -- No mason auto-install complexity - just works if tools are in PATH
   {
     "neovim/nvim-lspconfig",
-    dependencies = {
-      { "williamboman/mason.nvim",          opts = {} },
-      { "williamboman/mason-lspconfig.nvim", opts = { ensure_installed = { "pyright", "ruff", "ts_ls", "bashls" } } },
-      { "WhoIsSethDaniel/mason-tool-installer.nvim", opts = { ensure_installed = { "debugpy" } } },
-      "hrsh7th/cmp-nvim-lsp",
-    },
     config = function()
-      vim.lsp.config("*", { capabilities = require("cmp_nvim_lsp").default_capabilities() })
-
+      local lspconfig = require("lspconfig")
+      
+      -- Enable LSP keymaps when attached
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("UserLspAttach", { clear = true }),
         callback = function(ev)
           local map = function(k, fn, d) vim.keymap.set("n", k, fn, { buffer = ev.buf, desc = d }) end
-          map("gd",         vim.lsp.buf.definition,  "Definition")
-          map("gr",         vim.lsp.buf.references,  "References")
-          map("K",          vim.lsp.buf.hover,        "Hover")
-          map("<leader>ca", vim.lsp.buf.code_action,  "Code action")
-          map("<leader>rn", vim.lsp.buf.rename,       "Rename")
-          map("<leader>=",  function() vim.lsp.buf.format({ async = false }) end, "Format")
+          map("gd", vim.lsp.buf.definition, "Go to definition")
+          map("gr", vim.lsp.buf.references, "Find references")
+          map("K",  vim.lsp.buf.hover,       "Hover documentation")
+          map("<leader>rn", vim.lsp.buf.rename, "Rename symbol")
+          map("<leader>=", vim.lsp.buf.format, "Format buffer")
         end,
       })
-
-      -- Ruff handles Python format-on-save (pyright doesn't format).
-      vim.api.nvim_create_autocmd("BufWritePre", {
-        pattern = "*.py",
-        callback = function()
-          vim.lsp.buf.format({
-            filter = function(c) return c.name == "ruff" end,
-            timeout_ms = 1000,
-          })
-        end,
-      })
-    end,
-  },
-
-  {
-    "hrsh7th/nvim-cmp",
-    dependencies = { "hrsh7th/cmp-nvim-lsp", "L3MON4D3/LuaSnip", "saadparwaiz1/cmp_luasnip" },
-    config = function()
-      local cmp     = require("cmp")
-      local luasnip = require("luasnip")
-      cmp.setup({
-        snippet = { expand = function(args) luasnip.lsp_expand(args.body) end },
-        mapping = cmp.mapping.preset.insert({
-          ["<C-b>"]     = cmp.mapping.scroll_docs(-4),
-          ["<C-f>"]     = cmp.mapping.scroll_docs(4),
-          ["<C-Space>"] = cmp.mapping.complete(),
-          ["<C-e>"]     = cmp.mapping.abort(),
-          ["<CR>"]      = cmp.mapping.confirm({ select = true }),
-          ["<Tab>"] = cmp.mapping(function(fallback)
-            if cmp.visible() then cmp.select_next_item()
-            elseif luasnip.expand_or_jumpable() then luasnip.expand_or_jump()
-            else fallback() end
-          end, { "i", "s" }),
-          ["<S-Tab>"] = cmp.mapping(function(fallback)
-            if cmp.visible() then cmp.select_prev_item()
-            elseif luasnip.jumpable(-1) then luasnip.jump(-1)
-            else fallback() end
-          end, { "i", "s" }),
-        }),
-        sources = cmp.config.sources({ { name = "nvim_lsp" }, { name = "luasnip" } }),
-      })
+      
+      -- Pyright for Python type checking
+      if vim.fn.executable("pyright-langserver") == 1 then
+        lspconfig.pyright.setup({})
+      end
+      
+      -- Ruff for Python linting/formatting
+      if vim.fn.executable("ruff-lsp") == 1 then
+        lspconfig.ruff_lsp.setup({})
+      end
+      
+      -- Bash
+      if vim.fn.executable("bash-language-server") == 1 then
+        lspconfig.bashls.setup({})
+      end
     end,
   },
 
@@ -178,6 +147,8 @@ require("lazy").setup({
     end,
   },
 
+  -- Git gutter: shows added/modified/removed lines in sidebar
+  -- <leader>gh stage hunk, <leader>gp preview, <leader>gr reset, <leader>gb blame
   {
     "lewis6991/gitsigns.nvim",
     config = function()
@@ -191,35 +162,20 @@ require("lazy").setup({
           map("[c", function()
             if vim.wo.diff then vim.cmd("normal! [c") else gs.nav_hunk("prev") end
           end, "Prev hunk")
-          map("<leader>gh", gs.stage_hunk,                                "Stage hunk")
-          map("<leader>gp", gs.preview_hunk,                              "Preview hunk")
-          map("<leader>gr", gs.reset_hunk,                                "Reset hunk")
+          map("<leader>gh", gs.stage_hunk,   "Stage hunk")
+          map("<leader>gp", gs.preview_hunk, "Preview hunk")
+          map("<leader>gr", gs.reset_hunk,   "Reset hunk")
           map("<leader>gb", function() gs.blame_line({ full = true }) end, "Blame line")
-          map("<leader>gd", gs.diffthis,                                  "Diff this")
+          map("<leader>gd", gs.diffthis,     "Diff this")
         end,
       })
-      -- Repo-level status panel (uses fzf-lua already loaded).
       vim.keymap.set("n", "<leader>gs", "<cmd>FzfLua git_status<cr>", { desc = "Git status" })
     end,
   },
 
-  -- Pinned-file jumps. <leader>ha add · <leader>hh menu · <leader>1..4 jump.
-  {
-    "ThePrimeagen/harpoon",
-    branch = "harpoon2",
-    dependencies = { "nvim-lua/plenary.nvim" },
-    config = function()
-      local harpoon = require("harpoon")
-      harpoon:setup()
-      local map = vim.keymap.set
-      map("n", "<leader>ha", function() harpoon:list():add() end,                                     { desc = "Add file" })
-      map("n", "<leader>hh", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end,             { desc = "Menu" })
-      map("n", "<leader>1",  function() harpoon:list():select(1) end,                                  { desc = "Harpoon 1" })
-      map("n", "<leader>2",  function() harpoon:list():select(2) end,                                  { desc = "Harpoon 2" })
-      map("n", "<leader>3",  function() harpoon:list():select(3) end,                                  { desc = "Harpoon 3" })
-      map("n", "<leader>4",  function() harpoon:list():select(4) end,                                  { desc = "Harpoon 4" })
-    end,
-  },
+  -- Simple marks for file navigation (replaces harpoon)
+  -- Use m{a-z} to set mark, '{a-z} to jump to mark
+  -- Much simpler, no plugin needed
 
   -- File explorer as a buffer. `-` opens the parent dir; edit names like text.
   {
@@ -233,103 +189,10 @@ require("lazy").setup({
     end,
   },
 
-  {
-    "folke/which-key.nvim",
-    event = "VeryLazy",
-    opts = {
-      preset = "modern",
-      delay  = 300,
-      spec   = {
-        { "<leader>f", group = "find"    },
-        { "<leader>l", group = "lsp"     },
-        { "<leader>d", group = "debug"   },
-        { "<leader>t", group = "test"    },
-        { "<leader>g", group = "git"     },
-        { "<leader>c", group = "code"    },
-        { "<leader>b", group = "buffer"  },
-        { "<leader>h", group = "harpoon" },
-      },
-    },
-  },
-
-  -- Python debugger. debugpy installed via mason-tool-installer above.
-  {
-    "mfussenegger/nvim-dap",
-    dependencies = {
-      "rcarriga/nvim-dap-ui",
-      "nvim-neotest/nvim-nio",
-      "mfussenegger/nvim-dap-python",
-    },
-    config = function()
-      local dap, dapui = require("dap"), require("dapui")
-      dapui.setup()
-
-      local mason_py = vim.fn.stdpath("data") .. "/mason/packages/debugpy/venv/bin/python"
-      require("dap-python").setup(vim.fn.executable(mason_py) == 1 and mason_py or "python3")
-
-      dap.listeners.after.event_initialized["dapui"] = function() dapui.open()  end
-      dap.listeners.before.event_terminated["dapui"] = function() dapui.close() end
-      dap.listeners.before.event_exited["dapui"]     = function() dapui.close() end
-
-      local map = vim.keymap.set
-      map("n", "<leader>db", dap.toggle_breakpoint, { desc = "Breakpoint" })
-      map("n", "<leader>dc", dap.continue,           { desc = "Continue"  })
-      map("n", "<leader>do", dap.step_over,          { desc = "Step over" })
-      map("n", "<leader>di", dap.step_into,          { desc = "Step into" })
-      map("n", "<leader>du", dap.step_out,           { desc = "Step out"  })
-      map("n", "<leader>dr", dap.repl.open,          { desc = "REPL"      })
-      map("n", "<leader>dx", dap.terminate,          { desc = "Terminate" })
-      map("n", "<leader>dU", dapui.toggle,           { desc = "Toggle UI" })
-    end,
-  },
-
-  -- Test runner over pytest, with DAP integration for <leader>td.
-  {
-    "nvim-neotest/neotest",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-neotest/nvim-nio",
-      "nvim-treesitter/nvim-treesitter",
-      "nvim-neotest/neotest-python",
-    },
-    config = function()
-      local neotest = require("neotest")
-      neotest.setup({
-        adapters = {
-          require("neotest-python")({ dap = { justMyCode = false }, runner = "pytest" }),
-        },
-      })
-      local map = vim.keymap.set
-      map("n", "<leader>tn", function() neotest.run.run() end,                     { desc = "Nearest"  })
-      map("n", "<leader>tf", function() neotest.run.run(vim.fn.expand("%")) end,    { desc = "File"     })
-      map("n", "<leader>tl", function() neotest.run.run_last() end,                 { desc = "Last"     })
-      map("n", "<leader>ts", function() neotest.summary.toggle() end,               { desc = "Summary"  })
-      map("n", "<leader>to", function() neotest.output.open({ enter = true }) end,  { desc = "Output"   })
-      map("n", "<leader>td", function() neotest.run.run({ strategy = "dap" }) end,  { desc = "Debug"    })
-    end,
-  },
-
-  -- Vim training triad: drills (:VimBeGood), adversarial habit-breaker
-  -- (hardtime, always on), motion hints (:Precognition toggle).
-  { "ThePrimeagen/vim-be-good", cmd = "VimBeGood" },
-
-  {
-    "m4xshen/hardtime.nvim",
-    dependencies = { "MunifTanjim/nui.nvim" },
-    event = "BufEnter",
-    opts = {
-      max_count    = 4,
-      disable_mouse = false,
-      hint         = true,
-      notification = true,
-    },
-  },
-
-  {
-    "tris203/precognition.nvim",
-    cmd = "Precognition",
-    opts = { startVisible = false },
-  },
+  -- Terminal-based debugging and testing (simpler for learning)
+  -- Debug: use `python -m pdb script.py` or add `breakpoint()` in code
+  -- Tests: use `pytest -xvs test_file.py` in a tmux pane
+  -- No heavy DAP/neotest dependencies to manage
 }, {
   rocks = { enabled = false },
 })
