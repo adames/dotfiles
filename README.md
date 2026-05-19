@@ -241,8 +241,9 @@ NO_COLOR=1 ~/dotfiles/bootstrap.sh               # plain output
 ```
 
 `install_file` byte-compares; re-running is cheap. Native helpers
-(ws-prompt, ws-cheatsheet, ws-autohide, ws-snap, ws-topology) live
-under `configs/workspace/topology/` and rebuild on every bootstrap.
+(ws-prompt, ws-cheatsheet, ws-autohide, ws-snap, ws-topology) live in
+the [sigil](https://github.com/adames/sigil) repo — bootstrap clones
+it to `~/.config/workspace/` and rebuilds the Swift binaries.
 
 ## Troubleshooting
 
@@ -278,8 +279,9 @@ under `configs/workspace/topology/` and rebuild on every bootstrap.
     │   ├── spaces.default.json   #  · empty seed
     │   ├── cli/ws                #  · the public mutation API
     │   ├── on-space-*.sh         #  · yabai signal handlers
-    │   ├── topology/             #  · Swift package (ws-prompt, ws-cheatsheet, ws-autohide, ws-snap, ws-topology(d))
     │   └── cheatsheet.json       #  · HUD content
+    │                             #  (Swift package — ws-prompt, ws-cheatsheet, ws-autohide,
+    │                             #   ws-snap, ws-topology(d) — lives in https://github.com/adames/sigil)
     ├── sketchybar/               # per-display workspace pill strip
     ├── starship.toml · ghostty-config · tmux.conf · tmux-sessionizer
     ├── zshrc · gitconfig · ripgreprc

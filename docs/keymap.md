@@ -346,9 +346,9 @@ Every file referenced above, with role + runtime path.
 | [configs/workspace/launch-notes.sh](../configs/workspace/launch-notes.sh) | `~/.local/bin/ws-launch-notes` | Notes launcher (Raycast → Apple) |
 | [configs/workspace/launch-inbox.sh](../configs/workspace/launch-inbox.sh) | `~/.local/bin/ws-launch-inbox` | Inbox launcher (Obsidian → Apple) |
 | [configs/workspace/cli/ws-focus](../configs/workspace/cli/ws-focus) | `~/.local/bin/ws-focus` | Workspace cycle (next/prev/last) |
-| [configs/workspace/topology/Sources/ws-prompt/](../configs/workspace/topology/Sources/ws-prompt/) | `~/.local/bin/ws-prompt` | Focus / send / manage overlay |
-| [configs/workspace/topology/Sources/ws-picker/](../configs/workspace/topology/Sources/ws-picker/) | `~/.local/bin/ws-picker` | Window picker overlay |
-| [configs/workspace/topology/Sources/ws-cheatsheet/](../configs/workspace/topology/Sources/ws-cheatsheet/) | `~/.local/bin/ws-cheatsheet` | Cheatsheet HUD |
+| [sigil/Sources/ws-prompt/](https://github.com/adames/sigil/tree/main/Sources/ws-prompt) | `~/.local/bin/ws-prompt` | Focus / send / manage overlay |
+| [sigil/Sources/ws-picker/](https://github.com/adames/sigil/tree/main/Sources/ws-picker) | `~/.local/bin/ws-picker` | Window picker overlay |
+| [sigil/Sources/ws-cheatsheet/](https://github.com/adames/sigil/tree/main/Sources/ws-cheatsheet) | `~/.local/bin/ws-cheatsheet` | Cheatsheet HUD |
 | [configs/workspace/cheatsheet.json](../configs/workspace/cheatsheet.json) | `~/.config/workspace/cheatsheet.json` | Cheatsheet HUD content |
 | [macos/bootstrap.sh](../macos/bootstrap.sh) | (run directly) | Idempotent apply path |
 | [bin/ws-doctor](../bin/ws-doctor) | `~/.local/bin/ws-doctor` | Keymap / launcher health check |
