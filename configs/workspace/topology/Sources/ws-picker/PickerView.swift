@@ -56,7 +56,7 @@ struct PickerView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Text("change workspace")
-                .font(PromptStyle.nerd(13))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(Catppuccin.text)
             Spacer()
             modeChip
@@ -65,7 +65,7 @@ struct PickerView: View {
 
     private var modeChip: some View {
         Text("CHANGE")
-            .font(PromptStyle.nerd(11))
+            .font(.system(size: 11, weight: .medium))
             .foregroundColor(Catppuccin.base)
             .padding(.horizontal, 10)
             .frame(height: PromptStyle.pillHeight)
@@ -84,7 +84,7 @@ struct PickerView: View {
                 .foregroundColor(Catppuccin.blue)
                 .frame(width: 14)
             Text(displayQuery)
-                .font(PromptStyle.nerd(13))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(controller.query.isEmpty ? Catppuccin.overlay0 : Catppuccin.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("↵")
@@ -143,7 +143,7 @@ struct PickerView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.displayLabel)
-                    .font(PromptStyle.nerd(12))
+                    .font(.system(size: 12))
                     .foregroundColor(textColor)
                     .lineLimit(1)
                     .truncationMode(.tail)

@@ -170,12 +170,12 @@ func cmdMigrate(args: [String]) -> Int32 {
 
 func cmdResolveIcon(args: [String]) -> Int32 {
     let opts = parseCommonOptions(args)
-    var surface: IconTargetSurface = .fontDriven
+    var surface: IconTargetSurface = .textBased
     var slotArg: String? = nil
 
     for arg in opts.remaining {
         if arg == "--surface=font" || arg == "--surface=font-driven" {
-            surface = .fontDriven
+            surface = .textBased
         } else if arg == "--surface=native" || arg == "--surface=appkit" {
             surface = .nativeAppKit
         } else if !arg.hasPrefix("--") {

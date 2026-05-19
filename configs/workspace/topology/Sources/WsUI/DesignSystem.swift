@@ -26,14 +26,13 @@ public struct Catppuccin {
 // MARK: - Shape + typography tokens
 
 public struct PromptStyle {
-    /// `JetBrainsMono Nerd Font:Bold` — same family the sketchybar pill
-    /// strip uses. Custom font means the Nerd Font private-use glyphs
-    /// render correctly; `.system(design: .monospaced)` is SF Mono,
-    /// which doesn't ship the workspace icons.
-    public static let nerdFontFamily = "JetBrainsMono Nerd Font"
+    /// SF Symbols for all icons — native Apple icon system.
+    /// Previously used JetBrainsMono Nerd Font for sketchybar compatibility,
+    /// now standardized on SF Symbols for all surfaces.
+    public static let iconFont: Font = .system(size: 16, weight: .medium)
 
-    public static func nerd(_ size: CGFloat) -> Font {
-        .custom(nerdFontFamily, size: size).weight(.bold)
+    public static func icon(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .medium)
     }
 
     public static let pillCorner: CGFloat = 6

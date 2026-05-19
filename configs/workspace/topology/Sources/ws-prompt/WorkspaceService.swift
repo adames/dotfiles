@@ -8,12 +8,12 @@ struct CommandResult: Equatable {
     let output: String
 }
 
-/// One entry in the SF Symbol → Nerd Font catalog. Used by the manage
-/// overlay's icon picker to fuzzy-search the catalog and preview the
-/// glyph alongside its name.
+/// One entry in the SF Symbol catalog. Used by the manage
+/// overlay's icon picker to fuzzy-search and preview icons.
+/// Nerd Font mapping available for cross-platform use via separate adapter.
 struct IconCatalogEntry: Equatable {
     let sfName: String   // "play.fill"
-    let glyph: String    // "\u{F04B}" — single Nerd Font character
+    let glyph: String    // Deprecated: was Nerd Font codepoint, now empty
 }
 
 /// The single seam between the controllers and the outside world.
@@ -34,9 +34,8 @@ protocol WorkspaceService {
     func focusedSpaceIndex() -> Int?
     func listSnapshots() -> [String]
     func iconResolvable(_ name: String) -> Bool
-    /// SF Symbol → Nerd Font catalog. Read from
-    /// ~/.config/workspace/lib/sf-to-nerd.json. Sorted alphabetically by
-    /// SF name for stable picker order.
+    /// SF Symbol catalog. Previously mapped to Nerd Font for
+    /// cross-platform use; now stores SF names directly.
     func iconCatalog() -> [IconCatalogEntry]
 
     // MARK: Async commands (capture stdout+stderr; complete on main queue)

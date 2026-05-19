@@ -66,7 +66,8 @@ struct IconResolverTests {
         #expect(r.value == "play.fill")
     }
 
-    @Test func font_driven_renders_nerd_glyph_when_font_present() {
+    @Test func nerd_font_deprecated_returns_empty() {
+        // Nerd Font is deprecated - should return empty even on text surfaces
         let spec = IconSpec(
             kind: .nerdFont,
             codepoint: "\\uf0b1",
@@ -76,28 +77,26 @@ struct IconResolverTests {
         let r = IconResolver.resolve(
             spec: spec,
             availableFonts: fontsWithNerd,
-            targetSurface: .fontDriven,
+            targetSurface: .textBased,
             sfSymbolExists: sfExists(_:)
         )
-        #expect(r.kind == .glyph)
-        #expect(r.value == String(Unicode.Scalar(0xF0B1)!))
+        #expect(r.kind == .text)
+        #expect(r.value == "WK")
     }
 
-    @Test func missing_font_falls_through_to_fallback_text() {
-        // Font missing → direct resolve fails → fallbackSfSymbol skipped
-        // (font-driven surface can't render SF Symbols) → fallbackText.
+    @Test func text_based_surface_uses_fallback_text() {
+        // Text-based surface: uses fallbackText when icon unavailable
         let spec = IconSpec(
-            kind: .nerdFont,
-            codepoint: "\\uf0b1",
-            fontFamily: "JetBrainsMono Nerd Font",
-            fallbackSfSymbol: "play.fill",
+            kind: .sfSymbol,
+            symbolName: "nonexistent.symbol",
+            fallbackSfSymbol: "also.nonexistent",
             fallbackText: "ST"
         )
         let r = IconResolver.resolve(
             spec: spec,
             availableFonts: fontsWithoutNerd,
-            targetSurface: .fontDriven,
-            sfSymbolExists: sfExists(_:)
+            targetSurface: .textBased,
+            sfSymbolExists: { _ in false }
         )
         #expect(r.kind  == .text)
         #expect(r.value == "ST")
