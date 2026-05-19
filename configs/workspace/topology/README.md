@@ -1,9 +1,9 @@
 # Workspace Topology
 
-A small native Swift helper plus a handful of bash adapters that together
-make a notched MacBook Pro, a non-notched MacBook Pro, and any external
-monitor render a consistent, identity-rich workspace bar — without using
-private APIs, model tables, or fragile raw glyph bytes in JSON.
+A native Swift package providing workspace identity, display topology,
+and menu bar / SketchyBar integration for macOS. Uses SF Symbols for
+native Apple surfaces with Nerd Font available for cross-platform use.
+No private APIs, model tables, or fragile raw glyph bytes in JSON.
 
 This is the macOS end of the larger `workspace` identity system. It
 publishes one normalized cache file (`~/.cache/workspace/layout.env`)
@@ -15,13 +15,13 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 | Subsystem | Purpose |
 |---|---|
 | **Native Swift package** | `ws-topology` (one-shot CLI) + `ws-topologyd` (long-running launchd agent). Enumerates `NSScreen.screens`, classifies each into `notchedBuiltIn` / `compactBuiltIn` / `externalRectangular` / `mirrorSecondary`, debounces Core Graphics reconfig callbacks, and writes `topology.json` + `layout.env`. |
-| **Typed icon spec** | `IconSpec { kind, codepoint, fontFamily, fallbackSfSymbol, fallbackText, userOverridden }`. v1→v2 migration tool. Persistence is ASCII-escaped (`\uXXXX`) so PUA bytes never appear in JSON. |
+| **Typed icon spec** | `IconSpec { kind, symbolName, codepoint, fallbackSfSymbol, fallbackText, userOverridden }`. SF Symbols are default (`kind: sfSymbol`); Nerd Font available for Linux/terminal use (`kind: nerdFont`). v1→v2 migration tool. |
 | **Per-host overlay** | `spaces.<hostname>.json` overrides the shared `spaces.json` on this machine. `workspace host` subcommands. Resolution helper sourced by every cascade reader. |
-| **Cache-driven shell adapters** | The SketchyBar plugins (`notch-detect.sh`, `per-display-pills.sh`, `paint-all.sh`) and the cascade (`on-space-changed.sh`) prefer `layout.env` / `iconSpec.codepoint`, with legacy heuristics retained as boot-time fallbacks. `paint-all.sh` is the centralized batched-repaint plugin subscribed to `workspace_changed` via a single hidden sentinel item in `sketchybarrc`. Items anchored `left`, no centering math. |
+| **Menu bar status** | `ws-statusbar` — NSStatusItem-based menu bar app with elevation design (`_N_` for current workspace) and dropdown showing `# name [SF Symbol icon]`. Replaces SketchyBar for users who prefer native menu bar integration. |
 | **Layout policy** | Notched: pills split symmetrically around the camera housing, the two halves anchored to `auxiliaryTopLeftArea.maxX` and `auxiliaryTopRightArea.minX`. Non-notched: pills centered in `visibleFrame`. Density mode (sparse / comfort / dense) picks gap from `(N × pill_w) / usable_w`. |
 | **Cheatsheet HUD** | `ws-cheatsheet` SwiftUI window (Caps+; via skhd). Section data lives in hand-editable `~/.config/workspace/cheatsheet.json`. Single-instance toggle via PID file. Replaced 410 lines of Hammerspoon Lua + HTML/CSS. |
 | **AX absolute-snap CLI** | `ws-snap` (manual use; no chord bound today). One-shot AX writes to move yabai-unmanaged windows. The common new-window case is now handled by `stage-window.sh` from yabai's `window_created` signal. |
-| **SketchyBar autohide** | `ws-autohide` launchd agent. 100ms cursor poller: when the cursor enters the top 2px of any display, that display's pills slide off and the auto-hide menu bar reveals. Other displays unaffected. Replaces the Hammerspoon timer. |
+| **SketchyBar (optional)** | `per-display-pills.sh` — left-aligned pills with SF Symbol icons. `ws-autohide` launchd agent for auto-hide. Use either SketchyBar or ws-statusbar, not both. |
 
 ## File layout
 
@@ -37,6 +37,7 @@ CLI) reads to drive layout, max-visible counts, and notch geometry.
 │   ├── ws-topologyd/                         launchd agent (CGDisplayRegisterReconfigurationCallback)
 │   ├── ws-cheatsheet/                        SwiftUI HUD (Caps+; via skhd)
 │   ├── ws-autohide/                          launchd agent — SketchyBar per-display autohide poller
+│   ├── ws-statusbar/                       NSStatusItem menu bar app with elevation design
 │   └── ws-snap/                              one-shot AX CLI — manual absolute snap (no chord bound today)
 ├── Tests/                                    XCTest suites (require full Xcode; see "Testing")
 ├── launchd/
@@ -149,8 +150,8 @@ longer read by any consumer.
 | `sysctl hw.model` notch detection table | `NSScreen.safeAreaInsets.top > 0` via daemon |
 | `NOTCH_WIDTH=400` heuristic in `recenter.sh` | recenter retired; left-aligned layout sidesteps the notch geometry entirely. `WS_TOP_REGION_W_<id>` / `WS_NOTCH_W_<id>` still published for diagnostics. |
 | `NOTCH_MAX_VISIBLE=10` constant | `WS_MAX_VISIBLE_SLOTS_<id>` (derived from combined aux width) |
-| Raw Nerd Font PUA bytes in JSON `.icon` | `iconSpec.codepoint = "\uXXXX"`; literal glyph reconstructed only at the env sink |
-| Static `cmd + alt + ctrl + shift - N` block in `skhdrc` | Replaced by ws-prompt SwiftUI overlays (`Caps + f` focus, `Caps + g` / `Caps + return` go, `Caps + Shift + return` manage) — digit keys inside each overlay address slots 1..10. Bindings are inlined and don't need per-mutation regeneration. (The `ws-topology emit-skhd` subcommand still exists for historical reasons but no consumer calls it.) |
+| Raw Nerd Font PUA bytes in JSON `.icon` | `iconSpec.symbolName = "house.fill"`; SF Symbol rendered natively in AppKit/SwiftUI |
+| Static `cmd + alt + ctrl + shift - N` block in `skhdrc` | Replaced by ws-prompt SwiftUI overlays (`Caps + f` focus, `Caps + g` send, `Caps + w` manage, `Caps + e` change via ws-picker) — digit keys inside each overlay address slots 1..10. |
 | Per-consumer rediscovery of display roles via yabai queries | Single `layout.env` from `ws-topologyd` |
 | `space_changed` triggered full chain rebuild + two-pass write | Single-pass batched writes; `per-display-pills.sh` only re-runs on display events |
 | Duplicate `workspace_on_space_change` signal firing cascade twice | Single `ws_space_changed` registration |

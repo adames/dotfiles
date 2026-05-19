@@ -58,9 +58,9 @@ default-shell); skips yabai + Karabiner + Docker.
 |---|---|---|
 | Caps → Hyper / Mod / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
-| Per-display workspace pill strip | SketchyBar | [`sketchybar/`](configs/sketchybar/) |
+| Per-display workspace pill strip | SketchyBar + ws-statusbar (menu bar) | [`sketchybar/`](configs/sketchybar/) · [`ws-statusbar`](configs/workspace/topology/Sources/ws-statusbar/) |
 | Hyper/Mod hotkeys → yabai · launchers · cheatsheet · ws-prompt · ws-picker | skhd | [`skhdrc`](configs/skhdrc) |
-| Workspace focus / send / edit overlays | ws-prompt (SwiftUI) | [`workspace/topology/Sources/ws-prompt/`](configs/workspace/topology/Sources/ws-prompt) |
+| Workspace focus / send / manage overlays | ws-prompt (SwiftUI) | [`workspace/topology/Sources/ws-prompt/`](configs/workspace/topology/Sources/ws-prompt) |
 | Change-workspace overlay (Caps+e) | ws-picker (SwiftUI) | [`workspace/topology/Sources/ws-picker/`](configs/workspace/topology/Sources/ws-picker) |
 | Cheatsheet HUD (SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`cheatsheet.json`](configs/workspace/cheatsheet.json) |
 | Per-display SketchyBar autohide | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
@@ -79,6 +79,7 @@ Full reference is `Hyper+;`. **Hyper = navigate, Mod (Caps+Shift) =
 modify.** Window ops are direct chords; workspace ops use a one-shot
 SwiftUI overlay (`ws-prompt`) — digit (1..0) commits instantly,
 letters fuzzy-search names + Enter, Esc and click-elsewhere cancel.
+SketchyBar pills show slot color + name + SF Symbol icon; menu bar uses `_N_` elevation design.
 
 ```
 Caps tap                       → Esc
@@ -259,10 +260,10 @@ under `configs/workspace/topology/` and rebuild on every bootstrap.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | "Karabiner installed but `.app` missing" | `installer -pkg` interrupted — `brew reinstall --cask karabiner-elements` |
 | yabai logs `'display has separate spaces' is disabled` | Log out and back in |
-| `Caps + e` / `Caps + f` / `Caps + g` / `Caps + w` does nothing | `ws-prompt` / `ws-picker` missing — re-run `~/.config/workspace/topology/install.sh` |
+| `Caps + e` / `Caps + f` / `Caps + g` / `Caps + w` does nothing | `ws-prompt` / `ws-picker` / `ws-statusbar` missing — re-run `./bootstrap.sh` |
 | `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — same fix |
 | Manage overlay's `add` / `destroy` fails with "scripting-addition" | yabai SA not loaded — `sudo yabai --load-sa && killall Dock`, or re-run `yabai-sa-install.sh` |
-| Workspace pills missing | `sketchybar` not running — `brew services restart sketchybar`. Glyphs blank → Nerd Font missing (`brew install --cask font-jetbrains-mono-nerd-font`) |
+| Workspace pills missing | `sketchybar` not running — `brew services restart sketchybar`. Menu bar version: `ws-statusbar` should be running (launched by bootstrap) |
 | Workspace pill doesn't update on space switch | `sketchybar --trigger workspace_changed`; if no-op, `brew services restart sketchybar` |
 | Workspace chip missing from prompt / tmux | `~/.config/workspace/on-space-changed.sh` to prime current.env |
 | Slot 1 lands on the wrong display | yabai owns space-to-display. Drag the space in Mission Control; yabai persists. |
