@@ -1,5 +1,0 @@
-.build/
-Package.resolved
-.swiftpm/
-*.xcodeproj/
-.DS_Store

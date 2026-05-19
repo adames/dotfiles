@@ -41,3 +41,4 @@ settings.local.json
 settings.*.json
 *.agent.json
 .agent.env
+configs/workspace/
