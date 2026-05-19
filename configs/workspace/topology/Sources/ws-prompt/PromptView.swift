@@ -62,7 +62,7 @@ struct PromptView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Text(title)
-                .font(PromptStyle.nerd(13))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(Catppuccin.text)
             Spacer()
             modeChip
@@ -84,7 +84,7 @@ struct PromptView: View {
     /// 22pt tall, full-color fill, dark catppuccin text.
     private var modeChip: some View {
         Text(modeChipLabel)
-            .font(PromptStyle.nerd(11))
+            .font(.system(size: 11, weight: .medium))
             .foregroundColor(Catppuccin.base)
             .padding(.horizontal, 10)
             .frame(height: PromptStyle.pillHeight)
@@ -118,7 +118,7 @@ struct PromptView: View {
                 .foregroundColor(modeChipColor)
                 .frame(width: 14)
             Text(displayQuery)
-                .font(PromptStyle.nerd(13))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(controller.query.isEmpty ? Catppuccin.overlay0 : Catppuccin.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("↵")
@@ -180,22 +180,18 @@ struct PromptView: View {
             // shape paint-all.sh writes to a real pill (`icon_text`).
             HStack(spacing: 6) {
                 Text(String(ws.index))
-                    .font(PromptStyle.nerd(12))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundColor(glyphColor)
-                if let icon = ws.icon, ws.iconKind == .sfSymbol {
+                if let icon = ws.icon, !icon.isEmpty {
                     Image(systemName: icon)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(glyphColor)
-                } else if let icon = ws.icon {
-                    Text(icon)
-                        .font(PromptStyle.nerd(12))
                         .foregroundColor(glyphColor)
                 }
             }
             .frame(width: 56, alignment: .leading)
 
             Text(ws.name)
-                .font(PromptStyle.nerd(12))
+                .font(.system(size: 12))
                 .foregroundColor(textColor)
             Spacer()
         }

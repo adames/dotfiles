@@ -48,7 +48,7 @@ struct ManageView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Text("edit workspace")
-                .font(PromptStyle.nerd(13))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(Catppuccin.text)
             Spacer()
             breadcrumb
@@ -59,7 +59,7 @@ struct ManageView: View {
     /// the user always sees where they are in the flow.
     private var breadcrumb: some View {
         Text(stageLabel)
-            .font(PromptStyle.nerd(11))
+            .font(.system(size: 11, weight: .medium))
             .foregroundColor(Catppuccin.base)
             .padding(.horizontal, 10)
             .frame(height: PromptStyle.pillHeight)
@@ -154,7 +154,7 @@ struct ManageView: View {
     private func verbRow(key: String, desc: String, color: Color) -> some View {
         HStack(spacing: 12) {
             Text(key)
-                .font(PromptStyle.nerd(12))
+                .font(.system(size: 12))
                 .foregroundColor(Catppuccin.base)
                 .frame(width: 40, height: PromptStyle.pillHeight)
                 .background(
@@ -162,7 +162,7 @@ struct ManageView: View {
                         .fill(color)
                 )
             Text(desc)
-                .font(PromptStyle.nerd(12))
+                .font(.system(size: 12))
                 .foregroundColor(Catppuccin.text)
             Spacer()
         }
@@ -178,7 +178,7 @@ struct ManageView: View {
                 .foregroundColor(Catppuccin.overlay1)
             HStack(spacing: 8) {
                 Text(buffer.isEmpty ? "" : buffer)
-                    .font(PromptStyle.nerd(13))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(Catppuccin.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text("↵")
@@ -233,21 +233,17 @@ struct ManageView: View {
         return HStack(spacing: 10) {
             HStack(spacing: 6) {
                 Text(String(ws.index))
-                    .font(PromptStyle.nerd(12))
+                    .font(.system(size: 12))
                     .foregroundColor(glyphColor)
-                if let icon = ws.icon, ws.iconKind == .sfSymbol {
+                if let icon = ws.icon, !icon.isEmpty {
                     Image(systemName: icon)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(glyphColor)
-                } else if let icon = ws.icon {
-                    Text(icon)
-                        .font(PromptStyle.nerd(12))
                         .foregroundColor(glyphColor)
                 }
             }
             .frame(width: 56, alignment: .leading)
             Text(ws.name)
-                .font(PromptStyle.nerd(12))
+                .font(.system(size: 12))
                 .foregroundColor(textColor)
             Spacer()
         }
@@ -268,7 +264,7 @@ struct ManageView: View {
     private func destroyConfirmView(slot: Int, name: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("destroy slot \(slot) — \"\(name)\"?")
-                .font(PromptStyle.nerd(13))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(Catppuccin.text)
             Text("Windows on this space will reparent to a neighbouring space.\nHigher-numbered slots shift down by one.")
                 .font(.system(size: 11))
@@ -284,7 +280,7 @@ struct ManageView: View {
     private func snapshotDeleteConfirm(name: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("delete layout \"\(name)\"?")
-                .font(PromptStyle.nerd(13))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(Catppuccin.text)
             HStack(spacing: 10) {
                 confirmChip(text: "press d again to delete", color: Catppuccin.maroon)
@@ -295,7 +291,7 @@ struct ManageView: View {
 
     private func confirmChip(text: String, color: Color) -> some View {
         Text(text)
-            .font(PromptStyle.nerd(11))
+            .font(.system(size: 11, weight: .medium))
             .foregroundColor(Catppuccin.base)
             .padding(.horizontal, 10)
             .frame(height: PromptStyle.pillHeight)
@@ -337,7 +333,7 @@ struct ManageView: View {
                 .foregroundColor(selected ? Catppuccin.base : Catppuccin.subtext0)
                 .frame(width: 18)
             Text(name)
-                .font(PromptStyle.nerd(12))
+                .font(.system(size: 12))
                 .foregroundColor(selected ? Catppuccin.base : Catppuccin.text)
             Spacer()
         }
@@ -355,11 +351,9 @@ struct ManageView: View {
 
     // MARK: - Icon picker
 
-    /// Fuzzy-filter list of (SF name, glyph) entries from the
-    /// SF Symbol → Nerd Font catalog. Each row previews the glyph in
-    /// Nerd Font alongside its name; the selection writes
-    /// `ws icon SLOT <sf-name>`. Catalog comes from
-    /// `~/.config/workspace/lib/sf-to-nerd.json` via the service.
+    /// Fuzzy-filter list of SF Symbol entries. Each row previews
+    /// the SF Symbol icon alongside its name; the selection writes
+    /// `ws icon SLOT <sf-name>`. Catalog comes from the ws CLI.
     private func iconPicker(slotName: String, filter: String,
                             sel: Int) -> some View {
         let matches = FuzzyMatch.filter(controller.iconCatalogCached,
@@ -389,13 +383,13 @@ struct ManageView: View {
 
     private func iconRow(entry: IconCatalogEntry, selected: Bool) -> some View {
         HStack(spacing: 12) {
-            // Nerd Font glyph preview — same family the bar paints with.
-            Text(entry.glyph)
-                .font(PromptStyle.nerd(14))
+            // SF Symbol preview
+            Image(systemName: entry.sfName)
+                .font(.system(size: 14))
                 .foregroundColor(selected ? Catppuccin.base : Catppuccin.subtext0)
                 .frame(width: 28, alignment: .center)
             Text(entry.sfName)
-                .font(PromptStyle.nerd(12))
+                .font(.system(size: 12))
                 .foregroundColor(selected ? Catppuccin.base : Catppuccin.text)
             Spacer()
         }
@@ -418,7 +412,7 @@ struct ManageView: View {
             ProgressView()
                 .controlSize(.small)
             Text("running `ws \(verb)`…")
-                .font(PromptStyle.nerd(12))
+                .font(.system(size: 12))
                 .foregroundColor(Catppuccin.text)
         }
         .padding(.vertical, 20)
@@ -428,7 +422,7 @@ struct ManageView: View {
     private func resultView(title: String, body: String, success: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(PromptStyle.nerd(13))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(success ? Catppuccin.green : Catppuccin.maroon)
             ScrollView {
                 Text(body.isEmpty ? (success ? "(no output)" : "(no error message)") : body)

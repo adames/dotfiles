@@ -472,40 +472,34 @@ cmd_name() {
 # user-supplied. Use `ws theme NAME` to change the palette; per-slot
 # overrides are no longer part of the CLI surface.
 
-WS_SF_TO_NERD_MAP="${WS_SF_MAP:-$HOME/.config/workspace/lib/sf-to-nerd.json}"
-readonly WS_NF_FALLBACK_GLYPH='\uf128'   # nf-fa-question_circle — placeholder when SF has no mapping
-
-# Derive (codepoint, sf_name) from a single icon argument. Sets:
-#   _ICON_ESCAPED   — ASCII-escaped codepoint (e.g. "") or empty
+# Icon handling: SF Symbols are stored directly by name.
+# Nerd Font support is available for cross-platform use but SF Symbols
+# are the default on macOS for native AppKit/SwiftUI rendering.
+# Derive icon from a single argument. Sets:
 #   _ICON_SF_NAME   — SF Symbol name (e.g. "play.fill") or empty
-# Heuristic:
-#   • ASCII identifier matching ^[a-z][a-z0-9._]*$  → SF Symbol path
-#     (look up codepoint in sf-to-nerd.json; warn + placeholder on miss)
-#   • Anything else (UTF-8 multibyte, mixed case, etc.) → literal glyph path
-#     (extract the first codepoint via python3, encode as \uXXXX or \u{X..})
 # Interactive fzf icon picker. Prints the selected SF Symbol name to
 # stdout. Returns non-zero (and prints nothing) if cancelled or fzf
 # isn't available. Reused by `ws icon <slot>` and `ws add`.
 _pick_icon_fzf() {
   local prompt="${1:-icon> }"
   have fzf || return 1
-  [[ -r "$WS_SF_TO_NERD_MAP" ]] || return 1
   local picked
-  picked=$(jq -r '
-    to_entries
-    | map(select(.key | startswith("_") | not))
-    | sort_by(.key) | .[]
-    | "\(.key)\t\(.value)"
-  ' "$WS_SF_TO_NERD_MAP" \
-    | while IFS=$'\t' read -r name esc; do
-        printf '%s\t%s\t%s\n' "$(ws_decode_icon "$esc")" "$name" "$esc"
-      done \
-    | fzf --prompt="$prompt" \
-          --with-nth=1,2 \
-          --delimiter=$'\t' \
-          --header="ENTER: apply · ESC: cancel" \
-          --reverse --height=40% \
-    | awk -F'\t' '{print $2}')
+  # Curated SF Symbols for common workspace types
+  picked=$(printf '%s\n' \
+    "house.fill" "globe" "terminal.fill" "chevron.left.forwardslash.chevron.right" \
+    "brain.head.profile" "cpu.fill" "arrow.triangle.branch" "envelope.fill" \
+    "bubble.left.fill" "music.note" "play.rectangle.fill" "doc.text.fill" \
+    "cloud.fill" "shippingbox.fill" "cylinder.split.1x2.fill" "lock.fill" \
+    "gearshape.fill" "calendar" "cart.fill" "at" "gamecontroller.fill" \
+    "photo.fill" "paintbrush.fill" "newspaper.fill" "heart.fill" "map.fill" \
+    "chart.line.uptrend.xyaxis" "checkmark.seal.fill" "hammer.fill" "magnifyingglass" \
+    "bell.fill" "bookmark.fill" "folder.fill" "tray.fill" "archivebox.fill" \
+    "paperplane.fill" "link" "person.fill" "person.2.fill" "moon.fill" "sun.max.fill" \
+    "star.fill" "flag.fill" "tag.fill" "bolt.fill" "flame.fill" "drop.fill" \
+    "wifi" "battery.100" "display" "keyboard" "mouse" "printer.fill" \
+  | fzf --prompt="$prompt" \
+        --header="ENTER: apply · ESC: cancel · Type to filter SF Symbols" \
+        --reverse --height=40%)
   [[ -n "$picked" ]] || return 1
   printf '%s' "$picked"
 }
@@ -517,16 +511,8 @@ _resolve_icon_input() {
   [[ -z "$input" ]] && return 0
 
   if [[ "$input" =~ ^[a-z][a-z0-9._]*$ ]]; then
-    # SF Symbol identifier. Map → Nerd Font codepoint via curated table.
+    # SF Symbol identifier - store directly without Nerd Font mapping
     _ICON_SF_NAME="$input"
-    if [[ -r "$WS_SF_TO_NERD_MAP" ]] && have jq; then
-      _ICON_ESCAPED=$(jq -r --arg n "$input" '.[$n] // ""' "$WS_SF_TO_NERD_MAP" 2>/dev/null)
-    fi
-    if [[ -z "$_ICON_ESCAPED" ]]; then
-      warn "no Nerd Font mapping for SF Symbol '$input' — using placeholder ($WS_NF_FALLBACK_GLYPH)."
-      warn "  add a mapping in ${WS_SF_TO_NERD_MAP/#$HOME/~}"
-      _ICON_ESCAPED="$WS_NF_FALLBACK_GLYPH"
-    fi
     return 0
   fi
 
@@ -553,43 +539,42 @@ if s:
 cmd_icon() {
   _require_config
 
-  # `workspace icon search <term>` — non-interactive list dump. Useful for
-  # piping/scripting. The interactive picker is the no-glyph form below.
+  # `workspace icon search <term>` — non-interactive SF Symbol list dump.
   if [[ "${1:-}" == "search" ]]; then
     shift
     local q="${1:-}"
-    if [[ ! -r "$WS_SF_TO_NERD_MAP" ]] || ! have jq; then
-      err "sf-to-nerd map not available"; exit 1
-    fi
-    jq -r --arg q "$q" '
-      to_entries
-      | map(select(.key | startswith("_") | not))
-      | map(select($q == "" or (.key | test($q; "i"))))
-      | sort_by(.key)
-      | .[]
-      | "\(.key)\t\(.value)"
-    ' "$WS_SF_TO_NERD_MAP" \
-      | while IFS=$'\t' read -r name esc; do
-          local glyph
-          glyph=$(ws_decode_icon "$esc")
-          printf '  %-40s %s  %s\n' "$name" "$glyph" "$esc"
-        done
+    # Curated SF Symbols for workspace icons
+    printf '%s\n' \
+      "house.fill" "globe" "terminal.fill" "chevron.left.forwardslash.chevron.right" \
+      "brain.head.profile" "cpu.fill" "arrow.triangle.branch" "envelope.fill" \
+      "bubble.left.fill" "music.note" "play.rectangle.fill" "doc.text.fill" \
+      "cloud.fill" "shippingbox.fill" "cylinder.split.1x2.fill" "lock.fill" \
+      "gearshape.fill" "calendar" "cart.fill" "at" "gamecontroller.fill" \
+      "photo.fill" "paintbrush.fill" "newspaper.fill" "heart.fill" "map.fill" \
+      "chart.line.uptrend.xyaxis" "checkmark.seal.fill" "hammer.fill" "magnifyingglass" \
+      "bell.fill" "bookmark.fill" "folder.fill" "tray.fill" "archivebox.fill" \
+      "paperplane.fill" "link" "person.fill" "person.2.fill" "moon.fill" "sun.max.fill" \
+      "star.fill" "flag.fill" "tag.fill" "bolt.fill" "flame.fill" "drop.fill" \
+      "wifi" "battery.100" "display" "keyboard" "mouse" "printer.fill" \
+    | { [[ -n "$q" ]] && grep -i "$q" || cat; } \
+    | while read -r name; do
+        printf '  %s\n' "$name"
+      done
     return 0
   fi
 
   if [[ $# -lt 1 || $# -gt 2 ]]; then
-    err "usage: ws icon <SLOT_OR_NAME> [GLYPH_OR_SF_NAME]"
+    err "usage: ws icon <SLOT_OR_NAME> [SF_SYMBOL_NAME]"
     err "       ws icon search <term>"
-    err "   (omit GLYPH for an interactive fzf picker)"
+    err "   (omit SF_SYMBOL_NAME for an interactive fzf picker)"
+    err "   examples: ws icon 1 house.fill   ws icon web globe"
     exit 2
   fi
   local slot; slot=$(_resolve_slot "$1") || exit $?
   local arg="${2:-}"
 
-  # Interactive picker when no glyph was passed. Reuses the sf-to-nerd
-  # table + ws_decode_icon (same data as `icon search`) so the preview
-  # column shows what will land. Selection feeds back into the same
-  # write path the two-arg form uses.
+  # Interactive picker when no SF Symbol was passed. Uses fzf to pick
+  # from curated SF Symbol list. Selection feeds back into write path.
   if [[ -z "$arg" ]]; then
     arg=$(_pick_icon_fzf "icon for slot $slot> ") || {
       warn "no selection — slot $slot unchanged"; exit 1;
@@ -599,20 +584,15 @@ cmd_icon() {
   _ensure_slot "$slot"
   _resolve_icon_input "$arg"
 
-  # Decide kind: sfSymbol if we identified an SF name, else nerdFont when
-  # we have a codepoint, else "none" (cleared). userOverridden=true on
-  # explicit edit. When iconSpec is missing (slot added pre-v2-fix), seed
-  # the same baseline shape cmd_add now writes — single-source the schema.
+  # Decide kind: sfSymbol if we identified an SF name, else "none" (cleared).
+  # userOverridden=true on explicit edit. Nerd Font kind available for
+  # cross-platform use via direct codepoint input.
   local kind="none"
   if [[ -n "$_ICON_SF_NAME" ]]; then
     kind="sfSymbol"
-  elif [[ -n "$_ICON_ESCAPED" ]]; then
-    kind="nerdFont"
   fi
-  # Build iconSpec fresh, preserving only the fallback fields. This
-  # clears stale `symbolName` / `codepoint` when the user switches kinds
-  # (e.g. nerdFont → sfSymbol). On slots that never had iconSpec, the
-  # fallback fields are synthesized from the slot name.
+  # Build iconSpec fresh with SF Symbol. Preserves fallback fields.
+  # On slots that never had iconSpec, fallback fields synthesized from name.
   _write '
     .spaces[$k] |= (
       . as $s
@@ -623,7 +603,6 @@ cmd_icon() {
             fallbackText: (($s.iconSpec.fallbackText) // (($s.name // "") | .[0:2] | ascii_upcase)),
             userOverridden: true
           }
-          + (if $cp != "" then {codepoint: $cp, fontFamily: "JetBrainsMono Nerd Font"} else {} end)
           + (if $sf != "" then {symbolName: $sf} else {} end)
         )
     )
@@ -850,10 +829,9 @@ cmd_add() {
       [[ -z "$name" ]] && name="$suggested"
     fi
     # Icon prompt via fzf picker if available; ESC leaves the slot
-    # icon-less (kind=none, fallbackSfSymbol="stop.fill"). Skipped if
-    # fzf or sf-to-nerd map missing — slot still gets the stop.fill
-    # fallback so the pill renders.
-    if [[ -z "$icon" ]] && have fzf && [[ -r "$WS_SF_TO_NERD_MAP" ]]; then
+    # icon-less (kind=none, fallbackSfSymbol="stop.fill"). Slot still
+    # gets the stop.fill fallback so the pill renders.
+    if [[ -z "$icon" ]] && have fzf; then
       printf 'icon: opening fzf (ESC to skip) ...\n' >&2
       icon=$(_pick_icon_fzf "icon for new slot $new_slot> " || true)
     fi
@@ -885,10 +863,8 @@ cmd_add() {
   if [[ -n "$_ICON_SF_NAME" ]]; then
     kind="sfSymbol"
     user_overridden=true
-  elif [[ -n "$_ICON_ESCAPED" ]]; then
-    kind="nerdFont"
-    user_overridden=true
   fi
+  # Nerd Font path: user can input raw codepoint if needed for cross-platform
 
   # ── yabai first, spaces.json second ─────────────────────────────────────
   # Atomicity: the failure-prone step is `yabai -m space --create`,
@@ -933,8 +909,8 @@ cmd_add() {
           fallbackText: $ft,
           userOverridden: ($uo == "true")
         }
-        + (if $cp != "" then {codepoint: $cp, fontFamily: "JetBrainsMono Nerd Font"} else {} end)
         + (if $sf != "" then {symbolName: $sf} else {} end)
+        + (if $cp != "" then {codepoint: $cp} else {} end)
       )
     }
   ' --arg k "$new_slot" --arg n "$name" --arg c "$color" \

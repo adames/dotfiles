@@ -1,8 +1,9 @@
 import Foundation
 
-/// The "real" service. Spawns yabai / ws, reads spaces.json + the
-/// SF-Symbol-to-Nerd-Font map. All the Process invocations and
-/// FileManager paths that used to be scattered across main.swift,
+/// The "real" service. Spawns yabai / ws, reads spaces.json.
+/// SF Symbols are stored directly; Nerd Font map available for
+/// cross-platform use. All Process invocations and FileManager
+/// paths that used to be scattered across main.swift,
 /// WorkspaceData.swift, and the controllers live here.
 ///
 /// Paths are computed once at init from a `Paths` value so a test can

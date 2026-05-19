@@ -212,10 +212,9 @@ final class ManageController: ObservableObject {
             stage = .addIcon(name: name, buffer: String(buf.dropLast())); return .idle
         case .enter:
             // Icon resolution policy: empty → no icon (CLI default).
-            // Single character → assume the user typed a Nerd Font glyph
-            // directly. Multi-char → must exist in the SF Symbol → Nerd
-            // Font map, otherwise silently drop it so the workspace is
-            // created cleanly rather than with a placeholder glyph.
+            // SF Symbol name → stored directly. Nerd Font codepoint path
+            // available for cross-platform use. Silently drop invalid icons
+            // so the workspace is created cleanly.
             let icon = (!buf.isEmpty && service.iconResolvable(buf)) ? buf : nil
             dispatch(verb: "add") { [weak self] completion in
                 self?.service.runAdd(name: name, icon: icon, completion: completion)
@@ -387,7 +386,7 @@ final class ManageController: ObservableObject {
     //
     // Two stages: pick a target slot (mirrors rename/destroy target
     // pickers — digit fast-path, fuzzy name, focused-default), then
-    // fuzzy-pick an icon from the SF Symbol → Nerd Font catalog.
+    // fuzzy-pick an SF Symbol from the catalog.
     // Commit dispatches `ws icon SLOT NAME`.
 
     private func handleIconTarget(_ key: PromptKey, filter: String, sel: Int,
