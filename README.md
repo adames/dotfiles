@@ -58,20 +58,40 @@ default-shell); skips yabai + Karabiner + Docker.
 |---|---|---|
 | Caps → Hyper / Mod / Esc | Karabiner-Elements | [`karabiner.json`](configs/karabiner.json) ([explained](configs/karabiner.md)) |
 | Window tiling | yabai | [`yabairc`](configs/yabairc) |
-| Per-display workspace pill strip | SketchyBar + ws-statusbar (menu bar) | [`sketchybar/`](configs/sketchybar/) · [`ws-statusbar`](configs/workspace/topology/Sources/ws-statusbar/) |
+| Per-display workspace pill strip | SketchyBar + ws-statusbar (menu bar) | [`sketchybar/`](configs/sketchybar/) · [sigil](https://github.com/adames/sigil) |
 | Hyper/Mod hotkeys → yabai · launchers · cheatsheet · ws-prompt · ws-picker | skhd | [`skhdrc`](configs/skhdrc) |
-| Workspace focus / send / manage overlays | ws-prompt (SwiftUI) | [`workspace/topology/Sources/ws-prompt/`](configs/workspace/topology/Sources/ws-prompt) |
-| Change-workspace overlay (Caps+e) | ws-picker (SwiftUI) | [`workspace/topology/Sources/ws-picker/`](configs/workspace/topology/Sources/ws-picker) |
-| Cheatsheet HUD (SwiftUI) | ws-cheatsheet | [`workspace/topology/Sources/ws-cheatsheet/`](configs/workspace/topology/Sources/ws-cheatsheet) · [`cheatsheet.json`](configs/workspace/cheatsheet.json) |
-| Per-display SketchyBar autohide | ws-autohide | [`workspace/topology/Sources/ws-autohide/`](configs/workspace/topology/Sources/ws-autohide) |
-| Cross-display topology + notch detection | ws-topologyd | [`workspace/topology/`](configs/workspace/topology) |
-| New-window staging (center · focus · cross-space) | yabai signal + bash | [`workspace/stage-window.sh`](configs/workspace/stage-window.sh) |
-| AX absolute-snap CLI (driven by Caps+h/j/k/l on floats) | ws-snap | [`workspace/topology/Sources/ws-snap/`](configs/workspace/topology/Sources/ws-snap) |
+| Workspace focus / send / manage overlays | ws-prompt (SwiftUI) | [sigil](https://github.com/adames/sigil) |
+| Change-workspace overlay (Caps+e) | ws-picker (SwiftUI) | [sigil](https://github.com/adames/sigil) |
+| Cheatsheet HUD (SwiftUI) | ws-cheatsheet | [sigil](https://github.com/adames/sigil) · `~/.config/workspace/cheatsheet.json` |
+| Per-display SketchyBar autohide | ws-autohide | [sigil](https://github.com/adames/sigil) |
+| Cross-display topology + notch detection | ws-topologyd | [sigil](https://github.com/adames/sigil) |
+| New-window staging (center · focus · cross-space) | yabai signal + bash | [`workspace/stage-window.sh`](configs/workspace/stage-window.sh) (from sigil) |
+| AX absolute-snap CLI (driven by Caps+h/j/k/l on floats) | ws-snap | [sigil](https://github.com/adames/sigil) |
 | Direction-aware Caps+h/j/k/l dispatch (floating→snap, tiled→focus) | ws-dir | [`bin/ws-dir`](bin/ws-dir) |
 | Keymap / launcher health check (chord collisions, source-deploy drift, menu refs) | ws-doctor | [`bin/ws-doctor`](bin/ws-doctor) |
 | Terminal · tmux · zsh · nvim | Ghostty + tmux + zsh + Neovim | [`ghostty-config`](configs/ghostty-config) · [`tmux.conf`](configs/tmux.conf) · [`zshrc`](configs/zshrc) · [`nvim-init.lua`](configs/nvim-init.lua) |
 | LSP + DAP + tests for Python | Mason (pyright, ruff, debugpy, neotest) | same |
 | Lazygit · OrbStack (Docker replacement) · git-delta | brew | — |
+
+## Workspace Management (Sigil)
+
+Workspace overlays and management are provided by **[Sigil](https://github.com/adames/sigil)** — a standalone Swift package that lives in its own repository.
+
+**Clean separation workflow:**
+
+```
+~/projects/sigil          ← Development (git@github.com:adames/sigil.git)
+~/.config/workspace/      ← Runtime (cloned by bootstrap, points to sigil)
+~/dotfiles/               ← This repo (installs yabai/skhd, clones sigil)
+```
+
+**How it works:**
+1. `bootstrap.sh` clones `git@github.com:adames/sigil.git` → `~/.config/workspace/`
+2. Builds Swift binaries (`ws-prompt`, `ws-picker`, `ws-statusbar`, etc.)
+3. Symlinks binaries to `~/.local/bin/`
+4. Loads LaunchAgents for `ws-topologyd`, `ws-autohide`, `ws-statusbar`
+
+**Development:** Work in `~/projects/sigil` (or `~/.config/workspace`), push to GitHub. On new machines, bootstrap automatically pulls latest.
 
 ## Daily-driver keymap
 
