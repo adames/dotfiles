@@ -4,12 +4,14 @@
 
 MacOS-friendly lifestyle/development/deployment environment. Three rules:
 
-1. **Caps Lock is the centre.** Tap = `Esc`, hold = `Hyper` (⌃⌥⌘⇧),
-   hold + Shift = `Mod` (⌃⌥⌘). Karabiner remaps once; every layer
-   below — yabai, tmux, Neovim — uses the same modifier-sets-scope model.
-2. **One bootstrap, two platforms.** `bootstrap.sh` detects macOS or
+1. **Caps Lock is the centre.** Karabiner remaps once; every layer below — yabai, tmux, Neovim — uses
+   the same modifier-sets-scope model.
+   1. Tap = `Esc`
+   2. hold = `Hyper` (⌃⌥⌘⇧)
+   3. hold + Shift = `Mod` (⌃⌥⌘)
+3. **One bootstrap, two platforms.** `bootstrap.sh` detects macOS or
    Ubuntu and dispatches. Idempotent.
-3. **Edit `configs/`, never the deployed copy.** Bootstrap is the
+4. **Edit `configs/`, never the deployed copy.** Bootstrap is the
    deployer; nothing under `configs/` is generated.
 
 ## Architecture
