@@ -1,0 +1,13 @@
+{
+  "banner": [
+    {"k": "caps", "v": "Hyper (⌃⌥⌘⇧) — navigate / open"},
+    {"k": "caps + shift", "v": "Mod (⌃⌥⌘) — modify / destructive"},
+    {"k": "C-a", "v": "tmux prefix"},
+    {"k": "SPC", "v": "nvim leader"}
+  ],
+  "columns": [
+    {"families": ["system"]},
+    {"families": ["terminal"]},
+    {"families": ["vim", "nvim"]}
+  ]
+}
