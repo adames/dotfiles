@@ -149,48 +149,17 @@ C-a  f                         → fzf project sessionizer
 ## Workspace identity
 
 **yabai owns space existence. `spaces.json` owns optional identity.**
-Mission Control's `+` / `×` add and remove yabai spaces; `Caps+W`
-(the manage / workspace overlay) drives the same operations through
-yabai's scripting addition. The bar reflects whatever yabai reports.
-
-Fresh installs ship an empty `spaces.json` — pills render as bare gray
-`ws1`, `ws2`, … until you customize one:
+See [Sigil](https://github.com/adames/sigil) for workspace overlays
+and the `ws` CLI. Quick start:
 
 ```sh
 ws name 1 home            # rename slot 1
-ws icon 1 code            # SF Symbol name → auto-maps to Nerd Font
-ws theme catppuccin       # palette across all slots (color is theme-driven)
+ws icon 1 code            # SF Symbol name
+ws theme catppuccin       # set palette
 ```
 
-Identity surfaces in four places: **tmux statusline**, **starship
-prompt**, **SketchyBar pill strip**, and the **ws-cheatsheet HUD**.
-All four read `~/.config/workspace/spaces.json` through the cascade.
-Per-display assignment, notch-aware pill capping, and the
-menu-bar-vs-pills autohide live in
-[`docs/architecture.md`](docs/architecture.md).
-
-### `ws` CLI
-
-`~/.local/bin/ws` is the public mutation API — atomic write +
-cascade refresh on every change. `ws --help` is the full reference.
-Most-used:
-
-```sh
-ws status                  # all slots with color swatches
-ws name N <new>            # rename (accepts current name or index)
-ws icon N <glyph|sf-name>  # icon (Nerd Font glyph or SF Symbol name)
-ws theme <name> [--with-icons]      # palette across all slots
-ws add / ws remove N       # lifecycle (also available via manage overlay)
-ws layout save/load/delete <name>   # snapshot / restore
-ws doctor / ws verify      # schema check + end-to-end cascade test
-```
-
-Color is **theme-driven and positional** — `ws theme NAME` sets the
-palette across all slots; `swap`/`move`/`rotate`/`reverse`/`reorder`
-permute only `(name, icon)`; the palette stays anchored to slot index.
-Slot identifiers accept either a numeric index or a unique name.
-`~/.config/workspace/{spaces.json,layouts/,themes/}` are per-machine
-and never committed.
+Identity surfaces in: tmux, starship, SketchyBar, ws-cheatsheet HUD.
+Per-machine files in `~/.config/workspace/` — never committed.
 
 ### yabai scripting addition
 

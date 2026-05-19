@@ -177,80 +177,14 @@ The wizard opens each pane and waits for ↵. Three panes, ~5 minutes
 total. Probes first via [`lib/macos-tcc.sh`](../lib/macos-tcc.sh) so a
 working machine finishes in ~2 seconds. See [`wizard.md`](wizard.md).
 
-## Workspace identity cascade
+## Workspace system
 
-Workspace identity (default: empty seed; slots render as bare
-`ws1`, `ws2`, … until you `ws name N <name>`) is a single piece of
-state — `~/.config/workspace/spaces.json` — read by five subsystems.
-Mutations go through the `ws` CLI, either directly from the terminal
-or via `ws-prompt manage` (which shells out to `ws` and yabai). The
-CLI's atomic write fans out via the cascade.
+Workspace overlays and management come from **[Sigil](https://github.com/adames/sigil)** — see its README for the full cascade architecture.
 
-```mermaid
-graph LR
-  CLI[ws CLI] -->|atomic write| JSON[(spaces.json v2)]
-  Overlay[ws-prompt manage] --> CLI
-  JSON --> Hook[post-mutate.sh hook]
-  JSON --> Cascade[on-space-changed.sh]
-  yabai[yabai space_changed] --> Cascade
-  CGCallback[CGDisplayRegisterReconfigurationCallback] --> Daemon[ws-topologyd]
-  Daemon --> TopologyJSON[(~/.cache/workspace/topology.json)]
-  Daemon --> LayoutEnv[(~/.cache/workspace/layout.env)]
-  LayoutEnv --> SketchybarPlugins[per-display-pills.sh · notch-detect.sh]
-  Cascade --> EnvFile[(~/.cache/workspace/current.env)]
-  Cascade --> TmuxEnv[tmux global env]
-  Cascade --> Sketchybar[SketchyBar]
-  EnvFile --> Starship
-  EnvFile --> Zsh[zsh precmd]
-```
-
-Two parallel cache lines: `current.env` is keyed on focused space
-(consumed by tmux / starship / `paint-all.sh`), and `layout.env` is
-keyed on display (consumed by the sketchybar layout plugins). They
-never overlap — one source per render hot path.
-
-**Sentinel-subscriber pill rendering.** The custom `workspace_changed`
-event is fired from four places — yabai's `space_changed` signal (via
-`on-space-changed.sh`), sketchybarrc init, `per-display-pills.sh` (on
-display events), and `ws-topologyd` (on display reconfig). All four
-deliver to one hidden item (`workspace.paint`) whose `script=` points
-at `plugins/paint-all.sh`. That plugin reads `spaces.json` once,
-decides per-slot state (bare vs customized, active vs inactive,
-digit vs dot for slots > 10), and emits one batched `sketchybar --set`
-transaction for every pill + name chip. Pills themselves carry no
-per-item script — a focus change is one atomic redraw, not N staggered
-ones.
-
-- **Source of truth.** `spaces.json` is per-machine, in `$HOME`,
-  never committed. Bootstrap seeds it from `spaces.default.json` only
-  when missing; user edits survive bootstrap re-runs. yabai owns
-  EXISTENCE (which spaces, on which display); `spaces.json` layers
-  optional IDENTITY (name, color, icon) on top.
-- **The CLI** (`~/.local/bin/ws`; `workspace` kept as a compat
-  symlink) is the public mutation API. Subcommands cover name /
-  icon / theme / add / remove / swap / move / rotate / reverse /
-  reorder / layout / edit / reset / doctor / verify. Every mutation
-  is atomic (mktemp + jq + mv) and fires the cascade. Slot count is
-  derived dynamically from yabai. Any subcommand that takes a slot
-  accepts either a numeric index or a unique slot name. Workspace
-  lifecycle is also available through the manage overlay, which
-  shells out to the same CLI.
-- **Positional colors.** Reordering ops (`swap`/`move`/`rotate`/
-  `reverse`/`reorder`) permute only the `(name, icon)` tuples — color
-  stays anchored to slot index. Muscle memory: "orange always means
-  slot 2." Color is theme-driven (`ws theme NAME`); there is no
-  per-slot color override.
-- **`on-space-changed.sh`** is the cascade entry point — called by
-  yabai's `space_changed` signal *and* by every CLI mutation. Writes
-  `current.env` atomically, pushes env into tmux, triggers sketchybar.
-  Silent-on-absence per subsystem so Ubuntu and partial setups work.
-- **`hooks/post-mutate.sh`** is a user-owned extension point. The
-  shipped default keeps SketchyBar's pill set in sync on
-  `add` / `remove`. Receives `(subcommand, slot_indices...)` after
-  every mutation. Per-machine; never clobbered.
-- **Per-host overlay.** `ws host init` forks the shared `spaces.json`
-  into `spaces.<hostname>.json`; cascade and CLI both prefer the host
-  file when present. `ws host reset` removes the overlay.
+**Integration point:** yabai provides space existence; Sigil provides
+optional identity (name, color, icon) and overlays (`ws-prompt`,
+`ws-picker`, `ws-cheatsheet`). The dotfiles configure skhd to trigger
+these overlays and SketchyBar to render the pills.
 
 ## SketchyBar coexistence with the macOS menu bar
 
