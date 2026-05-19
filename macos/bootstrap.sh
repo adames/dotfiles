@@ -140,7 +140,7 @@ phase_apply() {
   # Clean up old sketchybar configs if present.
   rm -rf "$HOME/.config/sketchybar"
 
-  # Workspace files are now installed from https://github.com/adamesh/workspace
+  # Workspace files are now installed from https://github.com/adames/sigil
   # (cloned and built in the workspace installation section below)
   # Retired: cleanup old workspace files that were previously installed directly
   rm -f "$HOME/.config/workspace/rename.sh"
@@ -174,7 +174,7 @@ phase_apply() {
   # which display) via macOS / Mission Control; spaces.json layers
   # optional name/color/icon on top. Default ships empty — pills show
   # bare "ws1", "ws2", etc. until you `ws name N <name>`.
-  # Workspace files are now installed from https://github.com/adamesh/workspace
+  # Workspace files are now installed from https://github.com/adames/sigil
   # Retired file cleanup:
   rm -f "$HOME/.config/workspace/borders-refresh.sh"
   rm -f "$HOME/.config/workspace/lib/colors.sh"
@@ -193,12 +193,12 @@ phase_apply() {
   # banner twice.)
 
   # Workspace: install from separate repository (extracted from dotfiles)
-  # https://github.com/adamesh/workspace
+  # https://github.com/adames/sigil
   # Clones to ~/.config/workspace/ and builds Swift binaries.
   if [[ ! -d "$HOME/.config/workspace/.git" ]]; then
-    step "installing workspace from https://github.com/adamesh/workspace"
+    step "installing workspace from https://github.com/adames/sigil"
     if command -v git >/dev/null 2>&1; then
-      git clone --depth 1 https://github.com/adamesh/workspace.git "$HOME/.config/workspace"
+      git clone --depth 1 https://github.com/adames/sigil.git "$HOME/.config/workspace"
       ok "workspace cloned"
     else
       warn "git not found — skipping workspace install"
