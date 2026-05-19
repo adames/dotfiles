@@ -2,7 +2,7 @@
 
 [![lint](https://github.com/adames/dotfiles/actions/workflows/lint.yml/badge.svg)](https://github.com/adames/dotfiles/actions/workflows/lint.yml)
 
-Keyboard-first dev environment. Three rules:
+MacOS-friendly lifestyle/development/deployment environment. Three rules:
 
 1. **Caps Lock is the centre.** Tap = `Esc`, hold = `Hyper` (⌃⌥⌘⇧),
    hold + Shift = `Mod` (⌃⌥⌘). Karabiner remaps once; every layer
@@ -291,11 +291,10 @@ under `configs/workspace/topology/` and rebuild on every bootstrap.
 - **Drift-resistant.** What's in `configs/` is what gets deployed; nvim
   `init.lua` and `lazy-lock.json` are tracked, so the editor is reproducible.
 - **No paid Apple Developer ID.** Wizard chains through System Settings.
-- **Agent-agnostic.** No AI assistant references in any tracked file.
 
 ## AI Agent Collaboration
 
-This repository is designed for collaboration with multiple AI assistants (Claude, Windsurf, Devin, Cursor, etc.) without conflicts or agent-specific branding.
+This repository is designed for collaboration with multiple AI assistants (Claude, Windsurf, Devin, Cursor, etc.) without conflicts.
 
 ### Agent Workspace Locations
 
