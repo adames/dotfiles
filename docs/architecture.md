@@ -98,13 +98,13 @@ toggles float to commit a staged window into the BSP tiling.
 | Caps remap | Karabiner | `karabiner.json` |
 | Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
 | Hyper/Mod hotkey dispatch | skhd | `skhdrc` |
-| Workspace focus / send / edit overlays | ws-prompt (SwiftUI; edit = multi-stage state machine over `ws`) | `configs/workspace/topology/Sources/ws-prompt/` |
-| Change-workspace overlay (Caps+e) | ws-picker (SwiftUI; fuzzy-search every window in every space, ↵ jumps to its space) | `configs/workspace/topology/Sources/ws-picker/` |
+| Workspace focus / send / edit overlays | ws-prompt (SwiftUI; edit = multi-stage state machine over `ws`) | [sigil](https://github.com/adames/sigil)/Sources/ws-prompt/ |
+| Change-workspace overlay (Caps+e) | ws-picker (SwiftUI; fuzzy-search every window in every space, ↵ jumps to its space) | [sigil](https://github.com/adames/sigil)/Sources/ws-picker/ |
 | New-window staging | bash + yabai signal | `configs/workspace/stage-window.sh` |
-| AX absolute-snap CLI (manual use) | ws-snap | `configs/workspace/topology/Sources/ws-snap/` |
-| SketchyBar per-display autohide | ws-autohide (LaunchAgent) | `configs/workspace/topology/Sources/ws-autohide/` |
-| Cheatsheet HUD | ws-cheatsheet | `configs/workspace/cheatsheet.json` + `configs/workspace/topology/Sources/ws-cheatsheet/` |
-| Cross-display topology (notch + per-display layout) | ws-topologyd (LaunchAgent) | `configs/workspace/topology/` |
+| AX absolute-snap CLI (manual use) | ws-snap | [sigil](https://github.com/adames/sigil)/Sources/ws-snap/ |
+| SketchyBar per-display autohide | ws-autohide (LaunchAgent) | [sigil](https://github.com/adames/sigil)/Sources/ws-autohide/ |
+| Cheatsheet HUD | ws-cheatsheet | `configs/workspace/cheatsheet.json` + [sigil](https://github.com/adames/sigil)/Sources/ws-cheatsheet/ |
+| Cross-display topology (notch + per-display layout) | ws-topologyd (LaunchAgent) | [sigil](https://github.com/adames/sigil)/Sources/ws-topologyd/ |
 | Workspace pill strip | SketchyBar | `configs/sketchybar/` |
 | Terminal · tmux · zsh · nvim | Ghostty + tmux + zsh + Neovim/Mason | respective configs |
 
@@ -113,7 +113,8 @@ toggles float to commit a staged window into the BSP tiling.
 **skhd** forwards keystrokes via `CGEventTap` — fast, stateless, but
 it only knows how to fire shell commands. Anything that needs macOS
 API access is its own one-shot binary, shipped by the Swift package
-under `configs/workspace/topology/`:
+in the [sigil](https://github.com/adames/sigil) repo (cloned to
+`~/.config/workspace/` by bootstrap):
 
 - **ws-prompt** — SwiftUI overlay for Caps+f (focus workspace) / Caps+g · Caps+m
   (go / send window) / Caps+w (edit workspace). Captures keys itself;
