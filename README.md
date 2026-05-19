@@ -322,10 +322,3 @@ cp ~/dotfiles/.settings.json ~/dotfiles/settings.json
 ```
 
 The shared settings file defines allowed tools, workflows, and constraints that apply to all AI agents working on this project.
-
-### Rules for AI Assistants
-
-1. **Leave no trace.** No agent references in commits, PRs, branches, code, or documentation.
-2. **Use intent-based branch names:** `feat/`, `fix/`, `chore/`, `refactor/`, `docs/`, `ci/`.
-3. **Author attribution:** Human identity only; no `Co-Authored-By:` or generation badges.
-4. **Workspace isolation:** Each agent uses its own directory in `~/personas/`, never in `~/dotfiles/`.
