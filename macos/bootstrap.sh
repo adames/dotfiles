@@ -140,19 +140,9 @@ phase_apply() {
   # Clean up old sketchybar configs if present.
   rm -rf "$HOME/.config/sketchybar"
 
-  # Workspace-awareness layer: yabai signal handler + window staging.
-  # spaces.json is NOT install_file'd because that would clobber the
-  # user's renames; workspace/install.sh below seeds it only when missing.
-  install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
-  install_file "$CONFIGS_DIR/workspace/on-space-created.sh"   "$HOME/.config/workspace/on-space-created.sh"   755
-  install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
-  install_file "$CONFIGS_DIR/workspace/stage-window.sh"       "$HOME/.config/workspace/stage-window.sh"       755
-  install_file "$CONFIGS_DIR/workspace/install.sh"          "$HOME/.config/workspace/install.sh"          755
-  install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
-  # Retired: rename.sh / ws-info / ws-destroy-current were dispatch
-  # targets for the original (broken) manage palette. The new ws-prompt
-  # manage overlay calls `ws name` / `ws remove` / `ws doctor` directly,
-  # so the shims are dead. Clean up older deploys.
+  # Workspace files are now installed from https://github.com/adamesh/workspace
+  # (cloned and built in the workspace installation section below)
+  # Retired: cleanup old workspace files that were previously installed directly
   rm -f "$HOME/.config/workspace/rename.sh"
   rm -f "$HOME/.local/bin/ws-info"
   rm -f "$HOME/.local/bin/ws-destroy-current"
@@ -171,17 +161,12 @@ phase_apply() {
   # agnostic; works on Ubuntu too (cascade is silent-on-absence).
   # `ws` is the canonical name; `workspace` is kept as a compat symlink
   # so older bindings and muscle-memory keep working.
-  install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
-  ln -sf "ws" "$HOME/.local/bin/workspace"
-  install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
+  # Workspace CLI (ws) is installed by workspace repo's install.sh
+  # which clones to ~/.config/workspace/ and builds the Swift binaries
   # ws-prompt overlay helpers (Caps+space focus, Caps+return send).
-  # Wrap raw yabai calls with existence checks + loud failure
-  # notifications so the focus/send prompts never silently no-op.
-  install_file "$CONFIGS_DIR/workspace/cli/ws-focus"            "$HOME/.local/bin/ws-focus"            755
-  install_file "$CONFIGS_DIR/workspace/cli/ws-send-follow"      "$HOME/.local/bin/ws-send-follow"      755
-  # Shell completions for `ws` (and the `workspace` alias). zshrc adds
-  # ~/.config/zsh/completions to fpath; bashrc (if present) sources
-  # ~/.config/bash/completions/ws.bash.
+  # Shell completions for `ws` (and the `workspace` alias).
+  # Note: The `ws` binary is installed by workspace repo's install.sh
+  # These completions work with the workspace CLI.
   install_file "$CONFIGS_DIR/completions/_ws"               "$HOME/.config/zsh/completions/_ws"
   install_file "$CONFIGS_DIR/completions/ws.bash"           "$HOME/.config/bash/completions/ws.bash"
 
@@ -189,40 +174,14 @@ phase_apply() {
   # which display) via macOS / Mission Control; spaces.json layers
   # optional name/color/icon on top. Default ships empty — pills show
   # bare "ws1", "ws2", etc. until you `ws name N <name>`.
-  install_file "$CONFIGS_DIR/workspace/spaces.default.json" "$HOME/.config/workspace/spaces.default.json"
-  install_file "$CONFIGS_DIR/workspace/on-space-changed.sh"   "$HOME/.config/workspace/on-space-changed.sh"   755
-  install_file "$CONFIGS_DIR/workspace/on-space-created.sh"   "$HOME/.config/workspace/on-space-created.sh"   755
-  install_file "$CONFIGS_DIR/workspace/on-space-destroyed.sh" "$HOME/.config/workspace/on-space-destroyed.sh" 755
-  # Retired: borders-refresh.sh — JankyBorders removed. Clean up if
-  # present from older deploys.
+  # Workspace files are now installed from https://github.com/adamesh/workspace
+  # Retired file cleanup:
   rm -f "$HOME/.config/workspace/borders-refresh.sh"
-  # Retired with the "yabai owns existence" refactor — cleanup if
-  # present from older deploys.
   rm -f "$HOME/.config/workspace/lib/colors.sh"
   rm -f "$HOME/.config/workspace/reconcile-displays.sh"
   rm -f "$HOME/.config/workspace/laptop-uuid-init.sh"
   rm -f "$HOME/.config/workspace/laptop.uuid"
-  install_file "$CONFIGS_DIR/workspace/lib/resolve-config.sh" "$HOME/.config/workspace/lib/resolve-config.sh"
-  install_file "$CONFIGS_DIR/workspace/lib/icon-decode.sh"  "$HOME/.config/workspace/lib/icon-decode.sh"
-  install_file "$CONFIGS_DIR/workspace/lib/hex-ansi.sh"     "$HOME/.config/workspace/lib/hex-ansi.sh"
-  install_file "$CONFIGS_DIR/workspace/lib/sf-to-nerd.json" "$HOME/.config/workspace/lib/sf-to-nerd.json"
-  install_file "$CONFIGS_DIR/workspace/hooks/post-mutate.sh" "$HOME/.config/workspace/hooks/post-mutate.sh" 755
-  # ws-launch-*: auto-detect the user's preferred terminal / browser /
-  # notes / inbox app and open it. No hardcoded app names; override with
-  # $WS_TERMINAL_APP / $WS_BROWSER_APP / $WS_NOTES_APP / $WS_INBOX_APP
-  # (or $WS_INBOX_VAULT). Wired to Caps+t / Caps+b / Caps+q / Caps+Shift+q
-  # in skhdrc.
-  install_file "$CONFIGS_DIR/workspace/launch-terminal.sh"  "$HOME/.local/bin/ws-launch-terminal"             755
-  install_file "$CONFIGS_DIR/workspace/launch-browser.sh"   "$HOME/.local/bin/ws-launch-browser"              755
-  install_file "$CONFIGS_DIR/workspace/launch-notes.sh"     "$HOME/.local/bin/ws-launch-notes"                755
-  install_file "$CONFIGS_DIR/workspace/launch-inbox.sh"     "$HOME/.local/bin/ws-launch-inbox"                755
-  # ws-doctor: keymap / launcher health check. Catches keystroke-injection
-  # collisions, source/deploy drift, broken menu-item refs, stale skhd.
-  install_file "$DOTFILES_DIR/bin/ws-doctor"                "$HOME/.local/bin/ws-doctor"                       755
-  # ws-dir: direction-aware Caps+hjkl. Floating → ws-snap; tiled →
-  # yabai --window --focus. Single source of truth for the float/tile
-  # branch so skhdrc rows stay one-liners.
-  install_file "$DOTFILES_DIR/bin/ws-dir"                   "$HOME/.local/bin/ws-dir"                          755
+  # Note: ws-doctor and ws-dir remain in dotfiles bin/ as general utilities
   # Clean up legacy sketchybar-related files
   rm -f "$HOME/.config/workspace/sketchybar-tuning.env"
   # Retired: ~/.config/borders/ (JankyBorders removed). Clean up if
@@ -233,27 +192,34 @@ phase_apply() {
   # Earlier this block called it twice, which printed every reload
   # banner twice.)
 
-  # Native display-topology helper (ws-topology / ws-topologyd). Source
-  # tree is vendored under configs/workspace/topology/. The package's own
-  # install.sh builds + symlinks the binaries into ~/.local/bin and loads
-  # the LaunchAgent. swift toolchain is required (ships with Command Line
-  # Tools); if absent, the shell adapters fall back to legacy heuristics.
-  if [[ -d "$CONFIGS_DIR/workspace/topology" ]]; then
-    step "syncing topology Swift package source"
-    rsync -a --delete-after \
-      --exclude='.build' --exclude='Package.resolved' --exclude='.swiftpm' --exclude='.DS_Store' \
-      "$CONFIGS_DIR/workspace/topology/" "$HOME/.config/workspace/topology/"
+  # Workspace: install from separate repository (extracted from dotfiles)
+  # https://github.com/adamesh/workspace
+  # Clones to ~/.config/workspace/ and builds Swift binaries.
+  if [[ ! -d "$HOME/.config/workspace/.git" ]]; then
+    step "installing workspace from https://github.com/adamesh/workspace"
+    if command -v git >/dev/null 2>&1; then
+      git clone --depth 1 https://github.com/adamesh/workspace.git "$HOME/.config/workspace"
+      ok "workspace cloned"
+    else
+      warn "git not found — skipping workspace install"
+      export BOOTSTRAP_TOPOLOGY_FAILED=1
+    fi
+  else
+    step "workspace already installed at ~/.config/workspace/"
+    # Optional: pull latest changes (disabled by default for stability)
+    # (cd "$HOME/.config/workspace" && git pull --ff-only) || true
+  fi
+
+  # Build and install workspace binaries if Swift is available
+  if [[ -f "$HOME/.config/workspace/install.sh" ]]; then
     if command -v swift >/dev/null 2>&1; then
-      # Capture the exit code so the permissions wizard can adjust its
-      # ws-snap prompt and print a follow-up block at the end. install.sh
-      # exits 2 specifically for "CLT version-skewed" — both that and any
-      # other build failure mean ws-snap (et al.) won't exist on this run.
-      if ! bash "$HOME/.config/workspace/topology/install.sh"; then
-        warn "topology install.sh failed (binaries may be stale or missing)"
+      step "building workspace (Swift toolchain found)"
+      if ! bash "$HOME/.config/workspace/install.sh"; then
+        warn "workspace install.sh failed (binaries may be stale or missing)"
         export BOOTSTRAP_TOPOLOGY_FAILED=1
       fi
     else
-      warn "swift toolchain not found — topology daemon will not be built;"
+      warn "swift toolchain not found — workspace binaries will not be built;"
       warn "  install via 'xcode-select --install', then re-run this bootstrap"
       export BOOTSTRAP_TOPOLOGY_FAILED=1
     fi
@@ -275,10 +241,13 @@ EOF
     ok "created ~/.gitconfig.local stub — edit user.email / user.name"
   fi
 
-  # Workspace runtime: seeds spaces.json if missing, primes current.env,
-  # nudges running daemons. Safe to re-run; preserves user renames.
-  step "configuring workspace-awareness layer"
-  "$HOME/.config/workspace/install.sh"
+  # Workspace runtime configuration: seeds spaces.json if missing,
+  # primes current.env, nudges running daemons. Safe to re-run.
+  step "configuring workspace runtime"
+  if [[ -f "$HOME/.config/workspace/install.sh" ]]; then
+    # Re-run install.sh to ensure everything is properly configured
+    bash "$HOME/.config/workspace/install.sh" || warn "workspace runtime config had issues"
+  fi
 
   # macOS defaults (folded into apply phase)
   if [[ "$(defaults read com.apple.spaces spans-displays 2>/dev/null)" != "0" ]]; then

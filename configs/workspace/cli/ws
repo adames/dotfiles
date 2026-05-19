@@ -5,7 +5,7 @@
 # step. Formerly called `workspace`; the old name is kept as a compat
 # symlink so older scripts and muscle-memory continue to work.
 #
-# Atomic spaces.json writes (mktemp + jq + mv), then on-space-changed.sh
+# Atomic spaces.json writes (mktemp + jq + normalize + mv), then on-space-changed.sh
 # fires, then the optional ~/.config/workspace/hooks/post-mutate.sh runs
 # as an extension point.
 #
@@ -33,6 +33,19 @@
 #     (=1 grow, =0 skip) so callers usually don't need to set them.
 
 set -u
+
+# Source workspace configuration (bundle prefix, paths, window manager)
+# This provides: WORKSPACE_BUNDLE_PREFIX, WORKSPACE_WINDOW_MANAGER, etc.
+if [[ -r "$HOME/.config/workspace/lib/config.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/config.sh"
+fi
+
+# Source window manager abstraction layer
+if [[ -r "$HOME/.config/workspace/lib/window-manager.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.config/workspace/lib/window-manager.sh"
+fi
 
 # Resolve WS_CONFIG via the per-host overlay helper (falls back to the
 # shared spaces.json when no host-specific file exists). Sourced before
@@ -90,24 +103,29 @@ _require_config() {
 
 _count() { jq '.spaces | keys | map(tonumber) | length' "$WS_CONFIG"; }
 
-# Yabai's authoritative space count. 0 when yabai is absent / down / when
-# WS_SKIP_YABAI_SLOT_CHECK=1 (the verify harness disables yabai-derived bounds
+# Window manager's authoritative space count. 0 when WM is absent / down / when
+# WS_SKIP_WM_SLOT_CHECK=1 (the verify harness disables WM-derived bounds
 # so it can exercise JSON-only state).
-_yabai_count() {
-  [[ "${WS_SKIP_YABAI_SLOT_CHECK:-0}" == "1" ]] && { printf '0\n'; return; }
-  command -v yabai >/dev/null 2>&1 || { printf '0\n'; return; }
-  yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || printf '0\n'
+_wm_count() {
+  [[ "${WS_SKIP_WM_SLOT_CHECK:-${WS_SKIP_YABAI_SLOT_CHECK:-0}}" == "1" ]] && { printf '0\n'; return; }
+  if [[ -n "${WORKSPACE_WM_BIN:-}" ]]; then
+    wm_space_count 2>/dev/null || printf '0\n'
+  else
+    # Legacy fallback: try yabai directly
+    command -v yabai >/dev/null 2>&1 || { printf '0\n'; return; }
+    yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null || printf '0\n'
+  fi
 }
 
-# Addressable slot upper bound for CLI commands. Yabai owns existence —
+# Addressable slot upper bound for CLI commands. Window manager owns existence —
 # when it reports N spaces, slots 1..N are addressable even if some
 # carry no JSON identity yet (identity writes lazy-seed). Falls back to
-# JSON keys when yabai is silent (Linux, harness). Never below _count
+# JSON keys when WM is silent (Linux, harness). Never below _count
 # (defensive: orphan JSON metadata stays addressable so the user can
 # clean it up via `ws remove`).
 _addressable_max() {
-  local j y; j=$(_count); y=$(_yabai_count)
-  (( j > y )) && printf '%s\n' "$j" || printf '%s\n' "$y"
+  local j w; j=$(_count); w=$(_wm_count)
+  (( j > w )) && printf '%s\n' "$j" || printf '%s\n' "$w"
 }
 
 # Positional color from the factory defaults file, if it has one for this
@@ -661,9 +679,10 @@ EOF_REFRESH_HELP
   fi
 
   if (( full )); then
-    if launchctl print "gui/$(id -u)/com.adames.workspace.topologyd" >/dev/null 2>&1; then
-      launchctl kickstart -k "gui/$(id -u)/com.adames.workspace.topologyd" 2>/dev/null || true
-      printf 'ws: refreshed (--full: daemon kicked)\n' >&2
+    local daemon_label="${WORKSPACE_BUNDLE_PREFIX:-com.user.workspace}.topologyd"
+    if launchctl print "gui/$(id -u)/$daemon_label" >/dev/null 2>&1; then
+      launchctl kickstart -k "gui/$(id -u)/$daemon_label" 2>/dev/null || true
+      printf 'ws: refreshed (--full: daemon %s kicked)\n' "$daemon_label" >&2
       return 0
     else
       warn "ws-topologyd not loaded; --full skipped"
@@ -866,27 +885,23 @@ cmd_add() {
   fi
   # Nerd Font path: user can input raw codepoint if needed for cross-platform
 
-  # ── yabai first, spaces.json second ─────────────────────────────────────
-  # Atomicity: the failure-prone step is `yabai -m space --create`,
-  # which silently fails when the scripting-addition isn't loaded into
-  # Dock. If we wrote spaces.json first and yabai then failed, we'd
-  # leak a phantom slot — identity without existence — and the user
-  # would think the add succeeded. Instead, grow yabai first; only
-  # commit the spaces.json mutation if yabai accepted.
+  # ── window manager first, spaces.json second ───────────────────────────
+  # Atomicity: the failure-prone step is creating a space in the WM,
+  # which silently fails when the WM's scripting-addition isn't loaded
+  # into Dock (yabai). If we wrote spaces.json first and WM then failed,
+  # we'd leak a phantom slot — identity without existence — and the user
+  # would think the add succeeded. Instead, grow WM first; only
+  # commit the spaces.json mutation if WM accepted.
   #
-  # Skipped when yabai is absent (Linux) or down (brew services stop);
-  # in those cases `ws add` is an identity-only operation, which has
-  # always been valid for non-macOS deployments.
-  #
-  # _write exits the script directly on failure (mktemp / jq failure),
-  # which is rare and loud — no rollback machinery needed for that
-  # reverse-drift case.
-  if [[ "${WS_GROW_YABAI_ON_ADD:-1}" == 1 ]] && have yabai && pgrep -x yabai >/dev/null 2>&1; then
-    local yerr
-    if ! yerr=$(yabai -m space --create 2>&1); then
-      err "yabai space --create failed; aborting (spaces.json untouched)"
-      err "yabai: ${yerr:-<no output>}"
-      if [[ "$yerr" == *"scripting-addition"* ]]; then
+  # Skipped when WM is absent (Linux) or down; in those cases `ws add`
+  # is an identity-only operation, which has always been valid for
+  # non-macOS deployments.
+  if [[ "${WS_GROW_WM_ON_ADD:-${WS_GROW_YABAI_ON_ADD:-1}}" == 1 ]] && _wm_available; then
+    local wm_err
+    if ! wm_err=$(wm_create_space 2>&1); then
+      err "window manager space creation failed; aborting (spaces.json untouched)"
+      err "wm: ${wm_err:-<no output>}"
+      if [[ "$wm_err" == *"scripting-addition"* ]]; then
         err ""
         err "the yabai scripting-addition is not loaded. fix:"
         err "  ~/dotfiles/macos/yabai-sa-install.sh --force"

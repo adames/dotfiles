@@ -2,23 +2,39 @@
 # install.sh — build the topology package and lay down the system pieces.
 #
 # Idempotent. Steps:
-#   1. swift build -c release
-#   2. re-sign each binary ad-hoc with a stable identifier (so TCC grants
+#   1. Source workspace configuration (bundle prefix, paths)
+#   2. swift build -c release (with WORKSPACE_BUNDLE_PREFIX if set)
+#   3. re-sign each binary ad-hoc with a stable identifier (so TCC grants
 #      survive rebuilds — see codesign block below)
-#   3. symlink built binaries into ~/.local/bin/
-#   4. copy the LaunchAgent plists into ~/Library/LaunchAgents/
-#   5. launchctl load each agent
+#   4. symlink built binaries into ~/.local/bin/
+#   5. generate LaunchAgent plists from templates into ~/Library/LaunchAgents/
+#   6. launchctl load each agent
+#
+# Configuration: Set WORKSPACE_BUNDLE_PREFIX env var before running to customize.
+# Default: com.user.workspace
 
 set -eu
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOCAL_BIN="$HOME/.local/bin"
-LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
+
+# Source workspace configuration
+source "$HERE/../lib/config.sh" 2>/dev/null || {
+  # Fallback if config.sh not available (first run)
+  WORKSPACE_BUNDLE_PREFIX="${WORKSPACE_BUNDLE_PREFIX:-com.user.workspace}"
+  WORKSPACE_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/workspace"
+  WORKSPACE_LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
+}
+
+LOCAL_BIN="$WORKSPACE_BIN_DIR"
+LAUNCH_AGENTS="$WORKSPACE_LAUNCH_AGENTS_DIR"
 
 # Binaries we build + symlink. CLIs come first (no LaunchAgent), daemons
 # follow with their matching plist files.
 BINARIES=(ws-topology ws-topologyd ws-cheatsheet ws-prompt ws-picker ws-snap ws-statusbar)
-AGENT_LABELS=(com.adames.workspace.topologyd com.user.ws-statusbar)
+
+# Template names and their generated plist names
+TEMPLATES=(topologyd autohide statusbar)
+AGENT_LABELS=("$WORKSPACE_BUNDLE_PREFIX.topologyd" "$WORKSPACE_BUNDLE_PREFIX.autohide" "$WORKSPACE_BUNDLE_PREFIX.statusbar")
 
 step() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m!!\033[0m %s\n' "$*" >&2; }
@@ -101,7 +117,7 @@ for bin in "${BINARIES[@]}"; do
     warn "missing build product: $src"
     exit 1
   fi
-  identifier="com.adames.workspace.$bin"
+  identifier="$WORKSPACE_BUNDLE_PREFIX.$bin"
   if ! codesign --force --sign - \
         --identifier "$identifier" \
         --requirements "=designated => identifier \"$identifier\"" \
@@ -119,27 +135,61 @@ for bin in "${BINARIES[@]}"; do
 done
 
 mkdir -p "$LAUNCH_AGENTS"
-for label in "${AGENT_LABELS[@]}"; do
-  src="$HERE/launchd/${label}.plist"
+mkdir -p "$WORKSPACE_CACHE_DIR"
+
+# Generate plists from templates
+for template in "${TEMPLATES[@]}"; do
+  label="$WORKSPACE_BUNDLE_PREFIX.${template}"
+  template_file="$HERE/launchd/com.template.workspace.${template}.plist"
   dst="$LAUNCH_AGENTS/${label}.plist"
-  if cmp -s "$src" "$dst" 2>/dev/null; then
-    step "LaunchAgent plist already up-to-date: $dst"
-  else
-    cp "$src" "$dst"
-    step "installed $dst"
+
+  if [[ ! -f "$template_file" ]]; then
+    warn "missing template: $template_file"
+    continue
   fi
 
+  # Generate plist with substitutions
+  sed -e "s|{{BUNDLE_PREFIX}}|$WORKSPACE_BUNDLE_PREFIX|g" \
+      -e "s|{{HOME}}|$HOME|g" \
+      -e "s|{{CACHE_DIR}}|$WORKSPACE_CACHE_DIR|g" \
+      "$template_file" > "$dst"
+
+  step "generated $dst"
+
+  # Unload old agent if running (with old name)
+  if [[ "$template" == "topologyd" ]]; then
+    old_label="com.adames.workspace.topologyd"
+    if launchctl print "gui/$(id -u)/$old_label" >/dev/null 2>&1; then
+      step "unloading old agent: $old_label"
+      launchctl bootout "gui/$(id -u)/$old_label" 2>/dev/null || true
+    fi
+  elif [[ "$template" == "statusbar" ]]; then
+    old_label="com.user.ws-statusbar"
+    if launchctl print "gui/$(id -u)/$old_label" >/dev/null 2>&1; then
+      step "unloading old agent: $old_label"
+      launchctl bootout "gui/$(id -u)/$old_label" 2>/dev/null || true
+    fi
+  fi
+
+  # Unload current agent if running
   if launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1; then
     step "reloading $label"
     launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
   fi
+
   launchctl bootstrap "gui/$(id -u)" "$dst"
 done
-step "agents loaded; logs under ~/.cache/workspace/"
+
+step "agents loaded; logs under $WORKSPACE_CACHE_DIR/"
 
 cat <<NOTE
 
+Configuration:
+  Bundle prefix: $WORKSPACE_BUNDLE_PREFIX
+  Window manager: ${WORKSPACE_WINDOW_MANAGER:-yabai}
+  Bar: ${WORKSPACE_BAR:-ws-statusbar}
+
 To uninstall:
-  for L in ${AGENT_LABELS[*]}; do launchctl unload "$LAUNCH_AGENTS/\$L.plist" 2>/dev/null || true; rm -f "$LAUNCH_AGENTS/\$L.plist"; done
+  for L in ${AGENT_LABELS[*]}; do launchctl bootout "gui/$(id -u)/\$L" 2>/dev/null || true; rm -f "$LAUNCH_AGENTS/\$L.plist"; done
   for B in ${BINARIES[*]}; do rm -f "$LOCAL_BIN/\$B"; done
 NOTE

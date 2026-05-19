@@ -1,6 +1,7 @@
 import CoreGraphics
 import Dispatch
 import Foundation
+import WorkspaceState
 
 /// Coalesces bursts of `CGDisplayRegisterReconfigurationCallback` notifications
 /// into a single emission. Apple's docs (and the research) note the callback
@@ -16,7 +17,7 @@ public final class ReconfigCoalescer: @unchecked Sendable {
 
     public init(
         trailingWindow: TimeInterval = 0.05,
-        queue: DispatchQueue = DispatchQueue(label: "com.adames.workspace.topology.coalesce"),
+        queue: DispatchQueue = DispatchQueue(label: "\(WorkspaceConfig.bundlePrefix).topology.coalesce"),
         onFire: @escaping () -> Void
     ) {
         self.trailingWindow = trailingWindow
