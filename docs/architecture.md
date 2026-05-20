@@ -3,6 +3,27 @@
 > For chord lookups, file:line pointers, and collision rules, see
 > [keymap.md](keymap.md). This doc is the narrative and rationale.
 
+> **Migration in flight (yabai → AeroSpace, Karabiner → Hyperkey).** Plan at
+> [~/.claude/plans/let-s-migrate-to-aerospace-structured-bunny.md](../../../.claude/plans/let-s-migrate-to-aerospace-structured-bunny.md).
+> Three contracts frozen during the migration; this section is the reference,
+> the rest of the document still describes the live yabai-era stack until
+> Phase 6 lands.
+>
+> 1. **`current.env`** renames `MACOS_SPACE_INDEX` → `MACOS_WORKSPACE_NAME`.
+>    Out-of-repo consumers (tmux.conf, starship.toml) only read `_NAME`,
+>    `_COLOR`, `_ICON`, `_ANSI` — no breakage. Same field set otherwise.
+> 2. **`~/.config/aerospace/aerospace.toml`** is sentinel-fenced. User owns
+>    everything except the block between `# >>> sigil generated >>>` and
+>    `# <<< sigil generated <<<`. That block carries per-workspace digit
+>    bindings + `exec-on-workspace-change` (the cascade replacing yabai's
+>    `space_changed` signal). Written atomically by `ws-topology
+>    emit-aerospace`, validated before write. Hand-edits inside the fence
+>    are clobbered.
+> 3. **`spaces.json` v3** keys on `"<displayUUID>:<workspaceName>"`.
+>    `displayUUID` from `CGDisplayCreateUUIDFromDisplayID` (stable; AeroSpace
+>    monitor ordinals are not). Migrated v2 slots land in `_unassigned:*`
+>    until ws-topology reconciles them against live aerospace workspaces.
+
 Caps Lock is king of the dev surface.
 
 ## Layer stack
