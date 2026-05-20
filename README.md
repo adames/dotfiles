@@ -61,11 +61,11 @@ default-shell); skips AeroSpace + Hyperkey + Docker.
 |---|---|---|
 | Caps → Hyper / Esc | Hyperkey | (`com.knollsoft.Hyperkey` user defaults; cask install only — no file) |
 | Window tiling + chord dispatch | AeroSpace | [`aerospace.toml`](configs/aerospace.toml) (sentinel-fenced; sigil owns the digit block) |
-| Per-display workspace pill strip | SketchyBar + ws-statusbar (menu bar) | [`sketchybar/`](configs/sketchybar/) · [sigil](https://github.com/adames/sigil) |
+| Menu-bar workspace pill strip | ws-statusbar | [sigil](https://github.com/adames/sigil) |
 | Workspace focus / send / manage overlays | ws-prompt (SwiftUI) | [sigil](https://github.com/adames/sigil) |
 | Change-workspace overlay (Caps+e) | ws-picker (SwiftUI) | [sigil](https://github.com/adames/sigil) |
 | Cheatsheet HUD (SwiftUI) | ws-cheatsheet | [sigil](https://github.com/adames/sigil) · `~/.config/workspace/cheatsheet.json` |
-| Per-display SketchyBar autohide | ws-autohide | [sigil](https://github.com/adames/sigil) |
+| Cursor-proximity autohide for the pill strip | ws-autohide | [sigil](https://github.com/adames/sigil) |
 | Cross-display topology + notch detection | ws-topologyd | [sigil](https://github.com/adames/sigil) |
 | AX absolute-snap CLI (driven by Caps+h/j/k/l on floats) | ws-snap | [sigil](https://github.com/adames/sigil) |
 | Direction-aware Caps+h/j/k/l dispatch (floating→snap, tiled→focus) | ws-dir | [`bin/ws-dir`](bin/ws-dir) |
@@ -249,8 +249,8 @@ it to `~/.config/workspace/` and rebuilds the Swift binaries.
 | `Caps + e` / `Caps + f` / `Caps + g` / `Caps + w` does nothing | `ws-prompt` / `ws-picker` / `ws-statusbar` missing — re-run `./bootstrap.sh` |
 | `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — same fix |
 | Manage overlay's `add` / `destroy` shows "edit aerospace.toml" message | Working as intended — workspace existence is config-time under AeroSpace; edit the toml + `aerospace reload-config && ws-topology emit-aerospace --write`. |
-| Workspace pills missing | `sketchybar` not running — `brew services restart sketchybar`. Menu bar version: `ws-statusbar` should be running (launched by bootstrap) |
-| Workspace pill doesn't update on space switch | `sketchybar --trigger workspace_changed`; if no-op, `brew services restart sketchybar` |
+| Workspace pills missing | `ws-statusbar` not running — `launchctl kickstart -k gui/$(id -u)/com.user.workspace.statusbar` |
+| Workspace pill doesn't update on space switch | `~/.config/workspace/on-space-changed.sh` not firing — verify aerospace.toml's `exec-on-workspace-change` line points at it |
 | Workspace chip missing from prompt / tmux | `~/.config/workspace/on-space-changed.sh` to prime current.env |
 | AeroSpace workspaces land on the wrong monitor after hot-plug | AeroSpace's monitor ordinals can drift on hot-plug. Run `ws-topology` (rewrites spaces.json display UUID assignments via CG-stable UUIDs). |
 | Neovim plugins missing | First-launch install in progress — open `nvim`, wait for lazy.nvim to install, then restart |
@@ -269,14 +269,9 @@ it to `~/.config/workspace/` and rebuilds the Swift binaries.
 │   └── archive/yabai-to-aerospace.md   # migration history
 └── configs/
     ├── aerospace.toml            # window tiling + Hyper chord dispatch (sentinel-fenced)
-    ├── workspace/                # workspace identity layer
-    │   ├── spaces.default.json   #  · empty seed
-    │   ├── cli/ws                #  · the public mutation API
-    │   ├── on-space-changed.sh   #  · cascade hook (called by exec-on-workspace-change)
-    │   └── cheatsheet.json       #  · HUD content
-    │                             #  (Swift package — ws-prompt, ws-cheatsheet, ws-autohide,
-    │                             #   ws-snap, ws-topology(d) — lives in https://github.com/adames/sigil)
-    ├── sketchybar/               # per-display workspace pill strip
+    ├── workspace/                # cheatsheet layout (the Swift package + spaces.json +
+    │   └── cheatsheet-layout.json  on-space-changed.sh live in sigil; cloned to
+    │                               ~/.config/workspace/ at bootstrap)
     ├── starship.toml · ghostty-config · tmux.conf · tmux-sessionizer
     ├── zshrc · gitconfig · ripgreprc
     └── nvim-{init.lua,lazy-lock.json,keymaps.lua}
