@@ -104,8 +104,6 @@ require("lazy").setup({
   {
     "neovim/nvim-lspconfig",
     config = function()
-      local lspconfig = require("lspconfig")
-      
       -- Enable LSP keymaps when attached
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("UserLspAttach", { clear = true }),
@@ -118,20 +116,23 @@ require("lazy").setup({
           map("<leader>=", vim.lsp.buf.format, "Format buffer")
         end,
       })
-      
+
       -- Pyright for Python type checking
       if vim.fn.executable("pyright-langserver") == 1 then
-        lspconfig.pyright.setup({})
+        vim.lsp.config("pyright", {})
+        vim.lsp.enable("pyright")
       end
-      
+
       -- Ruff for Python linting/formatting
-      if vim.fn.executable("ruff-lsp") == 1 then
-        lspconfig.ruff_lsp.setup({})
+      if vim.fn.executable("ruff") == 1 then
+        vim.lsp.config("ruff", {})
+        vim.lsp.enable("ruff")
       end
-      
+
       -- Bash
       if vim.fn.executable("bash-language-server") == 1 then
-        lspconfig.bashls.setup({})
+        vim.lsp.config("bashls", {})
+        vim.lsp.enable("bashls")
       end
     end,
   },
@@ -168,6 +169,21 @@ require("lazy").setup({
   -- Debug: use `python -m pdb script.py` or add `breakpoint()` in code
   -- Tests: use `pytest -xvs test_file.py` in a tmux pane
   -- No heavy DAP/neotest dependencies to manage
+
+  {
+    "kawre/leetcode.nvim",
+    build = ":TSUpdate html",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+      "MunifTanjim/nui.nvim",
+      "ibhagwan/fzf-lua",
+      "echasnovski/mini.icons",
+      "nvim-lua/plenary.nvim",
+    },
+    opts = {
+      lang = "python3",
+    },
+  },
 }, {
   rocks = { enabled = false },
 })
