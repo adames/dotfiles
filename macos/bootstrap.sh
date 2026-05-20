@@ -282,6 +282,18 @@ EOF
     bash "$HOME/.config/workspace/install.sh" || warn "workspace runtime config had issues"
   fi
 
+  # Populate the sigil-fenced digit-binding block in aerospace.toml. The
+  # source-of-truth is spaces.json; ws-topology renders Caps+1..0 against
+  # the current workspace declarations and merges them between the fences.
+  # Without this step, the deployed aerospace.toml carries only the stub
+  # fence and Caps+1..0 silently do nothing. `--validate` runs a dry-run
+  # aerospace reload; `--reload` applies the new bindings live.
+  if command -v "$HOME/.local/bin/ws-topology" >/dev/null 2>&1; then
+    step "emitting workspace digit bindings (ws-topology emit-aerospace)"
+    "$HOME/.local/bin/ws-topology" emit-aerospace --write --validate --reload \
+      || warn "emit-aerospace failed — Caps+1..0 chords may be unbound until you re-run it"
+  fi
+
   # macOS defaults (folded into apply phase). AeroSpace requires the
   # opposite of yabai here: `displays-have-separate-spaces` must stay on
   # (the macOS default), and `spans-displays` is irrelevant because

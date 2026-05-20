@@ -151,7 +151,7 @@ bindings, but state that affects what the chords do.
 |---|---|---|
 | Outer gap = 26pt at top | `[gaps]` | Reserves the strip sketchybar lives in. Changing it without also moving sketchybar's bar height clips the bar against the top window. |
 | Float rules | `[[on-window-detected]]` | These apps float by default — Caps+v on them does nothing useful. |
-| Workspace declarations | `[workspace-to-monitor-force-assignment]` | Workspaces are declared statically; runtime add/destroy isn't supported. Edit + `aerospace reload-config`. **TODO**: `ws-topology` still ships only `emit-skhd`, not `emit-aerospace` — so the sigil-fenced digit-binding block in aerospace.toml is currently empty and **Caps+1..0 do nothing**. Fix-path is either landing `emit-aerospace` in sigil or hand-writing the ten `cmd-alt-ctrl-shift-N = 'workspace N'` lines. |
+| Workspace declarations | `[workspace-to-monitor-force-assignment]` | Workspaces are declared statically; runtime add/destroy isn't supported. After editing spaces.json: `ws-topology emit-aerospace --write --reload` re-renders the sigil-fenced digit-binding block in the deployed aerospace.toml and reloads aerospace live. Bootstrap calls the same command, so a re-bootstrap after a workspace change keeps the dotfiles source in step. |
 | `exec-on-workspace-change` | inside sigil-fenced block | Replaces yabai's `space_changed` signal — primes `~/.cache/workspace/current.env` for tmux + starship. |
 
 ## Ghostty
@@ -240,7 +240,7 @@ Cross-layer conflicts that already exist + how they're resolved.
 
 | Apparent collision | Resolution |
 |---|---|
-| `Caps + 1..0` (workspace focus) vs `Caps + Shift + 1..0` (the yabai-era "send window to N") | Both collapse onto the same chord under Hyperkey — Hyper consumes all four modifiers, so Shift is a no-op once Caps is held. Send-window digit chords are not bound under aerospace; use Caps + g (ws-prompt send) instead. **Note: focus-digit chords are also currently unbound** — see the sigil-fenced block TODO above. |
+| `Caps + 1..0` (workspace focus) vs `Caps + Shift + 1..0` (the yabai-era "send window to N") | Both collapse onto the same chord under Hyperkey — Hyper consumes all four modifiers, so Shift is a no-op once Caps is held. Send-window digit chords are not bound under aerospace; use Caps + g (ws-prompt send) instead. Focus-digit chords come from the sigil-fenced block, rendered by `ws-topology emit-aerospace` against spaces.json — only declared slots get a binding (so the 2-space user has Caps+1 and Caps+2 bound; 3..0 are silent). |
 | `Caps + T` (terminal launch) vs Ghostty `Cmd + T` (new_window) | Different modifier sets; both fire in their own contexts. |
 | Caps-tap-Esc vs Ghostty option-as-alt | `escape-time 10` gives the ESC byte time to arrive; "no Option/M-* bindings" in tmux prevents the ambiguity from mattering. |
 | zsh vi-mode `Esc` vs Caps-tap-Esc | Same key — Caps-tap IS the canonical way to enter vi normal mode. |
