@@ -49,10 +49,12 @@ phase_packages() {
     zsh-autosuggestions zsh-syntax-highlighting >/dev/null
   ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, pyright, ruff …)"
 
-  step "installing yabai + skhd (koekeishiya tap)"
-  brew install --quiet koekeishiya/formulae/yabai >/dev/null || true
-  brew install --quiet koekeishiya/formulae/skhd  >/dev/null || true
-  ok "yabai + skhd"
+  # AeroSpace (nikitabobko/tap/aerospace) is the window manager:
+  # userspace, no SIP modification, no scripting addition. Replaces
+  # yabai + skhd in one cask — aerospace ships its own keybinding daemon.
+  step "installing aerospace (window manager)"
+  brew install --quiet --cask nikitabobko/tap/aerospace >/dev/null || true
+  ok "aerospace"
 
   step "workspace status bar (ws-statusbar) — built from Swift"
   # ws-statusbar replaces sketchybar for workspace pills
@@ -103,21 +105,15 @@ phase_apply() {
 
   # Window/keyboard
   install_file "$CONFIGS_DIR/karabiner.json"             "$HOME/.config/karabiner/karabiner.json"
-  install_file "$CONFIGS_DIR/skhdrc"                     "$HOME/.skhdrc"
-  install_file "$CONFIGS_DIR/yabairc"                    "$HOME/.yabairc"             755
-  # Clean up retired manipulation scripts. yabai-ensure-spaces.sh,
-  # reconcile-displays.sh, laptop-uuid-init.sh, and lib/colors.sh
-  # all enforced a fixed slot count + per-display routing via labels.
-  # Retired: yabai owns existence (Mission Control runs it), spaces.json
-  # owns optional identity. Idempotent: no-op once gone.
-  rm -f "$HOME/.config/yabai/ensure-spaces.sh"
-  # Hammerspoon is retired. ws-autohide is no longer needed since we're
-  # using native macOS status bar (always visible, no autohide needed).
-  # ws-snap is an AX absolute-snap CLI (not bound to a chord today; new
-  # windows are auto-staged via stage-window.sh from the yabai
-  # window_created signal), and skhd owns the rest of what used to live in
-  # hammerspoon-init.lua. The cheatsheet HUD is the SwiftUI
-  # ws-cheatsheet — all reachable via the topology Swift package below.
+  install_file "$CONFIGS_DIR/aerospace.toml"             "$HOME/.config/aerospace/aerospace.toml"
+  # Clean up retired yabai / skhd surface. Idempotent: no-op once gone.
+  # The new aerospace.toml is sentinel-fenced — sigil's `ws-topology
+  # emit-aerospace --write` keeps the [mode.main.binding] block in sync
+  # with spaces.json; the rest of aerospace.toml is hand-owned.
+  rm -f "$HOME/.skhdrc"
+  rm -f "$HOME/.yabairc"
+  rm -rf "$HOME/.config/yabai"
+  rm -rf "$HOME/.config/skhd"
 
   # Cheatsheet HUD content. Regenerated from @cs annotations in the
   # upstream config files (skhdrc, tmux.conf, nvim-init.lua, …) plus the
@@ -170,10 +166,11 @@ phase_apply() {
   install_file "$CONFIGS_DIR/completions/_ws"               "$HOME/.config/zsh/completions/_ws"
   install_file "$CONFIGS_DIR/completions/ws.bash"           "$HOME/.config/bash/completions/ws.bash"
 
-  # Workspace identity layer. yabai owns existence (which spaces, on
-  # which display) via macOS / Mission Control; spaces.json layers
-  # optional name/color/icon on top. Default ships empty — pills show
-  # bare "ws1", "ws2", etc. until you `ws name N <name>`.
+  # Workspace identity layer. AeroSpace owns existence (declared in
+  # ~/.config/aerospace/aerospace.toml as [workspace-to-monitor-force-
+  # assignment]); spaces.json layers optional name/color/icon on top.
+  # Default ships empty — pills show bare "ws1", "ws2", etc. until you
+  # `ws name N <name>`.
   # Workspace files are now installed from https://github.com/adames/sigil
   # Retired file cleanup:
   rm -f "$HOME/.config/workspace/borders-refresh.sh"
@@ -249,12 +246,11 @@ EOF
     bash "$HOME/.config/workspace/install.sh" || warn "workspace runtime config had issues"
   fi
 
-  # macOS defaults (folded into apply phase)
-  if [[ "$(defaults read com.apple.spaces spans-displays 2>/dev/null)" != "0" ]]; then
-    step "spans-displays → false (yabai requirement)"
-    defaults write com.apple.spaces spans-displays -bool false
-    ok "logout required to take effect"
-  fi
+  # macOS defaults (folded into apply phase). AeroSpace requires the
+  # opposite of yabai here: `displays-have-separate-spaces` must stay on
+  # (the macOS default), and `spans-displays` is irrelevant because
+  # AeroSpace stacks every workspace on Space 1 of each monitor and
+  # show/hides windows itself.
 }
 
 # ─── phase 4 · permission wizard ────────────────────────────────────────────

@@ -2,10 +2,11 @@
 # ws-dir <h|j|k|l> — direction-aware dispatch for Caps+hjkl.
 #
 # Floating window: snap via ws-snap (h=left, l=right, j=center, k=max).
-# Tiled  window: focus neighbor via yabai --window --focus.
+# Tiled  window: focus neighbor via aerospace.
 #
-# Lives behind a single chord so skhdrc stays one-line-per-binding
-# and the float-vs-tile decision has exactly one source of truth.
+# Lives behind a single chord so aerospace.toml stays one line per
+# binding and the float-vs-tile decision has exactly one source of
+# truth.
 set -u
 
 dir="${1:-}"
@@ -17,12 +18,14 @@ case "$dir" in
     ;;
 esac
 
-# is-floating? Exit 0 = floating, 1 = tiled (or no focused window).
+# is-floating? AeroSpace exposes the layout of the focused node via
+# `list-windows --focused --json`'s ."floating-or-tiling" field
+# ("floating" | "tiling"). Empty / failed query → treat as tiled and
+# fall through to the focus path.
 floating=0
-if yabai -m query --windows --window 2>/dev/null \
-     | jq -e '.["is-floating"] == true' >/dev/null 2>&1; then
-  floating=1
-fi
+layout=$(aerospace list-windows --focused --json 2>/dev/null \
+           | jq -r '.[0]."floating-or-tiling" // empty' 2>/dev/null)
+[[ "$layout" == "floating" ]] && floating=1
 
 if (( floating )); then
   case "$dir" in
@@ -34,10 +37,10 @@ if (( floating )); then
   exec "$HOME/.local/bin/ws-snap" "$region"
 else
   case "$dir" in
-    h) direction=west  ;;
-    j) direction=south ;;
-    k) direction=north ;;
-    l) direction=east  ;;
+    h) direction=left  ;;
+    j) direction=down  ;;
+    k) direction=up    ;;
+    l) direction=right ;;
   esac
-  exec yabai -m window --focus "$direction"
+  exec aerospace focus "$direction"
 fi

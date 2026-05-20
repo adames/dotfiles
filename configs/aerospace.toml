@@ -1,0 +1,140 @@
+# AeroSpace configuration (https://github.com/nikitabobko/AeroSpace)
+#
+# This file replaces yabairc + skhdrc. The block between
+# `# >>> sigil generated >>>` and `# <<< sigil generated <<<` is
+# OWNED BY ws-topology. Run `ws-topology emit-aerospace --write` to
+# regenerate it; hand-edits inside the fence are clobbered. Everything
+# outside the fence is yours.
+#
+# AeroSpace + sketchybar invariant: `outer.top = 26` reserves the 26pt
+# strip that sketchybar's pill bar lives in — same offset yabai's
+# `external_bar all:26:0` used to produce. Changing one without the
+# other clips the bar against the top window.
+
+# Start AeroSpace at login. Cask installs a LaunchAgent that respects
+# this; verify with `aerospace config --get start-at-login`.
+start-at-login = true
+
+# Layout: tiles by default (sigil + ws-snap depend on this; nothing
+# else does). Floating windows are routed via on-window-detected below.
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+
+# 26pt top reservation for the sketchybar pill strip. Equivalent to
+# yabai's `external_bar all:26:0`. Inner gaps mirror yabai's
+# `window_gap = 8`. Bottom/left/right outer kept symmetric with yabai's
+# `bottom_padding = 8` etc.
+[gaps]
+inner.horizontal = 8
+inner.vertical = 8
+outer.left = 8
+outer.bottom = 8
+outer.top = 26
+outer.right = 8
+
+# Mouse follows focus is off — matches yabai's `focus_follows_mouse = off`.
+[mouse-callback]
+"--target-monitor-focused-window-by-frame-center" = 'enabled'
+
+# Float system dialogs. Subroles cover most modals without enumerating
+# apps. Mirrors yabairc's AXDialog / AXSystemDialog rules.
+[[on-window-detected]]
+if.window-title-regex-substring = '^(Copy|Move|Info)$'
+if.app-id = 'com.apple.finder'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.SystemPreferences'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.calculator'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.installer'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.SoftwareUpdate'
+run = ['layout floating']
+
+# Workspace declarations: spaces.json identity layers on top of these.
+# Workspaces are "1", "2", etc. by default (matching the digit chords
+# below); rename them in spaces.json + here together if you want
+# different aerospace identifiers. `--monitor 1` is the primary display.
+[workspace-to-monitor-force-assignment]
+"1" = 1
+"2" = 1
+"3" = 1
+"4" = 1
+"5" = 1
+"6" = 1
+"7" = 1
+"8" = 1
+"9" = 1
+"10" = 1
+
+# Out-of-fence focus / swap / float / rotate bindings. The
+# sigil-generated block below adds digit-bindings (workspace focus +
+# send-window) and the exec-on-workspace-change cascade. Swap chords
+# live on Caps+yuio (not Caps+Shift+hjkl) under Hyperkey — see
+# docs/keymap.md for the full rationale.
+[mode.main.binding]
+# Hyper+hjkl → focus neighbour / snap floating window (ws-dir routes
+# based on the focused node's floating-or-tiling status).
+cmd-alt-ctrl-shift-h = 'exec-and-forget $HOME/.local/bin/ws-dir h'
+cmd-alt-ctrl-shift-j = 'exec-and-forget $HOME/.local/bin/ws-dir j'
+cmd-alt-ctrl-shift-k = 'exec-and-forget $HOME/.local/bin/ws-dir k'
+cmd-alt-ctrl-shift-l = 'exec-and-forget $HOME/.local/bin/ws-dir l'
+
+# Hyper+yuio → swap window west/south/north/east. (Replaces
+# Caps+Shift+hjkl from the yabai era — Hyperkey collapses Caps+Shift
+# into Caps so swap can't share the hjkl row.)
+cmd-alt-ctrl-shift-y = 'move left'
+cmd-alt-ctrl-shift-u = 'move down'
+cmd-alt-ctrl-shift-i = 'move up'
+cmd-alt-ctrl-shift-o = 'move right'
+
+# Hyper+v → toggle floating / tiling
+cmd-alt-ctrl-shift-v = 'layout floating tiling'
+
+# Hyper+r → flatten + rotate the workspace tree (rough equivalent of
+# yabai's `space --rotate 90`)
+cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal vertical']
+
+# Hyper+n / Hyper+p / Hyper+Tab → workspace cycle (prev / next / last)
+cmd-alt-ctrl-shift-n   = 'exec-and-forget $HOME/.local/bin/ws-focus prev'
+cmd-alt-ctrl-shift-p   = 'exec-and-forget $HOME/.local/bin/ws-focus next'
+cmd-alt-ctrl-shift-tab = 'exec-and-forget $HOME/.local/bin/ws-focus last'
+
+# Hyper+e/f/g/m/w → workspace prompts
+cmd-alt-ctrl-shift-e = 'exec-and-forget $HOME/.local/bin/ws-picker'
+cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
+cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
+cmd-alt-ctrl-shift-m = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
+cmd-alt-ctrl-shift-w = 'exec-and-forget $HOME/.local/bin/ws-prompt manage'
+
+# Launchers
+cmd-alt-ctrl-shift-t       = 'exec-and-forget $HOME/.local/bin/ws-launch-terminal'
+cmd-alt-ctrl-shift-b       = 'exec-and-forget $HOME/.local/bin/ws-launch-browser'
+cmd-alt-ctrl-shift-comma   = 'exec-and-forget open -a "System Settings"'
+cmd-alt-ctrl-shift-q       = 'exec-and-forget $HOME/.local/bin/ws-launch-notes'
+cmd-alt-ctrl-shift-x       = 'exec-and-forget $HOME/.local/bin/ws-launch-inbox'
+cmd-alt-ctrl-shift-semicolon = 'exec-and-forget $HOME/.local/bin/ws-cheatsheet --toggle'
+
+# Finder (osascript for "new Finder window" — `open Finder` brings
+# Finder forward but doesn't always open a new window)
+cmd-alt-ctrl-shift-o-on-shift-x = 'exec-and-forget osascript -e ''tell application "Finder" to make new Finder window'' -e ''tell application "Finder" to activate'''
+
+# Cheatsheet: cmd-alt-ctrl-shift- followed by ; (0x29 on US ANSI)
+# already bound above as cmd-alt-ctrl-shift-semicolon.
+
+# >>> sigil generated >>>
+# (Populated by `ws-topology emit-aerospace --write`. Digit bindings
+# + exec-on-workspace-change land here.)
+# <<< sigil generated <<<

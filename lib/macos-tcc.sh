@@ -5,7 +5,7 @@
 # poll them in a tight loop without worrying about overhead.
 #
 # References:
-#   - launchctl list for service liveness (yabai, skhd)
+#   - pgrep for AeroSpace.app liveness
 #   - TCC.db reads via sqlite3 for Karabiner (reads are safe — Apple
 #     invalidates writes, not reads). Requires Terminal/iTerm to have Full
 #     Disk Access; falls back to alternative probes when not granted.
@@ -23,43 +23,14 @@ mac_open_privacy_pane() {
   open "x-apple.systempreferences:com.apple.preference.security?$pane" 2>/dev/null || true
 }
 
-# ---- yabai ------------------------------------------------------------------
+# ---- AeroSpace --------------------------------------------------------------
 # Return codes:
-#   0 = service has a live PID
-#   1 = unknown failure (check /tmp/yabai_*.err.log)
-#   2 = aborted on missing Accessibility
-#   3 = aborted on "Displays have separate Spaces" disabled (needs logout)
-mac_yabai_status() {
-  local logf="/tmp/yabai_$(id -un).err.log"
-  local pid
-  pid=$(launchctl list 2>/dev/null | awk '$3=="com.asmvik.yabai"{print $1}')
-  if [[ "$pid" =~ ^[0-9]+$ && "$pid" != "0" ]]; then
-    return 0
-  fi
-  if [[ -f "$logf" ]]; then
-    local last
-    last=$(tail -1 "$logf" 2>/dev/null)
-    grep -q "could not access accessibility" <<<"$last" && return 2
-    grep -q "display has separate spaces"     <<<"$last" && return 3
-  fi
-  return 1
-}
-
-# ---- skhd -------------------------------------------------------------------
-# Return codes:
-#   0 = running, 1 = unknown, 2 = missing Accessibility.
-mac_skhd_status() {
-  local logf="/tmp/skhd_$(id -un).err.log"
-  local pid
-  pid=$(launchctl list 2>/dev/null | awk '$3=="com.koekeishiya.skhd"{print $1}')
-  if [[ "$pid" =~ ^[0-9]+$ && "$pid" != "0" ]]; then
-    return 0
-  fi
-  if [[ -f "$logf" ]] && tail -1 "$logf" 2>/dev/null \
-       | grep -q "must be run with accessibility access"; then
-    return 2
-  fi
-  return 1
+#   0 = AeroSpace.app process exists AND the CLI socket responds
+#   1 = process missing or daemon not reachable
+mac_aerospace_status() {
+  pgrep -x AeroSpace >/dev/null 2>&1 || return 1
+  command -v aerospace >/dev/null 2>&1 || return 1
+  aerospace list-monitors --json >/dev/null 2>&1
 }
 
 # ---- TCC.db read helper -----------------------------------------------------
