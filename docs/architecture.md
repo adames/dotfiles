@@ -171,11 +171,11 @@ Once you're in the terminal the same hjkl + leader-key model continues:
 
 | Layer | Prefix / leader | Owns |
 |---|---|---|
-| **tmux**   | `C-a`           | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
+| **tmux**   | `Caps+␣` (via AeroSpace → `C-Space`) | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
 | **zsh**    | (vi-mode `Esc`) | Vi normal-mode editing on the command line; fzf widgets `Ctrl-R/T`/`Alt-C`; zoxide `z` |
 | **Neovim** | `Space`         | LSP (`gd`/`K`/`gr`/`<leader>ca`/`<leader>rn`), find (`<leader>f*`), debug (`<leader>d*`), test (`<leader>t*`) |
 
-Modifier sets the scope: bare `h` moves the cursor in vim, `C-a  h`
+Modifier sets the scope: bare `h` moves the cursor in vim, `Caps+␣  h`
 moves the tmux pane focus, `Caps + h` moves the OS window focus. Same
 letter, four contexts, no overlap.
 
