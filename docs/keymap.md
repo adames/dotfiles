@@ -25,7 +25,7 @@ graph LR
   APP --> Ghostty
   APP --> Browser
   APP --> Other[other apps]
-  Ghostty --> TMUX[tmux<br/>C-a prefix]
+  Ghostty --> TMUX[tmux<br/>C-Space prefix · Caps+␣ via AeroSpace shim]
   TMUX --> ZSH[zsh ZLE]
   TMUX --> NVIM[Neovim]
 ```
@@ -38,10 +38,12 @@ Four governing rules:
    swap layer can't ride on Caps+Shift+hjkl any more.
 2. **AeroSpace grabs `cmd-alt-ctrl-shift-*` chords**, system-wide. Hyper
    bindings beat any in-app shortcut on the same physical key.
-3. **Inside a terminal, tmux's `C-a` prefix is bound BEFORE the shell
-   sees the key.** zsh/nvim bindings only fire on non-prefixed keys, or
-   *after* the prefix dispatches.
-4. **`set -sg escape-time 10` in [tmux.conf:60](../configs/tmux.conf:60)
+3. **Inside a terminal, tmux's `C-Space` prefix is bound BEFORE the
+   shell sees the key.** User-facing chord is **Caps+Space** — AeroSpace
+   grabs `cmd-alt-ctrl-shift-space` and runs `tmux send-keys C-Space`
+   (IPC, not synthetic keystrokes). zsh/nvim bindings only fire on
+   non-prefixed keys, or *after* the prefix dispatches.
+4. **`set -sg escape-time 10` in [tmux.conf:65](../configs/tmux.conf:65)
    is load-bearing.** Protects Caps-tap-Esc from being interpreted as an
    Option chord in Ghostty.
 
@@ -120,21 +122,25 @@ space, focus to *land* on a space, go to *send* a window, edit to
 | Caps + g | go / send window (`ws-prompt send`) — digit / fuzzy name, follows window | (hand-owned binding) |
 | Caps + m | go / send window — alias for Caps+g ("m for move") | (hand-owned binding) |
 | Caps + w | edit workspace (`ws-prompt manage`) — rename / icon / color / verify / doctor. **Add/destroy are config-time** under aerospace; the overlay surfaces an edit-then-reload help message. | (hand-owned binding) |
-| Caps + ; | cheatsheet toggle (`ws-cheatsheet`) | (hand-owned binding) |
+| Caps + / | cheatsheet toggle (`ws-cheatsheet`) | (hand-owned binding) |
 
 ### Launchers
 
-All app launchers go through helpers under `~/.local/bin/`. Env-var
-overrides mean swapping a tool is a one-file change, not a key-map edit.
+Letters earn first-letter mnemonics; the rest live on the right-pinky
+punctuation cluster so the left pinky (holding Caps) doesn't have to
+take its hand off the home row mid-chord. App launchers route through
+helpers under `~/.local/bin/`; env-var overrides mean swapping a tool
+is a one-file change, not a key-map edit.
 
 | Chord | Action | Helper |
 |---|---|---|
-| Caps + t | new terminal window | [`ws-launch-terminal`](../configs/workspace/launch-terminal.sh) · `$WS_TERMINAL_APP` |
-| Caps + b | new browser window | [`ws-launch-browser`](../configs/workspace/launch-browser.sh) · `$WS_BROWSER_APP` |
-| Caps + o | new Finder window | inline AppleScript |
+| Caps + t | new terminal window | `ws-launch-terminal` · `$WS_TERMINAL_APP` |
+| Caps + b | new browser window | `ws-launch-browser` · `$WS_BROWSER_APP` |
+| Caps + . | new Finder window | inline AppleScript |
+| Caps + ; | notes (Raycast Notes → Apple Notes) | `ws-launch-notes` · `$WS_NOTES_APP` |
+| Caps + ' | writing (Obsidian vault → Apple Notes) | `ws-launch-inbox` · `$WS_INBOX_APP` · `$WS_INBOX_VAULT` |
 | Caps + , | System Settings | inline `open -a` |
-| Caps + q | notes (Raycast Notes → Apple Notes) | [`ws-launch-notes`](../configs/workspace/launch-notes.sh) · `$WS_NOTES_APP` |
-| Caps + x | inbox (Obsidian vault → Apple Notes); was Caps+Shift+q pre-Hyperkey | [`ws-launch-inbox`](../configs/workspace/launch-inbox.sh) · `$WS_INBOX_APP` · `$WS_INBOX_VAULT` |
+| Caps + / | cheatsheet HUD (toggle) | `ws-cheatsheet --toggle` |
 
 ## AeroSpace state (adjacent to bindings)
 
@@ -145,7 +151,7 @@ bindings, but state that affects what the chords do.
 |---|---|---|
 | Outer gap = 26pt at top | `[gaps]` | Reserves the strip sketchybar lives in. Changing it without also moving sketchybar's bar height clips the bar against the top window. |
 | Float rules | `[[on-window-detected]]` | These apps float by default — Caps+v on them does nothing useful. |
-| Workspace declarations | `[workspace-to-monitor-force-assignment]` | Workspaces are declared statically; runtime add/destroy isn't supported. Edit + `aerospace reload-config && ws-topology emit-aerospace --write`. |
+| Workspace declarations | `[workspace-to-monitor-force-assignment]` | Workspaces are declared statically; runtime add/destroy isn't supported. Edit + `aerospace reload-config`. **TODO**: `ws-topology` still ships only `emit-skhd`, not `emit-aerospace` — so the sigil-fenced digit-binding block in aerospace.toml is currently empty and **Caps+1..0 do nothing**. Fix-path is either landing `emit-aerospace` in sigil or hand-writing the ten `cmd-alt-ctrl-shift-N = 'workspace N'` lines. |
 | `exec-on-workspace-change` | inside sigil-fenced block | Replaces yabai's `space_changed` signal — primes `~/.cache/workspace/current.env` for tmux + starship. |
 
 ## Ghostty
@@ -160,28 +166,38 @@ bindings, but state that affects what the chords do.
 
 ## tmux
 
-[`configs/tmux.conf`](../configs/tmux.conf) — prefix is `C-a` (the
-yabai-era `C-Space` prefix moved with the Karabiner retirement —
-Hyperkey can't reproduce the Hyper+Space → Ctrl+Space downgrade). All
-bindings have `-N "..."` notes, surfaced by `tmux list-keys -N`.
+[`configs/tmux.conf`](../configs/tmux.conf) — prefix is `C-Space`, but
+you don't press it directly. AeroSpace binds `cmd-alt-ctrl-shift-space`
+to `tmux send-keys C-Space`, so the user-facing chord is **Caps+Space**
+(matching the yabai/Karabiner-era muscle memory). `tmux send-keys` is
+IPC, not synthetic keystroke injection, so the Hyper modifiers don't
+contaminate the prefix. All bindings have `-N "..."` notes, surfaced
+by `tmux list-keys -N`.
 
 | Chord | Action | tmux.conf |
 |---|---|---|
-| `C-a` | prefix (was `C-b`, then `C-Space`, now `C-a`) | [:29](../configs/tmux.conf:29) |
-| `C-a  C-a` | send literal `C-a` (e.g. nvim cmp completion) | [:30](../configs/tmux.conf:30) |
-| `C-a  h/j/k/l` | select pane W/S/N/E | (see "Pane nav") |
-| `C-a  v` / `s` | split right / below | (see "Splits") |
-| `C-a  |` / `-` | split right / below (visual aliases) | (see "Splits") |
-| `C-a  z` | zoom pane (toggle) | |
-| `C-a  d` | detach session | |
-| `C-a  r` | reload tmux.conf | |
-| `C-a  x` | kill pane (no confirm) | |
-| `C-a  &` | kill window (no confirm) | |
-| `C-a  f` | tmux-sessionizer fzf popup | |
+| `Caps+␣` | prefix (was `C-b` → `C-Space` → `C-a` → `C-Space`) | [:34](../configs/tmux.conf:34) |
+| `Caps+␣  Caps+␣` | send literal `C-Space` (e.g. nvim cmp completion) | [:35](../configs/tmux.conf:35) |
+| `Caps+␣  h/j/k/l` | select pane W/S/N/E | (see "Pane nav") |
+| `Caps+␣  v` / `s` | split right / below | (see "Splits") |
+| `Caps+␣  |` / `-` | split right / below (visual aliases) | (see "Splits") |
+| `Caps+␣  z` | zoom pane (toggle) | |
+| `Caps+␣  d` | detach session | |
+| `Caps+␣  r` | reload tmux.conf | |
+| `Caps+␣  x` | kill pane (no confirm) | |
+| `Caps+␣  &` | kill window (no confirm) | |
+| `Caps+␣  f` | tmux-sessionizer fzf popup | |
 
 Gotcha: no `Option/M-*` bindings, intentionally — see the comment at
-[tmux.conf:6–8](../configs/tmux.conf:6). Adding one risks colliding with
+[tmux.conf:8](../configs/tmux.conf:8). Adding one risks colliding with
 Ghostty's left-Alt key bytes.
+
+The shim is a one-liner in
+[aerospace.toml](../configs/aerospace.toml) — search for
+`cmd-alt-ctrl-shift-space`. Hardcoded `/opt/homebrew/bin/tmux` because
+AeroSpace runs under launchd with a minimal PATH; update if the brew
+prefix ever changes. Literal `C-Space` (Ctrl+Space directly) still
+works as a fallback if the shim ever stops grabbing.
 
 ## zsh
 
@@ -224,11 +240,11 @@ Cross-layer conflicts that already exist + how they're resolved.
 
 | Apparent collision | Resolution |
 |---|---|
-| `Caps + 1` (workspace focus) vs `Caps + Shift + 1` (the yabai-era "send window to 1") | Both collapse onto the same chord under Hyperkey — Hyper consumes all four modifiers, so Shift is a no-op once Caps is held. Send-window digit chords are not bound under aerospace; use Caps + g (ws-prompt send) instead. |
+| `Caps + 1..0` (workspace focus) vs `Caps + Shift + 1..0` (the yabai-era "send window to N") | Both collapse onto the same chord under Hyperkey — Hyper consumes all four modifiers, so Shift is a no-op once Caps is held. Send-window digit chords are not bound under aerospace; use Caps + g (ws-prompt send) instead. **Note: focus-digit chords are also currently unbound** — see the sigil-fenced block TODO above. |
 | `Caps + T` (terminal launch) vs Ghostty `Cmd + T` (new_window) | Different modifier sets; both fire in their own contexts. |
 | Caps-tap-Esc vs Ghostty option-as-alt | `escape-time 10` gives the ESC byte time to arrive; "no Option/M-* bindings" in tmux prevents the ambiguity from mattering. |
 | zsh vi-mode `Esc` vs Caps-tap-Esc | Same key — Caps-tap IS the canonical way to enter vi normal mode. |
-| nvim `<C-Space>` (cmp complete) vs tmux | Tmux prefix is now `C-a`, not `C-Space`, so the historical collision is gone. |
+| nvim `<C-Space>` (cmp complete) vs tmux prefix `C-Space` | Both want the same chord. AeroSpace's Caps+Space shim sends `C-Space` to tmux first; literal Ctrl+Space inside nvim still reaches cmp because the shim only fires on Hyper-modified Space, not bare Ctrl+Space. To send a literal `C-Space` *through* tmux to the inner program, double-tap Caps+Space (mirrors the old `C-a C-a` send-prefix pattern). |
 | **Held-Caps + injected `Cmd+X`** in a launcher | Synthetic keystrokes pick up the live Hyper modifier state — `Cmd+N` becomes `Hyper+N` when Caps is still held, firing the workspace cycle. Fix: use `click menu item …` (AX API, bypasses AeroSpace) or pick a letter unbound at Hyper. `ws-doctor` lints for this. |
 
 ## Free-key register
