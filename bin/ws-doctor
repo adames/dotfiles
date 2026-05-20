@@ -243,8 +243,9 @@ check_source_deploy_drift() {
   # block, user owns the rest) so a byte-for-byte cmp against the source
   # configs/aerospace.toml would always drift. Excluded for that reason;
   # `ws-topology emit-aerospace --validate` covers the generated half.
+  # Karabiner is gone; Hyperkey stores its config in user defaults, not
+  # a file we can pair-cmp.
   local pairs=(
-    "$DOTFILES_DIR/configs/karabiner.json::$HOME/.config/karabiner/karabiner.json"
     "$DOTFILES_DIR/configs/ghostty-config::$HOME/.config/ghostty/config"
     "$DOTFILES_DIR/configs/workspace/launch-terminal.sh::$HOME/.local/bin/ws-launch-terminal"
     "$DOTFILES_DIR/configs/workspace/launch-browser.sh::$HOME/.local/bin/ws-launch-browser"

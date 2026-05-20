@@ -3,11 +3,12 @@
 > For chord lookups, file:line pointers, and collision rules, see
 > [keymap.md](keymap.md). This doc is the narrative and rationale.
 
-> **Migration in flight (yabai → AeroSpace, Karabiner → Hyperkey).** Plan at
+> **Migration history (yabai → AeroSpace, Karabiner → Hyperkey).** Plan at
 > [~/.claude/plans/let-s-migrate-to-aerospace-structured-bunny.md](../../../.claude/plans/let-s-migrate-to-aerospace-structured-bunny.md).
-> Three contracts frozen during the migration; this section is the reference,
-> the rest of the document still describes the live yabai-era stack until
-> Phase 6 lands.
+> The migration shipped in 7 phases; the rest of this document describes
+> the current state. The three contracts below are still the canonical
+> reference for the data flow between sigil, aerospace, and the
+> environment.
 >
 > 1. **`current.env`** renames `MACOS_SPACE_INDEX` → `MACOS_WORKSPACE_NAME`.
 >    Out-of-repo consumers (tmux.conf, starship.toml) only read `_NAME`,
@@ -30,27 +31,21 @@ Caps Lock is king of the dev surface.
 
 ```mermaid
 graph LR
-  CapsLock([Caps Lock]) --> Karabiner
-  Karabiner -->|"⌃⌥⌘⇧"| Hyper((Hyper))
-  Karabiner -->|"⌃⌥⌘"| Mod((Mod))
-  Karabiner -->|tap| Esc((Esc))
+  CapsLock([Caps Lock]) --> Hyperkey
+  Hyperkey -->|hold ⌃⌥⌘⇧| Hyper((Hyper))
+  Hyperkey -->|tap| Esc((Esc))
 
-  Hyper --> skhd
-  Mod --> skhd
-  skhd -->|"yabai -m ..."| yabai
-  skhd -->|Caps+t / Caps+b| Launchers[ws-launch-* · bash auto-detect]
-  skhd -->|Caps+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
-  skhd -->|Caps+f / Caps+g · Caps+m / Caps+w| WSPrompt[ws-prompt · SwiftUI overlay]
-  skhd -->|Caps+e| WSPicker[ws-picker · SwiftUI overlay]
-  WSPrompt -->|ws-focus / ws-send-follow / ws / yabai| yabai
-  WSPicker -->|yabai window --focus| yabai
-  yabai -->|window_created signal| WSStage[stage-window.sh]
-  yabai -->|space_changed signal| WorkspaceHandler[on-space-changed.sh]
+  Hyper --> AeroSpace
+  AeroSpace -->|aerospace move/focus/workspace| Windows[(macOS Windows)]
+  AeroSpace -->|Caps+t / Caps+b| Launchers[ws-launch-* · bash auto-detect]
+  AeroSpace -->|Caps+;| WSCheatsheet[ws-cheatsheet · SwiftUI HUD]
+  AeroSpace -->|Caps+f / Caps+g · Caps+m / Caps+w| WSPrompt[ws-prompt · SwiftUI overlay]
+  AeroSpace -->|Caps+e| WSPicker[ws-picker · SwiftUI overlay]
+  WSPrompt -->|ws-focus / ws-send-follow / ws / aerospace| AeroSpace
+  WSPicker -->|aerospace focus --window-id| AeroSpace
+  AeroSpace -->|exec-on-workspace-change| WorkspaceHandler[on-space-changed.sh]
   WorkspaceHandler -->|--trigger workspace_changed| SketchyBar[SketchyBar pill strip]
   WorkspaceHandler -->|set-environment| tmux
-
-  yabai --> Windows[(macOS Windows)]
-  WSStage --> Windows
 
   Ghostty --> tmux
   tmux --> zsh
@@ -58,37 +53,41 @@ graph LR
   zsh --> fzf & zoxide & direnv & starship
 ```
 
-Karabiner intercepts Caps Lock and re-emits one of three things
-depending on what's held with it. **skhd** dispatches each Hyper/Mod
-chord to **yabai** (for tiling) or to a small Swift binary
-(**ws-prompt**, **ws-cheatsheet**, **ws-snap**) where logic is needed.
-Inside the terminal, **tmux** + **zsh** + **Neovim** form the dev
-surface — every layer reusing the same vim-style hjkl + leader-key
-mental model.
+Hyperkey intercepts Caps Lock and re-emits `Escape` (on tap) or the
+4-modifier Hyper combo (on hold). **AeroSpace** consumes each
+`cmd-alt-ctrl-shift-*` chord — it both tiles windows AND dispatches the
+chord to the right action (focus / move / launch / overlay). Workspace
+overlays are small Swift binaries (**ws-prompt**, **ws-picker**,
+**ws-cheatsheet**, **ws-snap**) that capture the AX surface for
+keystroke-driven workflows. Inside the terminal, **tmux** + **zsh** +
+**Neovim** form the dev surface — every layer reusing the same
+vim-style hjkl + leader-key mental model.
 
-## The two Hyper levels
+## The single Hyper layer
 
-| User presses | Karabiner emits | Modifier set |
+| User presses | Hyperkey emits | Modifier set |
 |---|---|---|
 | Caps Lock alone (tap) | `Escape` | — |
 | Caps Lock held | **Hyper** | `⌃⌥⌘⇧` (4) |
-| Caps Lock + Shift held | **Mod** | `⌃⌥⌘` (3, Shift consumed) |
 
-Why two levels: if Hyper contained Shift, `Hyper + Shift + H` would
-collapse to `Hyper + H` — indistinguishable. By making `Caps + Shift`
-emit a *different* combo (Mod), skhd binds them as separate chords.
-JSON specifics in [`configs/karabiner.md`](../configs/karabiner.md).
+This is one layer, not two. The yabai-era setup ran a second "Mod"
+layer (Caps+Shift → `⌃⌥⌘`, Shift consumed) via Karabiner so swap could
+share the hjkl row with focus. Hyperkey can't reproduce that — it
+remaps the Caps Lock key itself, not "Caps + modifier" combinations —
+so the swap chords moved to **Caps + y/u/i/o** instead of Caps+Shift+hjkl.
+Two-layer history lives in `docs/archive/yabai-to-aerospace.md`.
 
-### Hyper = navigate, Mod = modify
+### Hyper governs the OS-level chord vocabulary
 
-| Layer | Role | Examples |
-|---|---|---|
-| **Hyper** | navigate / read-only | focus neighbour (`hjkl` tiled) · snap float (`hjkl` floating), change workspace (`e`), focus workspace (`f`), go / send window (`g` / `m`), edit workspace (`w`), cycle workspace (`n`/`p`/`tab`), toggle float (`v`), rotate space (`r`), open app (`t`/`b`/`o`/`,`/`q`), cheatsheet (`;`) |
-| **Mod**   | modify / destructive | swap window (`hjkl`), inbox (`q`) |
+| Concern | Examples |
+|---|---|
+| Navigate | focus neighbour (`hjkl` tiled), snap float (`hjkl` floating), change workspace (`e`), focus workspace (`f`), cycle workspace (`n`/`p`/`tab`) |
+| Modify | swap window (`yuio` — was `Shift+hjkl` pre-Hyperkey), toggle float (`v`), rotate space (`r`), go / send window (`g`/`m`), edit workspace (`w`) |
+| Launch | terminal (`t`), browser (`b`), Finder (`o`), settings (`,`), notes (`q`), inbox (`x` — was `Shift+q` pre-Hyperkey), cheatsheet (`;`) |
 
 All workspace operations go through `ws-prompt` and `ws-picker` —
 one-shot SwiftUI overlays that capture keystrokes themselves and exit
-on commit / cancel / blur / Esc; skhd never holds workspace state.
+on commit / cancel / blur / Esc; aerospace never holds workspace state.
 Four overlays, one pattern: **digit commits · letters fuzzy-search ·
 ↵ accepts · esc cancels** — pick by intent.
 
@@ -101,27 +100,29 @@ Four overlays, one pattern: **digit commits · letters fuzzy-search ·
 
 The edit overlay is a multi-stage state machine (verb → target /
 payload → confirm → result). Commits shell straight out to the `ws`
-CLI and yabai; stdout + stderr surface in an in-overlay result panel.
-Names are constrained to start with a non-digit (enforced by `ws
-name`/`ws add`) so an all-numeric query unambiguously addresses a
-slot index — the path to slot 11+ via numeric input.
+CLI and aerospace; stdout + stderr surface in an in-overlay result
+panel. Names are constrained to start with a non-digit (enforced by
+`ws name`/`ws add`) so an all-numeric query unambiguously addresses a
+slot index — the path to slot 11+ via numeric input. **Add/destroy
+verbs surface a help message** rather than mutate — under aerospace,
+workspace existence is config-time (edit `aerospace.toml` + reload).
 
-New windows are auto-staged centered on the focused space by yabai's
-`window_created` signal
-([stage-window.sh](../configs/workspace/stage-window.sh)). Tile-vs-float
-is the app/rule decision; staging just centers + focuses, and `Caps+v`
-toggles float to commit a staged window into the BSP tiling.
+AeroSpace ships its own `[[on-window-detected]]` rules for floating
+specific apps — float-vs-tile is the config decision; `Caps+v` toggles
+the focused window between modes manually. There's no yabai-era
+`window_created` signal replacement (AeroSpace doesn't expose a
+window-creation hook); window staging is replaced by AeroSpace's
+declarative layout tree.
 
 ## Who owns what
 
 | Concern | Owner | Config |
 |---|---|---|
-| Caps remap | Karabiner | `karabiner.json` |
-| Window tiling (BSP, gaps, rules) | yabai | `yabairc` |
-| Hyper/Mod hotkey dispatch | skhd | `skhdrc` |
+| Caps remap | Hyperkey | (user defaults — `com.knollsoft.Hyperkey`) |
+| Window tiling (i3-style, gaps, rules) | AeroSpace | `aerospace.toml` |
+| Hyper chord dispatch | AeroSpace | `aerospace.toml` `[mode.main.binding]` |
 | Workspace focus / send / edit overlays | ws-prompt (SwiftUI; edit = multi-stage state machine over `ws`) | [sigil](https://github.com/adames/sigil)/Sources/ws-prompt/ |
 | Change-workspace overlay (Caps+e) | ws-picker (SwiftUI; fuzzy-search every window in every space, ↵ jumps to its space) | [sigil](https://github.com/adames/sigil)/Sources/ws-picker/ |
-| New-window staging | bash + yabai signal | `configs/workspace/stage-window.sh` |
 | AX absolute-snap CLI (manual use) | ws-snap | [sigil](https://github.com/adames/sigil)/Sources/ws-snap/ |
 | SketchyBar per-display autohide | ws-autohide (LaunchAgent) | [sigil](https://github.com/adames/sigil)/Sources/ws-autohide/ |
 | Cheatsheet HUD | ws-cheatsheet | `configs/workspace/cheatsheet.json` + [sigil](https://github.com/adames/sigil)/Sources/ws-cheatsheet/ |
@@ -129,23 +130,29 @@ toggles float to commit a staged window into the BSP tiling.
 | Workspace pill strip | SketchyBar | `configs/sketchybar/` |
 | Terminal · tmux · zsh · nvim | Ghostty + tmux + zsh + Neovim/Mason | respective configs |
 
-## Why skhd plus small Swift CLIs?
+## Why AeroSpace plus small Swift CLIs?
 
-**skhd** forwards keystrokes via `CGEventTap` — fast, stateless, but
-it only knows how to fire shell commands. Anything that needs macOS
-API access is its own one-shot binary, shipped by the Swift package
-in the [sigil](https://github.com/adames/sigil) repo (cloned to
+**AeroSpace** consumes Hyper chords directly — it has a built-in
+keybinding engine (no skhd companion daemon), and runs entirely in
+userspace (no scripting addition, no SIP modification). Each
+`[mode.main.binding]` entry maps a chord to an `exec-and-forget` or a
+native command like `workspace`, `focus`, `move`. Anything that needs
+macOS API access beyond what aerospace covers is its own one-shot
+binary, shipped by the Swift package in the
+[sigil](https://github.com/adames/sigil) repo (cloned to
 `~/.config/workspace/` by bootstrap):
 
 - **ws-prompt** — SwiftUI overlay for Caps+f (focus workspace) / Caps+g · Caps+m
   (go / send window) / Caps+w (edit workspace). Captures keys itself;
   exits on commit / cancel / blur. Edit is a multi-stage state
-  machine that shells out to `ws` and yabai and surfaces captured
-  output in a result panel.
+  machine that shells out to `ws` and aerospace and surfaces captured
+  output in a result panel. Under aerospace, add/destroy verbs route to
+  a help-text result panel rather than mutate runtime — workspace
+  existence is config-time.
 - **ws-picker** — SwiftUI window picker (Caps+e — the "change workspace"
-  prompt). Lists every visible yabai window across every space,
-  fuzzy-filters by app + title + space; focusing the pick implicitly
-  jumps to that window's space (yabai follows the window). Same
+  prompt). Lists every visible aerospace window across every workspace,
+  fuzzy-filters by app + title + workspace; focusing the pick implicitly
+  jumps to that window's workspace (aerospace follows the focus). Same
   overlay shape as ws-prompt — they share the WsUI design tokens
   (Catppuccin palette, pill geometry, fuzzy matcher).
 - **ws-cheatsheet** — SwiftUI HUD (Caps+;). Single-instance toggle
@@ -155,12 +162,12 @@ in the [sigil](https://github.com/adames/sigil) repo (cloned to
   floating (h=left, l=right, j=center, k=max).
 - **ws-autohide** — only long-running helper. LaunchAgent-managed
   cursor poller (100 ms) that hides each display's SketchyBar pills
-  when the cursor approaches its top edge. Yabai display indices are
-  cached and invalidated on `didChangeScreenParameters`; popup-menu
-  detection is gated on the cursor being near an unhide boundary.
+  when the cursor approaches its top edge. Display ordinals come from
+  aerospace via `list-monitors --json`, bridged to CG-stable UUIDs.
 
-Smaller surface than the old skhd + Hammerspoon split — no Lua
-runtime, no extra Accessibility-permissioned daemon.
+Smaller surface than the yabai-era skhd + Karabiner stack — no Karabiner
+Virtual HID Device kext, no yabai scripting addition, no SIP
+modification, no Lua runtime.
 
 ## In-terminal layers
 
@@ -168,11 +175,11 @@ Once you're in the terminal the same hjkl + leader-key model continues:
 
 | Layer | Prefix / leader | Owns |
 |---|---|---|
-| **tmux**   | `C-Space` | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
+| **tmux**   | `C-a`           | Pane focus (`hjkl`), splits (`v`/`s`), zoom (`z`), sessionizer (`f`), windows (`c`/`n`/`p`/`0..9`) |
 | **zsh**    | (vi-mode `Esc`) | Vi normal-mode editing on the command line; fzf widgets `Ctrl-R/T`/`Alt-C`; zoxide `z` |
 | **Neovim** | `Space`         | LSP (`gd`/`K`/`gr`/`<leader>ca`/`<leader>rn`), find (`<leader>f*`), debug (`<leader>d*`), test (`<leader>t*`) |
 
-Modifier sets the scope: bare `h` moves the cursor in vim, `C-Space  h`
+Modifier sets the scope: bare `h` moves the cursor in vim, `C-a  h`
 moves the tmux pane focus, `Caps + h` moves the OS window focus. Same
 letter, four contexts, no overlap.
 
@@ -189,24 +196,23 @@ summary. Servers come from Mason / mason-tool-installer, pinned via
 
 | Permission | Apps | Wizard pane |
 |---|---|---|
-| Accessibility | yabai · skhd · ws-snap · Karabiner-Elements | `Privacy_Accessibility` |
-| Input Monitoring | Karabiner-Elements · Karabiner-DriverKit | `Privacy_ListenEvent` |
-| System Extension approval | Karabiner-DriverKit-VirtualHIDDevice | `Privacy_SystemServices` |
-| Spaces "Displays have separate Spaces" | yabai | bootstrap sets `defaults` — **logout required** |
+| Accessibility | AeroSpace · Hyperkey · ws-snap | `Privacy_Accessibility` |
 | sudo (one-shot) | brew cask `installer -pkg` | `sudo -v` at start |
 
-The wizard opens each pane and waits for ↵. Three panes, ~5 minutes
-total. Probes first via [`lib/macos-tcc.sh`](../lib/macos-tcc.sh) so a
-working machine finishes in ~2 seconds. See [`wizard.md`](wizard.md).
+The wizard opens the pane and waits for ↵. One pane, ~30 seconds total.
+Probes first via [`lib/macos-tcc.sh`](../lib/macos-tcc.sh) so a working
+machine finishes in ~2 seconds. See [`wizard.md`](wizard.md).
 
 ## Workspace system
 
 Workspace overlays and management come from **[Sigil](https://github.com/adames/sigil)** — see its README for the full cascade architecture.
 
-**Integration point:** yabai provides space existence; Sigil provides
-optional identity (name, color, icon) and overlays (`ws-prompt`,
-`ws-picker`, `ws-cheatsheet`). The dotfiles configure skhd to trigger
-these overlays and SketchyBar to render the pills.
+**Integration point:** AeroSpace provides workspace existence (declared
+in `aerospace.toml`); Sigil provides optional identity (name, color,
+icon) in `spaces.json` and overlays (`ws-prompt`, `ws-picker`,
+`ws-cheatsheet`). The dotfiles configure aerospace's
+`[mode.main.binding]` to trigger these overlays and SketchyBar to
+render the pills.
 
 ## SketchyBar coexistence with the macOS menu bar
 
@@ -218,8 +224,8 @@ pill set:
 |---|---|---|
 | macOS | `_HIHideMenuBar=1` | Menu bar hides by default; reveals when cursor at top |
 | SketchyBar | `topmost=off`, `y_offset=7` | Strip draws behind the menu bar; vertically centered in y=0..40 |
-| SketchyBar items | `display=<N>` per pill | Each pill visible only on its owning yabai display |
-| yabai | `external_bar all:26:0` | BSP-tiled windows never enter the top 26px |
+| SketchyBar items | `display=<N>` per pill | Each pill visible only on its owning aerospace monitor |
+| AeroSpace | `[gaps] outer.top = 26` | Tiled windows never enter the top 26px (equivalent to yabai's `external_bar`) |
 | ws-autohide | LaunchAgent | 100 ms cursor poller; toggles each pill's `y_offset` based on per-display cursor.y |
 
 Result: cursor at the very top of display N → display N's pills slide
@@ -228,12 +234,13 @@ display's strip stays put. Other displays are unaffected.
 
 **Per-display pill assignment + name chip** is owned by
 [`plugins/per-display-pills.sh`](../configs/sketchybar/plugins/per-display-pills.sh).
-It queries yabai, sets `display=<idx>` on each pill, creates one
+It queries aerospace, sets `display=<idx>` on each pill, creates one
 `workspace.name.<D>` chip per display (the always-visible "you are
 here" label), and adds/removes items so the sketchybar set tracks
-yabai exactly. Re-fires from yabai's `display_added` / `removed` /
-`changed` signals — *not* `space_changed`, because per-pill display
-assignment doesn't change on focus.
+aerospace exactly. Re-fires from the `exec-on-workspace-change` hook
+declared inside aerospace.toml's sigil-fenced block — that's the only
+subscribe-style event AeroSpace exposes (no per-event signal subsystem
+like yabai had).
 
 **Notch detection + visible cap.**
 [`plugins/notch-detect.sh`](../configs/sketchybar/plugins/notch-detect.sh)

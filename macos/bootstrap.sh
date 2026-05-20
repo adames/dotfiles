@@ -71,7 +71,15 @@ phase_packages() {
   # orbstack replaces docker-desktop — leaner, native Apple Silicon, faster
   # cold start. If docker-desktop is installed, see the migration note in
   # README.md → "Switching from Docker Desktop".
-  local casks="karabiner-elements ghostty raycast orbstack"
+  #
+  # Hyperkey (raycast tap) replaces Karabiner-Elements: same Caps→Hyper
+  # remap surface, no Virtual HID Device kext, no Input Monitoring +
+  # System Extension panes. Tradeoff: Hyperkey can't reproduce
+  # Karabiner's Caps+Shift→Mod swallow, so the swap layer moved to
+  # Caps+yuio (see docs/keymap.md). Hyperkey config lives in
+  # ~/Library/Preferences/com.knollsoft.Hyperkey.plist; first launch
+  # asks for Accessibility and the toggle survives across reboots.
+  local casks="raycast/leap/hyperkey ghostty raycast orbstack"
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
     step "installing GUI casks: $casks"
     # shellcheck disable=SC2086
@@ -82,16 +90,16 @@ phase_packages() {
     step "later: brew install --cask $casks"
   fi
 
-  # brew can mark a cask installed but skip the .pkg if interrupted mid-sudo.
-  if [[ ! -d /Applications/Karabiner-Elements.app ]]; then
-    local pkg
-    pkg=$(find "$(brew --prefix 2>/dev/null)/Caskroom/karabiner-elements" -name "*.pkg" 2>/dev/null | head -1)
-    if [[ -n "$pkg" && "$(has_tty && echo y)" ]]; then
-      step "running staged Karabiner installer"
-      sudo installer -pkg "$pkg" -target / && ok "Karabiner installed" || warn "installer failed"
-    elif [[ -n "$pkg" ]]; then
-      warn "Karabiner staged but not installed — run: sudo installer -pkg \"$pkg\" -target /"
-    fi
+  # Seed Hyperkey defaults so a fresh install starts with Caps→Hyper +
+  # tap-for-Esc enabled (matches the keymap docs). Idempotent — defaults
+  # write is harmless on existing setups; the user can override in the
+  # Hyperkey menu bar if they ever decide they want different behavior.
+  # Bundle ID may differ between Hyperkey versions; the cask owner is
+  # Raycast, the binary author is knollsoft. Confirm with
+  # `defaults read com.knollsoft.Hyperkey 2>/dev/null || defaults read com.raycast.Hyperkey`.
+  if [[ -d /Applications/Hyperkey.app ]]; then
+    defaults write com.knollsoft.Hyperkey enableHyperKey -bool true 2>/dev/null || true
+    defaults write com.knollsoft.Hyperkey tapForEscape   -bool true 2>/dev/null || true
   fi
 }
 
@@ -104,16 +112,16 @@ phase_apply() {
   : > "$HOME/.hushlogin"
 
   # Window/keyboard
-  install_file "$CONFIGS_DIR/karabiner.json"             "$HOME/.config/karabiner/karabiner.json"
   install_file "$CONFIGS_DIR/aerospace.toml"             "$HOME/.config/aerospace/aerospace.toml"
-  # Clean up retired yabai / skhd surface. Idempotent: no-op once gone.
+  # Clean up retired yabai / skhd / karabiner surface. Idempotent.
   # The new aerospace.toml is sentinel-fenced — sigil's `ws-topology
-  # emit-aerospace --write` keeps the [mode.main.binding] block in sync
-  # with spaces.json; the rest of aerospace.toml is hand-owned.
-  rm -f "$HOME/.skhdrc"
-  rm -f "$HOME/.yabairc"
+  # emit-aerospace --write` keeps the [mode.main.binding] digit block
+  # in sync with spaces.json; the rest of aerospace.toml is hand-owned.
+  rm -f  "$HOME/.skhdrc"
+  rm -f  "$HOME/.yabairc"
   rm -rf "$HOME/.config/yabai"
   rm -rf "$HOME/.config/skhd"
+  rm -rf "$HOME/.config/karabiner"
 
   # Cheatsheet HUD content. Regenerated from @cs annotations in the
   # upstream config files (skhdrc, tmux.conf, nvim-init.lua, …) plus the
