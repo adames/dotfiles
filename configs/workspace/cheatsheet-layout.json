@@ -1,7 +1,7 @@
 {
   "banner": [
     {"k": "caps", "v": "Hyper (⌃⌥⌘⇧) — single layer; tap = Esc"},
-    {"k": "C-a",  "v": "tmux prefix"},
+    {"k": "Caps+␣", "v": "tmux prefix"},
     {"k": "SPC",  "v": "nvim leader"}
   ],
   "columns": [

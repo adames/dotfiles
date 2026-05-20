@@ -184,6 +184,16 @@ cmd-alt-ctrl-shift-period  = '''exec-and-forget osascript -e 'tell application "
 # config can let chords leak through.
 cmd-alt-ctrl-shift-slash   = 'exec-and-forget $HOME/.local/bin/ws-cheatsheet --toggle'
 
+# Tmux prefix shim. Hyperkey can't reproduce Karabiner's Caps+Space →
+# Ctrl+Space downgrade, so we forward the chord via tmux's own IPC
+# instead of synthesising a keystroke. `tmux send-keys C-Space` reaches
+# the most-recently-attached client's current pane — no Hyper modifier
+# contamination (this is not synthetic keystroke injection), no Ghostty
+# byte-sequence interpretation, just tmux talking to itself. Hardcoded
+# brew path because AeroSpace runs under launchd with a minimal PATH;
+# if the brew prefix ever changes, update this line.
+cmd-alt-ctrl-shift-space   = 'exec-and-forget /opt/homebrew/bin/tmux send-keys C-Space'
+
 # >>> sigil generated >>>
 # (Populated by `ws-topology emit-aerospace --write`. Digit bindings
 # + exec-on-workspace-change land here.)
