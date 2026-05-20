@@ -67,21 +67,16 @@ run = ['layout floating']
 if.app-id = 'com.apple.SoftwareUpdate'
 run = ['layout floating']
 
-# Workspace declarations: spaces.json identity layers on top of these.
-# Workspaces are "1", "2", etc. by default (matching the digit chords
-# below); rename them in spaces.json + here together if you want
-# different aerospace identifiers. `--monitor 1` is the primary display.
+# Workspace declarations: aerospace.toml owns EXISTENCE; spaces.json
+# layers identity (name / icon / color) on top. ws-statusbar renders
+# one pill per declared workspace here, so the count needs to match
+# spaces.json's slot count — extras render as blank "ws3"/"ws4" pills
+# in the grid. Add a workspace by extending both this block AND
+# spaces.json (then re-emit digits with `ws-topology emit-aerospace
+# --write --reload`). `--monitor 1` is the primary display.
 [workspace-to-monitor-force-assignment]
 "1" = 1
 "2" = 1
-"3" = 1
-"4" = 1
-"5" = 1
-"6" = 1
-"7" = 1
-"8" = 1
-"9" = 1
-"10" = 1
 
 # Out-of-fence focus / swap / float / rotate bindings. The sigil-
 # generated block at the bottom of this file adds digit-bindings for
