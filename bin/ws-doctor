@@ -324,9 +324,14 @@ check_menu_items() {
     [[ "${file##*/}" == "ws-doctor" ]] && continue
     # awk: track the last `tell application "X"` or `tell process "X"`
     # we saw on the same osascript chain. Lines come in either as
-    # `-e '…'` continuations or as one long string.
+    # `-e '…'` continuations or as one long string. Strip full-line
+    # `#` comments before feeding awk — keeps docstring examples like
+    # `# tell application "X" to click menu item "Y" of menu "Z"` out
+    # of the real-ref set. Belt-and-braces with the placeholder filter
+    # below: this catches any future doc-comment that happens to spell
+    # out a complete tell+click on the same line.
     local extracted
-    extracted=$(awk '
+    extracted=$(sed -E 's/^[[:space:]]*#.*$//' "$file" | awk '
       function unquote(s) {
         # Strip everything before the first quote, then everything from
         # the next quote onward. Non-greedy [^"]* keeps us safe against
@@ -356,7 +361,7 @@ check_menu_items() {
           printf "%s\t%s\t%s\n", last_app, menu_part, item_part
         }
       }
-    ' "$file")
+    ')
     while IFS=$'\t' read -r app menu item; do
       # Need a real (app, menu, item) tuple. Empty app means the menu
       # click had no surrounding tell-application context (probably a
