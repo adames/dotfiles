@@ -79,7 +79,7 @@ phase_packages() {
   # Caps+yuio (see docs/keymap.md). Hyperkey config lives in
   # ~/Library/Preferences/com.knollsoft.Hyperkey.plist; first launch
   # asks for Accessibility and the toggle survives across reboots.
-  local casks="raycast/leap/hyperkey ghostty raycast orbstack"
+  local casks="hyperkey ghostty raycast orbstack"
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
     step "installing GUI casks: $casks"
     # shellcheck disable=SC2086
@@ -90,16 +90,26 @@ phase_packages() {
     step "later: brew install --cask $casks"
   fi
 
+  # Brew-cask installs leave the homebrew quarantine xattr on the
+  # downloaded .app, which blocks `open -a Name` from a script — macOS
+  # Gatekeeper requires Finder + explicit first-launch confirmation
+  # before clearing the bit. Strip it for AeroSpace + Hyperkey so the
+  # wizard can launch them later. Casks already check signatures; the
+  # xattr is the macOS bureaucratic gate, not an integrity check.
+  for app in /Applications/AeroSpace.app /Applications/Hyperkey.app; do
+    [[ -d "$app" ]] && xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
+  done
+
   # Seed Hyperkey defaults so a fresh install starts with Caps→Hyper +
-  # tap-for-Esc enabled (matches the keymap docs). Idempotent — defaults
-  # write is harmless on existing setups; the user can override in the
-  # Hyperkey menu bar if they ever decide they want different behavior.
-  # Bundle ID may differ between Hyperkey versions; the cask owner is
-  # Raycast, the binary author is knollsoft. Confirm with
-  # `defaults read com.knollsoft.Hyperkey 2>/dev/null || defaults read com.raycast.Hyperkey`.
+  # tap-for-Esc enabled. Idempotent. NB: bundle ID is just `Hyperkey`
+  # (no reverse-DNS prefix in current versions); confirm with
+  # `defaults read Hyperkey` after launching the app once. The keys
+  # below are best-effort — if Hyperkey's plist schema changes, the
+  # `defaults write` is harmless and the in-app menu-bar toggles still
+  # work.
   if [[ -d /Applications/Hyperkey.app ]]; then
-    defaults write com.knollsoft.Hyperkey enableHyperKey -bool true 2>/dev/null || true
-    defaults write com.knollsoft.Hyperkey tapForEscape   -bool true 2>/dev/null || true
+    defaults write Hyperkey enableHyperKey -bool true 2>/dev/null || true
+    defaults write Hyperkey tapForEscape   -bool true 2>/dev/null || true
   fi
 }
 
@@ -113,10 +123,28 @@ phase_apply() {
 
   # Window/keyboard
   install_file "$CONFIGS_DIR/aerospace.toml"             "$HOME/.config/aerospace/aerospace.toml"
-  # Clean up retired yabai / skhd / karabiner surface. Idempotent.
-  # The new aerospace.toml is sentinel-fenced — sigil's `ws-topology
-  # emit-aerospace --write` keeps the [mode.main.binding] digit block
-  # in sync with spaces.json; the rest of aerospace.toml is hand-owned.
+
+  # Safe cleanup of retired surface. PRIORITY: never delete a config
+  # while its daemon is still grabbing the keyboard — Karabiner's
+  # grabber will crash, leaving the input system wedged (mouse moves,
+  # clicks don't register because of stuck modifiers). Stop services
+  # FIRST, then delete. Each block is a no-op if the service is absent
+  # (the post-migration steady state).
+  for svc in yabai skhd; do
+    if brew services list 2>/dev/null | grep -q "^$svc.*started"; then
+      step "stopping legacy service: $svc (was managing keyboard / windows)"
+      brew services stop "$svc" >/dev/null 2>&1 || true
+    fi
+  done
+  if pgrep -x karabiner_grabber >/dev/null 2>&1 \
+       || pgrep -x Karabiner-Elements >/dev/null 2>&1; then
+    step "stopping Karabiner-Elements (will be replaced by Hyperkey)"
+    osascript -e 'tell application "Karabiner-Elements" to quit' 2>/dev/null || true
+    launchctl unload -w "$HOME/Library/LaunchAgents/org.pqrs."*.plist 2>/dev/null || true
+    # Wait briefly for the grabber to release the keyboard before we
+    # delete its config underneath it.
+    sleep 1
+  fi
   rm -f  "$HOME/.skhdrc"
   rm -f  "$HOME/.yabairc"
   rm -rf "$HOME/.config/yabai"

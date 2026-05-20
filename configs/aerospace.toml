@@ -20,6 +20,12 @@ start-at-login = true
 default-root-container-layout = 'tiles'
 default-root-container-orientation = 'auto'
 
+# Cascade hook: AeroSpace's only subscribe-style event. Fires whenever
+# the focused workspace changes; primes ~/.cache/workspace/current.env
+# (consumed by tmux + starship). Replaces yabai's `space_changed`
+# signal. Top-level key — must sit before any `[…]` header.
+exec-on-workspace-change = ['/bin/bash', '-c', '$HOME/.config/workspace/on-space-changed.sh']
+
 # 26pt top reservation for the sketchybar pill strip. Equivalent to
 # yabai's `external_bar all:26:0`. Inner gaps mirror yabai's
 # `window_gap = 8`. Bottom/left/right outer kept symmetric with yabai's
@@ -32,9 +38,10 @@ outer.bottom = 8
 outer.top = 26
 outer.right = 8
 
-# Mouse follows focus is off — matches yabai's `focus_follows_mouse = off`.
-[mouse-callback]
-"--target-monitor-focused-window-by-frame-center" = 'enabled'
+# Mouse-follows-focus is OFF by default in aerospace — no config needed
+# to match yabai's `focus_follows_mouse = off` behavior. (Earlier draft
+# had a `[mouse-callback]` section here — that's not a real aerospace
+# key. Removed.)
 
 # Float system dialogs. Subroles cover most modals without enumerating
 # apps. Mirrors yabairc's AXDialog / AXSystemDialog rules.
@@ -127,9 +134,12 @@ cmd-alt-ctrl-shift-q       = 'exec-and-forget $HOME/.local/bin/ws-launch-notes'
 cmd-alt-ctrl-shift-x       = 'exec-and-forget $HOME/.local/bin/ws-launch-inbox'
 cmd-alt-ctrl-shift-semicolon = 'exec-and-forget $HOME/.local/bin/ws-cheatsheet --toggle'
 
-# Finder (osascript for "new Finder window" — `open Finder` brings
-# Finder forward but doesn't always open a new window)
-cmd-alt-ctrl-shift-o-on-shift-x = 'exec-and-forget osascript -e ''tell application "Finder" to make new Finder window'' -e ''tell application "Finder" to activate'''
+# Finder launcher needs a new home — Caps+o was the yabai-era binding,
+# but under Hyperkey Caps+o is the swap-right chord (line 101) replacing
+# the retired Caps+Shift+l. Pick a free Hyper-layer key (e.g. Caps+. or
+# Caps+/) and add a binding like:
+#   cmd-alt-ctrl-shift-period = '''exec-and-forget osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' '''
+# TOML triple-single-quotes are literal — inline single quotes stay intact.
 
 # Cheatsheet: cmd-alt-ctrl-shift- followed by ; (0x29 on US ANSI)
 # already bound above as cmd-alt-ctrl-shift-semicolon.
