@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Idempotent Ubuntu bootstrap (VPS / VM). No yabai/Karabiner — shell + nvim only.
+# Idempotent Ubuntu bootstrap (VPS / VM). No aerospace/Hyperkey — shell + nvim only.
 # Override dotfiles repo with DOTFILES_REPO=...
 
 set -euo pipefail
@@ -8,10 +8,10 @@ DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 . "$DOTFILES_DIR/lib/common.sh"
 
 # ─── phase 0 · sparse-checkout (idempotent, runs first) ─────────────────────
-# Prune the working tree of macOS-only paths (Karabiner, yabai, skhd,
-# sketchybar, the Swift topology package, etc.) so a Linux clone only
-# contains files this host actually uses. Manifest at lib/platform-
-# manifest.sh is the single source of truth — see ubuntu/sparse-checkout.sh.
+# Prune the working tree of macOS-only paths (aerospace, sketchybar,
+# the Swift workspace package, etc.) so a Linux clone only contains
+# files this host actually uses. Manifest at lib/platform-manifest.sh
+# is the single source of truth — see ubuntu/sparse-checkout.sh.
 # Safe to run every bootstrap; no-ops when patterns are already current.
 phase_sparse_checkout() {
   section "Phase 0/6 · sparse-checkout (prune macOS-only paths)"
@@ -126,8 +126,8 @@ phase_configs() {
   install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
 
   # Workspace CLI: cross-platform mutation tool for spaces.json. macOS-
-  # specific consumers (sketchybar, yabai) are silent-on-absence here,
-  # but the CLI itself works for editing JSON state from Linux.
+  # specific consumers (sketchybar, aerospace) are silent-on-absence
+  # here, but the CLI itself works for editing JSON state from Linux.
   # `ws` is the canonical name; `workspace` is kept as a compat symlink.
   install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
   ln -sf "ws" "$HOME/.local/bin/workspace"
