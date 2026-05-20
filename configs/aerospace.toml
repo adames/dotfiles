@@ -87,6 +87,17 @@ run = ['layout floating']
 # generated block at the bottom of this file adds digit-bindings for
 # the first ten workspaces.
 [mode.main.binding]
+
+# @cs section Windows · Focus / Swap / Float
+# @cs family system
+# @cs sub Hyper (⌃⌥⌘⇧) — Caps held
+# @cs idea hjkl moves focus, yuio swaps; v floats, r re-tiles. Floating windows snap on hjkl instead of focus.
+# @cs row Caps + h j k l    :: focus neighbour (tiled) · snap halves / center / fill (floating)
+# @cs row Caps + y u i o    :: swap window  ←  ↓  ↑  →
+# @cs row Caps + v          :: toggle float ↔ tile
+# @cs row Caps + r          :: flatten + rotate workspace tree
+# @cs end
+
 # Hyper+hjkl → focus neighbour / snap floating window (ws-dir routes
 # based on the focused node's floating-or-tiling status).
 cmd-alt-ctrl-shift-h = 'exec-and-forget $HOME/.local/bin/ws-dir h'
@@ -108,6 +119,19 @@ cmd-alt-ctrl-shift-v = 'layout floating tiling'
 # Hyper+r → flatten + rotate the workspace tree.
 cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal vertical']
 
+# @cs section Workspaces · Cycle / Focus / Send
+# @cs family system
+# @cs sub AeroSpace · ws-focus · ws-prompt
+# @cs idea Cycle with n/p, jump by digit, or fuzzy-search every window with the e/f/g/w overlays.
+# @cs row Caps + n / p      :: prev / next workspace (wraps)
+# @cs row Caps + Tab        :: last / recent workspace
+# @cs row Caps + 1 … 0      :: focus workspace 1..10
+# @cs row Caps + e          :: change workspace (fuzzy: every window in every space)
+# @cs row Caps + f          :: focus workspace prompt
+# @cs row Caps + g  ·  m    :: send window to workspace
+# @cs row Caps + w          :: manage workspace (rename / icon / color)
+# @cs end
+
 # Hyper+n / Hyper+p / Hyper+Tab → workspace cycle (prev / next / last)
 cmd-alt-ctrl-shift-n   = 'exec-and-forget $HOME/.local/bin/ws-focus prev'
 cmd-alt-ctrl-shift-p   = 'exec-and-forget $HOME/.local/bin/ws-focus next'
@@ -119,6 +143,22 @@ cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
 cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
 cmd-alt-ctrl-shift-m = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
 cmd-alt-ctrl-shift-w = 'exec-and-forget $HOME/.local/bin/ws-prompt manage'
+
+# @cs section Launchers
+# @cs family system
+# @cs sub ws-launch-* · open -a
+# @cs idea One Hyper key per surface. The launch-* helpers honour $WS_*_APP env overrides.
+# @cs row Caps + t          :: terminal
+# @cs row Caps + b          :: browser
+# @cs row Caps + ,          :: System Settings
+# @cs row Caps + q          :: notes
+# @cs row Caps + x          :: inbox
+# @cs row Caps + ;          :: cheatsheet HUD (toggle)
+# @cs end
+
+# TODO(@cs row): Caps + .  ::  Finder  — not bound; suggest claiming
+# Caps+. or Caps+/ if a Finder launcher is wanted. See the commented
+# binding stub a few lines below.
 
 # Launchers
 cmd-alt-ctrl-shift-t       = 'exec-and-forget $HOME/.local/bin/ws-launch-terminal'
