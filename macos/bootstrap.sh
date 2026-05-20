@@ -275,11 +275,22 @@ EOF
   fi
 
   # Workspace runtime configuration: seeds spaces.json if missing,
-  # primes current.env, nudges running daemons. Safe to re-run.
+  # primes current.env, nudges running daemons. Safe to re-run; the
+  # second pass also heals the launchctl `Bootstrap failed: 5: Input/
+  # output error` race that the first pass occasionally hits (bootout
+  # of an old agent can lag the bootstrap of the new one).
   step "configuring workspace runtime"
   if [[ -f "$HOME/.config/workspace/install.sh" ]]; then
-    # Re-run install.sh to ensure everything is properly configured
-    bash "$HOME/.config/workspace/install.sh" || warn "workspace runtime config had issues"
+    if bash "$HOME/.config/workspace/install.sh"; then
+      # Second pass cleared whatever the first pass tripped on —
+      # unset the failure flag so the permissions wizard's follow-up
+      # block doesn't shout about a topology build that actually
+      # succeeded. Belt-and-braces with the binary-presence check the
+      # wizard now runs before printing the error.
+      unset BOOTSTRAP_TOPOLOGY_FAILED
+    else
+      warn "workspace runtime config had issues"
+    fi
   fi
 
   # Populate the sigil-fenced digit-binding block in aerospace.toml. The

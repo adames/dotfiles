@@ -109,7 +109,14 @@ ${acc:-    • AeroSpace
   # Surface anything bootstrap.sh deferred. Today only the topology build
   # uses this channel; if other phases ever need to bubble up follow-ups,
   # extend this block rather than scattering print logic across phases.
-  if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" ]]; then
+  #
+  # Belt-and-braces with the flag: bootstrap.sh has been seen setting
+  # the flag on a transient first-pass `launchctl bootstrap` EIO, then
+  # the second-pass install.sh succeeds and binaries land. The flag
+  # *should* be cleared by bootstrap's second pass on success, but we
+  # also verify by checking the deployed binary. If ws-snap is present
+  # and executable, the build clearly worked — suppress the error.
+  if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" && ! -x "$HOME/.local/bin/ws-snap" ]]; then
     section "Follow-up required"
     err "topology Swift package did not build — ws-snap and the workspace daemons are missing"
     printf '\n  Most common cause: Command Line Tools went version-skewed\n'
