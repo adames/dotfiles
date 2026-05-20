@@ -244,7 +244,7 @@ Cross-layer conflicts that already exist + how they're resolved.
 | `Caps + T` (terminal launch) vs Ghostty `Cmd + T` (new_window) | Different modifier sets; both fire in their own contexts. |
 | Caps-tap-Esc vs Ghostty option-as-alt | `escape-time 10` gives the ESC byte time to arrive; "no Option/M-* bindings" in tmux prevents the ambiguity from mattering. |
 | zsh vi-mode `Esc` vs Caps-tap-Esc | Same key — Caps-tap IS the canonical way to enter vi normal mode. |
-| nvim `<C-Space>` (cmp complete) vs tmux prefix `C-Space` | Both want the same chord. AeroSpace's Caps+Space shim sends `C-Space` to tmux first; literal Ctrl+Space inside nvim still reaches cmp because the shim only fires on Hyper-modified Space, not bare Ctrl+Space. To send a literal `C-Space` *through* tmux to the inner program, double-tap Caps+Space (mirrors the old `C-a C-a` send-prefix pattern). |
+| tmux prefix `C-Space` vs any inner program wanting literal `C-Space` (e.g. nvim-cmp if you ever add it) | tmux owns the chord; to send a literal `C-Space` *through* the prefix to the inner program, double-tap Caps+Space — `bind-key C-Space send-prefix` at [tmux.conf:35](../configs/tmux.conf:35) mirrors the old `C-a C-a` pattern. Your current nvim has no cmp / no `<C-Space>` binding, so this row is forward-looking only. |
 | **Held-Caps + injected `Cmd+X`** in a launcher | Synthetic keystrokes pick up the live Hyper modifier state — `Cmd+N` becomes `Hyper+N` when Caps is still held, firing the workspace cycle. Fix: use `click menu item …` (AX API, bypasses AeroSpace) or pick a letter unbound at Hyper. `ws-doctor` lints for this. |
 
 ## Free-key register
@@ -252,9 +252,16 @@ Cross-layer conflicts that already exist + how they're resolved.
 Per layer, what's currently unbound and safe to claim. Always re-verify
 before adding a binding — plugins can shadow defaults.
 
-- **Hyper-level free** (sweep of aerospace.toml's `[mode.main.binding]`):
-  most punctuation and a handful of letters. Verify with
-  `grep -E '^cmd-alt-ctrl-shift-<key>[[:space:]]*=' ~/.config/aerospace/aerospace.toml`.
+- **Hyper-level**: letters are 73% claimed (19/26 bound); punctuation is
+  the runway. Snapshot as of this commit — re-derive with `grep -nE
+  '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`:
+    - **Bound letters**: `b e f g h i j k l m n o p r t u v w y`
+    - **Free letters**: `a c d q s x z`
+    - **Bound punctuation / non-letters**: `, . ' ; / space tab` plus
+      digits `1 2` (from the sigil fence — `3..0` are silent because
+      only 2 workspaces are declared).
+    - **Free punctuation**: `- = [ ] \` backtick, plus any digit beyond
+      the declared workspace count.
 - **tmux prefix free**: most letters not in `h/j/k/l/v/s/|/-/z/d/r/x/f/[`.
   Verify with `tmux list-keys -T prefix`.
 - **nvim leader free**: most letters not under `f/g/h/d/t/b/c/r/=` + `1..4`.
