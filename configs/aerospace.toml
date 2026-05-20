@@ -151,8 +151,8 @@ cmd-alt-ctrl-shift-w = 'exec-and-forget $HOME/.local/bin/ws-prompt manage'
 # @cs row Caps + t          :: terminal
 # @cs row Caps + b          :: browser
 # @cs row Caps + .          :: Finder
-# @cs row Caps + q          :: notes
-# @cs row Caps + a          :: writing
+# @cs row Caps + ;          :: notes
+# @cs row Caps + '          :: writing
 # @cs row Caps + ,          :: System Settings
 # @cs row Caps + /          :: cheatsheet HUD (toggle)
 # @cs end
@@ -161,12 +161,13 @@ cmd-alt-ctrl-shift-w = 'exec-and-forget $HOME/.local/bin/ws-prompt manage'
 cmd-alt-ctrl-shift-t       = 'exec-and-forget $HOME/.local/bin/ws-launch-terminal'
 cmd-alt-ctrl-shift-b       = 'exec-and-forget $HOME/.local/bin/ws-launch-browser'
 cmd-alt-ctrl-shift-comma   = 'exec-and-forget open -a "System Settings"'
-# Capture column on the left edge of QWERTY: q (notes / quick capture)
-# sits directly above a (writing / sustained). Moved off Caps+x — the
-# `x` chord carried no semantic link to writing; `a` reads as the home-
-# row companion to `q`.
-cmd-alt-ctrl-shift-q       = 'exec-and-forget $HOME/.local/bin/ws-launch-notes'
-cmd-alt-ctrl-shift-a       = 'exec-and-forget $HOME/.local/bin/ws-launch-inbox'
+# Capture pair on the right-pinky home cluster: ; (notes / quick capture)
+# and ' (writing / sustained). Off the left-pinky column on purpose —
+# Caps is held by the left pinky, so launchers on `q`/`a` forced the
+# left ring off the home row mid-chord, fighting tmux's `s`/`d`/`a`
+# follow-ups. Right-hand punctuation has none of that pressure.
+cmd-alt-ctrl-shift-semicolon = 'exec-and-forget $HOME/.local/bin/ws-launch-notes'
+cmd-alt-ctrl-shift-quote     = 'exec-and-forget $HOME/.local/bin/ws-launch-inbox'
 
 # Finder. AppleScript instead of `open -a Finder` so a window is created
 # even when Finder already has an active window stack hidden behind other
