@@ -1,35 +1,33 @@
 # AeroSpace configuration (https://github.com/nikitabobko/AeroSpace)
 #
-# This file replaces yabairc + skhdrc. The block between
-# `# >>> sigil generated >>>` and `# <<< sigil generated <<<` is
-# OWNED BY ws-topology. Run `ws-topology emit-aerospace --write` to
-# regenerate it; hand-edits inside the fence are clobbered. Everything
-# outside the fence is yours.
+# The block between `# >>> sigil generated >>>` and
+# `# <<< sigil generated <<<` is OWNED BY ws-topology — run
+# `ws-topology emit-aerospace --write` to regenerate it; hand-edits
+# inside the fence are clobbered. Everything outside the fence is yours.
 #
-# AeroSpace + sketchybar invariant: `outer.top = 26` reserves the 26pt
-# strip that sketchybar's pill bar lives in — same offset yabai's
-# `external_bar all:26:0` used to produce. Changing one without the
-# other clips the bar against the top window.
+# Sketchybar invariant: `outer.top = 26` reserves the strip the pill
+# bar lives in. Changing it without also moving sketchybar's bar height
+# clips the bar against the top window.
 
 # Start AeroSpace at login. Cask installs a LaunchAgent that respects
 # this; verify with `aerospace config --get start-at-login`.
 start-at-login = true
 
-# Layout: tiles by default (sigil + ws-snap depend on this; nothing
-# else does). Floating windows are routed via on-window-detected below.
+# Default layout for new workspaces. ws-snap + ws-dir assume tiles when
+# they need to route a chord; floating windows are routed via
+# on-window-detected below.
 default-root-container-layout = 'tiles'
 default-root-container-orientation = 'auto'
 
 # Cascade hook: AeroSpace's only subscribe-style event. Fires whenever
 # the focused workspace changes; primes ~/.cache/workspace/current.env
-# (consumed by tmux + starship). Replaces yabai's `space_changed`
-# signal. Top-level key — must sit before any `[…]` header.
+# (consumed by tmux + starship). Top-level key — must sit before any
+# `[…]` header.
 exec-on-workspace-change = ['/bin/bash', '-c', '$HOME/.config/workspace/on-space-changed.sh']
 
-# 26pt top reservation for the sketchybar pill strip. Equivalent to
-# yabai's `external_bar all:26:0`. Inner gaps mirror yabai's
-# `window_gap = 8`. Bottom/left/right outer kept symmetric with yabai's
-# `bottom_padding = 8` etc.
+# Gaps. outer.top = 26pt reserves the sketchybar pill strip; the inner
+# + side outer gaps keep tiled windows breathing without bleeding into
+# the strip or the screen edge.
 [gaps]
 inner.horizontal = 8
 inner.vertical = 8
@@ -38,13 +36,12 @@ outer.bottom = 8
 outer.top = 26
 outer.right = 8
 
-# Mouse-follows-focus is OFF by default in aerospace — no config needed
-# to match yabai's `focus_follows_mouse = off` behavior. (Earlier draft
-# had a `[mouse-callback]` section here — that's not a real aerospace
-# key. Removed.)
+# Mouse-follows-focus is OFF by default in aerospace — no config needed.
+# (An earlier draft had a `[mouse-callback]` section here — that's not
+# a real aerospace key. Removed.)
 
-# Float system dialogs. Subroles cover most modals without enumerating
-# apps. Mirrors yabairc's AXDialog / AXSystemDialog rules.
+# Float system dialogs. Bundle-ID rules cover most modals without
+# walking the AX subrole tree.
 [[on-window-detected]]
 if.window-title-regex-substring = '^(Copy|Move|Info)$'
 if.app-id = 'com.apple.finder'
@@ -86,11 +83,9 @@ run = ['layout floating']
 "9" = 1
 "10" = 1
 
-# Out-of-fence focus / swap / float / rotate bindings. The
-# sigil-generated block below adds digit-bindings (workspace focus +
-# send-window) and the exec-on-workspace-change cascade. Swap chords
-# live on Caps+yuio (not Caps+Shift+hjkl) under Hyperkey — see
-# docs/keymap.md for the full rationale.
+# Out-of-fence focus / swap / float / rotate bindings. The sigil-
+# generated block at the bottom of this file adds digit-bindings for
+# the first ten workspaces.
 [mode.main.binding]
 # Hyper+hjkl → focus neighbour / snap floating window (ws-dir routes
 # based on the focused node's floating-or-tiling status).
@@ -99,9 +94,9 @@ cmd-alt-ctrl-shift-j = 'exec-and-forget $HOME/.local/bin/ws-dir j'
 cmd-alt-ctrl-shift-k = 'exec-and-forget $HOME/.local/bin/ws-dir k'
 cmd-alt-ctrl-shift-l = 'exec-and-forget $HOME/.local/bin/ws-dir l'
 
-# Hyper+yuio → swap window west/south/north/east. (Replaces
-# Caps+Shift+hjkl from the yabai era — Hyperkey collapses Caps+Shift
-# into Caps so swap can't share the hjkl row.)
+# Hyper+yuio → swap window left/down/up/right. (Caps+Shift+hjkl can't
+# work as a separate layer because Hyperkey emits cmd+alt+ctrl+shift
+# regardless of whether Shift is held — see docs/keymap.md.)
 cmd-alt-ctrl-shift-y = 'move left'
 cmd-alt-ctrl-shift-u = 'move down'
 cmd-alt-ctrl-shift-i = 'move up'
@@ -110,8 +105,7 @@ cmd-alt-ctrl-shift-o = 'move right'
 # Hyper+v → toggle floating / tiling
 cmd-alt-ctrl-shift-v = 'layout floating tiling'
 
-# Hyper+r → flatten + rotate the workspace tree (rough equivalent of
-# yabai's `space --rotate 90`)
+# Hyper+r → flatten + rotate the workspace tree.
 cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal vertical']
 
 # Hyper+n / Hyper+p / Hyper+Tab → workspace cycle (prev / next / last)
@@ -134,10 +128,8 @@ cmd-alt-ctrl-shift-q       = 'exec-and-forget $HOME/.local/bin/ws-launch-notes'
 cmd-alt-ctrl-shift-x       = 'exec-and-forget $HOME/.local/bin/ws-launch-inbox'
 cmd-alt-ctrl-shift-semicolon = 'exec-and-forget $HOME/.local/bin/ws-cheatsheet --toggle'
 
-# Finder launcher needs a new home — Caps+o was the yabai-era binding,
-# but under Hyperkey Caps+o is the swap-right chord (line 101) replacing
-# the retired Caps+Shift+l. Pick a free Hyper-layer key (e.g. Caps+. or
-# Caps+/) and add a binding like:
+# No Finder launcher chord — Caps+o is the swap-right chord (above).
+# To bind one, pick a free Hyper key (e.g. Caps+. or Caps+/):
 #   cmd-alt-ctrl-shift-period = '''exec-and-forget osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' '''
 # TOML triple-single-quotes are literal — inline single quotes stay intact.
 

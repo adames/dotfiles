@@ -82,7 +82,7 @@ has to use different keys, not different modifiers.
 | Chord | Action | aerospace.toml |
 |---|---|---|
 | Caps + v | toggle floating ↔ tiling on the focused window | (hand-owned binding) |
-| Caps + r | flatten + rotate workspace tree 90° (rough equivalent of yabai's `space --rotate 90`) | (hand-owned binding) |
+| Caps + r | flatten + rotate workspace tree 90° | (hand-owned binding) |
 
 ### Workspace cycle
 
@@ -143,7 +143,7 @@ bindings, but state that affects what the chords do.
 
 | Concern | Section | Notes |
 |---|---|---|
-| Outer gap = 26pt at top | `[gaps]` | Reserves the strip sketchybar lives in — equivalent to yabai's `external_bar all:26:0`. Changing one without the other clips. |
+| Outer gap = 26pt at top | `[gaps]` | Reserves the strip sketchybar lives in. Changing it without also moving sketchybar's bar height clips the bar against the top window. |
 | Float rules | `[[on-window-detected]]` | These apps float by default — Caps+v on them does nothing useful. |
 | Workspace declarations | `[workspace-to-monitor-force-assignment]` | Workspaces are declared statically; runtime add/destroy isn't supported. Edit + `aerospace reload-config && ws-topology emit-aerospace --write`. |
 | `exec-on-workspace-change` | inside sigil-fenced block | Replaces yabai's `space_changed` signal — primes `~/.cache/workspace/current.env` for tmux + starship. |

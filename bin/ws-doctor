@@ -119,9 +119,10 @@ check_aerospace_freshness() {
 
   if (( toml_mtime > aero_start_epoch )); then
     local age=$(( toml_mtime - aero_start_epoch ))
-    # Same caveat as the skhd version this replaced: `aerospace
-    # reload-config` doesn't restart the daemon, so a successful reload
-    # leaves ps lstart unchanged. WARN is honest; the reload is cheap.
+    # `aerospace reload-config` is in-process — it doesn't restart the
+    # daemon, so a successful reload leaves ps lstart unchanged. We
+    # can't distinguish "toml edited and reloaded" from "toml edited and
+    # never reloaded". WARN is honest; reload is idempotent + cheap.
     WARN aerospace-freshness "aerospace.toml is $(_humanize_age $age) newer than running AeroSpace.app — if chords feel stale, run: aerospace reload-config"
   else
     PASS aerospace-freshness "AeroSpace up since $(date -r "$aero_start_epoch" '+%Y-%m-%d %H:%M'); toml untouched since"
@@ -243,8 +244,8 @@ check_source_deploy_drift() {
   # block, user owns the rest) so a byte-for-byte cmp against the source
   # configs/aerospace.toml would always drift. Excluded for that reason;
   # `ws-topology emit-aerospace --validate` covers the generated half.
-  # Karabiner is gone; Hyperkey stores its config in user defaults, not
-  # a file we can pair-cmp.
+  # Hyperkey stores its config in user defaults, not a file we can
+  # pair-cmp, so it's not represented here either.
   local pairs=(
     "$DOTFILES_DIR/configs/ghostty-config::$HOME/.config/ghostty/config"
     "$DOTFILES_DIR/configs/workspace/launch-terminal.sh::$HOME/.local/bin/ws-launch-terminal"
@@ -475,9 +476,9 @@ check_app_references() {
 
 # ─── 6. aerospace workspace-name casing ─────────────────────────────────────
 # AeroSpace reports `app-name` for each window. Anything that filters on
-# `.app == "Foo"` (or `."app-name" == "Foo"`) breaks silently if the live
-# name doesn't match exactly. Same shape of trap as the yabai-era casing
-# check it replaces — process names and Finder display names diverge.
+# `.app == "Foo"` (or `."app-name" == "Foo"`) breaks silently if the
+# live name doesn't match exactly — process names and Finder display
+# names can diverge.
 check_aerospace_app_casing() {
   command -v aerospace >/dev/null 2>&1 || { SKIP aerospace-app-casing "aerospace not installed"; return; }
   if ! aerospace list-windows --all --json >/dev/null 2>&1; then
