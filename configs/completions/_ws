@@ -26,7 +26,7 @@ subcommands=(
   'doctor:validate spaces.json schema'
   'verify:run end-to-end cascade test harness'
   'migrate:import a legacy v1 spaces.json'
-  'refresh:force re-run cascade (current.env + sketchybar)'
+  'refresh:force re-run cascade (current.env + ws-statusbar)'
   'host:manage the per-host overlay (spaces.<hostname>.json)'
   'help:print usage'
 )

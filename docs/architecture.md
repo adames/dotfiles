@@ -122,10 +122,9 @@ hook-time — AeroSpace's declarative layout tree handles placement.
 | Workspace focus / send / edit overlays | ws-prompt (SwiftUI; edit = multi-stage state machine over `ws`) | [sigil](https://github.com/adames/sigil)/Sources/ws-prompt/ |
 | Change-workspace overlay (Caps+e) | ws-picker (SwiftUI; fuzzy-search every window in every space, ↵ jumps to its space) | [sigil](https://github.com/adames/sigil)/Sources/ws-picker/ |
 | AX absolute-snap CLI (manual use) | ws-snap | [sigil](https://github.com/adames/sigil)/Sources/ws-snap/ |
-| SketchyBar per-display autohide | ws-autohide (LaunchAgent) | [sigil](https://github.com/adames/sigil)/Sources/ws-autohide/ |
 | Cheatsheet HUD | ws-cheatsheet | `configs/workspace/cheatsheet.json` + [sigil](https://github.com/adames/sigil)/Sources/ws-cheatsheet/ |
 | Cross-display topology (notch + per-display layout) | ws-topologyd (LaunchAgent) | [sigil](https://github.com/adames/sigil)/Sources/ws-topologyd/ |
-| Workspace pill strip | SketchyBar | `configs/sketchybar/` |
+| Workspace pill strip | ws-statusbar (NSStatusItem) | [sigil](https://github.com/adames/sigil)/Sources/ws-statusbar/ |
 | Terminal · tmux · zsh · nvim | Ghostty + tmux + zsh + Neovim/Mason | respective configs |
 
 ## Why AeroSpace plus small Swift CLIs?
@@ -157,10 +156,14 @@ binary, shipped by the Swift package in the
 - **ws-snap** — AX-based absolute snap CLI for floating windows.
   Invoked by `ws-dir` from Caps+h/j/k/l when the focused window is
   floating (h=left, l=right, j=center, k=max).
-- **ws-autohide** — only long-running helper. LaunchAgent-managed
-  cursor poller (100 ms) that hides each display's SketchyBar pills
-  when the cursor approaches its top edge. Display ordinals come from
-  aerospace via `list-monitors --json`, bridged to CG-stable UUIDs.
+- **ws-statusbar** — NSStatusItem menu-bar item that draws the
+  workspace pill row and provides a dropdown menu for direct workspace
+  switching. Reads spaces.json for identity (name/icon/color), joins
+  it against aerospace's live workspace list.
+- **ws-topologyd** — LaunchAgent that watches display reconfig (via
+  `CGDisplayRegisterReconfigurationCallback`) and publishes
+  topology.json + layout.env to `~/.cache/workspace/`. Notifies
+  ws-statusbar to repaint via `DistributedNotification`.
 
 Pure userspace — no DriverKit kext, no scripting addition, no SIP
 modification, no Lua runtime.
@@ -205,42 +208,19 @@ Workspace overlays and management come from **[Sigil](https://github.com/adames/
 
 **Integration point:** AeroSpace provides workspace existence (declared
 in `aerospace.toml`); Sigil provides optional identity (name, color,
-icon) in `spaces.json` and overlays (`ws-prompt`, `ws-picker`,
-`ws-cheatsheet`). The dotfiles configure aerospace's
-`[mode.main.binding]` to trigger these overlays and SketchyBar to
-render the pills.
+icon) in `spaces.json`, overlays (`ws-prompt`, `ws-picker`,
+`ws-cheatsheet`), and the pill row (`ws-statusbar`). The dotfiles
+configure aerospace's `[mode.main.binding]` to dispatch chords to
+these surfaces. `exec-on-workspace-change` writes
+`~/.cache/workspace/current.env` and ws-statusbar repaints from the
+`DistributedNotification` ws-topologyd fires on display reconfig.
 
-## SketchyBar coexistence with the macOS menu bar
+## Pill strip ↔ macOS menu bar
 
-Layers cooperate so the pill strip shares space with the system menu
-bar without replacing it, and each display gets its own per-monitor
-pill set:
-
-| Layer | Setting | Effect |
-|---|---|---|
-| macOS | `_HIHideMenuBar=1` | Menu bar hides by default; reveals when cursor at top |
-| SketchyBar | `topmost=off`, `y_offset=7` | Strip draws behind the menu bar; vertically centered in y=0..40 |
-| SketchyBar items | `display=<N>` per pill | Each pill visible only on its owning aerospace monitor |
-| AeroSpace | `[gaps] outer.top = 26` | Tiled windows never enter the top 26px — that strip is reserved for the pill bar |
-| ws-autohide | LaunchAgent | 100 ms cursor poller; toggles each pill's `y_offset` based on per-display cursor.y |
-
-Result: cursor at the very top of display N → display N's pills slide
-off-screen, the macOS menu bar reveals on N. Cursor elsewhere → that
-display's strip stays put. Other displays are unaffected.
-
-**Per-display pill assignment + name chip** is owned by
-[`plugins/per-display-pills.sh`](../configs/sketchybar/plugins/per-display-pills.sh).
-It queries aerospace, sets `display=<idx>` on each pill, creates one
-`workspace.name.<D>` chip per display (the always-visible "you are
-here" label), and adds/removes items so the sketchybar set tracks
-aerospace exactly. Re-fires from the `exec-on-workspace-change` hook
-declared in aerospace.toml — that's the only subscribe-style event
-AeroSpace exposes.
-
-**Notch detection + visible cap.**
-[`plugins/notch-detect.sh`](../configs/sketchybar/plugins/notch-detect.sh)
-sources `~/.cache/workspace/layout.env`, written by `ws-topologyd`
-from `NSScreen.safeAreaInsets` — the authoritative API for camera
-housing geometry. On notched laptops' built-in displays, visible pills
-are capped at 10 (or `WS_MAX_VISIBLE_SLOTS_<id>` when published).
-Non-notched displays show all assigned pills.
+ws-statusbar is a regular NSStatusItem — it lives in the macOS menu
+bar alongside system icons, so there's no spatial conflict to manage.
+`outer.top = 26` in `aerospace.toml` reserves the menu-bar strip from
+tiled windows. Notch detection comes from `ws-topologyd` reading
+`NSScreen.safeAreaInsets` and capping visible slots on built-in
+notched displays; the cap is published as `WS_MAX_VISIBLE_SLOTS_<id>`
+in `~/.cache/workspace/layout.env` for any consumer that needs it.

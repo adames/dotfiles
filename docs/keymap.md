@@ -149,7 +149,7 @@ bindings, but state that affects what the chords do.
 
 | Concern | Section | Notes |
 |---|---|---|
-| Outer gap = 26pt at top | `[gaps]` | Reserves the strip sketchybar lives in. Changing it without also moving sketchybar's bar height clips the bar against the top window. |
+| Outer gap = 26pt at top | `[gaps]` | Reserves the menu-bar strip ws-statusbar lives in. |
 | Float rules | `[[on-window-detected]]` | These apps float by default — Caps+v on them does nothing useful. |
 | Workspace declarations | `[workspace-to-monitor-force-assignment]` | Workspaces are declared statically; runtime add/destroy isn't supported. After editing spaces.json: `ws-topology emit-aerospace --write --reload` re-renders the sigil-fenced digit-binding block in the deployed aerospace.toml and reloads aerospace live. Bootstrap calls the same command, so a re-bootstrap after a workspace change keeps the dotfiles source in step. |
 | `exec-on-workspace-change` | inside sigil-fenced block | Replaces yabai's `space_changed` signal — primes `~/.cache/workspace/current.env` for tmux + starship. |
