@@ -3,15 +3,15 @@
 cheatsheet-gen — assemble configs/workspace/cheatsheet.json from
 @cs-annotated config files.
 
-Each source config (skhdrc, tmux.conf, nvim-init.lua, …) carries
-cheatsheet content in its own comment syntax via `@cs` directive
-blocks. A small layout file (configs/workspace/cheatsheet-layout.json)
-declares the banner strip + the column → family mapping. This script
-parses all of it and writes a single JSON document that the
-ws-cheatsheet binary renders.
+Each source config (aerospace.toml, tmux.conf, nvim-init.lua, …)
+carries cheatsheet content in its own comment syntax via `@cs`
+directive blocks. A small layout file
+(configs/workspace/cheatsheet-layout.json) declares the banner strip +
+the column → family mapping. This script parses all of it and writes a
+single JSON document that the ws-cheatsheet binary renders.
 
 Annotation format (in the file's native comment syntax — `# ` for
-bash/skhd/tmux/zsh, `-- ` for lua):
+bash/tmux/zsh/toml, `-- ` for lua):
 
     # @cs section <title>
     # @cs family <system|terminal|vim|nvim|git>
@@ -57,7 +57,7 @@ from typing import Any
 # placement order within the column. Add new sources here; the script
 # will silently skip any path that doesn't exist (with a stderr warning).
 SOURCES: list[tuple[str, str]] = [
-    ("configs/skhdrc",            "#"),
+    ("configs/aerospace.toml",    "#"),
     ("configs/tmux.conf",         "#"),
     ("configs/zshrc",             "#"),
     ("configs/nvim-init.lua",     "--"),

@@ -16,15 +16,14 @@
 # is the source of truth for "what files exist on this OS's clone." Two
 # axes, two files — keeps the deploy logic auditable at a glance.
 
-# macOS-only paths: Karabiner, yabai, skhd, sketchybar, workspace
-# identity-cascade shell scripts (yabai-driven), and the macOS bootstrap
-# directory. The Swift topology package lives in a separate repo (sigil,
-# cloned to ~/.config/workspace/ at bootstrap), not under dotfiles.
+# macOS-only paths: aerospace, sketchybar, workspace identity-cascade
+# shell scripts (aerospace-driven via exec-on-workspace-change), and
+# the macOS bootstrap directory. The Swift workspace package lives in
+# a separate repo (sigil, cloned to ~/.config/workspace/ at bootstrap),
+# not under dotfiles. Hyperkey is .app-only (no file in configs/), so
+# nothing to list for it here.
 MACOS_ONLY_PATHS=(
-  "configs/karabiner.json"
-  "configs/karabiner.md"
-  "configs/yabairc"
-  "configs/skhdrc"
+  "configs/aerospace.toml"
   "configs/sketchybar/"
   "configs/workspace/on-space-changed.sh"
   "configs/workspace/on-space-destroyed.sh"

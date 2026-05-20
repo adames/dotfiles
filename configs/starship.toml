@@ -20,9 +20,9 @@ command_timeout = 500
 # Pre-rendered truecolor ANSI in MACOS_SPACE_ANSI, computed once per
 # space switch by configs/workspace/on-space-changed.sh. The prompt
 # path is just a printf — no hex parsing, no command substitution work.
-# Missing var (no yabai, fresh login, ssh remote) → empty chip.
+# Missing var (no aerospace, fresh login, ssh remote) → empty chip.
 [custom.workspace]
-description = "Active yabai workspace identity (configs/workspace/on-space-changed.sh)"
+description = "Active aerospace workspace identity (configs/workspace/on-space-changed.sh)"
 when        = "true"
 shell       = ["bash", "--noprofile", "--norc"]
 command     = 'printf %s "${MACOS_SPACE_ANSI:-}"'
