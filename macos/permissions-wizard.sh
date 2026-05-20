@@ -106,16 +106,9 @@ ${acc:-    • AeroSpace
     kick_services
   fi
 
-  # Surface anything bootstrap.sh deferred. Today only the topology build
-  # uses this channel; if other phases ever need to bubble up follow-ups,
-  # extend this block rather than scattering print logic across phases.
-  #
-  # Belt-and-braces with the flag: bootstrap.sh has been seen setting
-  # the flag on a transient first-pass `launchctl bootstrap` EIO, then
-  # the second-pass install.sh succeeds and binaries land. The flag
-  # *should* be cleared by bootstrap's second pass on success, but we
-  # also verify by checking the deployed binary. If ws-snap is present
-  # and executable, the build clearly worked — suppress the error.
+  # Surface anything bootstrap.sh deferred. Belt-and-braces: trust the
+  # flag AND verify the binary actually landed (the flag has been seen
+  # set on a transient launchctl EIO that the second pass healed).
   if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" && ! -x "$HOME/.local/bin/ws-snap" ]]; then
     section "Follow-up required"
     err "topology Swift package did not build — ws-snap and the workspace daemons are missing"
