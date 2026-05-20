@@ -16,14 +16,14 @@
 > 2. **`~/.config/aerospace/aerospace.toml`** is sentinel-fenced. User owns
 >    everything except the block between `# >>> sigil generated >>>` and
 >    `# <<< sigil generated <<<`. That block carries per-workspace digit
->    bindings + `exec-on-workspace-change` (the cascade replacing yabai's
->    `space_changed` signal). Written atomically by `ws-topology
->    emit-aerospace`, validated before write. Hand-edits inside the fence
->    are clobbered.
+>    bindings. The `exec-on-workspace-change` cascade hook (which primes
+>    `current.env`) sits in the user-owned top section as a top-level
+>    key. Written atomically by `ws-topology emit-aerospace`, validated
+>    before write. Hand-edits inside the fence are clobbered.
 > 3. **`spaces.json` v3** keys on `"<displayUUID>:<workspaceName>"`.
 >    `displayUUID` from `CGDisplayCreateUUIDFromDisplayID` (stable; AeroSpace
->    monitor ordinals are not). Migrated v2 slots land in `_unassigned:*`
->    until ws-topology reconciles them against live aerospace workspaces.
+>    monitor ordinals are not). v3 is the only supported schema —
+>    `ws-topology migrate` rejects anything else.
 
 Caps Lock is king of the dev surface.
 
@@ -70,12 +70,12 @@ vim-style hjkl + leader-key mental model.
 | Caps Lock alone (tap) | `Escape` | — |
 | Caps Lock held | **Hyper** | `⌃⌥⌘⇧` (4) |
 
-This is one layer, not two. The yabai-era setup ran a second "Mod"
-layer (Caps+Shift → `⌃⌥⌘`, Shift consumed) via Karabiner so swap could
-share the hjkl row with focus. Hyperkey can't reproduce that — it
-remaps the Caps Lock key itself, not "Caps + modifier" combinations —
-so the swap chords moved to **Caps + y/u/i/o** instead of Caps+Shift+hjkl.
-Two-layer history lives in `docs/archive/yabai-to-aerospace.md`.
+One layer. Hyperkey remaps the Caps Lock key itself, not "Caps +
+modifier" combinations, so there's no way to disambiguate Caps+Shift
+from plain Caps at the chord layer — swap chords live on
+**Caps + y/u/i/o**, not on Caps+Shift+hjkl. (Background on the
+two-layer setup we used to run lives in
+`docs/archive/yabai-to-aerospace.md`.)
 
 ### Hyper governs the OS-level chord vocabulary
 
@@ -107,12 +107,10 @@ slot index — the path to slot 11+ via numeric input. **Add/destroy
 verbs surface a help message** rather than mutate — under aerospace,
 workspace existence is config-time (edit `aerospace.toml` + reload).
 
-AeroSpace ships its own `[[on-window-detected]]` rules for floating
-specific apps — float-vs-tile is the config decision; `Caps+v` toggles
-the focused window between modes manually. There's no yabai-era
-`window_created` signal replacement (AeroSpace doesn't expose a
-window-creation hook); window staging is replaced by AeroSpace's
-declarative layout tree.
+AeroSpace's `[[on-window-detected]]` rules pick float-vs-tile by
+bundle ID at window-open time; `Caps+v` toggles the focused window
+between the two modes manually. Window staging is config-time, not
+hook-time — AeroSpace's declarative layout tree handles placement.
 
 ## Who owns what
 
@@ -133,8 +131,7 @@ declarative layout tree.
 ## Why AeroSpace plus small Swift CLIs?
 
 **AeroSpace** consumes Hyper chords directly — it has a built-in
-keybinding engine (no skhd companion daemon), and runs entirely in
-userspace (no scripting addition, no SIP modification). Each
+keybinding engine and runs entirely in userspace. Each
 `[mode.main.binding]` entry maps a chord to an `exec-and-forget` or a
 native command like `workspace`, `focus`, `move`. Anything that needs
 macOS API access beyond what aerospace covers is its own one-shot
@@ -165,8 +162,7 @@ binary, shipped by the Swift package in the
   when the cursor approaches its top edge. Display ordinals come from
   aerospace via `list-monitors --json`, bridged to CG-stable UUIDs.
 
-Smaller surface than the yabai-era skhd + Karabiner stack — no Karabiner
-Virtual HID Device kext, no yabai scripting addition, no SIP
+Pure userspace — no DriverKit kext, no scripting addition, no SIP
 modification, no Lua runtime.
 
 ## In-terminal layers
@@ -225,7 +221,7 @@ pill set:
 | macOS | `_HIHideMenuBar=1` | Menu bar hides by default; reveals when cursor at top |
 | SketchyBar | `topmost=off`, `y_offset=7` | Strip draws behind the menu bar; vertically centered in y=0..40 |
 | SketchyBar items | `display=<N>` per pill | Each pill visible only on its owning aerospace monitor |
-| AeroSpace | `[gaps] outer.top = 26` | Tiled windows never enter the top 26px (equivalent to yabai's `external_bar`) |
+| AeroSpace | `[gaps] outer.top = 26` | Tiled windows never enter the top 26px — that strip is reserved for the pill bar |
 | ws-autohide | LaunchAgent | 100 ms cursor poller; toggles each pill's `y_offset` based on per-display cursor.y |
 
 Result: cursor at the very top of display N → display N's pills slide
@@ -238,9 +234,8 @@ It queries aerospace, sets `display=<idx>` on each pill, creates one
 `workspace.name.<D>` chip per display (the always-visible "you are
 here" label), and adds/removes items so the sketchybar set tracks
 aerospace exactly. Re-fires from the `exec-on-workspace-change` hook
-declared inside aerospace.toml's sigil-fenced block — that's the only
-subscribe-style event AeroSpace exposes (no per-event signal subsystem
-like yabai had).
+declared in aerospace.toml — that's the only subscribe-style event
+AeroSpace exposes.
 
 **Notch detection + visible cap.**
 [`plugins/notch-detect.sh`](../configs/sketchybar/plugins/notch-detect.sh)
