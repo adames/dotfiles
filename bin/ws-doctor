@@ -257,10 +257,13 @@ check_source_deploy_drift() {
   # pair-cmp, so it's not represented here either.
   local pairs=(
     "$DOTFILES_DIR/configs/ghostty-config::$HOME/.config/ghostty/config"
-    "$DOTFILES_DIR/configs/workspace/launch-terminal.sh::$HOME/.local/bin/ws-launch-terminal"
-    "$DOTFILES_DIR/configs/workspace/launch-browser.sh::$HOME/.local/bin/ws-launch-browser"
-    "$DOTFILES_DIR/configs/workspace/launch-notes.sh::$HOME/.local/bin/ws-launch-notes"
-    "$DOTFILES_DIR/configs/workspace/launch-inbox.sh::$HOME/.local/bin/ws-launch-inbox"
+    # ws-launch-* helpers live in sigil now (Sources/ + sigil's
+    # install.sh deploys them to ~/.local/bin/). Pair-cmp against
+    # dotfiles would always flag drift because the sources don't
+    # exist here. If you want to cross-check launcher staleness, do
+    # it against ~/.config/workspace/ (the sigil runtime clone) — but
+    # that path isn't deployed by dotfiles bootstrap so it's not in
+    # this list.
   )
 
   local drifted=0 missing=0 detail=""
