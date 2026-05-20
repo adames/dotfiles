@@ -146,19 +146,16 @@ cmd-alt-ctrl-shift-w = 'exec-and-forget $HOME/.local/bin/ws-prompt manage'
 
 # @cs section Launchers
 # @cs family system
-# @cs sub ws-launch-* · open -a
-# @cs idea One Hyper key per surface. The launch-* helpers honour $WS_*_APP env overrides.
+# @cs sub ws-launch-* · open -a · Hyper held
+# @cs idea Apps on the home row · capture beside it · meta on the punctuation row.
 # @cs row Caps + t          :: terminal
 # @cs row Caps + b          :: browser
-# @cs row Caps + ,          :: System Settings
+# @cs row Caps + .          :: Finder
 # @cs row Caps + q          :: notes
-# @cs row Caps + x          :: inbox
-# @cs row Caps + ;          :: cheatsheet HUD (toggle)
+# @cs row Caps + x          :: writing
+# @cs row Caps + ,          :: System Settings
+# @cs row Caps + /          :: cheatsheet HUD (toggle)
 # @cs end
-
-# TODO(@cs row): Caps + .  ::  Finder  — not bound; suggest claiming
-# Caps+. or Caps+/ if a Finder launcher is wanted. See the commented
-# binding stub a few lines below.
 
 # Launchers
 cmd-alt-ctrl-shift-t       = 'exec-and-forget $HOME/.local/bin/ws-launch-terminal'
@@ -166,15 +163,21 @@ cmd-alt-ctrl-shift-b       = 'exec-and-forget $HOME/.local/bin/ws-launch-browser
 cmd-alt-ctrl-shift-comma   = 'exec-and-forget open -a "System Settings"'
 cmd-alt-ctrl-shift-q       = 'exec-and-forget $HOME/.local/bin/ws-launch-notes'
 cmd-alt-ctrl-shift-x       = 'exec-and-forget $HOME/.local/bin/ws-launch-inbox'
-cmd-alt-ctrl-shift-semicolon = 'exec-and-forget $HOME/.local/bin/ws-cheatsheet --toggle'
 
-# No Finder launcher chord — Caps+o is the swap-right chord (above).
-# To bind one, pick a free Hyper key (e.g. Caps+. or Caps+/):
-#   cmd-alt-ctrl-shift-period = '''exec-and-forget osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' '''
-# TOML triple-single-quotes are literal — inline single quotes stay intact.
+# Finder. AppleScript instead of `open -a Finder` so a window is created
+# even when Finder already has an active window stack hidden behind other
+# apps. TOML triple-single-quotes are literal — the inline single quotes
+# stay intact for osascript.
+cmd-alt-ctrl-shift-period  = '''exec-and-forget osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' '''
 
-# Cheatsheet: cmd-alt-ctrl-shift- followed by ; (0x29 on US ANSI)
-# already bound above as cmd-alt-ctrl-shift-semicolon.
+# Cheatsheet HUD. Moved off `;` (semicolon) onto `/` (slash) — the `/` key
+# evokes "help" muscle-memory (vim search, web "?" shortcuts). macOS also
+# uses Cmd+Shift+/ as the Help-menu search shortcut; Hyperkey adds
+# Ctrl+Option so AeroSpace receives a *distinct* chord and grabs it
+# before the focused app sees ⌘⇧/. If the system Help menu still appears,
+# reload AeroSpace (`aerospace reload-config`) and re-fire — a stale
+# config can let chords leak through.
+cmd-alt-ctrl-shift-slash   = 'exec-and-forget $HOME/.local/bin/ws-cheatsheet --toggle'
 
 # >>> sigil generated >>>
 # (Populated by `ws-topology emit-aerospace --write`. Digit bindings
