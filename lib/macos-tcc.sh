@@ -15,24 +15,6 @@
 
 set -u
 
-# Deep-link to System Settings panes. Pane keys we use:
-#   Privacy_Accessibility, Privacy_ListenEvent (Input Monitoring),
-#   Privacy_SystemServices (system extensions)
-mac_open_privacy_pane() {
-  local pane="${1:-Privacy_Accessibility}"
-  open "x-apple.systempreferences:com.apple.preference.security?$pane" 2>/dev/null || true
-}
-
-# ---- AeroSpace --------------------------------------------------------------
-# Return codes:
-#   0 = AeroSpace.app process exists AND the CLI socket responds
-#   1 = process missing or daemon not reachable
-mac_aerospace_status() {
-  pgrep -x AeroSpace >/dev/null 2>&1 || return 1
-  command -v aerospace >/dev/null 2>&1 || return 1
-  aerospace list-monitors --json >/dev/null 2>&1
-}
-
 # ---- TCC.db read helper -----------------------------------------------------
 # Internal. Returns auth_value (0=denied, 1=unknown, 2=allowed) for a given
 # service+client query. Empty string on failure (no Full Disk Access, etc.).

@@ -16,19 +16,11 @@
 # is the source of truth for "what files exist on this OS's clone." Two
 # axes, two files — keeps the deploy logic auditable at a glance.
 
-# macOS-only paths: aerospace, sketchybar, workspace identity-cascade
-# shell scripts (aerospace-driven via exec-on-workspace-change), and
-# the macOS bootstrap directory. The Swift workspace package lives in
-# a separate repo (sigil, cloned to ~/.config/workspace/ at bootstrap),
-# not under dotfiles. Hyperkey is .app-only (no file in configs/), so
-# nothing to list for it here.
+# macOS-only paths. The Swift workspace package (sigil) lives in a
+# separate repo cloned at bootstrap, not under dotfiles. Hyperkey is
+# .app-only (no file in configs/).
 MACOS_ONLY_PATHS=(
   "configs/aerospace.toml"
-  "configs/sketchybar/"
-  "configs/workspace/on-space-changed.sh"
-  "configs/workspace/on-space-destroyed.sh"
-  "configs/workspace/install.sh"
-  "configs/workspace/hooks/"
   "configs/ghostty-config"
   "macos/"
 )
