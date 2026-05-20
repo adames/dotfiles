@@ -14,7 +14,7 @@ default-root-container-orientation = 'auto'
 # Top-level — must precede every [...] header.
 exec-on-workspace-change = ['/bin/bash', '-c', '$HOME/.config/workspace/on-space-changed.sh']
 
-# outer.top = 26pt reserves the sketchybar pill strip.
+# outer.top = 26pt reserves the menu-bar strip ws-statusbar lives in.
 [gaps]
 inner.horizontal = 8
 inner.vertical = 8

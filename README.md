@@ -65,7 +65,6 @@ default-shell); skips AeroSpace + Hyperkey + Docker.
 | Workspace focus / send / manage overlays | ws-prompt (SwiftUI) | [sigil](https://github.com/adames/sigil) |
 | Change-workspace overlay (Caps+e) | ws-picker (SwiftUI) | [sigil](https://github.com/adames/sigil) |
 | Cheatsheet HUD (SwiftUI) | ws-cheatsheet | [sigil](https://github.com/adames/sigil) · `~/.config/workspace/cheatsheet.json` |
-| Cursor-proximity autohide for the pill strip | ws-autohide | [sigil](https://github.com/adames/sigil) |
 | Cross-display topology + notch detection | ws-topologyd | [sigil](https://github.com/adames/sigil) |
 | AX absolute-snap CLI (driven by Caps+h/j/k/l on floats) | ws-snap | [sigil](https://github.com/adames/sigil) |
 | Direction-aware Caps+h/j/k/l dispatch (floating→snap, tiled→focus) | ws-dir | [`bin/ws-dir`](bin/ws-dir) |
@@ -90,7 +89,7 @@ Workspace overlays and management are provided by **[Sigil](https://github.com/a
 1. `bootstrap.sh` clones `git@github.com:adames/sigil.git` → `~/.config/workspace/`
 2. Builds Swift binaries (`ws-prompt`, `ws-picker`, `ws-statusbar`, etc.)
 3. Symlinks binaries to `~/.local/bin/`
-4. Loads LaunchAgents for `ws-topologyd`, `ws-autohide`, `ws-statusbar`
+4. Loads LaunchAgents for `ws-topologyd` and `ws-statusbar`
 
 **Development:** Work in `~/projects/sigil` (or `~/.config/workspace`), push to GitHub. On new machines, bootstrap automatically pulls latest.
 
@@ -235,7 +234,7 @@ NO_COLOR=1 ~/dotfiles/bootstrap.sh               # plain output
 ```
 
 `install_file` byte-compares; re-running is cheap. Native helpers
-(ws-prompt, ws-cheatsheet, ws-autohide, ws-snap, ws-topology) live in
+(ws-prompt, ws-picker, ws-cheatsheet, ws-statusbar, ws-snap, ws-topology) live in
 the [sigil](https://github.com/adames/sigil) repo — bootstrap clones
 it to `~/.config/workspace/` and rebuilds the Swift binaries.
 
