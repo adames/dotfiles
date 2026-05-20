@@ -319,6 +319,9 @@ check_menu_items() {
   local file
   for file in "${files[@]}"; do
     [[ -r "$file" ]] || continue
+    # Skip ws-doctor itself — its docs quote the lint patterns we look
+    # for ("APP", "Foo", "X"), which would otherwise count as real refs.
+    [[ "${file##*/}" == "ws-doctor" ]] && continue
     # awk: track the last `tell application "X"` or `tell process "X"`
     # we saw on the same osascript chain. Lines come in either as
     # `-e '…'` continuations or as one long string.
@@ -409,7 +412,11 @@ check_menu_items() {
   if (( fail_count > 0 )); then
     FAIL menu-items "$fail_count broken / $ok_count ok / $skipped not-running"$'\n'"$detail"
   elif (( skipped > 0 )); then
-    WARN menu-items "$ok_count ok, $skipped skipped (apps not running)"$'\n'"$detail"
+    # SKIP is genuinely unverified, not broken — but a doctor that goes
+    # silent on un-probable references is a doctor that misses upstream
+    # menu renames. Keep it as a warn; make the action obvious in the
+    # message so the user knows the fix is "open the app and re-run".
+    WARN menu-items "$ok_count ok, $skipped unverified (app not running — launch it and re-run to probe)"$'\n'"$detail"
   else
     PASS menu-items "$ok_count menu reference(s) resolve"
   fi
@@ -439,11 +446,20 @@ check_app_references() {
   local file
   for file in "${files[@]}"; do
     [[ -r "$file" ]] || continue
-    # Pull every `tell application "X"` and `tell process "X"`.
+    # Skip ws-doctor itself — its docs quote `tell application "Foo"` /
+    # `tell application "X"` / `tell application "APP"` as placeholders
+    # in the lint-pattern documentation. Without this skip those names
+    # leak in as fake refs and Launch Services can't resolve them.
+    [[ "${file##*/}" == "ws-doctor" ]] && continue
+    # Pull every `tell application "X"` and `tell process "X"`. Strip
+    # full-line `#` comments first (shell + TOML share this prefix) so
+    # docstrings like `# tell application "X" to make new window` in a
+    # launcher's header don't leak in as fake app refs.
     while IFS= read -r app; do
       [[ -z "$app" ]] && continue
       apps+=("$file"$'\t'"$app")
-    done < <(grep -oE 'tell[[:space:]]+(application|process)[[:space:]]+"[^"]+"' "$file" \
+    done < <(sed -E 's/^[[:space:]]*#.*$//' "$file" \
+             | grep -oE 'tell[[:space:]]+(application|process)[[:space:]]+"[^"]+"' \
              | sed -E 's/^tell[[:space:]]+(application|process)[[:space:]]+"([^"]+)"$/\2/')
   done
 
