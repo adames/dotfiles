@@ -5,7 +5,6 @@
 #
 # Tests focus on historically troublesome traps:
 # - bootstrap idempotency
-# - yabai scripting addition drift
 # - config source/deploy drift
 # - ws-doctor core functionality
 #

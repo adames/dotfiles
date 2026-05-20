@@ -2,10 +2,10 @@
 # Walks the three TCC panes the Hyper-key stack needs.
 #
 # Probe-gated: lib/macos-tcc.sh asks each tool whether its TCC bit is on
-# (via launchctl, systemextensionsctl, Karabiner-Core-Service-rev2 liveness
-# — no Full Disk Access required). Panes whose toggles are all already on
-# are skipped silently; panes with missing toggles list ONLY the missing
-# items, not the full set.
+# (via launchctl, systemextensionsctl, Karabiner-Core-Service-rev2 liveness,
+# AeroSpace.app process presence — no Full Disk Access required). Panes
+# whose toggles are all already on are skipped silently; panes with
+# missing toggles list ONLY the missing items, not the full set.
 #
 # On the re-bootstrap case (everything already granted) the wizard never
 # opens System Settings.
@@ -35,8 +35,7 @@ pause_for() {
 # Launching them once is what registers them.
 register() {
   step "registering apps in TCC lists"
-  yabai --start-service       >/dev/null 2>&1 || true
-  skhd  --start-service       >/dev/null 2>&1 || true
+  open -ga AeroSpace          2>/dev/null    || true
   open -ga Karabiner-Elements 2>/dev/null    || true
   # ws-snap moves floating windows via AX, so it needs Accessibility. A
   # no-op invocation forces TCC to enumerate it in the Accessibility list
@@ -55,21 +54,10 @@ kick_services() {
   ok "kicked"
 }
 
-# yabai needs a fresh login to pick up spans-displays. Offer to do it now.
-maybe_logout() {
-  [[ "$(defaults read com.apple.spaces spans-displays 2>/dev/null)" == "0" ]] || return 0
-  pgrep -x yabai >/dev/null && return 0
-  has_tty || { warn "log out / log in required to apply spans-displays"; return 0; }
-  section "Logout for spans-displays"
-  printf '  Log out now? [y/N] '; read -r ans
-  [[ "$ans" =~ ^[Yy] ]] && osascript -e 'tell application "System Events" to log out' || warn "remember to log out later"
-}
-
 # Per-pane missing-items reports. Each function echoes "    • Tool" lines
 # for items still missing in that pane; empty output = all toggles already on.
 missing_accessibility() {
-  mac_yabai_status                  || echo "    • yabai"
-  mac_skhd_status                   || echo "    • skhd"
+  pgrep -x AeroSpace >/dev/null     || echo "    • AeroSpace"
   mac_karabiner_accessibility_ok    || echo "    • Karabiner-Elements"
   # ws-snap doesn't have a fast launchctl probe; just always remind on
   # first-pass installs (the line is suppressed silently once all
@@ -121,8 +109,7 @@ main() {
     section "1/3 · Accessibility"
     open_pane Privacy_Accessibility
     pause_for "  Toggle ON in Accessibility:
-${acc:-    • yabai
-    • skhd
+${acc:-    • AeroSpace
     • Karabiner-Elements
     • ws-snap}"
     need_kick=1
@@ -152,7 +139,6 @@ ${se:-    • Karabiner-DriverKit-VirtualHIDDevice}"
   if [[ -n "$need_kick" ]]; then
     kick_services
   fi
-  maybe_logout
 
   # Surface anything bootstrap.sh deferred. Today only the topology build
   # uses this channel; if other phases ever need to bubble up follow-ups,

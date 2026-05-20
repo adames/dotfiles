@@ -39,13 +39,13 @@ test_doctor_checks_critical() {
 
   local checks=0
 
-  if grep -q "yabai\|tiler" "$DOCTOR" 2>/dev/null; then
-    echo "PASS: Doctor checks yabai/window manager"
+  if grep -q "aerospace\|tiler" "$DOCTOR" 2>/dev/null; then
+    echo "PASS: Doctor checks aerospace/window manager"
     ((checks++))
   fi
 
-  if grep -q "skhd\|hotkey" "$DOCTOR" 2>/dev/null; then
-    echo "PASS: Doctor checks skhd/hotkey daemon"
+  if grep -q "keystroke\|hotkey\|hyper" "$DOCTOR" 2>/dev/null; then
+    echo "PASS: Doctor checks hotkey / keystroke layer"
     ((checks++))
   fi
 

@@ -3,17 +3,17 @@
 #
 # Catches the failure modes the workspace stack has actually shipped:
 #
-#   1. stale skhd                 — `.skhdrc` edited after skhd started, so
-#                                   new bindings aren't live (you have to
-#                                   `skhd --reload`). Symptom: chord does
-#                                   nothing.
+#   1. stale aerospace.toml       — `aerospace.toml` edited after the
+#                                   daemon started, so new bindings aren't
+#                                   live (run `aerospace reload-config`).
+#                                   Symptom: chord does nothing.
 #
 #   2. keystroke collision        — `osascript … keystroke "X" using …` in a
 #                                   launcher fires while the user is still
 #                                   holding Caps. The synthetic event picks
 #                                   up the live Hyper modifier state and
 #                                   becomes Hyper+X. If Hyper+X is bound in
-#                                   skhd, the wrong action fires.
+#                                   aerospace.toml, the wrong action fires.
 #                                   (This is what made Caps+T move spaces
 #                                   when held: ws-launch-terminal sent Cmd+N,
 #                                   which became Hyper+N → ws-focus next.)
@@ -49,8 +49,9 @@
 #                            # SA reload uses sudo (one password prompt);
 #                            # slot drift is pure jq, no sudo needed.
 #
-# The Hyper layer is discovered at runtime by parsing `.skhdrc`, so adding
-# / removing a Hyper binding automatically updates the collision matrix.
+# The Hyper layer is discovered at runtime by parsing aerospace.toml, so
+# adding / removing a Hyper binding automatically updates the collision
+# matrix.
 
 set -u
 
@@ -93,42 +94,37 @@ WARN() { _record WARN "$1" "$2"; }
 FAIL() { _record FAIL "$1" "$2"; }
 SKIP() { _record SKIP "$1" "$2"; }
 
-# ─── 1. skhd freshness ──────────────────────────────────────────────────────
-# Compare the running skhd's start time against ~/.skhdrc mtime. If the rc
-# is newer, skhd is serving stale bindings — `skhd --reload` fixes it.
-check_skhd_freshness() {
-  local rc="$HOME/.skhdrc"
-  [[ -r "$rc" ]] || { SKIP skhd-freshness "$rc missing"; return; }
+# ─── 1. aerospace config freshness ──────────────────────────────────────────
+# Compare aerospace.toml's mtime against the running aerospace daemon's
+# start time. If the toml is newer, the daemon is serving stale bindings —
+# `aerospace reload-config` is the fix (or quit + relaunch AeroSpace.app).
+check_aerospace_freshness() {
+  local toml="$HOME/.config/aerospace/aerospace.toml"
+  [[ -r "$toml" ]] || { SKIP aerospace-freshness "$toml missing"; return; }
 
   local pid
-  pid=$(pgrep -x skhd | head -1)
+  pid=$(pgrep -x AeroSpace | head -1)
   if [[ -z "$pid" ]]; then
-    FAIL skhd-freshness "skhd is not running (start it: brew services start skhd)"
+    FAIL aerospace-freshness "AeroSpace.app not running — launch from /Applications or 'open -a AeroSpace'"
     return
   fi
 
-  # `ps -o lstart=` returns a string like "Thu May 14 20:40:11 2026".
-  # `date -j -f` parses it into epoch seconds. stat -f %m gives the
-  # config's epoch mtime. If rc is newer than skhd's start time, skhd
-  # was launched before the config was edited and needs --reload.
-  local skhd_start_str rc_mtime skhd_start_epoch
-  skhd_start_str=$(ps -o lstart= -p "$pid" | xargs)
-  skhd_start_epoch=$(date -j -f '%a %b %d %T %Y' "$skhd_start_str" +%s 2>/dev/null) || {
-    WARN skhd-freshness "couldn't parse skhd start time ($skhd_start_str)"
+  local toml_mtime aero_start_str aero_start_epoch
+  aero_start_str=$(ps -o lstart= -p "$pid" | xargs)
+  aero_start_epoch=$(date -j -f '%a %b %d %T %Y' "$aero_start_str" +%s 2>/dev/null) || {
+    WARN aerospace-freshness "couldn't parse AeroSpace start time ($aero_start_str)"
     return
   }
-  rc_mtime=$(stat -f %m "$rc")
+  toml_mtime=$(stat -f %m "$toml")
 
-  if (( rc_mtime > skhd_start_epoch )); then
-    local age=$(( rc_mtime - skhd_start_epoch ))
-    # We can't distinguish "rc edited and skhd never reloaded" (broken)
-    # from "rc edited then skhd --reload'd" (fine) — `--reload` is a
-    # SIGUSR1 to the running PID, so `ps lstart` still reports the
-    # original launch time. WARN is honest: maybe stale, run reload to
-    # be sure. The reload itself is idempotent and cheap.
-    WARN skhd-freshness ".skhdrc is $(_humanize_age $age) newer than running skhd PID — if Caps chords feel stale, run: skhd --reload"
+  if (( toml_mtime > aero_start_epoch )); then
+    local age=$(( toml_mtime - aero_start_epoch ))
+    # Same caveat as the skhd version this replaced: `aerospace
+    # reload-config` doesn't restart the daemon, so a successful reload
+    # leaves ps lstart unchanged. WARN is honest; the reload is cheap.
+    WARN aerospace-freshness "aerospace.toml is $(_humanize_age $age) newer than running AeroSpace.app — if chords feel stale, run: aerospace reload-config"
   else
-    PASS skhd-freshness "skhd up since $(date -r "$skhd_start_epoch" '+%Y-%m-%d %H:%M'); rc untouched since"
+    PASS aerospace-freshness "AeroSpace up since $(date -r "$aero_start_epoch" '+%Y-%m-%d %H:%M'); toml untouched since"
   fi
 }
 
@@ -144,51 +140,51 @@ _humanize_age() {
 # ─── 2. keystroke collision ─────────────────────────────────────────────────
 # Find every osascript `keystroke X using <modifiers>` invocation in the
 # repo + deployed launchers. For each, compute: if Caps/Hyper is still held,
-# the event becomes Hyper+X. If Hyper+X is a real skhd binding, flag it.
+# the event becomes Hyper+X. If Hyper+X is a real aerospace.toml binding,
+# flag it.
 #
-# Hyper-bound letters are read live from ~/.skhdrc — adding a binding
-# automatically tightens the lint.
+# Hyper-bound keys are read live from aerospace.toml's [mode.main.binding]
+# section — adding a binding automatically tightens the lint.
 check_keystroke_collision() {
-  local rc="$HOME/.skhdrc"
-  [[ -r "$rc" ]] || { SKIP keystroke-collision "$rc missing"; return; }
+  local toml="$HOME/.config/aerospace/aerospace.toml"
+  [[ -r "$toml" ]] || { SKIP keystroke-collision "$toml missing"; return; }
 
-  # Extract letters bound under the full Hyper layer
-  # (cmd + alt + ctrl + shift - X). Strip comments, normalize spaces.
-  # `0x29` (;), `0x2B` (,) and named keys (tab, escape, return) keep
-  # their raw form — we compare letter-for-letter against the keystroke.
+  # Extract keys bound under the full Hyper layer (cmd-alt-ctrl-shift-X).
+  # AeroSpace's binding syntax: `cmd-alt-ctrl-shift-h = '…'`. Strip
+  # comments, lowercase, dedup. Named keys (tab, escape, return,
+  # semicolon, comma) keep their raw aerospace name; we map the common
+  # ones back to their literal characters below.
   local hyper_keys
   hyper_keys=$(awk '
     /^[[:space:]]*#/ { next }
-    /cmd[[:space:]]*\+[[:space:]]*alt[[:space:]]*\+[[:space:]]*ctrl[[:space:]]*\+[[:space:]]*shift[[:space:]]*-[[:space:]]*[A-Za-z0-9_]+/ {
-      match($0, /-[[:space:]]*[A-Za-z0-9_]+/)
-      k = substr($0, RSTART+1, RLENGTH-1)
-      gsub(/[[:space:]]/, "", k)
+    /^[[:space:]]*cmd-alt-ctrl-shift-[A-Za-z0-9_]+[[:space:]]*=/ {
+      match($0, /cmd-alt-ctrl-shift-[A-Za-z0-9_]+/)
+      k = substr($0, RSTART, RLENGTH)
+      sub(/^cmd-alt-ctrl-shift-/, "", k)
       print tolower(k)
     }
-  ' "$rc" | sort -u)
+  ' "$toml" | sort -u)
 
-  # Hex code map. .skhdrc uses 0x29 for `;` and 0x2B for `,`; osascript
-  # `keystroke ";"` would collide with Hyper+0x29 — keep the table small,
-  # only what's bound today.
-  declare -A hex_to_char=( [0x29]=";" [0x2b]="," )
+  # AeroSpace key-name → literal character. osascript `keystroke ";"`
+  # would collide with Hyper+semicolon; same for comma. Keep small.
+  declare -A name_to_char=( [semicolon]=";" [comma]="," [period]="." )
 
-  # Resolve "0x29" → ";". Names that aren't in the table stay as-is.
-  local key letter resolved=""
+  local key resolved=""
   for key in $hyper_keys; do
-    if [[ -n "${hex_to_char[$key]:-}" ]]; then
-      resolved+="${hex_to_char[$key]} "
+    if [[ -n "${name_to_char[$key]:-}" ]]; then
+      resolved+="${name_to_char[$key]} "
     else
       resolved+="$key "
     fi
   done
 
-  # Scan scope: source + deployed launchers + .skhdrc actions.
+  # Scan scope: source + deployed launchers + aerospace.toml.
   local scope=(
     "$DOTFILES_DIR/configs/workspace/launch-"*.sh
     "$DOTFILES_DIR/configs/workspace/cli/"*
     "$DOTFILES_DIR/bin/"*
     "$HOME/.local/bin/ws-"*
-    "$rc"
+    "$toml"
   )
 
   local hits=0 first_msg=""
@@ -209,8 +205,8 @@ check_keystroke_collision() {
     lit=$(printf '%s' "$lit" | tr '[:upper:]' '[:lower:]')
 
     # Only single-character literals can be hit by simple Hyper contamination;
-    # named keys (return, tab, etc.) are different code paths in skhd. Keep
-    # the multi-char branch open in case we ever bind hyper - return.
+    # named keys (return, tab, etc.) are different code paths. Keep the
+    # multi-char branch open in case we ever bind hyper - return.
     local is_collision=
     if printf '%s\n' $resolved | grep -Fxq -- "$lit"; then
       is_collision=1
@@ -243,8 +239,11 @@ check_keystroke_collision() {
 # pair we know matters for keystroke safety.
 check_source_deploy_drift() {
   # Pairs: source ↔ deployed. Anything keystroke-relevant goes here.
+  # NB: aerospace.toml is sentinel-fenced (sigil owns the generated
+  # block, user owns the rest) so a byte-for-byte cmp against the source
+  # configs/aerospace.toml would always drift. Excluded for that reason;
+  # `ws-topology emit-aerospace --validate` covers the generated half.
   local pairs=(
-    "$DOTFILES_DIR/configs/skhdrc::$HOME/.skhdrc"
     "$DOTFILES_DIR/configs/karabiner.json::$HOME/.config/karabiner/karabiner.json"
     "$DOTFILES_DIR/configs/ghostty-config::$HOME/.config/ghostty/config"
     "$DOTFILES_DIR/configs/workspace/launch-terminal.sh::$HOME/.local/bin/ws-launch-terminal"
@@ -289,14 +288,14 @@ check_source_deploy_drift() {
 # be running for the AX query to work, so an unreachable app is reported
 # as SKIP, not FAIL — the menu might be correct, we just can't tell.
 check_menu_items() {
-  # Scope: source launchers + deployed launchers + skhdrc. Exclude
-  # ws-doctor itself — its own docs quote the literal patterns we lint
-  # for, which the parser would otherwise pick up as real references.
+  # Scope: source launchers + deployed launchers + aerospace.toml.
+  # Exclude ws-doctor itself — its own docs quote the literal patterns
+  # we lint for, which the parser would otherwise pick up as real refs.
   local files=(
     "$DOTFILES_DIR/configs/workspace/launch-"*.sh
     "$DOTFILES_DIR/configs/workspace/cli/"*
     "$HOME/.local/bin/ws-"*
-    "$HOME/.skhdrc"
+    "$HOME/.config/aerospace/aerospace.toml"
   )
 
   # Parse: `click menu item "ITEM" of menu "MENU" ...` and figure out
@@ -416,7 +415,7 @@ check_app_references() {
     "$DOTFILES_DIR/configs/workspace/cli/"*
     "$DOTFILES_DIR/bin/"*
     "$HOME/.local/bin/ws-"*
-    "$HOME/.skhdrc"
+    "$HOME/.config/aerospace/aerospace.toml"
   )
 
   # Apps whose presence is guaranteed by the OS / never resolved via LS.
@@ -473,26 +472,21 @@ check_app_references() {
   fi
 }
 
-# ─── 6. yabai app-name casing ───────────────────────────────────────────────
-# yabai reports `.app` as the app's *process* name, which doesn't always
-# match the Finder display name. Anything that filters on `.app == "Foo"`
-# breaks silently if the process is actually "foo". This is the trap I
-# hit during the original investigation: `select(.app == "Ghostty")`
-# returned [] because yabai called the process `ghostty`.
-#
-# Find every script that does an exact app-name match against a yabai
-# query and verify it lines up with what yabai currently reports.
-check_yabai_app_casing() {
-  command -v yabai >/dev/null 2>&1 || { SKIP yabai-app-casing "yabai not installed"; return; }
-  if ! yabai -m query --windows >/dev/null 2>&1; then
-    SKIP yabai-app-casing "yabai not responding"
+# ─── 6. aerospace workspace-name casing ─────────────────────────────────────
+# AeroSpace reports `app-name` for each window. Anything that filters on
+# `.app == "Foo"` (or `."app-name" == "Foo"`) breaks silently if the live
+# name doesn't match exactly. Same shape of trap as the yabai-era casing
+# check it replaces — process names and Finder display names diverge.
+check_aerospace_app_casing() {
+  command -v aerospace >/dev/null 2>&1 || { SKIP aerospace-app-casing "aerospace not installed"; return; }
+  if ! aerospace list-windows --all --json >/dev/null 2>&1; then
+    SKIP aerospace-app-casing "aerospace daemon not responding"
     return
   fi
 
-  # Live app names yabai is currently reporting.
   local live_names
-  live_names=$(yabai -m query --windows 2>/dev/null \
-               | sed -nE 's/.*"app":[[:space:]]*"([^"]+)".*/\1/p' \
+  live_names=$(aerospace list-windows --all --json 2>/dev/null \
+               | jq -r '.[]."app-name" // empty' 2>/dev/null \
                | sort -u)
 
   local files=(
@@ -503,17 +497,12 @@ check_yabai_app_casing() {
   )
 
   local mismatches=0 detail=""
-  # Pattern: `select(.app == "Foo")` or `.app == "Foo"` in jq filters.
   local match name match_norm live_norm hit
   while IFS= read -r match; do
     [[ -z "$match" ]] && continue
-    name=$(sed -nE 's/.*\.app[[:space:]]*==[[:space:]]*"([^"]+)".*/\1/p' <<<"$match")
+    name=$(sed -nE 's/.*(\.app|"app-name")[[:space:]]*==[[:space:]]*"([^"]+)".*/\2/p' <<<"$match")
     [[ -z "$name" ]] && continue
-    # Skip yabai-stub fixtures.
-    [[ "$match" == *yabai-stub* ]] && continue
-    # Pass if any live name matches case-sensitively.
     if printf '%s\n' $live_names | grep -Fxq -- "$name"; then continue; fi
-    # Case-insensitive match → likely casing mismatch.
     match_norm=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')
     hit=
     while IFS= read -r live; do
@@ -522,101 +511,70 @@ check_yabai_app_casing() {
     done <<< "$live_names"
     if [[ -n "$hit" ]]; then
       mismatches=$((mismatches + 1))
-      detail+="  casing: script uses \"$name\" but yabai reports \"$hit\" — ${match%%:*}\n"
+      detail+="  casing: script uses \"$name\" but aerospace reports \"$hit\" — ${match%%:*}\n"
     fi
-  done < <(grep -rHn -E '\.app[[:space:]]*==[[:space:]]*"[^"]+"' "${files[@]}" 2>/dev/null \
-           | grep -v -E '#.*\.app[[:space:]]*==')
+  done < <(grep -rHn -E '(\.app|"app-name")[[:space:]]*==[[:space:]]*"[^"]+"' "${files[@]}" 2>/dev/null \
+           | grep -v -E '#.*(\.app|"app-name")[[:space:]]*==')
 
   if (( mismatches == 0 )); then
-    PASS yabai-app-casing "no script/yabai app-name casing mismatches"
+    PASS aerospace-app-casing "no script/aerospace app-name casing mismatches"
   else
-    FAIL yabai-app-casing "$mismatches mismatch(es)"$'\n'"$detail"
+    FAIL aerospace-app-casing "$mismatches mismatch(es)"$'\n'"$detail"
   fi
 }
 
-# ─── 7. yabai scripting-addition load state ─────────────────────────────────
-# `ws add`, the manage (workspace) prompt's `a`/`d` verbs, and Caps+W → a
-# all path through `yabai -m space --create`, which silently fails when
-# the SA isn't loaded into Dock.app. Most common trigger: brew upgrade
-# yabai changed the binary hash, invalidating the /etc/sudoers.d/yabai
-# pin that lets the boot-time `--load-sa` run without a password.
-#
-# Probe: attempt `space --create`. On success, immediately destroy the
-# new space (last index) and restore focus to the originally-focused
-# space — keeps the side effect to a brief flash. On failure, parse
-# stderr to distinguish a real SA-missing error from yabai-down /
-# SIP-still-enabled / other failure modes.
-check_yabai_sa_load() {
-  command -v yabai >/dev/null 2>&1 || { SKIP yabai-sa-load "yabai not installed"; return; }
-  if ! yabai -m query --windows >/dev/null 2>&1; then
-    SKIP yabai-sa-load "yabai not responding (check: brew services list | grep yabai)"
-    return
-  fi
-
-  local focused_before
-  focused_before=$(yabai -m query --spaces --space 2>/dev/null | jq -r '.index' 2>/dev/null)
-
+# ─── 7. aerospace daemon reachable ──────────────────────────────────────────
+# Verifies the daemon is up and responding. AeroSpace.app's CLI talks to
+# the running .app via a unix socket; "Can't connect to AeroSpace server"
+# is the failure signature. Most common trigger: cask installed but .app
+# never launched (or System Settings → Accessibility permission denied).
+check_aerospace_daemon() {
+  command -v aerospace >/dev/null 2>&1 || { SKIP aerospace-daemon "aerospace not installed"; return; }
   local out exit_code
-  out=$(yabai -m space --create 2>&1)
+  out=$(aerospace list-monitors --json 2>&1)
   exit_code=$?
-
   if (( exit_code == 0 )); then
-    # SA loaded — clean up. Destroy the newly-created space (highest index)
-    # and restore focus in case the create/destroy shifted it.
-    local last_idx
-    last_idx=$(yabai -m query --spaces 2>/dev/null | jq 'map(.index) | max' 2>/dev/null)
-    if [[ -n "$last_idx" && "$last_idx" != "$focused_before" ]]; then
-      yabai -m space --destroy "$last_idx" >/dev/null 2>&1 || true
-    fi
-    if [[ -n "$focused_before" ]]; then
-      yabai -m space --focus "$focused_before" >/dev/null 2>&1 || true
-    fi
-    PASS yabai-sa-load "SA loaded (space --create/--destroy round-trip succeeded)"
+    PASS aerospace-daemon "daemon responsive (list-monitors round-trip OK)"
     return
   fi
-
-  if [[ "$out" == *"scripting-addition"* ]]; then
-    # NB: do NOT recommend `sudo yabai --load-sa && killall Dock` — in
-    # yabai 7.x, --load-sa already injects into the running Dock, so
-    # the trailing killall kills the SA-loaded Dock and the new one
-    # respawns without the SA. The installer script handles the full
-    # sequence (load-sa, sudoers re-pin, yabai restart, verify).
-    FAIL yabai-sa-load "SA not loaded — run: $DOTFILES_DIR/macos/yabai-sa-install.sh --force (re-pins sudoers to the current yabai binary; needs your sudo password once) — or: ws-doctor --fix"
+  if [[ "$out" == *"Can't connect to AeroSpace server"* ]]; then
+    FAIL aerospace-daemon "AeroSpace.app not running — launch from /Applications, grant Accessibility (System Settings → Privacy & Security), or run: open -a AeroSpace"
   else
-    WARN yabai-sa-load "yabai space --create failed (non-SA reason): ${out:-unknown error}"
+    WARN aerospace-daemon "aerospace list-monitors failed (non-daemon reason): ${out:-unknown error}"
   fi
 }
 
-# ─── 8. slot drift (yabai count vs spaces.json count) ──────────────────────
-# yabai owns space EXISTENCE; spaces.json owns space IDENTITY. The two
-# diverge when:
-#   - Mission Control's + adds a yabai space and the on-space-created.sh
-#     signal handler is missing / not wired / failed
-#   - A pre-PR-#55 `ws add` silently swallowed an SA error and left
-#     identity entries with no matching yabai space (phantom slots)
+# ─── 8. slot drift (aerospace workspace count vs spaces.json count) ─────────
+# AeroSpace owns workspace EXISTENCE (declared in aerospace.toml);
+# spaces.json owns IDENTITY (name/color/icon). The two diverge when a
+# user edits one without the other:
+#   - added a workspace to aerospace.toml but no matching spaces.json
+#     entry → uncustomized pill with bare wsN
+#   - removed a workspace from aerospace.toml but spaces.json still has
+#     the entry → orphan identity that won't render
 #
-# Detection: compare counts. Either direction is drift, surfaced with
-# the matching auto-fix command in the FAIL message.
+# Detection: compare counts. The fix is config-time, not runtime — there's
+# no `--fix` automation for adding/removing aerospace workspaces.
 check_slot_drift() {
   local cfg="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
-  command -v yabai >/dev/null 2>&1 || { SKIP slot-drift "yabai not installed"; return; }
-  if ! yabai -m query --windows >/dev/null 2>&1; then
-    SKIP slot-drift "yabai not responding"
+  command -v aerospace >/dev/null 2>&1 || { SKIP slot-drift "aerospace not installed"; return; }
+  if ! aerospace list-workspaces --all --json >/dev/null 2>&1; then
+    SKIP slot-drift "aerospace daemon not responding"
     return
   fi
   [[ -r "$cfg" ]] || { SKIP slot-drift "$cfg missing"; return; }
 
-  local yabai_n json_n
-  yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null)
+  local wm_n json_n
+  wm_n=$(aerospace list-workspaces --all --json 2>/dev/null | jq 'length' 2>/dev/null)
   json_n=$(jq '.spaces | length' "$cfg" 2>/dev/null || echo 0)
-  [[ -z "$yabai_n" || -z "$json_n" ]] && { WARN slot-drift "could not read both counts"; return; }
+  [[ -z "$wm_n" || -z "$json_n" ]] && { WARN slot-drift "could not read both counts"; return; }
 
-  if (( yabai_n == json_n )); then
-    PASS slot-drift "yabai and spaces.json agree on $yabai_n slot(s)"
-  elif (( yabai_n > json_n )); then
-    FAIL slot-drift "yabai has $yabai_n space(s), spaces.json has $json_n — $((yabai_n - json_n)) missing identity entry(ies); fix: ws-doctor --fix (or run: ~/.config/workspace/on-space-created.sh)"
+  if (( wm_n == json_n )); then
+    PASS slot-drift "aerospace and spaces.json agree on $wm_n workspace(s)"
+  elif (( wm_n > json_n )); then
+    WARN slot-drift "aerospace has $wm_n workspace(s), spaces.json has $json_n — $((wm_n - json_n)) workspace(s) will render with bare wsN identity. fix: \`ws name <slot> <name>\` for each, or accept the defaults."
   else
-    FAIL slot-drift "spaces.json has $json_n entry(ies), yabai has only $yabai_n space(s) — $((json_n - yabai_n)) phantom slot(s); fix: ws-doctor --fix (or run: ~/.config/workspace/on-space-destroyed.sh)"
+    FAIL slot-drift "spaces.json has $json_n entry(ies), aerospace has only $wm_n workspace(s) — $((json_n - wm_n)) orphan identity entry(ies). fix: declare them in ~/.config/aerospace/aerospace.toml + aerospace reload-config, or \`ws remove $((wm_n + 1))..$json_n\`."
   fi
 }
 
@@ -626,47 +584,26 @@ check_slot_drift() {
 # was FAIL. Fixers print their own banner; their exit code drives the
 # overall --fix exit status (0 = all attempted fixes succeeded).
 
-fix_yabai_sa_load() {
-  printf "fix: running yabai-sa-install.sh --force (needs sudo)\n"
-  sudo "$DOTFILES_DIR/macos/yabai-sa-install.sh" --force
-}
-
-fix_slot_drift() {
-  local handler_grow="$HOME/.config/workspace/on-space-created.sh"
-  local handler_prune="$HOME/.config/workspace/on-space-destroyed.sh"
-  local cfg="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
-  local yabai_n json_n
-  yabai_n=$(yabai -m query --spaces 2>/dev/null | jq 'length' 2>/dev/null)
-  json_n=$(jq '.spaces | length' "$cfg" 2>/dev/null || echo 0)
-
-  if (( yabai_n > json_n )); then
-    printf "fix: yabai has $yabai_n, spaces.json has $json_n — growing identity via on-space-created.sh\n"
-    [[ -x "$handler_grow" ]] || { err "fix: $handler_grow missing or not executable"; return 1; }
-    "$handler_grow"
-  elif (( json_n > yabai_n )); then
-    printf "fix: spaces.json has $json_n, yabai has only $yabai_n — pruning via on-space-destroyed.sh\n"
-    [[ -x "$handler_prune" ]] || { err "fix: $handler_prune missing or not executable"; return 1; }
-    "$handler_prune"
-  fi
-}
+# Runtime workspace add/remove is config-time under aerospace — there's
+# no auto-fix for slot-drift. The check's FAIL message tells the user
+# what to do; we leave drift uncovered by --fix on purpose.
 
 # ─── render ─────────────────────────────────────────────────────────────────
 declare -a CHECKS=(
-  "skhd-freshness:check_skhd_freshness:Is skhd serving the current ~/.skhdrc?"
+  "aerospace-freshness:check_aerospace_freshness:Is AeroSpace serving the current aerospace.toml?"
   "keystroke-collision:check_keystroke_collision:osascript keystrokes vs Hyper layer"
   "source-deploy-drift:check_source_deploy_drift:configs/ matches deployed copies"
   "menu-items:check_menu_items:click-menu-item refs resolve in live apps"
   "app-references:check_app_references:tell application targets are installed"
-  "yabai-app-casing:check_yabai_app_casing:script .app filters match yabai output"
-  "yabai-sa-load:check_yabai_sa_load:yabai SA is loaded (needed for ws add / manage prompt)"
-  "slot-drift:check_slot_drift:yabai space count matches spaces.json slot count"
+  "aerospace-app-casing:check_aerospace_app_casing:script .app filters match aerospace output"
+  "aerospace-daemon:check_aerospace_daemon:AeroSpace.app is running + reachable"
+  "slot-drift:check_slot_drift:aerospace workspace count matches spaces.json slot count"
 )
 
 # Map check-name → fixer-function-name. Only entries here are
 # eligible for --fix dispatch; everything else is detect-only.
 declare -A FIXERS=(
-  ["yabai-sa-load"]="fix_yabai_sa_load"
-  ["slot-drift"]="fix_slot_drift"
+  # slot-drift is config-time under aerospace — no automated fix.
 )
 
 if [[ -n "$LIST" ]]; then
@@ -706,11 +643,10 @@ done < "$REPORT"
 [[ -z "$QUIET" ]] && printf "summary: %d pass · %d warn · %d fail · %d skip\n" "$passes" "$warns" "$fails" "$skips"
 
 # --fix: for each FAILed check that has a fixer in FIXERS, invoke it.
-# Order matters — fix yabai-sa-load BEFORE slot-drift because growing
-# spaces.json via ws add requires yabai's SA to be loaded (well, it
-# doesn't strictly, since WS_GROW_YABAI_ON_ADD=0 disables the yabai
-# call; but the order keeps the user's mental model right). The
-# CHECKS array order is the dispatch order.
+# Post-aerospace burn there's no automated fixer registered — the FIXERS
+# map is intentionally empty (runtime workspace add/remove is config-time
+# under aerospace, so slot-drift recovery is a human decision). --fix
+# stays plumbed for future fixers; today it just reports "no fixer".
 if [[ -n "$FIX" ]] && (( fails > 0 )); then
   [[ -z "$QUIET" ]] && printf '\n' && section "--fix: attempting to repair $fails FAIL(s)"
   fix_fails=0

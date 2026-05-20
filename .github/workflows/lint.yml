@@ -23,7 +23,7 @@ jobs:
 
       - name: shell syntax (bash -n) on every script
         run: |
-          find . -type f \( -name '*.sh' -o -name 'skhdrc' -o -name 'yabairc' -o -name 'zshrc' -o -name 'bashrc' \) \
+          find . -type f \( -name '*.sh' -o -name 'zshrc' -o -name 'bashrc' \) \
                  -not -path '*/.git/*' -not -path '*/.build/*' \
                  -print0 \
             | xargs -0 -n1 bash -n
