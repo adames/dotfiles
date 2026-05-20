@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
-# Walks the three TCC panes the Hyper-key stack needs.
+# Walks the one TCC pane the Hyper-key + tiling stack needs.
 #
-# Probe-gated: lib/macos-tcc.sh asks each tool whether its TCC bit is on
-# (via launchctl, systemextensionsctl, Karabiner-Core-Service-rev2 liveness,
-# AeroSpace.app process presence — no Full Disk Access required). Panes
-# whose toggles are all already on are skipped silently; panes with
-# missing toggles list ONLY the missing items, not the full set.
-#
-# On the re-bootstrap case (everything already granted) the wizard never
-# opens System Settings.
+# Post-Phase-6 surface (after the Karabiner → Hyperkey + yabai →
+# AeroSpace cuts): the only TCC bit that matters is Accessibility, for
+# Hyperkey + AeroSpace + ws-snap. No more Input Monitoring (Karabiner's
+# kext-driven HID stream is gone), no more System Extensions pane (no
+# DriverKit dependency). Probe-gated: lib/macos-tcc.sh asks each tool
+# whether its grant is in place; an already-clean machine never opens
+# System Settings.
 #
 # Flags:
-#   --force   ignore probes, open every pane with the full default list
+#   --force   ignore probes, open the pane with the full default list
 #             (debugging / manual re-verification)
 
 set -euo pipefail
@@ -35,8 +34,8 @@ pause_for() {
 # Launching them once is what registers them.
 register() {
   step "registering apps in TCC lists"
-  open -ga AeroSpace          2>/dev/null    || true
-  open -ga Karabiner-Elements 2>/dev/null    || true
+  open -ga AeroSpace  2>/dev/null || true
+  open -ga Hyperkey   2>/dev/null || true
   # ws-snap moves floating windows via AX, so it needs Accessibility. A
   # no-op invocation forces TCC to enumerate it in the Accessibility list
   # so the user can flip the toggle. The "no focused window" error path
@@ -46,19 +45,19 @@ register() {
   ok "registered"
 }
 
-# After a fresh grant, services need a re-kick before the toggle "takes".
+# Post-Karabiner, no launchctl kickstart is needed — Hyperkey runs as a
+# regular GUI app (no daemon split), and AeroSpace + ws-snap don't have
+# launchctl labels to refresh. Kept as a no-op stub so the wizard's
+# need_kick flag still has somewhere to land if a future tool needs it.
 kick_services() {
-  step "kicking services"
-  launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.daemon.karabiner_grabber"             2>/dev/null || true
-  launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.agent.karabiner_console_user_server"  2>/dev/null || true
-  ok "kicked"
+  :
 }
 
-# Per-pane missing-items reports. Each function echoes "    • Tool" lines
-# for items still missing in that pane; empty output = all toggles already on.
+# Per-pane missing-items report. Echoes "    • Tool" lines for items still
+# missing in Accessibility; empty output = everything's already granted.
 missing_accessibility() {
-  pgrep -x AeroSpace >/dev/null     || echo "    • AeroSpace"
-  mac_karabiner_accessibility_ok    || echo "    • Karabiner-Elements"
+  pgrep -x AeroSpace >/dev/null || echo "    • AeroSpace"
+  pgrep -x Hyperkey  >/dev/null || echo "    • Hyperkey"
   # ws-snap doesn't have a fast launchctl probe; just always remind on
   # first-pass installs (the line is suppressed silently once all
   # other items pass, since TCC grants survive across reboots). When
@@ -73,66 +72,33 @@ missing_accessibility() {
     fi
   fi
 }
-missing_input_monitoring() {
-  mac_karabiner_input_monitoring_ok \
-    || printf '    • %s\n    • %s\n' "Karabiner-Elements" "Karabiner-DriverKit-VirtualHIDDevice"
-}
-missing_system_extensions() {
-  mac_driverkit_activated_ok || echo "    • Karabiner-DriverKit-VirtualHIDDevice"
-}
 
 main() {
   section "TCC permission walk-through (probes first)"
 
-  # First-pass probe. Some probes (Karabiner core service) need the app to
-  # be running. On re-bootstrap it usually is; on first install it isn't.
+  # First-pass probe. Accessibility is the only pane post-Karabiner.
   # Probe → if anything missing, register → re-probe.
-  local acc im se
+  local acc
   acc=$(missing_accessibility)
-  im=$(missing_input_monitoring)
-  se=$(missing_system_extensions)
 
-  if [[ -n "$acc$im$se" || -n "$FORCE" ]]; then
+  if [[ -n "$acc" || -n "$FORCE" ]]; then
     register
-    # Re-probe now that everything's been kicked. A freshly-installed app
+    # Re-probe now that registration has run. A freshly-installed app
     # might pass on the second try where it failed on the first.
     acc=$(missing_accessibility)
-    im=$(missing_input_monitoring)
-    se=$(missing_system_extensions)
   fi
 
   local need_kick=
 
   if [[ -z "$acc" && -z "$FORCE" ]]; then
-    ok "1/3 Accessibility — already granted"
+    ok "Accessibility — already granted"
   else
-    section "1/3 · Accessibility"
+    section "Accessibility"
     open_pane Privacy_Accessibility
     pause_for "  Toggle ON in Accessibility:
 ${acc:-    • AeroSpace
-    • Karabiner-Elements
+    • Hyperkey
     • ws-snap}"
-    need_kick=1
-  fi
-
-  if [[ -z "$im" && -z "$FORCE" ]]; then
-    ok "2/3 Input Monitoring — already granted"
-  else
-    section "2/3 · Input Monitoring"
-    open_pane Privacy_ListenEvent
-    pause_for "  Toggle ON in Input Monitoring:
-${im:-    • Karabiner-Elements
-    • Karabiner-DriverKit-VirtualHIDDevice}"
-    need_kick=1
-  fi
-
-  if [[ -z "$se" && -z "$FORCE" ]]; then
-    ok "3/3 System Extensions — already activated"
-  else
-    section "3/3 · System Extensions"
-    open_pane Privacy_SystemServices
-    pause_for "  Approve in Privacy & Security (banner near the top):
-${se:-    • Karabiner-DriverKit-VirtualHIDDevice}"
     need_kick=1
   fi
 
