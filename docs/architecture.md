@@ -1,7 +1,7 @@
 # Architecture
 
 > For chord lookups, file:line pointers, and collision rules, see
-> [keymap.md](keymap.md). This doc is the narrative and rationale.
+> [keymap.md](keymap.md).
 
 > **Migration history (yabai → AeroSpace, Karabiner → Hyperkey).** Plan at
 > [~/.claude/plans/let-s-migrate-to-aerospace-structured-bunny.md](../../../.claude/plans/let-s-migrate-to-aerospace-structured-bunny.md).
