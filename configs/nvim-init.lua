@@ -13,6 +13,40 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
+-- Annotations below are scraped by lib/cheatsheet-gen.py into the
+-- HUD's neovim lens. Keep each section next to the bindings it
+-- documents. sigil's committed cheatsheet.json wins on conflicts;
+-- annotations here surface content for ids sigil doesn't already track.
+
+-- @cs section Neovim · Files & Buffers
+-- @cs id neovim-files-buffers
+-- @cs family nvim
+-- @cs sub fzf-lua · oil · :b* · native marks
+-- @cs idea fzf hops to any file; marks pin the few you keep returning to; oil edits the filesystem as text.
+-- @cs row -                  :: open parent dir  (oil — edit names like text)
+-- @cs row ⟨leader⟩ ff        :: fzf files
+-- @cs row ⟨leader⟩ fb        :: fzf buffers
+-- @cs row ⟨leader⟩ bn / bp   :: buffer: next / prev
+-- @cs row ⟨leader⟩ bd        :: buffer: delete current
+-- @cs row ⟨leader⟩ bo        :: buffer: close others
+-- @cs row m⟨a-z⟩  '⟨a-z⟩     :: set mark / jump to mark line  (native, replaces harpoon)
+-- @cs end
+
+-- @cs section Neovim · LSP & Search
+-- @cs id neovim-lsp-search
+-- @cs family nvim
+-- @cs sub leader = space · pyright + ruff for *.py
+-- @cs idea Leader is your nvim command palette. LSP for code, fzf for everything else.
+-- @cs row gd   gr           :: go to definition / references
+-- @cs row K                 :: hover docs
+-- @cs row ⟨leader⟩ rn       :: rename symbol
+-- @cs row ⟨leader⟩ =        :: format buffer  (auto-runs ruff on :w for *.py)
+-- @cs row ⟨leader⟩ fg       :: fzf live grep
+-- @cs row ⟨leader⟩ gs       :: fzf git status
+-- @cs row ctrl-w  v / s     :: split right / below
+-- @cs row ctrl-w  h j k l   :: navigate splits
+-- @cs end
+
 local opt = vim.opt
 opt.number         = true
 opt.relativenumber = true

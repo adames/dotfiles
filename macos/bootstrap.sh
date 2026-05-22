@@ -106,13 +106,36 @@ phase_apply() {
   rm -f  "$HOME/.skhdrc" "$HOME/.yabairc"
   rm -rf "$HOME/.config/yabai" "$HOME/.config/skhd" "$HOME/.config/karabiner"
 
-  # Cheatsheet HUD content is hand-maintained in the sigil repo. Install
-  # it straight from there; if the sigil checkout isn't present we skip
-  # rather than synthesize stale content.
-  if [[ -f "$HOME/code/sigil/cheatsheet.json" ]]; then
-    install_file "$HOME/code/sigil/cheatsheet.json" "$HOME/.config/workspace/cheatsheet.json"
+  # Cheatsheet HUD content — assembled by lib/cheatsheet-gen.py from
+  # @cs annotations across the source configs, with sigil's committed
+  # cheatsheet.json as the fallback (banner + lens defs + any sections
+  # not surfaced by upstream @cs blocks). sigil-wins merge policy: if
+  # sigil's cheatsheet.json defines a section id, that content beats
+  # the @cs parse — preventing stale annotations from regressing the
+  # HUD.
+  step "regenerating workspace/cheatsheet.json from annotated configs"
+  CHEATSHEET_FALLBACK="$HOME/code/sigil/cheatsheet.json"
+  if [[ ! -f "$CHEATSHEET_FALLBACK" ]]; then
+    warn "sigil cheatsheet.json not found at $CHEATSHEET_FALLBACK — generator will run without fallback"
+    CHEATSHEET_FALLBACK=""
+  fi
+  GEN_ARGS=(
+    --repo-root "$DOTFILES_DIR"
+    --layout    "$CONFIGS_DIR/workspace/cheatsheet-layout.json"
+    --out       "$CONFIGS_DIR/workspace/cheatsheet.json"
+  )
+  [[ -n "$CHEATSHEET_FALLBACK" ]] && GEN_ARGS+=(--fallback "$CHEATSHEET_FALLBACK")
+  if python3 "$DOTFILES_DIR/lib/cheatsheet-gen.py" "${GEN_ARGS[@]}"; then
+    ok "cheatsheet.json regenerated"
+    install_file "$CONFIGS_DIR/workspace/cheatsheet.json" "$HOME/.config/workspace/cheatsheet.json"
+  elif [[ -f "$CONFIGS_DIR/workspace/cheatsheet.json" ]]; then
+    warn "cheatsheet generator failed; installing the last successful output"
+    install_file "$CONFIGS_DIR/workspace/cheatsheet.json" "$HOME/.config/workspace/cheatsheet.json"
+  elif [[ -f "$CHEATSHEET_FALLBACK" ]]; then
+    warn "cheatsheet generator failed; falling back to sigil's committed cheatsheet.json"
+    install_file "$CHEATSHEET_FALLBACK" "$HOME/.config/workspace/cheatsheet.json"
   else
-    warn "sigil checkout not found; leaving $HOME/.config/workspace/cheatsheet.json untouched"
+    warn "no cheatsheet artifact available; leaving $HOME/.config/workspace/cheatsheet.json untouched"
   fi
 
   # Retired surfaces: sketchybar / yabai-era workspace scripts / borders.

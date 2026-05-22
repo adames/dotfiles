@@ -1,0 +1,51 @@
+{
+  "_doc": "Layout owns the banner + lens definitions. Each lens references sections by id; the generator weaves the @cs-derived section pool into this shell to produce the final cheatsheet.json. Sigil's committed cheatsheet.json is the canonical fallback if generation fails.",
+
+  "banner": [
+    { "k": "Caps",   "v": "Hyper (⌃⌥⌘⇧) — single layer; tap = Esc" },
+    { "k": "Caps+␣", "v": "tmux prefix" }
+  ],
+
+  "views": [
+    {
+      "id": "aero",
+      "label": "AeroSpace",
+      "key": "1",
+      "columns": [
+        { "sections": ["windows-focus", "submodes"] },
+        { "sections": ["workspaces", "launchers"] },
+        { "sections": [] }
+      ]
+    },
+    {
+      "id": "term",
+      "label": "Terminal",
+      "key": "2",
+      "columns": [
+        { "sections": ["tmux"] },
+        { "sections": ["shell"] },
+        { "sections": [] }
+      ]
+    },
+    {
+      "id": "vim",
+      "label": "Vim",
+      "key": "3",
+      "columns": [
+        { "sections": ["vim-motion"] },
+        { "sections": ["vim-edit"] },
+        { "sections": [] }
+      ]
+    },
+    {
+      "id": "nvim",
+      "label": "Neovim",
+      "key": "4",
+      "columns": [
+        { "sections": ["neovim-files-buffers"] },
+        { "sections": ["neovim-lsp-search"] },
+        { "sections": [] }
+      ]
+    }
+  ]
+}
