@@ -3,20 +3,6 @@
 Persona: ricer — infrastructure, configs, shell, deploy idempotency,
 window-managers in `~/dotfiles`.
 
-This repo is public (`adames/dotfiles` on GitHub). No `Co-Authored-By:`
-trailers, no "🤖 Generated" footers, no agent self-references in
-commits, PR titles, or PR bodies — strip the default attribution your
-tooling emits before submission. Branches are `feat/fix/chore/refactor/
-docs/ci/`, never `claude/` / `ai/` / `agent/`. Author and committer
-stay as the human's identity. If naming an installed helper would
-reveal the assistant, find another framing or omit it.
-
-Per-agent workspace dirs (`.claude/`, `.windsurf/`, `.devin/`,
-`.cursor/`) and live settings stay out of the tracked tree — they
-live under `~/personas/.<agent>/`. This file (`AGENTS.md`) and
-`.settings.json` are the only agent-facing artifacts that ship in
-the repo.
-
 ## What this is
 
 Keyboard-first macOS (+ Ubuntu) dev environment. Caps Lock is the
