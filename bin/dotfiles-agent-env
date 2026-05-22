@@ -38,7 +38,7 @@ AGENT="${1:-$(_detect_agent)}"
 echo "# dotfiles agent environment for: $AGENT"
 echo "export DOTFILES_ROOT='$DOTFILES_ROOT'"
 echo "export DOTFILES_AGENT='$AGENT'"
-echo "export DOTFILES_PERSONA='$PERSONAS_DIR/ricer.md'"
+echo "export DOTFILES_PERSONA='$DOTFILES_ROOT/AGENTS.md'"
 echo "export DOTFILES_WORKSPACE='$PERSONAS_DIR/.$AGENT'"
 
 # Ensure workspace directory exists

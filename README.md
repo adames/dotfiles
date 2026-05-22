@@ -286,30 +286,31 @@ it to `~/.config/workspace/` and rebuilds the Swift binaries.
 
 ## AI Agent Collaboration
 
-This repository is designed for collaboration with multiple AI assistants (Claude, Windsurf, Devin, Cursor, etc.) without conflicts.
+[`AGENTS.md`](AGENTS.md) is the one agent-facing file that ships in the
+repo — read by Claude Code, Codex, Devin, Cursor, and anything else
+following the cross-agent convention. It carries the persona (ricer:
+infra/configs/shell/WM), the public-repo etiquette rules, and the
+invariants / gotchas / locked-in choices for this tree.
 
-### Agent Workspace Locations
+Per-agent worktrees and per-agent live settings stay **out** of the
+tracked tree — they belong under `~/personas/.<agent>/`:
 
-Agent-specific files live in `~/personas/`, **never** in this repository:
-
-| Agent | Workspace Directory | Persona File |
-|-------|---------------------|--------------|
-| Claude | `~/personas/.claude/` | `~/personas/ricer.md` |
-| Windsurf | `~/personas/.windsurf/` | `~/personas/ricer.md` |
-| Devin | `~/personas/.devin/` | `~/personas/ricer.md` |
-| Cursor | `~/personas/.cursor/` | `~/personas/ricer.md` |
-
-The persona file (`~/personas/ricer.md`) contains project-specific instructions for AI assistants working on this dotfiles repository.
+| Agent | Worktree Directory |
+|-------|--------------------|
+| Claude | `~/personas/.claude/` |
+| Windsurf | `~/personas/.windsurf/` |
+| Devin | `~/personas/.devin/` |
+| Cursor | `~/personas/.cursor/` |
 
 ### Shared Settings
 
-`.settings.json` (tracked template) → `settings.json` (gitignored, live):
+`.settings.json` (tracked template) → `settings.json` (tracked live
+copy). `settings.*.json` and `settings.local.json` are gitignored for
+per-agent overrides.
 
 ```sh
-# Copy template to live settings
 cp ~/dotfiles/.settings.json ~/dotfiles/settings.json
-
-# Edit as needed
 ```
 
-The shared settings file defines allowed tools, workflows, and constraints that apply to all AI agents working on this project.
+The shared settings file defines allowed tools, workflows, and
+constraints applied to every agent working on this project.

@@ -11,11 +11,12 @@
 *.swp
 
 # ============================================================================
-# AI AGENT WORKSPACES — These belong in ~/personas/.<agent>/, NOT in this repo
-# See: README.md → AI Agent Collaboration
+# AI AGENT WORKSPACES — Per-agent worktrees + live settings live under
+# ~/personas/.<agent>/, never inside this repo. AGENTS.md is the one
+# agent-facing file that ships in-tree.
 # ============================================================================
 
-# Agent directories (if accidentally created here)
+# Agent worktrees (if accidentally created here)
 .agent/
 .claude/
 .windsurf/
@@ -26,9 +27,8 @@
 .github-copilot/
 .codewhisperer/
 
-# Agent instruction files (if accidentally created here)
+# Per-agent instruction files we don't want tracked (AGENTS.md is the one we keep)
 AGENT.md
-AGENTS.md
 CLAUDE.md
 WINDSURF.md
 DEVIN.md
