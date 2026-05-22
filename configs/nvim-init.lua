@@ -13,40 +13,6 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
--- Annotations below (@cs ...) are parsed by cheatsheet-gen.py into HUD cards.
-
--- @cs section Vim · Motion
--- @cs family vim
--- @cs sub neovim · cursor & jumps
--- @cs idea Every motion is a noun. Pair it with a verb (c · d · y) to describe an edit.
--- @cs custom keyboard
--- @cs row 0  ^  $          :: line: start / first nonblank / end
--- @cs row gg  G            :: file: top / bottom
--- @cs row {  }             :: paragraph: back / forward
--- @cs row f / F  ·  t / T  :: find / till char in line  ·  uppercase = backwards
--- @cs row %                :: matching ( [ {
--- @cs row /pat   n / N     :: search forward · next / prev match
--- @cs row *  #             :: search word under cursor: fwd / back
--- @cs row ctrl-o  ctrl-i   :: jumplist: back / forward
--- @cs row m⟨a-z⟩  '⟨a-z⟩   :: set mark / jump to mark line
--- @cs end
-
--- @cs section Vim · Edit
--- @cs family vim
--- @cs sub neovim · change & yank
--- @cs idea Verb + motion = composable change. The . key replays your last verb on the next thing.
--- @cs row i  a   I  A       :: insert: before / after / line-start / line-end
--- @cs row o  O               :: open line: below / above
--- @cs row cc  dd  yy         :: change / delete / yank whole line
--- @cs row ci⟨x⟩  ca⟨x⟩       :: change inside / around  (" ' ( [ { t p)
--- @cs row p  P               :: paste: after / before
--- @cs row u   ctrl-r         :: undo / redo
--- @cs row .                  :: repeat last change
--- @cs row ctrl-a  ctrl-x     :: increment / decrement number
--- @cs row q⟨x⟩ … q     @⟨x⟩  :: record macro to x / replay x
--- @cs row :%s/foo/bar/g      :: replace all in buffer  (add c for confirm)
--- @cs end
-
 local opt = vim.opt
 opt.number         = true
 opt.relativenumber = true

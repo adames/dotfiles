@@ -42,4 +42,3 @@ settings.*.json
 *.agent.json
 .agent.env
 configs/workspace/
-!configs/workspace/cheatsheet-layout.json
