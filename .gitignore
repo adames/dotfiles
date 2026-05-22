@@ -12,8 +12,8 @@
 
 # ============================================================================
 # AI AGENT WORKSPACES — Per-agent worktrees + live settings live under
-# ~/personas/.<agent>/, never inside this repo. AGENTS.md is the one
-# agent-facing file that ships in-tree.
+# ~/personas/.<agent>/, never inside this repo. Agent instruction files
+# (AGENTS.md, CLAUDE.md, etc.) ship in-tree; keep them minimal.
 # ============================================================================
 
 # Agent worktrees (if accidentally created here)
@@ -26,14 +26,6 @@
 .aider/
 .github-copilot/
 .codewhisperer/
-
-# Per-agent instruction files we don't want tracked (AGENTS.md is the one we keep)
-AGENT.md
-CLAUDE.md
-WINDSURF.md
-DEVIN.md
-.cursorrules
-.agentrc
 
 # Agent settings (per-agent or shared live copies)
 .settings.local.json
