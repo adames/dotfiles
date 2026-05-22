@@ -22,8 +22,9 @@ vim.g.maplocalleader = " "
 -- @cs id neovim-files-buffers
 -- @cs family nvim
 -- @cs sub fzf-lua · oil · :b* · native marks
--- @cs idea fzf hops to any file; marks pin the few you keep returning to; oil edits the filesystem as text.
+-- @cs idea oil explores; ⟨leader⟩tv sends to a tmux pane right; tmux hjkl jumps between them. fzf for broad hops; marks for pins.
 -- @cs row -                  :: open parent dir  (oil — edit names like text)
+-- @cs row ⟨leader⟩ tv        :: open file in new tmux pane right  (oil: cursor entry; else: current file)
 -- @cs row ⟨leader⟩ ff        :: fzf files
 -- @cs row ⟨leader⟩ fb        :: fzf buffers
 -- @cs row ⟨leader⟩ bn / bp   :: buffer: next / prev
