@@ -106,18 +106,14 @@ phase_apply() {
   rm -f  "$HOME/.skhdrc" "$HOME/.yabairc"
   rm -rf "$HOME/.config/yabai" "$HOME/.config/skhd" "$HOME/.config/karabiner"
 
-  # Cheatsheet HUD content — regenerated from @cs annotations. Failure
-  # falls back to the committed artifact.
-  step "regenerating workspace/cheatsheet.json from annotated configs"
-  if python3 "$DOTFILES_DIR/lib/cheatsheet-gen.py" \
-       --repo-root "$DOTFILES_DIR" \
-       --layout    "$CONFIGS_DIR/workspace/cheatsheet-layout.json" \
-       --out       "$CONFIGS_DIR/workspace/cheatsheet.json"; then
-    ok "cheatsheet.json regenerated"
+  # Cheatsheet HUD content is hand-maintained in the sigil repo. Install
+  # it straight from there; if the sigil checkout isn't present we skip
+  # rather than synthesize stale content.
+  if [[ -f "$HOME/code/sigil/cheatsheet.json" ]]; then
+    install_file "$HOME/code/sigil/cheatsheet.json" "$HOME/.config/workspace/cheatsheet.json"
   else
-    warn "cheatsheet generator failed; falling back to committed cheatsheet.json"
+    warn "sigil checkout not found; leaving $HOME/.config/workspace/cheatsheet.json untouched"
   fi
-  install_file "$CONFIGS_DIR/workspace/cheatsheet.json"   "$HOME/.config/workspace/cheatsheet.json"
 
   # Retired surfaces: sketchybar / yabai-era workspace scripts / borders.
   rm -rf "$HOME/.config/sketchybar"
