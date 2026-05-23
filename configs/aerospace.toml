@@ -55,22 +55,9 @@ run = ['layout floating']
 
 [mode.main.binding]
 
-# @cs section Windows · Focus / Swap / Float
-# @cs family system
-# @cs sub Hyper (⌃⌥⌘⇧) — Caps held
-# @cs idea hjkl moves focus, yuio swaps; v floats, r re-tiles. Floating windows snap on hjkl instead of focus.
-# @cs row Caps + h j k l    :: focus neighbour (tiled) · snap halves / center / fill (floating)
-# @cs row Caps + y u i o    :: swap window  ←  ↓  ↑  →
-# @cs row Caps + a          :: focus last window (back-and-forth)
-# @cs row Caps + c          :: close window
-# @cs row Caps + d          :: move window to next display (wraps)
-# @cs row Caps + z          :: fullscreen toggle
-# @cs row Caps + v          :: toggle float ↔ tile
-# @cs row Caps + r          :: flatten + rotate workspace tree
-# @cs row Caps + m          :: enter mode.move  (hjkl moves window · esc exits)
-# @cs row Caps + s          :: enter mode.service (r/b/f/hjkl/-/=/⌫/⏎ · esc exits)
-# @cs end
-
+# Windows · Focus / Swap / Float — Hyper (⌃⌥⌘⇧) held. Authoritative
+# chord docs live in sigil's cheatsheet.json (sections windows-focus +
+# submodes); the bindings below are the implementation.
 cmd-alt-ctrl-shift-h = 'exec-and-forget $HOME/.local/bin/ws-dir h'
 cmd-alt-ctrl-shift-j = 'exec-and-forget $HOME/.local/bin/ws-dir j'
 cmd-alt-ctrl-shift-k = 'exec-and-forget $HOME/.local/bin/ws-dir k'
@@ -94,19 +81,8 @@ cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal verti
 # live in [mode.move.binding] / [mode.service.binding] below.
 cmd-alt-ctrl-shift-s = 'mode service'
 
-# @cs section Workspaces · Cycle / Focus / Send
-# @cs family system
-# @cs sub AeroSpace · ws-focus · ws-prompt
-# @cs idea Cycle with n/p, jump by digit, or fuzzy-search every window with the e/f/g/w overlays.
-# @cs row Caps + n / p      :: prev / next workspace (wraps)
-# @cs row Caps + Tab        :: last / recent workspace
-# @cs row Caps + 1 … 0      :: focus workspace 1..10
-# @cs row Caps + e          :: change workspace (fuzzy: every window in every space)
-# @cs row Caps + f          :: focus workspace prompt
-# @cs row Caps + g          :: send window to workspace
-# @cs row Caps + w          :: manage workspace (rename / icon / color)
-# @cs end
-
+# Workspaces · Cycle / Focus / Send. Authoritative chord docs in sigil's
+# cheatsheet.json (section: workspaces).
 cmd-alt-ctrl-shift-n   = 'exec-and-forget $HOME/.local/bin/ws-focus prev'
 cmd-alt-ctrl-shift-p   = 'exec-and-forget $HOME/.local/bin/ws-focus next'
 cmd-alt-ctrl-shift-tab = 'exec-and-forget $HOME/.local/bin/ws-focus last'
