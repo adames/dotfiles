@@ -9,7 +9,7 @@ DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 
 # ─── phase 1 · sudo ─────────────────────────────────────────────────────────
 phase_sudo() {
-  section "Phase 1/5 · sudo"
+  section "Phase 1/4 · sudo"
   if ! has_tty; then
     warn "no TTY — cask installs and Accessibility prompts will be skipped"
     return 0
@@ -27,7 +27,7 @@ phase_sudo() {
 
 # ─── phase 2 · packages ─────────────────────────────────────────────────────
 phase_packages() {
-  section "Phase 2/5 · packages"
+  section "Phase 2/4 · packages"
 
   if ! have brew; then
     step "installing Homebrew"
