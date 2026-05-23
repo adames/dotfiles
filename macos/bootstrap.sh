@@ -49,9 +49,6 @@ phase_packages() {
   brew install --quiet --cask nikitabobko/tap/aerospace >/dev/null || true
   ok "aerospace"
 
-  step "workspace status bar (ws-statusbar) — built from Swift"
-  ok "ws-statusbar (topology build)"
-
   # JetBrains Mono Nerd Font supplies the pill-strip PUA glyphs.
   step "installing JetBrains Mono Nerd Font (cask)"
   brew install --quiet --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1 || true
@@ -208,14 +205,16 @@ EOF
     ok "created ~/.gitconfig.local stub — edit user.email / user.name"
   fi
 
-  # Second pass heals transient launchctl EIO from the first install.sh.
-  # On success, clear the failure flag the wizard reads.
-  step "configuring workspace runtime"
-  if [[ -f "$HOME/.config/workspace/install.sh" ]]; then
+  # Retry heals transient launchctl EIO from the first install.sh. Only
+  # runs when the first pass failed — on a clean install the gate skips
+  # a ~1.5s swift build + relink + launchctl reload that was duplicating
+  # work.
+  if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" && -f "$HOME/.config/workspace/install.sh" ]]; then
+    step "retrying workspace runtime (first pass failed)"
     if bash "$HOME/.config/workspace/install.sh"; then
       unset BOOTSTRAP_TOPOLOGY_FAILED
     else
-      warn "workspace runtime config had issues"
+      warn "workspace runtime retry also failed"
     fi
   fi
 
