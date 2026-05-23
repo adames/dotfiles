@@ -61,8 +61,14 @@ run = ['layout floating']
 # @cs idea hjkl moves focus, yuio swaps; v floats, r re-tiles. Floating windows snap on hjkl instead of focus.
 # @cs row Caps + h j k l    :: focus neighbour (tiled) · snap halves / center / fill (floating)
 # @cs row Caps + y u i o    :: swap window  ←  ↓  ↑  →
+# @cs row Caps + a          :: focus last window (back-and-forth)
+# @cs row Caps + c          :: close window
+# @cs row Caps + d          :: move window to next display (wraps)
+# @cs row Caps + z          :: fullscreen toggle
 # @cs row Caps + v          :: toggle float ↔ tile
 # @cs row Caps + r          :: flatten + rotate workspace tree
+# @cs row Caps + m          :: enter mode.move  (hjkl moves window · esc exits)
+# @cs row Caps + s          :: enter mode.service (r/b/f/hjkl/-/=/⌫/⏎ · esc exits)
 # @cs end
 
 cmd-alt-ctrl-shift-h = 'exec-and-forget $HOME/.local/bin/ws-dir h'
@@ -75,8 +81,18 @@ cmd-alt-ctrl-shift-u = 'move down'
 cmd-alt-ctrl-shift-i = 'move up'
 cmd-alt-ctrl-shift-o = 'move right'
 
+cmd-alt-ctrl-shift-a = 'focus-back-and-forth'
+cmd-alt-ctrl-shift-c = 'close'
+cmd-alt-ctrl-shift-d = 'move-node-to-monitor --wrap-around next'
+cmd-alt-ctrl-shift-z = 'fullscreen'
+
 cmd-alt-ctrl-shift-v = 'layout floating tiling'
 cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal vertical']
+
+# Sub-mode entry — chord stays active in the named mode until esc (or
+# another exit binding) returns to mode.main. Bindings for each mode
+# live in [mode.move.binding] / [mode.service.binding] below.
+cmd-alt-ctrl-shift-s = 'mode service'
 
 # @cs section Workspaces · Cycle / Focus / Send
 # @cs family system
@@ -87,7 +103,7 @@ cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal verti
 # @cs row Caps + 1 … 0      :: focus workspace 1..10
 # @cs row Caps + e          :: change workspace (fuzzy: every window in every space)
 # @cs row Caps + f          :: focus workspace prompt
-# @cs row Caps + g  ·  m    :: send window to workspace
+# @cs row Caps + g          :: send window to workspace
 # @cs row Caps + w          :: manage workspace (rename / icon / color)
 # @cs end
 
@@ -98,7 +114,7 @@ cmd-alt-ctrl-shift-tab = 'exec-and-forget $HOME/.local/bin/ws-focus last'
 cmd-alt-ctrl-shift-e = 'exec-and-forget $HOME/.local/bin/ws-picker'
 cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
 cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
-cmd-alt-ctrl-shift-m = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
+cmd-alt-ctrl-shift-m = 'mode move'
 cmd-alt-ctrl-shift-w = 'exec-and-forget $HOME/.local/bin/ws-prompt manage'
 
 # @cs section Launchers
@@ -133,3 +149,35 @@ cmd-alt-ctrl-shift-space     = 'exec-and-forget /opt/homebrew/bin/tmux send-keys
 # >>> sigil generated >>>
 # (Populated by `ws-topology emit-aerospace --write`.)
 # <<< sigil generated <<<
+
+# ─── sub-modes ──────────────────────────────────────────────────────────────
+#
+# Any [mode.*.binding] header closes mode.main, so these sit after the
+# sigil-generated fence. Keep new main-mode bindings ABOVE that fence.
+
+# mode.move — Caps+m enters; hjkl moves the focused window, esc exits.
+# Moves don't auto-exit so repeat taps re-tile without re-entering.
+[mode.move.binding]
+h = 'move left'
+j = 'move down'
+k = 'move up'
+l = 'move right'
+esc   = 'mode main'
+enter = 'mode main'
+
+# mode.service — Caps+s enters; rare ops that don't earn a main-mode
+# chord. Most actions exit back to main; resize stays in mode so the
+# user can repeat -/= without re-entering.
+[mode.service.binding]
+r = ['flatten-workspace-tree', 'layout tiles horizontal vertical', 'mode main']
+b = ['balance-sizes', 'mode main']
+f = ['layout floating tiling', 'mode main']
+h = ['join-with left',  'mode main']
+j = ['join-with down',  'mode main']
+k = ['join-with up',    'mode main']
+l = ['join-with right', 'mode main']
+minus = 'resize smart -50'
+equal = 'resize smart +50'
+backspace = ['close-all-windows-but-current', 'mode main']
+enter     = ['reload-config', 'mode main']
+esc       = 'mode main'
