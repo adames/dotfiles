@@ -161,6 +161,7 @@ phase_apply() {
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
   install_file "$DOTFILES_DIR/bin/ws-dir"                "$HOME/.local/bin/ws-dir" 755
   install_file "$DOTFILES_DIR/bin/ws-doctor"             "$HOME/.local/bin/ws-doctor" 755
+  install_file "$DOTFILES_DIR/bin/ws-launch-here"        "$HOME/.local/bin/ws-launch-here" 755
   install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
   install_file "$CONFIGS_DIR/completions/ws.bash"        "$HOME/.config/bash/completions/ws.bash"
 
