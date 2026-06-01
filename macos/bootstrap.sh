@@ -39,11 +39,12 @@ phase_packages() {
 
   step "installing CLI formulae"
   brew install --quiet \
-    git zsh tmux neovim direnv starship fzf \
+    git zsh tmux direnv starship fzf \
     ripgrep fd git-delta zoxide gh lazygit \
+    yazi \
     pyright ruff \
     zsh-autosuggestions zsh-syntax-highlighting >/dev/null
-  ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, pyright, ruff …)"
+  ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, yazi, pyright, ruff …)"
 
   step "installing aerospace (window manager)"
   brew install --quiet --cask nikitabobko/tap/aerospace >/dev/null || true
@@ -161,7 +162,6 @@ phase_apply() {
   install_file "$DOTFILES_DIR/bin/ws-launch-here"        "$HOME/.local/bin/ws-launch-here" 755
   install_file "$DOTFILES_DIR/bin/ws-tmux-prefix"        "$HOME/.local/bin/ws-tmux-prefix" 755
   install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
-  install_file "$CONFIGS_DIR/completions/ws.bash"        "$HOME/.config/bash/completions/ws.bash"
 
   # Sigil (workspace identity layer + ws-* binaries) clones to
   # ~/.config/workspace/. Its install.sh builds + symlinks into
