@@ -41,9 +41,10 @@ phase_packages() {
   brew install --quiet \
     git zsh tmux direnv starship fzf \
     ripgrep fd git-delta zoxide gh lazygit \
+    yazi \
     pyright ruff \
     zsh-autosuggestions zsh-syntax-highlighting >/dev/null
-  ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, pyright, ruff …)"
+  ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, yazi, pyright, ruff …)"
 
   step "installing aerospace (window manager)"
   brew install --quiet --cask nikitabobko/tap/aerospace >/dev/null || true
