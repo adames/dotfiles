@@ -130,11 +130,6 @@ require("lazy").setup({
         vim.lsp.enable("ruff")
       end
 
-      -- Bash
-      if vim.fn.executable("bash-language-server") == 1 then
-        vim.lsp.config("bashls", {})
-        vim.lsp.enable("bashls")
-      end
     end,
   },
 
