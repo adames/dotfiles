@@ -58,7 +58,6 @@ cmd-alt-ctrl-shift-u = 'move down'
 cmd-alt-ctrl-shift-i = 'move up'
 cmd-alt-ctrl-shift-o = 'move right'
 
-cmd-alt-ctrl-shift-a = 'focus-back-and-forth'
 cmd-alt-ctrl-shift-c = 'exec-and-forget $HOME/.local/bin/ws-picker'
 cmd-alt-ctrl-shift-d = 'move-node-to-monitor --wrap-around next'
 cmd-alt-ctrl-shift-x = 'close'
@@ -77,7 +76,6 @@ cmd-alt-ctrl-shift-tab = 'exec-and-forget $HOME/.local/bin/ws-focus last'
 cmd-alt-ctrl-shift-e = 'exec-and-forget $HOME/.local/bin/ws-prompt edit'
 cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
 cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
-cmd-alt-ctrl-shift-m = 'mode move'
 
 # Launchers route through ws-launch-here so the new window lands on
 # the focused workspace — `osascript activate` otherwise jumps macOS
@@ -93,34 +91,18 @@ cmd-alt-ctrl-shift-period    = '''exec-and-forget osascript -e 'tell application
 
 cmd-alt-ctrl-shift-slash     = 'exec-and-forget $HOME/.local/bin/ws-cheatsheet --toggle'
 
-# Hardcoded brew path: launchd's PATH doesn't include /opt/homebrew/bin.
-cmd-alt-ctrl-shift-space     = 'exec-and-forget /opt/homebrew/bin/tmux send-keys C-Space'
+cmd-alt-ctrl-shift-space     = 'exec-and-forget $HOME/.local/bin/ws-tmux-prefix'
 
 # >>> sigil generated >>>
 # (Populated by `ws-topology emit-aerospace --write`.)
 # <<< sigil generated <<<
 
-# Sub-modes live below the sigil fence — any [mode.*.binding] header
-# closes mode.main. Keep new main-mode bindings ABOVE that fence.
-
-[mode.move.binding]
-h = 'move left'
-j = 'move down'
-k = 'move up'
-l = 'move right'
-esc   = 'mode main'
-enter = 'mode main'
-
-# resize -/= doesn't exit so repeats just work; everything else returns
-# to mode.main on completion.
+# mode.service — minimal drawer. Resize stays in mode so -/= can repeat;
+# everything else exits on commit. Anything redundant with a main-mode
+# chord (flatten, float-toggle, join-with) was dropped.
+# Lives below the sigil fence — [mode.*.binding] closes mode.main.
 [mode.service.binding]
-r = ['flatten-workspace-tree', 'layout tiles horizontal vertical', 'mode main']
 b = ['balance-sizes', 'mode main']
-f = ['layout floating tiling', 'mode main']
-h = ['join-with left',  'mode main']
-j = ['join-with down',  'mode main']
-k = ['join-with up',    'mode main']
-l = ['join-with right', 'mode main']
 minus = 'resize smart -50'
 equal = 'resize smart +50'
 backspace = ['close-all-windows-but-current', 'mode main']

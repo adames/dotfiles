@@ -78,6 +78,7 @@ has to use different keys, not different modifiers.
 |---|---|---|
 | Caps + h/j/k/l | `ws-dir` — *floating*: snap h/l = halves · j = center · k = fill; *tiled*: `aerospace focus left/down/up/right` | (hand-owned binding) |
 | Caps + y/u/i/o | `aerospace move left/down/up/right` (swap; was Caps+Shift+hjkl pre-Hyperkey) | (hand-owned binding) |
+| Caps + d | move focused window to next display (wraps) | (hand-owned binding) |
 
 ### Layout / float
 
@@ -86,6 +87,23 @@ has to use different keys, not different modifiers.
 | Caps + v | toggle floating ↔ tiling on the focused window | (hand-owned binding) |
 | Caps + r | flatten + rotate workspace tree 90° | (hand-owned binding) |
 | Caps + x | close focused window | (hand-owned binding) |
+| Caps + z | fullscreen toggle | (hand-owned binding) |
+
+### Service drawer (rare ops · `mode.service`)
+
+`Caps + s` enters the drawer. Resize stays in mode for repeats; the
+rest exit on commit. `Caps + s → esc` exits without doing anything.
+
+| Chord | Action |
+|---|---|
+| Caps + s → `-` / `=` | resize -50 / +50 (stays in mode) |
+| Caps + s → `b` | balance sizes |
+| Caps + s → `⌫` | close all windows but current |
+| Caps + s → `⏎` | reload aerospace config |
+
+Window movement at the main-mode level is **swap** (`y/u/i/o`), **move
+to next display** (`d`), and **send to workspace** (`f` — follow). Most
+real "moving" you'll want is one of those, not a sub-mode dance.
 
 ### Workspace cycle
 
@@ -116,7 +134,7 @@ accepts · esc cancels**. Verb names the chord.
 
 | Chord | Action | aerospace.toml |
 |---|---|---|
-| Caps + c | **change** (`ws-picker`) — fuzzy every window in every space; tab cycles; ↵ jumps to that window's workspace | (hand-owned binding) |
+| Caps + c | **change application** (`ws-picker`) — fuzzy by app + title; tab cycles; ↵ jumps to that window's workspace | (hand-owned binding) |
 | Caps + e | **edit** workspace (`ws-prompt edit`) — rename / icon / color / verify / doctor. Add/destroy are config-time under aerospace; the overlay surfaces an edit-then-reload help message. | (hand-owned binding) |
 | Caps + f | **follow** (`ws-prompt send`) — send focused window + travel with it | (hand-owned binding) |
 | Caps + g | **go to** workspace (`ws-prompt focus`) — digit / fuzzy name | (hand-owned binding) |
@@ -164,13 +182,14 @@ bindings, but state that affects what the chords do.
 
 ## tmux
 
-[`configs/tmux.conf`](../configs/tmux.conf) — prefix is `C-Space`, but
-you don't press it directly. AeroSpace binds `cmd-alt-ctrl-shift-space`
-to `tmux send-keys C-Space`, so the user-facing chord is **Caps+Space**
-(matching the yabai/Karabiner-era muscle memory). `tmux send-keys` is
-IPC, not synthetic keystroke injection, so the Hyper modifiers don't
-contaminate the prefix. All bindings have `-N "..."` notes, surfaced
-by `tmux list-keys -N`.
+[`configs/tmux.conf`](../configs/tmux.conf) — prefix is `C-Space`.
+User-facing chord is **Caps+Space**: aerospace runs
+[bin/ws-tmux-prefix](../bin/ws-tmux-prefix), which gates on a live
+tmux server before calling `tmux send-keys C-Space`. The gate prevents
+the chord from "silently failing" when tmux isn't running — it now
+no-ops cleanly instead of leaking an error through `exec-and-forget`.
+`tmux send-keys` is IPC, not keystroke injection, so Hyper modifiers
+don't contaminate the prefix.
 
 | Chord | Action | tmux.conf |
 |---|---|---|
@@ -190,12 +209,10 @@ Gotcha: no `Option/M-*` bindings, intentionally — see the comment at
 [tmux.conf:8](../configs/tmux.conf:8). Adding one risks colliding with
 Ghostty's left-Alt key bytes.
 
-The shim is a one-liner in
-[aerospace.toml](../configs/aerospace.toml) — search for
-`cmd-alt-ctrl-shift-space`. Hardcoded `/opt/homebrew/bin/tmux` because
-AeroSpace runs under launchd with a minimal PATH; update if the brew
-prefix ever changes. Literal `C-Space` (Ctrl+Space directly) still
-works as a fallback if the shim ever stops grabbing.
+Hardcoded `/opt/homebrew/bin/tmux` because AeroSpace runs under launchd
+with a minimal PATH; update [bin/ws-tmux-prefix](../bin/ws-tmux-prefix)
+if the brew prefix ever changes. Literal `C-Space` (Ctrl+Space directly)
+still works as a fallback if the shim ever stops grabbing.
 
 ## zsh
 
@@ -253,8 +270,8 @@ before adding a binding — plugins can shadow defaults.
 - **Hyper-level**: letters are 73% claimed (19/26 bound); punctuation is
   the runway. Snapshot as of this commit — re-derive with `grep -nE
   '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`:
-    - **Bound letters**: `b e f g h i j k l m n o p r t u v w y`
-    - **Free letters**: `a c d q s x z`
+    - **Bound letters**: `b c d e f g h i j k l n o p r s t u v x y z`
+    - **Free letters**: `a m q w`
     - **Bound punctuation / non-letters**: `, . ' ; / space tab` plus
       digits `1 2` (from the sigil fence — `3..0` are silent because
       only 2 workspaces are declared).
