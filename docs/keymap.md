@@ -85,6 +85,7 @@ has to use different keys, not different modifiers.
 |---|---|---|
 | Caps + v | toggle floating ↔ tiling on the focused window | (hand-owned binding) |
 | Caps + r | flatten + rotate workspace tree 90° | (hand-owned binding) |
+| Caps + x | close focused window | (hand-owned binding) |
 
 ### Workspace cycle
 
@@ -105,23 +106,20 @@ n/p ordering is positional on QWERTY: P sits right of N → "next = right" match
 Send-window-to-workspace digit chords are intentionally **not bound** —
 under Hyperkey, Caps+Shift+N collapses onto Caps+N (same modifier set
 once Hyper consumes all four modifiers), so they can't share the digit
-row. Use **Caps + g** (ws-prompt send) to send a window to a specific
-workspace.
+row. Use **Caps + f** (`ws-prompt send`, follows the window) to move a
+window to a specific workspace.
 
-### Workspace prompts (SwiftUI overlays)
+### Workspace + window prompts
 
-Four overlays, one pattern: **digit commits · letters fuzzy-search · ↵
-accepts · esc cancels**. Pick by intent — change to *jump* to a window's
-space, focus to *land* on a space, go to *send* a window, edit to
-*modify* the space set.
+Three SwiftUI overlays. **digit commits · letters fuzzy-search · ↵
+accepts · esc cancels**. Verb names the chord.
 
 | Chord | Action | aerospace.toml |
 |---|---|---|
-| Caps + e | change workspace (`ws-picker`) — fuzzy-search every window in every space; ↵ jumps to that window's workspace | (hand-owned binding) |
-| Caps + f | focus workspace (`ws-prompt focus`) — digit / fuzzy name | (hand-owned binding) |
-| Caps + g | go / send window (`ws-prompt send`) — digit / fuzzy name, follows window | (hand-owned binding) |
-| Caps + m | go / send window — alias for Caps+g ("m for move") | (hand-owned binding) |
-| Caps + w | edit workspace (`ws-prompt manage`) — rename / icon / color / verify / doctor. **Add/destroy are config-time** under aerospace; the overlay surfaces an edit-then-reload help message. | (hand-owned binding) |
+| Caps + c | **change** (`ws-picker`) — fuzzy every window in every space; tab cycles; ↵ jumps to that window's workspace | (hand-owned binding) |
+| Caps + e | **edit** workspace (`ws-prompt edit`) — rename / icon / color / verify / doctor. Add/destroy are config-time under aerospace; the overlay surfaces an edit-then-reload help message. | (hand-owned binding) |
+| Caps + f | **follow** (`ws-prompt send`) — send focused window + travel with it | (hand-owned binding) |
+| Caps + g | **go to** workspace (`ws-prompt focus`) — digit / fuzzy name | (hand-owned binding) |
 | Caps + / | cheatsheet toggle (`ws-cheatsheet`) | (hand-owned binding) |
 
 ### Launchers

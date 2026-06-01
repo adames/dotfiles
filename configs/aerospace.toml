@@ -1,20 +1,14 @@
-# AeroSpace config. Rationale + chord inventory: docs/keymap.md.
-#
-# Two sigil-fenced regions are owned by `ws-topology emit-aerospace`:
-#   `# >>> sigil generated: assignments >>>` — top-level workspace table
-#   `# >>> sigil generated >>>`              — digit bindings (inside
-#                                              [mode.main.binding])
-# Edit spaces.json + re-emit. Hand-edits inside either fence are clobbered.
+# AeroSpace config. Chord inventory: docs/keymap.md.
+# Sigil-fenced blocks below are clobbered on `ws-topology emit-aerospace`.
 
 start-at-login = true
 
 default-root-container-layout = 'tiles'
 default-root-container-orientation = 'auto'
 
-# Top-level — must precede every [...] header.
 exec-on-workspace-change = ['/bin/bash', '-c', '$HOME/.config/workspace/on-space-changed.sh']
 
-# outer.top = 26pt reserves the menu-bar strip ws-statusbar lives in.
+# outer.top = 26pt reserves the menu-bar strip.
 [gaps]
 inner.horizontal = 8
 inner.vertical = 8
@@ -23,7 +17,6 @@ outer.bottom = 8
 outer.top = 26
 outer.right = 8
 
-# Float system dialogs by app-id.
 [[on-window-detected]]
 if.window-title-regex-substring = '^(Copy|Move|Info)$'
 if.app-id = 'com.apple.finder'
@@ -55,9 +48,6 @@ run = ['layout floating']
 
 [mode.main.binding]
 
-# Windows · Focus / Swap / Float — Hyper (⌃⌥⌘⇧) held. Authoritative
-# chord docs live in sigil's cheatsheet.json (sections windows-focus +
-# submodes); the bindings below are the implementation.
 cmd-alt-ctrl-shift-h = 'exec-and-forget $HOME/.local/bin/ws-dir h'
 cmd-alt-ctrl-shift-j = 'exec-and-forget $HOME/.local/bin/ws-dir j'
 cmd-alt-ctrl-shift-k = 'exec-and-forget $HOME/.local/bin/ws-dir k'
@@ -69,47 +59,29 @@ cmd-alt-ctrl-shift-i = 'move up'
 cmd-alt-ctrl-shift-o = 'move right'
 
 cmd-alt-ctrl-shift-a = 'focus-back-and-forth'
-cmd-alt-ctrl-shift-c = 'close'
+cmd-alt-ctrl-shift-c = 'exec-and-forget $HOME/.local/bin/ws-picker'
 cmd-alt-ctrl-shift-d = 'move-node-to-monitor --wrap-around next'
+cmd-alt-ctrl-shift-x = 'close'
 cmd-alt-ctrl-shift-z = 'fullscreen'
 
 cmd-alt-ctrl-shift-v = 'layout floating tiling'
 cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal vertical']
 
-# Sub-mode entry — chord stays active in the named mode until esc (or
-# another exit binding) returns to mode.main. Bindings for each mode
-# live in [mode.move.binding] / [mode.service.binding] below.
 cmd-alt-ctrl-shift-s = 'mode service'
 
-# Workspaces · Cycle / Focus / Send. Authoritative chord docs in sigil's
-# cheatsheet.json (section: workspaces).
+# Workspaces. Verb names the chord: edit / follow / go / change.
 cmd-alt-ctrl-shift-n   = 'exec-and-forget $HOME/.local/bin/ws-focus prev'
 cmd-alt-ctrl-shift-p   = 'exec-and-forget $HOME/.local/bin/ws-focus next'
 cmd-alt-ctrl-shift-tab = 'exec-and-forget $HOME/.local/bin/ws-focus last'
 
-cmd-alt-ctrl-shift-e = 'exec-and-forget $HOME/.local/bin/ws-picker'
-cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
-cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
+cmd-alt-ctrl-shift-e = 'exec-and-forget $HOME/.local/bin/ws-prompt edit'
+cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
+cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
 cmd-alt-ctrl-shift-m = 'mode move'
-cmd-alt-ctrl-shift-w = 'exec-and-forget $HOME/.local/bin/ws-prompt manage'
 
-# @cs section Launchers
-# @cs family system
-# @cs sub ws-launch-* · open -a · Hyper held
-# @cs idea Apps on the home row · capture beside it · meta on the punctuation row.
-# @cs row Caps + t          :: terminal
-# @cs row Caps + b          :: browser
-# @cs row Caps + .          :: Finder
-# @cs row Caps + ;          :: notes
-# @cs row Caps + '          :: writing
-# @cs row Caps + ,          :: System Settings
-# @cs row Caps + /          :: cheatsheet HUD (toggle)
-# @cs end
-
-# All launchers route through ws-launch-here so the new window lands
-# on the focused workspace. Without it, `osascript activate` switches
-# macOS to whichever space the app already has a window on, and
-# aerospace tags the new window to that space.
+# Launchers route through ws-launch-here so the new window lands on
+# the focused workspace — `osascript activate` otherwise jumps macOS
+# to wherever the app already has a window.
 cmd-alt-ctrl-shift-t         = 'exec-and-forget $HOME/.local/bin/ws-launch-here terminal'
 cmd-alt-ctrl-shift-b         = 'exec-and-forget $HOME/.local/bin/ws-launch-here browser'
 cmd-alt-ctrl-shift-comma     = 'exec-and-forget open -a "System Settings"'
@@ -121,22 +93,16 @@ cmd-alt-ctrl-shift-period    = '''exec-and-forget osascript -e 'tell application
 
 cmd-alt-ctrl-shift-slash     = 'exec-and-forget $HOME/.local/bin/ws-cheatsheet --toggle'
 
-# Tmux prefix shim — Caps+Space → `tmux send-keys C-Space` (IPC, not
-# keystroke injection). Hardcoded brew path: AeroSpace runs under
-# launchd with a minimal PATH.
+# Hardcoded brew path: launchd's PATH doesn't include /opt/homebrew/bin.
 cmd-alt-ctrl-shift-space     = 'exec-and-forget /opt/homebrew/bin/tmux send-keys C-Space'
 
 # >>> sigil generated >>>
 # (Populated by `ws-topology emit-aerospace --write`.)
 # <<< sigil generated <<<
 
-# ─── sub-modes ──────────────────────────────────────────────────────────────
-#
-# Any [mode.*.binding] header closes mode.main, so these sit after the
-# sigil-generated fence. Keep new main-mode bindings ABOVE that fence.
+# Sub-modes live below the sigil fence — any [mode.*.binding] header
+# closes mode.main. Keep new main-mode bindings ABOVE that fence.
 
-# mode.move — Caps+m enters; hjkl moves the focused window, esc exits.
-# Moves don't auto-exit so repeat taps re-tile without re-entering.
 [mode.move.binding]
 h = 'move left'
 j = 'move down'
@@ -145,9 +111,8 @@ l = 'move right'
 esc   = 'mode main'
 enter = 'mode main'
 
-# mode.service — Caps+s enters; rare ops that don't earn a main-mode
-# chord. Most actions exit back to main; resize stays in mode so the
-# user can repeat -/= without re-entering.
+# resize -/= doesn't exit so repeats just work; everything else returns
+# to mode.main on completion.
 [mode.service.binding]
 r = ['flatten-workspace-tree', 'layout tiles horizontal vertical', 'mode main']
 b = ['balance-sizes', 'mode main']

@@ -1,22 +1,9 @@
 #!/usr/bin/env bash
 # ws-launch-here LAUNCHER [extra args...]
 #
-# Wrap a sigil-owned ws-launch-* helper so the new window lands on the
-# workspace that was focused at chord time.
-#
-# Without this wrapper: `tell application X to activate` + `make new
-# window` switches macOS to whichever space X already has a window on,
-# and aerospace tags the new window to that space. Result: Caps+b on
-# workspace 3 opens a browser window on workspace 7 because that's
-# where the last browser lived.
-#
-# Strategy: snapshot focused workspace and the full window-ID set,
-# call the sigil launcher, poll for any new window ID, then send it
-# to the captured workspace (and re-focus, in case macOS jumped).
-#
-# Designed to be Hyper-bound via aerospace.toml — exec-and-forget, so
-# the chord returns immediately and this script's poll loop runs in
-# the background.
+# Wrap a sigil ws-launch-* helper so the new window lands on the
+# workspace focused at chord time. `osascript activate` otherwise
+# jumps macOS to wherever the target app already has a window.
 
 set -u
 
@@ -24,23 +11,16 @@ launcher="${1:?launcher name required (terminal|browser|notes|inbox|...)}"
 shift || true
 
 target="${HOME}/.local/bin/ws-launch-${launcher}"
-if [[ ! -x "$target" ]]; then
-  printf 'ws-launch-here: missing %s — is sigil installed?\n' "$target" >&2
-  exit 1
-fi
+[[ -x "$target" ]] || { printf 'ws-launch-here: missing %s\n' "$target" >&2; exit 1; }
 
 ws=$(aerospace list-workspaces --focused 2>/dev/null || true)
-
-# Snapshot every current window ID across all workspaces. We don't
-# know the target app in advance — each ws-launch-* auto-detects —
-# so we diff the global set after launch instead of filtering by app.
 before=$(aerospace list-windows --all --format '%{window-id}' 2>/dev/null | sort -u || true)
 
 "$target" "$@"
 launch_rc=$?
 
-# Poll ~3s. macOS app cold-start can take a beat; warm path resolves
-# in one or two ticks. Bail early on first new ID.
+# Poll ~3s for the new window(s). Cold-start can spawn several
+# (e.g. browser restore tabs).
 new_ids=""
 for _ in $(seq 1 30); do
   sleep 0.1
@@ -50,8 +30,6 @@ for _ in $(seq 1 30); do
 done
 
 if [[ -n "$ws" && -n "$new_ids" ]]; then
-  # Multiple new windows can appear on cold-start (e.g. browser opening
-  # restore tabs). Move all of them.
   while IFS= read -r wid; do
     [[ -z "$wid" ]] && continue
     aerospace move-node-to-workspace "$ws" --window-id "$wid" >/dev/null 2>&1 || true

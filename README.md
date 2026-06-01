@@ -112,20 +112,17 @@ Caps + v                       → toggle floating ↔ tiling
 Caps + r                       → flatten + rotate workspace tree
 Caps + n  ·  Caps + p          → prev / next workspace (wraps)
 Caps + tab                     → last / recent workspace
-Caps + 1..0                    → focus workspace N (sigil-generated)
-Caps + t / b / o / , / q       → terminal / browser / Finder / System Settings / notes
-Caps + x                       → inbox (was Caps+Shift+q pre-Hyperkey)
-Caps + ;                       → toggle cheatsheet HUD
+Caps + 1..0                    → go to workspace N (sigil-generated)
+Caps + t / b / . / , / ;       → terminal / browser / Finder / System Settings / notes
+Caps + '                       → inbox
+Caps + /                       → toggle cheatsheet HUD
 
-# Workspace prompts — four overlays, one pattern
-# digit commits · letters fuzzy-search · ↵ accepts · esc cancels
-Caps + e                       → change workspace — fuzzy-search every window in every space; ↵ jumps to its space
-Caps + f                       → focus workspace  — land on a workspace
-Caps + g  ·  Caps + m          → go / send window — send window to workspace + follow
-Caps + w                       → edit workspace:
-                                  r rename · i icon · color · v verify · ? doctor
-                                  (add / destroy moved to aerospace.toml — see
-                                   "Workspace identity" below)
+# Workspace + window prompts — digit commits · letters fuzzy · ↵ · esc
+Caps + c                       → change window — fuzzy every window in every space; tab cycles; ↵ jumps
+Caps + e                       → edit workspace — rename / icon / color / verify / doctor
+Caps + f                       → follow — send focused window + travel with it
+Caps + g                       → go to workspace — digit or fuzzy name
+Caps + x                       → close focused window
 
 # Terminal
 C-a  hjkl / v / s / z          → tmux pane nav / split / zoom (prefix = C-a)
@@ -245,9 +242,9 @@ it to `~/.config/workspace/` and rebuilds the Swift binaries.
 | Bootstrap hangs on cask install | No TTY — `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | `aerospace: Can't connect to AeroSpace server` | AeroSpace.app not running — `open -a AeroSpace`. Grant Accessibility in System Settings if it's the first launch. |
 | Hyperkey grants Accessibility but Caps still doesn't fire Hyper | Open Hyperkey from the menu bar; confirm "Enable Hyper Key" + "Tap for Escape" are ON. |
-| `Caps + e` / `Caps + f` / `Caps + g` / `Caps + w` does nothing | `ws-prompt` / `ws-picker` / `ws-statusbar` missing — re-run `./bootstrap.sh` |
-| `Caps + ;` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — same fix |
-| Manage overlay's `add` / `destroy` shows "edit aerospace.toml" message | Working as intended — workspace existence is config-time under AeroSpace; edit the toml + `aerospace reload-config && ws-topology emit-aerospace --write`. |
+| `Caps + c` / `e` / `f` / `g` does nothing | `ws-prompt` / `ws-picker` missing — re-run `./bootstrap.sh` |
+| `Caps + /` cheatsheet doesn't appear | `ws-cheatsheet` missing from `~/.local/bin/` — same fix |
+| Edit overlay's `add` / `destroy` shows "edit aerospace.toml" message | Working as intended — workspace existence is config-time under AeroSpace; edit the toml + `aerospace reload-config && ws-topology emit-aerospace --write`. |
 | Workspace pills missing | `ws-statusbar` not running — `launchctl kickstart -k gui/$(id -u)/com.user.workspace.statusbar` |
 | Workspace pill doesn't update on space switch | `~/.config/workspace/on-space-changed.sh` not firing — verify aerospace.toml's `exec-on-workspace-change` line points at it |
 | Workspace chip missing from prompt / tmux | `~/.config/workspace/on-space-changed.sh` to prime current.env |
