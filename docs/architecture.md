@@ -93,7 +93,7 @@ Verb names the chord: **change · edit · follow · go**. One overlay pattern:
 
 | Trigger | Prompt | What |
 |---|---|---|
-| `Caps + c` | change | `ws-picker` — fuzzy every window in every space; tab cycles; ↵ jumps to that window's space |
+| `Caps + c` | change application | `ws-picker` — fuzzy by app + title; tab cycles; ↵ jumps to that window's space |
 | `Caps + e` | edit workspace | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
 | `Caps + f` | follow | send focused window + travel with it (digit commits · letters fuzzy-match name) |
 | `Caps + g` | go to workspace | digit (1..0) commits · letters fuzzy-match name |

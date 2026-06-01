@@ -118,7 +118,7 @@ Caps + '                       → inbox
 Caps + /                       → toggle cheatsheet HUD
 
 # Workspace + window prompts — digit commits · letters fuzzy · ↵ · esc
-Caps + c                       → change window — fuzzy every window in every space; tab cycles; ↵ jumps
+Caps + c                       → change application — fuzzy by app + title; tab cycles; ↵ jumps
 Caps + e                       → edit workspace — rename / icon / color / verify / doctor
 Caps + f                       → follow — send focused window + travel with it
 Caps + g                       → go to workspace — digit or fuzzy name
