@@ -91,7 +91,7 @@ No `Option/M-*` bindings — collides with Ghostty's left-Alt bytes.
 | zsh | `z <pat>` | zoxide jump |
 | nvim | `gd` / `gr` / `K` | LSP definition / references / hover |
 | nvim | `<leader>ff` / `fg` / `fb` | fzf files / live-grep / buffers |
-| nvim | `<leader>ca` / `rn` / `=` | LSP code action / rename / format |
+| nvim | `<leader>rn` / `=` | LSP rename / format |
 | nvim | `-` | oil (parent dir as buffer) |
 | nvim | `<leader>m{a-z}` / `'{a-z}` | set / jump mark |
 

@@ -1,8 +1,7 @@
 # Architecture
 
 Caps Lock is king of the dev surface. Chord lookups + collisions live in
-[keymap.md](keymap.md). Migration history (yabai → AeroSpace, Karabiner
-→ Hyperkey) is in `docs/archive/yabai-to-aerospace.md`.
+[keymap.md](keymap.md).
 
 ## Stack
 
