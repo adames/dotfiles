@@ -41,7 +41,7 @@ Caps + t / b / . / , / ; / '   → terminal / browser / Finder / settings / note
 Caps + space              → tmux prefix (C-Space)
 
 tmux prefix h/j/k/l v/s z d r x f → pane nav / split / zoom / detach / reload / kill / sessionizer
-nvim <leader> ff/fg/fb ca/rn/=   → fzf / LSP code action / rename / format
+nvim <leader> ff/fg/fb rn/=       → fzf / LSP rename / format
 ```
 
 Free Hyper letters: `a m q w`. Re-derive:
