@@ -106,11 +106,15 @@ cmd-alt-ctrl-shift-w = 'exec-and-forget $HOME/.local/bin/ws-prompt manage'
 # @cs row Caps + /          :: cheatsheet HUD (toggle)
 # @cs end
 
-cmd-alt-ctrl-shift-t         = 'exec-and-forget $HOME/.local/bin/ws-launch-terminal'
-cmd-alt-ctrl-shift-b         = 'exec-and-forget $HOME/.local/bin/ws-launch-browser'
+# All launchers route through ws-launch-here so the new window lands
+# on the focused workspace. Without it, `osascript activate` switches
+# macOS to whichever space the app already has a window on, and
+# aerospace tags the new window to that space.
+cmd-alt-ctrl-shift-t         = 'exec-and-forget $HOME/.local/bin/ws-launch-here terminal'
+cmd-alt-ctrl-shift-b         = 'exec-and-forget $HOME/.local/bin/ws-launch-here browser'
 cmd-alt-ctrl-shift-comma     = 'exec-and-forget open -a "System Settings"'
-cmd-alt-ctrl-shift-semicolon = 'exec-and-forget $HOME/.local/bin/ws-launch-notes'
-cmd-alt-ctrl-shift-quote     = 'exec-and-forget $HOME/.local/bin/ws-launch-inbox'
+cmd-alt-ctrl-shift-semicolon = 'exec-and-forget $HOME/.local/bin/ws-launch-here notes'
+cmd-alt-ctrl-shift-quote     = 'exec-and-forget $HOME/.local/bin/ws-launch-here inbox'
 
 # TOML triple-quotes preserve the inline single quotes for osascript.
 cmd-alt-ctrl-shift-period    = '''exec-and-forget osascript -e 'tell application "Finder" to make new Finder window' -e 'tell application "Finder" to activate' '''
