@@ -91,7 +91,7 @@ cmd-alt-ctrl-shift-p   = 'exec-and-forget $HOME/.local/bin/ws-focus next'
 cmd-alt-ctrl-shift-tab = 'exec-and-forget $HOME/.local/bin/ws-focus last'
 
 cmd-alt-ctrl-shift-e = 'exec-and-forget $HOME/.local/bin/ws-prompt edit'
-cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-send-follow'
+cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
 cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
 
 # Launchers route through ws-launch-here so the new window lands on
