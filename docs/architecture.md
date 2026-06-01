@@ -88,15 +88,15 @@ two-layer setup we used to run lives in
 All workspace operations go through `ws-prompt` and `ws-picker` —
 one-shot SwiftUI overlays that capture keystrokes themselves and exit
 on commit / cancel / blur / Esc; aerospace never holds workspace state.
-Four overlays, one pattern: **digit commits · letters fuzzy-search ·
-↵ accepts · esc cancels** — pick by intent.
+Verb names the chord: **change · edit · follow · go**. One overlay pattern:
+**digit commits · letters fuzzy-search · ↵ accepts · esc cancels**.
 
 | Trigger | Prompt | What |
 |---|---|---|
-| `Caps + e`         | change workspace | `ws-picker` — fuzzy-search every window in every space; ↵ jumps to that window's space |
-| `Caps + f`         | focus workspace  | digit (1..0) commits instantly · letters fuzzy-match name + Enter |
-| `Caps + g`  ·  `Caps + m` | go (send window) | digit commits + follow · letters fuzzy-match name + Enter (`m` is an alias — "move" mnemonic) |
-| `Caps + w`         | edit workspace | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
+| `Caps + c` | change | `ws-picker` — fuzzy every window in every space; tab cycles; ↵ jumps to that window's space |
+| `Caps + e` | edit workspace | verb-picker: `a` add · `r` rename · `i` icon · `d` destroy · `⇧L` layout · `v` verify · `?` doctor |
+| `Caps + f` | follow | send focused window + travel with it (digit commits · letters fuzzy-match name) |
+| `Caps + g` | go to workspace | digit (1..0) commits · letters fuzzy-match name |
 
 The edit overlay is a multi-stage state machine (verb → target /
 payload → confirm → result). Commits shell straight out to the `ws`
