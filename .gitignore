@@ -10,28 +10,6 @@
 .idea/
 *.swp
 
-# ============================================================================
-# AI AGENT WORKSPACES — Per-agent worktrees + live settings live under
-# ~/personas/.<agent>/, never inside this repo. Agent instruction files
-# (AGENTS.md, CLAUDE.md, etc.) ship in-tree; keep them minimal.
-# ============================================================================
-
-# Agent worktrees (if accidentally created here)
-.agent/
-.claude/
-.windsurf/
-.windsurf-cascade/
-.devin/
-.cursor/
-.aider/
-.github-copilot/
-.codewhisperer/
-
-# Agent settings (per-agent or shared live copies)
-.settings.local.json
-settings.local.json
-settings.*.json
-*.agent.json
-.agent.env
+# Sigil runtime clone (not part of this repo)
 configs/workspace/*
 !configs/workspace/cheatsheet-layout.json

@@ -86,13 +86,3 @@ tests/run-all.sh          # pure-bash critical path (~1.5s)
 └── docs/                     # architecture.md · keymap.md · wizard.md
 ```
 
-## AI agents
-
-[`AGENTS.md`](AGENTS.md) is the one agent-facing file in the repo —
-read by Claude Code, Codex, Devin, Cursor, anything following the
-cross-agent convention. Persona + invariants + locked-in choices.
-
-Per-agent worktrees and live settings stay **out** of the tracked
-tree — they live under `~/personas/.<agent>/` (`.claude`, `.windsurf`,
-`.devin`, `.cursor`). Shared `settings.json` is tracked; `settings.local.json`
-is gitignored for per-machine overrides.

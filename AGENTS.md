@@ -1,1 +1,0 @@
-/Users/adames/personas/ricer.md
