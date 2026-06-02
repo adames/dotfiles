@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# ws-tmux-prefix — Caps+Space shim. Sends C-Space to the running tmux
-# server; no-ops if none is up.
+# ws-tmux-prefix — retained for debug / fallback; no longer called by
+# AeroSpace. The primary Caps+Space path now uses AeroSpace mode.tmux,
+# which fires direct tmux commands without keystroke injection.
 #
-# Why a script: the previous inline aerospace binding ran tmux send-keys
-# directly. When tmux's server is down, that errors silently through
-# exec-and-forget — looks like the chord "doesn't work" but actually
-# there's just no tmux to forward to. This script gates on server
-# liveness so future debugging has somewhere to hook in.
+# If re-enabling: send-keys C-Space writes bytes to pane stdin, bypassing
+# tmux's key-binding layer (prefix never entered). Use osascript injection
+# instead, with a short sleep so Caps releases before the event fires.
 set -u
 T=/opt/homebrew/bin/tmux
 [[ -x "$T" ]] || exit 0
 "$T" list-clients >/dev/null 2>&1 || exit 0
-exec "$T" send-keys C-Space
+sleep 0.08
+osascript -e 'tell application "System Events" to key code 49 using {control down}'
