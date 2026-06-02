@@ -59,7 +59,7 @@ Caps+Shift+N onto Caps+N (same modifier set). Use `Caps + f` instead.
 | `;` | notes — `ws-launch-here notes` · `$WS_NOTES_APP` |
 | `'` | inbox — `ws-launch-here inbox` · `$WS_INBOX_APP` · `$WS_INBOX_VAULT` |
 | `/` | cheatsheet HUD toggle (`ws-cheatsheet`) |
-| `space` | tmux prefix — `ws-tmux-prefix` (gates on live tmux server) |
+| `space` | enter AeroSpace tmux mode (`mode.tmux` — direct commands, no keystroke injection) |
 
 `ws-launch-here` snapshots the focused workspace before launching so the
 new window lands where you triggered the chord, not wherever the app
@@ -67,18 +67,27 @@ already had a window.
 
 ## tmux
 
-`tmux.conf`. Prefix is `C-Space`, user-facing chord `Caps+␣`.
+`tmux.conf` + AeroSpace `mode.tmux`. Caps+Space enters the AeroSpace tmux
+mode; the next key fires a direct tmux command and exits. Press `esc` or
+`space` to abort without doing anything. `C-Space` is kept as the physical
+tmux prefix for SSH sessions and environments without AeroSpace.
+
+Why mode over shim: `tmux send-keys C-Space` writes bytes to the pane's
+stdin, bypassing tmux's key-binding layer — the prefix is never entered.
+Direct commands sidestep the problem entirely.
 
 | Chord | Action |
 |---|---|
-| `Caps+␣` | prefix |
-| `Caps+␣  Caps+␣` | literal `C-Space` to inner program |
+| `Caps+␣` | enter AeroSpace `tmux` mode (`esc` / `space` to abort) |
 | `Caps+␣  h/j/k/l` | pane focus |
-| `Caps+␣  v` / `s` (or `|` / `-`) | split right / below |
+| `Caps+␣  v` / `s` (or `-`) | split right / below |
 | `Caps+␣  z` | zoom pane |
-| `Caps+␣  d` / `r` | detach / reload |
-| `Caps+␣  x` / `&` | kill pane / window (no confirm) |
+| `Caps+␣  d` / `r` | detach / reload config |
+| `Caps+␣  [` | copy / scroll mode |
+| `Caps+␣  x` | kill pane (no confirm) |
 | `Caps+␣  f` | tmux-sessionizer fzf popup |
+| `Caps+␣  c` / `n` / `p` | new window / next / prev |
+| `Caps+␣  1..9` | go to window N |
 
 No `Option/M-*` bindings — collides with Ghostty's left-Alt bytes.
 
@@ -105,7 +114,7 @@ Leader = Space. Full mappings in
 | `Caps + 1..0` vs `Caps + Shift + 1..0` | Hyperkey collapses Shift; use `Caps + f` to send |
 | `Caps + T` (launcher) vs Ghostty `Cmd + T` | Different modifier sets |
 | Caps-tap `Esc` vs Ghostty option-as-alt | `escape-time 10` in tmux.conf gives ESC time |
-| tmux prefix `C-Space` vs inner program wanting literal `C-Space` | Double-tap Caps+Space (`send-prefix`) |
+| tmux prefix `C-Space` vs inner program wanting literal `C-Space` | Physical `C-Space C-Space` in terminal (`send-prefix` binding) — AeroSpace mode path doesn't inject `C-Space` |
 | Held-Caps + injected `Cmd+X` in a launcher | Use AX `click menu item` (bypasses aerospace); `ws-doctor` lints for this |
 
 ## Free Hyper letters
@@ -117,7 +126,7 @@ Leader = Space. Full mappings in
 
 1. Edit `configs/aerospace.toml` `[mode.main.binding]` (or tmux.conf,
    zshrc, nvim-keymaps.lua).
-2. `aerospace reload-config` (or `prefix r` for tmux).
+2. `aerospace reload-config` (or Caps+Space → `r` for tmux).
 3. `ws-doctor` — catches stale toml, keystroke contamination,
    source/deploy drift, menu-item rename, aerospace casing.
 
