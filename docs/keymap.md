@@ -41,9 +41,13 @@ Source of truth: `configs/`. Apply edits with `./macos/bootstrap.sh`.
 | `tab` | last / recent workspace |
 | `1..9, 0` | go to workspace N (sigil-fenced; regenerate with `ws-topology emit-aerospace --write`) |
 | `c` | change application (covers windows in other spaces too) |
-| `e` | edit workspace (`ws-prompt edit` — rename / icon / color / verify / doctor) |
-| `f` | follow — send focused window + travel with it (`ws-prompt send`) |
-| `g` | go to workspace (`ws-prompt focus`) |
+| `f` | follow — send focused window to slot N + travel with it (`ws-prompt send`) |
+| `g` | go to workspace N (`ws-prompt focus`) |
+
+Both `f` and `g` open a number-only overlay (modeled on AeroSpace's numeric
+switch): a digit picks the slot (`1`–`9`, `0` → slot 10), esc cancels. No
+name search. Workspace names / icons are set with the `ws` CLI (`ws name`,
+`ws icon`); there is no in-overlay editor.
 
 Send-window digit chords (Caps+Shift+N) **not bound** — Hyperkey collapses
 Caps+Shift+N onto Caps+N (same modifier set). Use `Caps + f` instead.
@@ -119,7 +123,7 @@ Leader = Space. Full mappings in
 
 ## Free Hyper letters
 
-`a m q w`. Re-derive:
+`a e m q w`. Re-derive:
 `grep -nE '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`.
 
 ## Add a chord
