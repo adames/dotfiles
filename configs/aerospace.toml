@@ -85,12 +85,15 @@ cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal verti
 
 cmd-alt-ctrl-shift-s = 'mode service'
 
-# Workspaces. Verb names the chord: edit / follow / go / change.
+# Workspaces. n/p/tab cycle; f follows (send window + travel), g goes (focus).
+# Both overlays are number-only (digit picks the slot) — modeled on
+# AeroSpace's numeric switch; no name search.
 cmd-alt-ctrl-shift-n   = 'exec-and-forget $HOME/.local/bin/ws-focus prev'
 cmd-alt-ctrl-shift-p   = 'exec-and-forget $HOME/.local/bin/ws-focus next'
 cmd-alt-ctrl-shift-tab = 'exec-and-forget $HOME/.local/bin/ws-focus last'
 
-cmd-alt-ctrl-shift-e = 'exec-and-forget $HOME/.local/bin/ws-prompt edit'
+# Caps+e is free — the old 'edit workspace' overlay was removed; set a
+# workspace's name / icon with the `ws` CLI (ws name … / ws icon …).
 cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
 cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
 
@@ -132,7 +135,7 @@ cmd-alt-ctrl-shift-9 = 'workspace 9'
 cmd-alt-ctrl-shift-0 = 'workspace 10'
 # Send-window digit bindings (Caps+Shift+N) intentionally absent —
 # Hyperkey collapses Caps+Shift+digit into Caps+digit (same chord).
-# Use Caps+g (ws-prompt send) to send a window to a specific workspace.
+# Use Caps+f (ws-prompt send) to send a window to a specific workspace.
 # <<< sigil generated <<<
 
 # mode.service — minimal drawer. Resize stays in mode so -/= can repeat;
