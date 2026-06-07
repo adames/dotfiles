@@ -20,7 +20,6 @@ step() { printf '%s-->%s %s\n' "$C_BLUE" "$C_RESET" "$*"; }
 ok()   { printf '%s[ok]%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
 warn() { printf '%s[warn]%s %s\n' "$C_YELLOW" "$C_RESET" "$*" >&2; }
 err()  { printf '%s[err]%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; }
-log()  { step "$@"; }   # back-compat alias
 
 have() { command -v "$1" >/dev/null 2>&1; }
 has_tty() { [[ -t 0 && -t 1 ]]; }
