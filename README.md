@@ -35,7 +35,6 @@ Caps + s → -/= b ⌫ ⏎      → resize / balance / close-all-but / reload
 Caps + n/p / tab / 1..0   → workspace prev/next · last · go N
 Caps + c                  → change application (fuzzy by app + title)
 Caps + f                  → follow (send window to slot N + travel)
-Caps + g                  → go to workspace N (digit picks slot)
 Caps + t / b / . / , / ; / '   → terminal / browser / Finder / settings / notes / inbox
 Caps + space              → tmux prefix (C-Space)
 
@@ -43,7 +42,7 @@ tmux prefix h/j/k/l v/s z d r x f → pane nav / split / zoom / detach / reload 
 nvim <leader> ff/fg/fb rn/=       → fzf / LSP rename / format
 ```
 
-Free Hyper letters: `a e m q w`. Re-derive:
+Free Hyper letters: `a e g m q w`. Re-derive:
 `grep -nE '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`.
 
 ## Permissions
@@ -65,7 +64,7 @@ tests/run-all.sh          # pure-bash critical path (~1.5s)
 
 | Symptom | Fix |
 |---|---|
-| `Caps + c/f/g` no-op | `ws-prompt` / `ws-picker` missing — re-run bootstrap |
+| `Caps + c/f` no-op | `ws-prompt` / `ws-picker` missing — re-run bootstrap |
 | Cheatsheet doesn't show | `ws-cheatsheet` missing — same fix |
 | Workspace pills missing | `launchctl kickstart -k gui/$(id -u)/com.user.workspace.statusbar` |
 | Workspace pill stale | `~/.config/workspace/on-space-changed.sh` not firing — check `exec-on-workspace-change` in aerospace.toml |

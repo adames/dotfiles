@@ -42,12 +42,12 @@ Source of truth: `configs/`. Apply edits with `./macos/bootstrap.sh`.
 | `1..9, 0` | go to workspace N (sigil-fenced; regenerate with `ws-topology emit-aerospace --write`) |
 | `c` | change application (covers windows in other spaces too) |
 | `f` | follow — send focused window to slot N + travel with it (`ws-prompt send`) |
-| `g` | go to workspace N (`ws-prompt focus`) |
 
-Both `f` and `g` open a number-only overlay (modeled on AeroSpace's numeric
+The `f` (follow) overlay is number-only (modeled on AeroSpace's numeric
 switch): a digit picks the slot (`1`–`9`, `0` → slot 10), esc cancels. No
-name search. Workspace names / icons are set with the `ws` CLI (`ws name`,
-`ws icon`); there is no in-overlay editor.
+name search. Plain workspace focus is AeroSpace's own `Caps + 1…0` — there
+is no separate "go" prompt. Workspace names / icons are set with the `ws`
+CLI (`ws name`, `ws icon`); there is no in-overlay editor.
 
 Send-window digit chords (Caps+Shift+N) **not bound** — Hyperkey collapses
 Caps+Shift+N onto Caps+N (same modifier set). Use `Caps + f` instead.
