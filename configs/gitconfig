@@ -12,6 +12,8 @@
 	navigate = true
 	line-numbers = true
 	side-by-side = false
+	# -F = quit if one screen, so non-interactive/pty callers don't hang in less
+	pager = less -FR
 [merge]
 	conflictstyle = zdiff3
 [diff]
