@@ -123,7 +123,7 @@ Leader = Space. Full mappings in
 
 ## Free Hyper letters
 
-`a e m q w`. Re-derive:
+`a e g m q w`. Re-derive:
 `grep -nE '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`.
 
 ## Add a chord
