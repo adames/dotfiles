@@ -100,12 +100,10 @@ require("lazy").setup({
     end,
   },
 
-  -- Simple LSP using system-installed pyright and ruff (brew)
-  -- No mason auto-install complexity - just works if tools are in PATH
+  -- LSP via system-installed pyright + ruff (brew) — no mason.
   {
     "neovim/nvim-lspconfig",
     config = function()
-      -- Enable LSP keymaps when attached
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("UserLspAttach", { clear = true }),
         callback = function(ev)
@@ -118,13 +116,11 @@ require("lazy").setup({
         end,
       })
 
-      -- Pyright for Python type checking
       if vim.fn.executable("pyright-langserver") == 1 then
         vim.lsp.config("pyright", {})
         vim.lsp.enable("pyright")
       end
 
-      -- Ruff for Python linting/formatting
       if vim.fn.executable("ruff") == 1 then
         vim.lsp.config("ruff", {})
         vim.lsp.enable("ruff")
@@ -145,9 +141,7 @@ require("lazy").setup({
     end,
   },
 
-  -- Simple marks for file navigation (replaces harpoon)
-  -- Use m{a-z} to set mark, '{a-z} to jump to mark
-  -- Much simpler, no plugin needed
+  -- File nav uses native marks (m{a-z} / '{a-z}) — no harpoon plugin.
 
   -- File explorer as a buffer. `-` opens the parent dir; edit names like text.
   {
@@ -161,10 +155,7 @@ require("lazy").setup({
     end,
   },
 
-  -- Terminal-based debugging and testing (simpler for learning)
-  -- Debug: use `python -m pdb script.py` or add `breakpoint()` in code
-  -- Tests: use `pytest -xvs test_file.py` in a tmux pane
-  -- No heavy DAP/neotest dependencies to manage
+  -- No DAP/neotest: debug with breakpoint()/pdb, test with pytest in a tmux pane.
 
   {
     "kawre/leetcode.nvim",
