@@ -104,13 +104,9 @@ phase_apply() {
   rm -f  "$HOME/.skhdrc" "$HOME/.yabairc"
   rm -rf "$HOME/.config/yabai" "$HOME/.config/skhd" "$HOME/.config/karabiner"
 
-  # Cheatsheet HUD content — assembled by lib/cheatsheet-gen.py from
-  # @cs annotations across the source configs, with sigil's committed
-  # cheatsheet.json as the fallback (banner + lens defs + any sections
-  # not surfaced by upstream @cs blocks). sigil-wins merge policy: if
-  # sigil's cheatsheet.json defines a section id, that content beats
-  # the @cs parse — preventing stale annotations from regressing the
-  # HUD.
+  # Regenerate the cheatsheet HUD from @cs annotations, with sigil's
+  # committed cheatsheet.json as fallback. Merge policy (sigil wins on
+  # id conflicts) lives in lib/cheatsheet-gen.py.
   step "regenerating workspace/cheatsheet.json from annotated configs"
   CHEATSHEET_FALLBACK="$HOME/code/sigil/cheatsheet.json"
   if [[ ! -f "$CHEATSHEET_FALLBACK" ]]; then
