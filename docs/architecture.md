@@ -40,7 +40,7 @@ Same letter, no overlap.
 |---|---|
 | Caps remap | Hyperkey (user defaults) |
 | Window tiling + chord dispatch | AeroSpace · `aerospace.toml` |
-| Focus / send overlays | ws-prompt · [sigil](https://github.com/adames/sigil)/Sources/ws-prompt/ |
+| Send (follow) overlay | ws-prompt · [sigil](https://github.com/adames/sigil)/Sources/ws-prompt/ |
 | Window picker (Caps+c) | ws-picker · sigil/Sources/ws-picker/ |
 | Cheatsheet HUD (Caps+/) | ws-cheatsheet · sigil/Sources/ws-cheatsheet/ |
 | Pill strip | ws-statusbar · sigil/Sources/ws-statusbar/ |

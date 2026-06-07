@@ -85,17 +85,18 @@ cmd-alt-ctrl-shift-r = ['flatten-workspace-tree', 'layout tiles horizontal verti
 
 cmd-alt-ctrl-shift-s = 'mode service'
 
-# Workspaces. n/p/tab cycle; f follows (send window + travel), g goes (focus).
-# Both overlays are number-only (digit picks the slot) — modeled on
+# Workspaces. n/p/tab cycle; 1…0 focus by number (sigil block below);
+# f follows — sends the focused window to slot N and travels with it.
+# The follow overlay is number-only (digit picks the slot) — modeled on
 # AeroSpace's numeric switch; no name search.
 cmd-alt-ctrl-shift-n   = 'exec-and-forget $HOME/.local/bin/ws-focus prev'
 cmd-alt-ctrl-shift-p   = 'exec-and-forget $HOME/.local/bin/ws-focus next'
 cmd-alt-ctrl-shift-tab = 'exec-and-forget $HOME/.local/bin/ws-focus last'
 
-# Caps+e is free — the old 'edit workspace' overlay was removed; set a
-# workspace's name / icon with the `ws` CLI (ws name … / ws icon …).
+# Caps+e and Caps+g are free — 'edit workspace' and the 'go' prompt were
+# removed (Caps+1…0 already focuses by number; set names / icons with the
+# `ws` CLI: ws name … / ws icon …).
 cmd-alt-ctrl-shift-f = 'exec-and-forget $HOME/.local/bin/ws-prompt send'
-cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-prompt focus'
 
 # Launchers route through ws-launch-here so the new window lands on
 # the focused workspace — `osascript activate` otherwise jumps macOS
