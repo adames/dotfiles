@@ -693,10 +693,6 @@ check_phantom_tiles() {
 # was FAIL. Fixers print their own banner; their exit code drives the
 # overall --fix exit status (0 = all attempted fixes succeeded).
 
-# Runtime workspace add/remove is config-time under aerospace — there's
-# no auto-fix for slot-drift. The check's FAIL message tells the user
-# what to do; we leave drift uncovered by --fix on purpose.
-
 # ─── render ─────────────────────────────────────────────────────────────────
 declare -a CHECKS=(
   "aerospace-freshness:check_aerospace_freshness:Is AeroSpace serving the current aerospace.toml?"
@@ -752,11 +748,9 @@ done < "$REPORT"
 [[ -z "$QUIET" ]] && printf '\n'
 [[ -z "$QUIET" ]] && printf "summary: %d pass · %d warn · %d fail · %d skip\n" "$passes" "$warns" "$fails" "$skips"
 
-# --fix: for each FAILed check that has a fixer in FIXERS, invoke it.
-# Post-aerospace burn there's no automated fixer registered — the FIXERS
-# map is intentionally empty (runtime workspace add/remove is config-time
-# under aerospace, so slot-drift recovery is a human decision). --fix
-# stays plumbed for future fixers; today it just reports "no fixer".
+# --fix: for each FAILed check with a fixer in FIXERS, invoke it. FIXERS
+# is empty today (see the map above), so --fix just reports "no fixer" —
+# the hook stays plumbed for future fixers.
 if [[ -n "$FIX" ]] && (( fails > 0 )); then
   [[ -z "$QUIET" ]] && printf '\n' && section "--fix: attempting to repair $fails FAIL(s)"
   fix_fails=0
