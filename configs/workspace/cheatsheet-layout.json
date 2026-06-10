@@ -3,7 +3,7 @@
 
   "banner": [
     { "k": "Caps",   "v": "Hyper (⌃⌥⌘⇧) — single layer; tap = Esc" },
-    { "k": "Caps+␣", "v": "tmux prefix" }
+    { "k": "Caps+␣", "v": "tmux mode" }
   ],
 
   "views": [
@@ -24,7 +24,7 @@
       "columns": [
         { "sections": ["tmux"] },
         { "sections": ["shell"] },
-        { "sections": [] }
+        { "sections": ["tmux-prefix"] }
       ]
     },
     {

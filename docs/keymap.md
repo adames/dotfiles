@@ -15,23 +15,39 @@ Source of truth: `configs/`. Apply edits with `./macos/bootstrap.sh`.
 | Chord | Action |
 |---|---|
 | `h j k l` | focus neighbour (tiled) · snap (floating: h/l halves, j center, k fill) — `ws-dir` |
+| `a` | alternate — bounce to the last focused window (crosses workspaces) |
 | `y u i o` | swap window ← ↓ ↑ → |
 | `d` | move window to next display (wraps) |
 | `v` | float ↔ tile |
-| `r` | flatten + rotate workspace tree |
+| `g` | grid — rows of two, equal tiles (`ws-grid apply`) |
+| `r` | rotate tiles — windows cycle positions, layout untouched (`ws-grid rotate`) |
 | `c` | change application (`ws-picker` — fuzzy by app + title; tab cycles; ↵ jumps) |
 | `x` | close focused window |
 | `z` | fullscreen toggle |
 
-### Service drawer (`Caps + s` enters)
+New windows settle into the grid automatically (aerospace
+`on-window-detected` → `ws-grid detect`): 1 window fills, 2 sit side by
+side, 3 = two top + full-width bottom, 4 = two top two bottom. Floating
+windows are never touched. `ws-grid auto` toggles the behavior off/on.
+
+The pointer follows focus (`on-focus-changed` → `ws-mouse-follow` →
+`move-mouse window-lazy-center`) — lazy, so the mouse only jumps when
+it's outside the window the focus landed in, and suppressed while
+ws-grid rebuilds (its focus walk would drag the pointer through every
+window). Delete the `on-focus-changed` line in aerospace.toml to opt
+back out.
+
+### Layout ops (direct chords — the service drawer is retired)
 
 | Chord | Action |
 |---|---|
-| `-` / `=` | resize -50 / +50 (stays in mode) |
-| `b` | balance sizes |
+| `-` / `=` | resize -50 / +50 (hold Caps, tap to repeat) |
+| `e` | equalize window sizes |
 | `⌫` | close all windows but current |
 | `⏎` | reload aerospace config |
-| `esc` | exit |
+
+Why no drawer: every op was one key deep behind a mode-enter — a drawer
+earns its keystroke tax only when chords run out, and they haven't.
 
 ### Workspaces
 
@@ -123,15 +139,19 @@ Leader = Space. Full mappings in
 
 ## Free Hyper letters
 
-`a e g m q w`. Re-derive:
+`m q s w`. Re-derive:
 `grep -nE '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`.
 
 ## Add a chord
 
 1. Edit `configs/aerospace.toml` `[mode.main.binding]` (or tmux.conf,
    zshrc, nvim-keymaps.lua).
-2. `aerospace reload-config` (or Caps+Space → `r` for tmux).
-3. `ws-doctor` — catches stale toml, keystroke contamination,
+2. Update the adjacent `# @cs row` — the HUD (`Caps + /`) is generated
+   from these blocks, so the cheatsheet stays truthful only if the row
+   changes with the binding. Regenerate via `./macos/bootstrap.sh` or
+   `lib/cheatsheet-gen.py` directly.
+3. `aerospace reload-config` (or Caps+Space → `r` for tmux).
+4. `ws-doctor` — catches stale toml, keystroke contamination,
    source/deploy drift, menu-item rename, aerospace casing.
 
 ## Gotchas
