@@ -104,30 +104,24 @@ phase_apply() {
   rm -f  "$HOME/.skhdrc" "$HOME/.yabairc"
   rm -rf "$HOME/.config/yabai" "$HOME/.config/skhd" "$HOME/.config/karabiner"
 
-  # Regenerate the cheatsheet HUD from @cs annotations, with sigil's
-  # committed cheatsheet.json as fallback. Merge policy (sigil wins on
-  # id conflicts) lives in lib/cheatsheet-gen.py.
-  step "regenerating workspace/cheatsheet.json from annotated configs"
-  CHEATSHEET_FALLBACK="$HOME/code/sigil/cheatsheet.json"
-  if [[ ! -f "$CHEATSHEET_FALLBACK" ]]; then
-    warn "sigil cheatsheet.json not found at $CHEATSHEET_FALLBACK — generator will run without fallback"
-    CHEATSHEET_FALLBACK=""
+  # Regenerate the cheatsheet HUD from @cs annotations via rune
+  # (https://github.com/adames/rune — the generalized successor to the old
+  # lib/cheatsheet-gen.py). Layout + sources live in workspace/rune.toml;
+  # vim-motion/vim-edit are @cs blocks in nvim-init.lua now, not a fallback.
+  step "regenerating workspace/cheatsheet.json (rune)"
+  if ! command -v rune >/dev/null 2>&1; then
+    step "installing rune (pip)"
+    python3 -m pip install --user --quiet "git+https://github.com/adames/rune" \
+      || warn "rune install failed — will fall back to the last committed cheatsheet.json"
   fi
-  GEN_ARGS=(
-    --repo-root "$DOTFILES_DIR"
-    --layout    "$CONFIGS_DIR/workspace/cheatsheet-layout.json"
-    --out       "$CONFIGS_DIR/workspace/cheatsheet.json"
-  )
-  [[ -n "$CHEATSHEET_FALLBACK" ]] && GEN_ARGS+=(--fallback "$CHEATSHEET_FALLBACK")
-  if python3 "$DOTFILES_DIR/lib/cheatsheet-gen.py" "${GEN_ARGS[@]}"; then
+  if command -v rune >/dev/null 2>&1 \
+       && rune -c "$CONFIGS_DIR/workspace/rune.toml" build \
+            -o "$CONFIGS_DIR/workspace/cheatsheet.json"; then
     ok "cheatsheet.json regenerated"
     install_file "$CONFIGS_DIR/workspace/cheatsheet.json" "$HOME/.config/workspace/cheatsheet.json"
   elif [[ -f "$CONFIGS_DIR/workspace/cheatsheet.json" ]]; then
-    warn "cheatsheet generator failed; installing the last successful output"
+    warn "rune unavailable/failed; installing the last committed cheatsheet.json"
     install_file "$CONFIGS_DIR/workspace/cheatsheet.json" "$HOME/.config/workspace/cheatsheet.json"
-  elif [[ -f "$CHEATSHEET_FALLBACK" ]]; then
-    warn "cheatsheet generator failed; falling back to sigil's committed cheatsheet.json"
-    install_file "$CHEATSHEET_FALLBACK" "$HOME/.config/workspace/cheatsheet.json"
   else
     warn "no cheatsheet artifact available; leaving $HOME/.config/workspace/cheatsheet.json untouched"
   fi

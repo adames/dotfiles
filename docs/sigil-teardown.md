@@ -1,10 +1,15 @@
 # Sigil teardown — migrate workspace layer to native AeroSpace
 
+> Update: the cheatsheet generator (`lib/cheatsheet-gen.py`) was later
+> extracted and generalized into [rune](https://github.com/adames/rune);
+> bootstrap now builds the HUD via `configs/workspace/rune.toml`. sigil
+> survives as rune's macOS overlay renderer.
+
 Decision (2026-06-17): rip out sigil's workspace-management layer and
 drive everything from a hand-written `aerospace.toml`. Keep **only** the
-cheatsheet (`ws-cheatsheet` + `WsUI` + `cheatsheet.json` +
-`lib/cheatsheet-gen.py`). We'll rebuild any gaps natively in AeroSpace
-or find a better workflow there — not port sigil features 1:1.
+cheatsheet (`ws-cheatsheet` + `WsUI` + `cheatsheet.json` + the generator,
+now rune). We'll rebuild any gaps natively in AeroSpace or find a better
+workflow there — not port sigil features 1:1.
 
 Why: the sigil-generated digit block drifted (Caps+2 → `workspace 10`,
 a lexical-sort bug in `spaces.json` ordering), the focus-follow round-
@@ -60,8 +65,9 @@ spaces.json. (~4,400 Swift + ~1,400 shell lines.)
 
 ## Kept
 
-ws-cheatsheet + WsUI + cheatsheet.json + lib/cheatsheet-gen.py (~1,750
-lines). Self-contained; no dependency on the workspace code.
+ws-cheatsheet + WsUI + cheatsheet.json + the generator (~1,750 lines).
+Self-contained; no dependency on the workspace code. The generator later
+became [rune](https://github.com/adames/rune).
 
 ## Accepted losses
 
