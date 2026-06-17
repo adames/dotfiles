@@ -133,6 +133,12 @@ phase_apply() {
   fi
 
   # Retired surfaces: sketchybar / yabai-era workspace scripts / borders.
+  # Plus the dotfiles workspace helpers dropped with the sigil teardown
+  # (replaced by native AeroSpace bindings — see docs/sigil-teardown.md).
+  rm -f "$HOME/.local/bin/ws-dir"
+  rm -f "$HOME/.local/bin/ws-grid"
+  rm -f "$HOME/.local/bin/ws-launch-here"
+  rm -f "$HOME/.local/bin/ws-mouse-follow"
   rm -rf "$HOME/.config/sketchybar"
   rm -f "$HOME/.config/workspace/rename.sh"
   rm -f "$HOME/.local/bin/ws-info"
@@ -153,11 +159,7 @@ phase_apply() {
   install_file "$CONFIGS_DIR/ripgreprc"                  "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/CLAUDE.md"                  "$HOME/.claude/CLAUDE.md"
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
-  install_file "$DOTFILES_DIR/bin/ws-dir"                "$HOME/.local/bin/ws-dir" 755
   install_file "$DOTFILES_DIR/bin/ws-doctor"             "$HOME/.local/bin/ws-doctor" 755
-  install_file "$DOTFILES_DIR/bin/ws-grid"               "$HOME/.local/bin/ws-grid" 755
-  install_file "$DOTFILES_DIR/bin/ws-launch-here"        "$HOME/.local/bin/ws-launch-here" 755
-  install_file "$DOTFILES_DIR/bin/ws-mouse-follow"       "$HOME/.local/bin/ws-mouse-follow" 755
   install_file "$DOTFILES_DIR/bin/ws-tmux-prefix"        "$HOME/.local/bin/ws-tmux-prefix" 755
   install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
 
@@ -218,13 +220,10 @@ EOF
     fi
   fi
 
-  # Populate the sigil-fenced workspace blocks in aerospace.toml from
-  # spaces.json. Without this, Caps+1..0 silently do nothing.
-  if command -v "$HOME/.local/bin/ws-topology" >/dev/null 2>&1; then
-    step "emitting workspace digit bindings (ws-topology emit-aerospace)"
-    "$HOME/.local/bin/ws-topology" emit-aerospace --write --validate --reload \
-      || warn "emit-aerospace failed — Caps+1..0 chords may be unbound until you re-run it"
-  fi
+  # Workspace digit bindings are now hand-written in aerospace.toml — the
+  # ws-topology emit-aerospace step was removed with the sigil workspace
+  # layer (see docs/sigil-teardown.md). aerospace.toml is the source of
+  # truth; reload picks it up on next login or `aerospace reload-config`.
 }
 
 # ─── phase 4 · permission wizard ────────────────────────────────────────────
