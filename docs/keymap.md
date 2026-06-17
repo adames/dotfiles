@@ -14,28 +14,24 @@ Source of truth: `configs/`. Apply edits with `./macos/bootstrap.sh`.
 
 | Chord | Action |
 |---|---|
-| `h j k l` | focus neighbour (tiled) · snap (floating: h/l halves, j center, k fill) — `ws-dir` |
+| `h j k l` | focus neighbour ← ↓ ↑ → (native `focus`) |
 | `a` | alternate — bounce to the last focused window (crosses workspaces) |
 | `y u i o` | swap window ← ↓ ↑ → |
 | `d` | move window to next display (wraps) |
 | `v` | float ↔ tile |
-| `g` | grid — rows of two, equal tiles (`ws-grid apply`) |
-| `r` | rotate tiles — windows cycle positions, layout untouched (`ws-grid rotate`) |
-| `c` | change application (`ws-picker` — fuzzy by app + title; tab cycles; ↵ jumps) |
+| `r` | toggle tile orientation (horizontal ↔ vertical, native `layout`) |
 | `x` | close focused window |
 | `z` | fullscreen toggle |
 
-New windows settle into the grid automatically (aerospace
-`on-window-detected` → `ws-grid detect`): 1 window fills, 2 sit side by
-side, 3 = two top + full-width bottom, 4 = two top two bottom. Floating
-windows are never touched. `ws-grid auto` toggles the behavior off/on.
+AeroSpace tiles new windows natively — the old `ws-grid` auto-grid and
+its `Caps+g` / `Caps+r`-rotate were dropped with the sigil teardown (see
+[sigil-teardown.md](sigil-teardown.md)). `Caps+c` (the `ws-picker` fuzzy
+window switcher) is gone too; the chord is free for a native rebuild.
 
-The pointer follows focus (`on-focus-changed` → `ws-mouse-follow` →
-`move-mouse window-lazy-center`) — lazy, so the mouse only jumps when
-it's outside the window the focus landed in, and suppressed while
-ws-grid rebuilds (its focus walk would drag the pointer through every
-window). Delete the `on-focus-changed` line in aerospace.toml to opt
-back out.
+The pointer follows focus (`on-focus-changed = ['move-mouse
+window-lazy-center']`) — lazy, so the mouse only jumps when it's outside
+the window the focus landed in. Delete the `on-focus-changed` line in
+aerospace.toml to opt back out.
 
 ### Layout ops (direct chords — the service drawer is retired)
 
@@ -53,37 +49,33 @@ earns its keystroke tax only when chords run out, and they haven't.
 
 | Chord | Action |
 |---|---|
-| `n` / `p` | prev / next workspace (wraps) |
-| `tab` | last / recent workspace |
-| `1..9, 0` | go to workspace N (sigil-fenced; regenerate with `ws-topology emit-aerospace --write`) |
-| `c` | change application (covers windows in other spaces too) |
-| `f` | follow — send focused window to slot N + travel with it (`ws-prompt send`) |
+| `n` / `p` | prev / next workspace, wraps (native `workspace --wrap-around`) |
+| `tab` | last / recent workspace (native `workspace-back-and-forth`) |
+| `1..9, 0` | go to workspace N — `0` → 10 (native `workspace N`, hand-written) |
 
-The `f` (follow) overlay is number-only (modeled on AeroSpace's numeric
-switch): a digit picks the slot (`1`–`9`, `0` → slot 10), esc cancels. No
-name search. Plain workspace focus is AeroSpace's own `Caps + 1…0` — there
-is no separate "go" prompt. Workspace names / icons are set with the `ws`
-CLI (`ws name`, `ws icon`); there is no in-overlay editor.
-
-Send-window digit chords (Caps+Shift+N) **not bound** — Hyperkey collapses
-Caps+Shift+N onto Caps+N (same modifier set). Use `Caps + f` instead.
+All native now. The digit block is hand-written in aerospace.toml (was
+sigil-generated; the generator's lexical slot sort once mapped `Caps+2`
+→ workspace 10). `Caps+f` (the `ws-prompt` send-and-follow overlay) was
+dropped — no native send picker; the chord is free to rebuild as direct
+`move-node-to-workspace N` bindings or a native picker later.
 
 ### Launchers
 
 | Chord | Action |
 |---|---|
-| `t` | terminal — `ws-launch-here terminal` · `$WS_TERMINAL_APP` |
-| `b` | browser — `ws-launch-here browser` · `$WS_BROWSER_APP` |
+| `t` | terminal — `open -a Ghostty` |
+| `b` | browser — `open -a Helium` |
 | `.` | Finder (AppleScript) |
 | `,` | System Settings |
-| `;` | notes — `ws-launch-here notes` · `$WS_NOTES_APP` |
-| `'` | inbox — `ws-launch-here inbox` · `$WS_INBOX_APP` · `$WS_INBOX_VAULT` |
+| `;` | notes — `open -a Obsidian` |
+| `'` | inbox — `open -a Raycast` |
 | `/` | cheatsheet HUD toggle (`ws-cheatsheet`) |
 | `space` | enter AeroSpace tmux mode (`mode.tmux` — direct commands, no keystroke injection) |
 
-`ws-launch-here` snapshots the focused workspace before launching so the
-new window lands where you triggered the chord, not wherever the app
-already had a window.
+Launchers are bare `open -a` now (was `ws-launch-here`, which snapshotted
+the focused workspace so the window landed where you triggered the chord).
+`open -a` activates the app's existing window if one exists — accepted
+regression from the teardown; revisit if it annoys.
 
 ## tmux
 
@@ -131,7 +123,7 @@ Leader = Space. Full mappings in
 
 | Collision | Resolution |
 |---|---|
-| `Caps + 1..0` vs `Caps + Shift + 1..0` | Hyperkey collapses Shift; use `Caps + f` to send |
+| `Caps + 1..0` vs `Caps + Shift + 1..0` | Hyperkey collapses Shift; the two are the same chord |
 | `Caps + T` (launcher) vs Ghostty `Cmd + T` | Different modifier sets |
 | Caps-tap `Esc` vs Ghostty option-as-alt | `escape-time 10` in tmux.conf gives ESC time |
 | tmux prefix `C-Space` vs inner program wanting literal `C-Space` | Physical `C-Space C-Space` in terminal (`send-prefix` binding) — AeroSpace mode path doesn't inject `C-Space` |
@@ -139,7 +131,7 @@ Leader = Space. Full mappings in
 
 ## Free Hyper letters
 
-`m q s w`. Re-derive:
+`c f g m q s w` (`c`/`f`/`g` freed by the sigil teardown). Re-derive:
 `grep -nE '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`.
 
 ## Add a chord
@@ -159,7 +151,8 @@ Leader = Space. Full mappings in
 - **Keystroke contamination.** `osascript … keystroke "X" using …` in a
   launcher fires as `Hyper+X` if Caps is still held. Drive via
   `click menu item` (AX, bypasses aerospace) or pick an unbound letter.
-- **Aerospace monitor ordinals drift on hot-plug.** Sigil keys
-  `spaces.json` on `CGDisplayCreateUUIDFromDisplayID` for this reason.
+- **Aerospace monitor ordinals drift on hot-plug.** The
+  `[workspace-to-monitor-force-assignment]` table pins every workspace
+  to monitor 1; revisit if you run a fixed multi-monitor layout.
 - **Stale aerospace.toml.** `aerospace reload-config` after edits;
   it's idempotent.
