@@ -141,7 +141,8 @@ Leader = Space. Full mappings in
 2. Update the adjacent `# @cs row` — the HUD (`Caps + /`) is generated
    from these blocks, so the cheatsheet stays truthful only if the row
    changes with the binding. Regenerate via `./macos/bootstrap.sh` or
-   `lib/cheatsheet-gen.py` directly.
+   `rune -c configs/workspace/rune.toml build -o configs/workspace/cheatsheet.json`
+   ([rune](https://github.com/adames/rune)).
 3. `aerospace reload-config` (or Caps+Space → `r` for tmux).
 4. `ws-doctor` — catches stale toml, keystroke contamination,
    source/deploy drift, menu-item rename, aerospace casing.

@@ -13,7 +13,7 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
--- Annotations below are scraped by lib/cheatsheet-gen.py into the
+-- Annotations below are scraped by rune (configs/workspace/rune.toml) into the
 -- HUD's neovim lens. Keep each section next to the bindings it
 -- documents. sigil's committed cheatsheet.json wins on conflicts;
 -- annotations here surface content for ids sigil doesn't already track.
@@ -46,6 +46,42 @@ vim.g.maplocalleader = " "
 -- @cs row ⟨leader⟩ gs       :: fzf git status
 -- @cs row ctrl-w  v / s     :: split right / below
 -- @cs row ctrl-w  h j k l   :: navigate splits
+-- @cs end
+
+-- Vim motion/edit reference. Not bindings — plain vim literacy, kept here
+-- because the cheatsheet HUD's vim lens needs a home now that it's annotation-
+-- driven (was sigil's committed cheatsheet.json fallback).
+-- @cs section Vim · Motion
+-- @cs id vim-motion
+-- @cs family vim
+-- @cs sub neovim · cursor & jumps
+-- @cs idea Every motion is a noun. Pair it with a verb (c · d · y) to describe an edit.
+-- @cs row 0  ^  $              :: line: start / first nonblank / end
+-- @cs row gg  G                :: file: top / bottom
+-- @cs row {  }                 :: paragraph: back / forward
+-- @cs row f / F  ·  t / T      :: find / till char in line  ·  uppercase = backwards
+-- @cs row %                    :: matching ( [ {
+-- @cs row /pat → n / N         :: search forward · next / prev match
+-- @cs row *  #                 :: search word under cursor: fwd / back
+-- @cs row ctrl + o / ctrl + i  :: jumplist: back / forward
+-- @cs row m⟨a-z⟩  '⟨a-z⟩       :: set mark / jump to mark line
+-- @cs end
+
+-- @cs section Vim · Edit
+-- @cs id vim-edit
+-- @cs family vim
+-- @cs sub neovim · change & yank
+-- @cs idea Verb + motion = composable change. The . key replays your last verb on the next thing.
+-- @cs row i  a   I  A          :: insert: before / after / line-start / line-end
+-- @cs row o  O                 :: open line: below / above
+-- @cs row cc  dd  yy           :: change / delete / yank whole line
+-- @cs row ci⟨x⟩  ca⟨x⟩         :: change inside / around  (" ' ( [ { t p)
+-- @cs row p  P                 :: paste: after / before
+-- @cs row u / ctrl + r         :: undo / redo
+-- @cs row .                    :: repeat last change
+-- @cs row ctrl + a / ctrl + x  :: increment / decrement number
+-- @cs row q⟨x⟩ … q → @⟨x⟩      :: record macro to x / replay x
+-- @cs row :%s/foo/bar/g        :: replace all in buffer  (add c for confirm)
 -- @cs end
 
 local opt = vim.opt

@@ -10,6 +10,6 @@
 .idea/
 *.swp
 
-# Sigil runtime clone (not part of this repo)
+# Sigil runtime clone (not part of this repo); track only the rune config
 configs/workspace/*
-!configs/workspace/cheatsheet-layout.json
+!configs/workspace/rune.toml
