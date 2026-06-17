@@ -8,22 +8,24 @@
 #                                   live (run `aerospace reload-config`).
 #                                   Symptom: chord does nothing.
 #
-#   2. keystroke collision        — `osascript … keystroke "X" using …` in a
-#                                   launcher fires while the user is still
-#                                   holding Caps. The synthetic event picks
-#                                   up the live Hyper modifier state and
+#   2. keystroke collision        — `osascript … keystroke "X" using …` driven
+#                                   from a Hyper chord fires while the user is
+#                                   still holding Caps. The synthetic event
+#                                   picks up the live Hyper modifier state and
 #                                   becomes Hyper+X. If Hyper+X is bound in
 #                                   aerospace.toml, the wrong action fires.
-#                                   (This is what made Caps+T move spaces
-#                                   when held: ws-launch-terminal sent Cmd+N,
-#                                   which became Hyper+N → ws-focus next.)
+#                                   (Historically this made a held Caps+T move
+#                                   spaces: a launcher sent Cmd+N, which became
+#                                   Hyper+N.) Launchers are bare `open -a` now,
+#                                   so the live surface is small — but the lint
+#                                   stays as a guard for any osascript chord.
 #
-#   3. source/deploy drift        — `configs/workspace/launch-foo.sh` was
-#                                   patched but the deployed copy at
-#                                   `~/.local/bin/ws-launch-foo` is stale
-#                                   (or vice versa — fixing only the deployed
-#                                   copy lets the next `bootstrap.sh` clobber
-#                                   the fix).
+#   3. source/deploy drift        — `configs/aerospace.toml` (or ghostty-config)
+#                                   was patched but the deployed copy under
+#                                   `~/.config/` is stale (or vice versa —
+#                                   fixing only the deployed copy lets the next
+#                                   `bootstrap.sh` clobber the fix). aerospace.toml
+#                                   is hand-written now, so it pair-cmps cleanly.
 #
 #   4. menu item drift            — a launcher uses
 #                                   `click menu item "New Window" of menu "File"`
@@ -55,8 +57,9 @@
 #   ws-doctor --quiet        # only print failures
 #   ws-doctor --fix          # after diagnostics, attempt to repair any
 #                            # FAILed check that has a registered fixer.
-#                            # SA reload uses sudo (one password prompt);
-#                            # slot drift is pure jq, no sudo needed.
+#                            # No fixers are registered today, so --fix
+#                            # reports "no fixer" for each FAIL; the hook
+#                            # stays plumbed for future repair automation.
 #
 # The Hyper layer is discovered at runtime by parsing aerospace.toml, so
 # adding / removing a Hyper binding automatically updates the collision
@@ -188,12 +191,12 @@ check_keystroke_collision() {
     fi
   done
 
-  # Scan scope: source + deployed launchers + aerospace.toml.
+  # Scan scope: the live keymap surface — aerospace.toml (launchers live
+  # here as `open -a` / osascript now) plus the dotfiles bin/ helpers.
+  # Orphaned sigil binaries under ~/.local/bin/ws-* are no longer wired to
+  # any chord, so scanning them would flag collisions in dead code.
   local scope=(
-    "$DOTFILES_DIR/configs/workspace/launch-"*.sh
-    "$DOTFILES_DIR/configs/workspace/cli/"*
     "$DOTFILES_DIR/bin/"*
-    "$HOME/.local/bin/ws-"*
     "$toml"
   )
 
@@ -249,21 +252,14 @@ check_keystroke_collision() {
 # pair we know matters for keystroke safety.
 check_source_deploy_drift() {
   # Pairs: source ↔ deployed. Anything keystroke-relevant goes here.
-  # NB: aerospace.toml is sentinel-fenced (sigil owns the generated
-  # block, user owns the rest) so a byte-for-byte cmp against the source
-  # configs/aerospace.toml would always drift. Excluded for that reason;
-  # `ws-topology emit-aerospace --validate` covers the generated half.
+  # aerospace.toml is hand-written now (the sigil-generated fences are
+  # gone), so bootstrap copies it verbatim and a byte-for-byte cmp is
+  # meaningful — drift here means an edit landed in only one copy.
   # Hyperkey stores its config in user defaults, not a file we can
-  # pair-cmp, so it's not represented here either.
+  # pair-cmp, so it's not represented here.
   local pairs=(
+    "$DOTFILES_DIR/configs/aerospace.toml::$HOME/.config/aerospace/aerospace.toml"
     "$DOTFILES_DIR/configs/ghostty-config::$HOME/.config/ghostty/config"
-    # ws-launch-* helpers live in sigil now (Sources/ + sigil's
-    # install.sh deploys them to ~/.local/bin/). Pair-cmp against
-    # dotfiles would always flag drift because the sources don't
-    # exist here. If you want to cross-check launcher staleness, do
-    # it against ~/.config/workspace/ (the sigil runtime clone) — but
-    # that path isn't deployed by dotfiles bootstrap so it's not in
-    # this list.
   )
 
   local drifted=0 missing=0 detail=""
@@ -302,13 +298,12 @@ check_source_deploy_drift() {
 # be running for the AX query to work, so an unreachable app is reported
 # as SKIP, not FAIL — the menu might be correct, we just can't tell.
 check_menu_items() {
-  # Scope: source launchers + deployed launchers + aerospace.toml.
-  # Exclude ws-doctor itself — its own docs quote the literal patterns
-  # we lint for, which the parser would otherwise pick up as real refs.
+  # Scope: the live keymap surface — deployed aerospace.toml + dotfiles
+  # bin/ helpers. Exclude ws-doctor itself — its own docs quote the
+  # literal patterns we lint for, which the parser would otherwise pick
+  # up as real refs.
   local files=(
-    "$DOTFILES_DIR/configs/workspace/launch-"*.sh
-    "$DOTFILES_DIR/configs/workspace/cli/"*
-    "$HOME/.local/bin/ws-"*
+    "$DOTFILES_DIR/bin/"*
     "$HOME/.config/aerospace/aerospace.toml"
   )
 
@@ -437,10 +432,7 @@ check_menu_items() {
 # /System and don't need a Launch Services check.
 check_app_references() {
   local files=(
-    "$DOTFILES_DIR/configs/workspace/launch-"*.sh
-    "$DOTFILES_DIR/configs/workspace/cli/"*
     "$DOTFILES_DIR/bin/"*
-    "$HOME/.local/bin/ws-"*
     "$HOME/.config/aerospace/aerospace.toml"
   )
 
@@ -525,10 +517,7 @@ check_aerospace_app_casing() {
                | sort -u)
 
   local files=(
-    "$DOTFILES_DIR/configs/workspace/"*.sh
-    "$DOTFILES_DIR/configs/workspace/cli/"*
     "$DOTFILES_DIR/bin/"*
-    "$HOME/.local/bin/ws-"*
   )
 
   local mismatches=0 detail=""
@@ -579,41 +568,7 @@ check_aerospace_daemon() {
   fi
 }
 
-# ─── 8. slot drift (aerospace workspace count vs spaces.json count) ─────────
-# AeroSpace owns workspace EXISTENCE (declared in aerospace.toml);
-# spaces.json owns IDENTITY (name/color/icon). The two diverge when a
-# user edits one without the other:
-#   - added a workspace to aerospace.toml but no matching spaces.json
-#     entry → uncustomized pill with bare wsN
-#   - removed a workspace from aerospace.toml but spaces.json still has
-#     the entry → orphan identity that won't render
-#
-# Detection: compare counts. The fix is config-time, not runtime — there's
-# no `--fix` automation for adding/removing aerospace workspaces.
-check_slot_drift() {
-  local cfg="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
-  command -v aerospace >/dev/null 2>&1 || { SKIP slot-drift "aerospace not installed"; return; }
-  if ! aerospace list-workspaces --all --json >/dev/null 2>&1; then
-    SKIP slot-drift "aerospace daemon not responding"
-    return
-  fi
-  [[ -r "$cfg" ]] || { SKIP slot-drift "$cfg missing"; return; }
-
-  local wm_n json_n
-  wm_n=$(aerospace list-workspaces --all --json 2>/dev/null | jq 'length' 2>/dev/null)
-  json_n=$(jq '.spaces | length' "$cfg" 2>/dev/null || echo 0)
-  [[ -z "$wm_n" || -z "$json_n" ]] && { WARN slot-drift "could not read both counts"; return; }
-
-  if (( wm_n == json_n )); then
-    PASS slot-drift "aerospace and spaces.json agree on $wm_n workspace(s)"
-  elif (( wm_n > json_n )); then
-    WARN slot-drift "aerospace has $wm_n workspace(s), spaces.json has $json_n — $((wm_n - json_n)) workspace(s) will render with bare wsN identity. fix: \`ws name <slot> <name>\` for each, or accept the defaults."
-  else
-    FAIL slot-drift "spaces.json has $json_n entry(ies), aerospace has only $wm_n workspace(s) — $((json_n - wm_n)) orphan identity entry(ies). fix: declare them in ~/.config/aerospace/aerospace.toml + aerospace reload-config, or \`ws remove $((wm_n + 1))..$json_n\`."
-  fi
-}
-
-# ─── 9. phantom tiles (aerospace tree vs AX-visible per workspace) ────────
+# ─── 8. phantom tiles (aerospace tree vs AX-visible per workspace) ────────
 # AeroSpace's workspace tree can disagree with the AX window tree: a
 # window opens, gets dropped into a workspace by a chord, then closes
 # (or its app crashes) without aerospace getting a destroy event.
@@ -702,15 +657,14 @@ declare -a CHECKS=(
   "app-references:check_app_references:tell application targets are installed"
   "aerospace-app-casing:check_aerospace_app_casing:script .app filters match aerospace output"
   "aerospace-daemon:check_aerospace_daemon:AeroSpace.app is running + reachable"
-  "slot-drift:check_slot_drift:aerospace workspace count matches spaces.json slot count"
   "phantom-tiles:check_phantom_tiles:focused workspace has no phantom tile slots eating layout space"
 )
 
 # Map check-name → fixer-function-name. Only entries here are
 # eligible for --fix dispatch; everything else is detect-only.
-declare -A FIXERS=(
-  # slot-drift is config-time under aerospace — no automated fix.
-)
+# Empty today — every check is detect-only — but the --fix dispatch
+# hook below stays plumbed for future fixers.
+declare -A FIXERS=()
 
 if [[ -n "$LIST" ]]; then
   for spec in "${CHECKS[@]}"; do
