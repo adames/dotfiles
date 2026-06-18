@@ -3,7 +3,7 @@
 #
 # Post-Phase-6 surface (after the Karabiner → Hyperkey + yabai →
 # AeroSpace cuts): the only TCC bit that matters is Accessibility, for
-# Hyperkey + AeroSpace + ws-snap. No more Input Monitoring (Karabiner's
+# Hyperkey + AeroSpace. No more Input Monitoring (Karabiner's
 # kext-driven HID stream is gone), no more System Extensions pane (no
 # DriverKit dependency). Probe-gated: lib/macos-tcc.sh asks each tool
 # whether its grant is in place; an already-clean machine never opens
@@ -36,18 +36,13 @@ register() {
   step "registering apps in TCC lists"
   open -ga AeroSpace  2>/dev/null || true
   open -ga Hyperkey   2>/dev/null || true
-  # ws-snap moves floating windows via AX, so it needs Accessibility. A
-  # no-op invocation forces TCC to enumerate it in the Accessibility list
-  # so the user can flip the toggle. The "no focused window" error path
-  # is harmless here.
-  "$HOME/.local/bin/ws-snap" left >/dev/null 2>&1 || true
   sleep 2
   ok "registered"
 }
 
 # Post-Karabiner, no launchctl kickstart is needed — Hyperkey runs as a
-# regular GUI app (no daemon split), and AeroSpace + ws-snap don't have
-# launchctl labels to refresh. Kept as a no-op stub so the wizard's
+# regular GUI app (no daemon split), and AeroSpace doesn't have a
+# launchctl label to refresh. Kept as a no-op stub so the wizard's
 # need_kick flag still has somewhere to land if a future tool needs it.
 kick_services() {
   :
@@ -58,19 +53,6 @@ kick_services() {
 missing_accessibility() {
   pgrep -x AeroSpace >/dev/null || echo "    • AeroSpace"
   pgrep -x Hyperkey  >/dev/null || echo "    • Hyperkey"
-  # ws-snap doesn't have a fast launchctl probe; just always remind on
-  # first-pass installs (the line is suppressed silently once all
-  # other items pass, since TCC grants survive across reboots). When
-  # bootstrap.sh already saw the topology build fail, swap the hint to
-  # point at the follow-up block — the toggle is useless without the
-  # binary, so "build the topology package first" would be misleading.
-  if [[ ! -x "$HOME/.local/bin/ws-snap" ]]; then
-    if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" ]]; then
-      echo "    • ws-snap (topology build failed — see follow-up below)"
-    else
-      echo "    • ws-snap (build the topology package first)"
-    fi
-  fi
 }
 
 main() {
@@ -97,8 +79,7 @@ main() {
     open_pane Privacy_Accessibility
     pause_for "  Toggle ON in Accessibility:
 ${acc:-    • AeroSpace
-    • Hyperkey
-    • ws-snap}"
+    • Hyperkey}"
     need_kick=1
   fi
 
@@ -109,9 +90,9 @@ ${acc:-    • AeroSpace
   # Surface anything bootstrap.sh deferred. Belt-and-braces: trust the
   # flag AND verify the binary actually landed (the flag has been seen
   # set on a transient launchctl EIO that the second pass healed).
-  if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" && ! -x "$HOME/.local/bin/ws-snap" ]]; then
+  if [[ -n "${BOOTSTRAP_SIGIL_BUILD_FAILED:-}" && ! -x "$HOME/.local/bin/ws-cheatsheet" ]]; then
     section "Follow-up required"
-    err "topology Swift package did not build — ws-snap and the workspace daemons are missing"
+    err "sigil Swift package did not build — the ws-cheatsheet HUD is missing"
     printf '\n  Most common cause: Command Line Tools went version-skewed\n'
     printf '  (PackageDescription was built against an older swift major).\n\n'
     printf '  Fix one of these, then re-run ./bootstrap.sh:\n\n'

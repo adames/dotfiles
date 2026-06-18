@@ -157,9 +157,11 @@ phase_apply() {
   install_file "$DOTFILES_DIR/bin/ws-tmux-prefix"        "$HOME/.local/bin/ws-tmux-prefix" 755
   install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
 
-  # Sigil (workspace identity layer + ws-* binaries) clones to
-  # ~/.config/workspace/. Its install.sh builds + symlinks into
-  # ~/.local/bin/ and registers LaunchAgents.
+  # Sigil clones to ~/.config/workspace/ and its install.sh builds +
+  # symlinks the ws-* binaries into ~/.local/bin/. Post-teardown (see
+  # docs/sigil-teardown.md) only ws-cheatsheet is wired to a chord
+  # (Caps+/ HUD); sigil survives as that overlay renderer. install.sh
+  # still builds the rest — trimming it is a deferred sigil-repo change.
   if [[ ! -d "$HOME/.config/workspace/.git" ]]; then
     step "installing workspace from https://github.com/adames/sigil"
     if command -v git >/dev/null 2>&1; then
@@ -167,7 +169,7 @@ phase_apply() {
       ok "workspace cloned"
     else
       warn "git not found — skipping workspace install"
-      export BOOTSTRAP_TOPOLOGY_FAILED=1
+      export BOOTSTRAP_SIGIL_BUILD_FAILED=1
     fi
   else
     step "workspace already installed at ~/.config/workspace/"
@@ -178,12 +180,12 @@ phase_apply() {
       step "building workspace (Swift toolchain found)"
       if ! bash "$HOME/.config/workspace/install.sh"; then
         warn "workspace install.sh failed (binaries may be stale or missing)"
-        export BOOTSTRAP_TOPOLOGY_FAILED=1
+        export BOOTSTRAP_SIGIL_BUILD_FAILED=1
       fi
     else
       warn "swift toolchain not found — workspace binaries will not be built;"
       warn "  install via 'xcode-select --install', then re-run this bootstrap"
-      export BOOTSTRAP_TOPOLOGY_FAILED=1
+      export BOOTSTRAP_SIGIL_BUILD_FAILED=1
     fi
   fi
 
@@ -205,10 +207,10 @@ EOF
   # runs when the first pass failed — on a clean install the gate skips
   # a ~1.5s swift build + relink + launchctl reload that was duplicating
   # work.
-  if [[ -n "${BOOTSTRAP_TOPOLOGY_FAILED:-}" && -f "$HOME/.config/workspace/install.sh" ]]; then
+  if [[ -n "${BOOTSTRAP_SIGIL_BUILD_FAILED:-}" && -f "$HOME/.config/workspace/install.sh" ]]; then
     step "retrying workspace runtime (first pass failed)"
     if bash "$HOME/.config/workspace/install.sh"; then
-      unset BOOTSTRAP_TOPOLOGY_FAILED
+      unset BOOTSTRAP_SIGIL_BUILD_FAILED
     else
       warn "workspace runtime retry also failed"
     fi

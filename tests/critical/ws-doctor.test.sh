@@ -7,6 +7,10 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOCTOR="$REPO_ROOT/bin/ws-doctor"
+# The check bodies live in lib/ws-doctor-checks.sh (sourced by ws-doctor);
+# the keyword greps below scan both so a moved check still counts.
+CHECKS_LIB="$REPO_ROOT/lib/ws-doctor-checks.sh"
+DOCTOR_SRC=("$DOCTOR" "$CHECKS_LIB")
 
 pass=0; fail=0
 
@@ -39,22 +43,22 @@ test_doctor_checks_critical() {
 
   local checks=0
 
-  if grep -q "aerospace\|tiler" "$DOCTOR" 2>/dev/null; then
+  if grep -q "aerospace\|tiler" "${DOCTOR_SRC[@]}" 2>/dev/null; then
     echo "PASS: Doctor checks aerospace/window manager"
     ((checks++))
   fi
 
-  if grep -q "keystroke\|hotkey\|hyper" "$DOCTOR" 2>/dev/null; then
+  if grep -q "keystroke\|hotkey\|hyper" "${DOCTOR_SRC[@]}" 2>/dev/null; then
     echo "PASS: Doctor checks hotkey / keystroke layer"
     ((checks++))
   fi
 
-  if grep -q "config\|drift" "$DOCTOR" 2>/dev/null; then
+  if grep -q "config\|drift" "${DOCTOR_SRC[@]}" 2>/dev/null; then
     echo "PASS: Doctor checks config drift"
     ((checks++))
   fi
 
-  if grep -q "permission\|tcc\|accessibility" "$DOCTOR" 2>/dev/null; then
+  if grep -q "permission\|tcc\|accessibility" "${DOCTOR_SRC[@]}" 2>/dev/null; then
     echo "PASS: Doctor checks permissions"
     ((checks++))
   fi
