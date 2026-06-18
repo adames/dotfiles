@@ -47,7 +47,7 @@ Free Hyper letters: `a e g m q w`. Re-derive:
 
 ## Permissions
 
-One pane, ~30 seconds: Accessibility for AeroSpace · Hyperkey · ws-snap.
+One pane, ~30 seconds: Accessibility for AeroSpace · Hyperkey.
 Wizard probes first, only opens what's missing.
 [docs/wizard.md](docs/wizard.md).
 
