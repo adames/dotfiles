@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# update-system — full sweep of package updates. One source of truth:
+# bootstrap calls this from phase_packages, and the `update-sys` zsh alias
+# runs it standalone (`alias update-sys=~/.local/bin/update-system`).
+#
+# brew update → brew upgrade → brew cleanup catches things outside the
+# Brewfile (jq, htop, watchman, …). mise install ensures every tool in
+# ~/.config/mise/config.toml is materialized, then mise upgrade pulls
+# the latest matching version. softwareupdate is list-only — applying
+# needs sudo and risks an unwanted reboot, so this surfaces what's
+# pending and tells you the one-liner to apply it.
+#
+# Idempotent. TTY-aware (softwareupdate only runs with a TTY).
+
+set -u
+
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+. "$DOTFILES_DIR/lib/common.sh"
+
+section "update-system"
+
+if have brew; then
+  step "brew update / upgrade / cleanup"
+  brew update --quiet 2>&1 | sed 's/^/    /' || warn "brew update had issues"
+  brew upgrade         2>&1 | sed 's/^/    /' || warn "brew upgrade had failures"
+  brew cleanup --quiet 2>&1 | sed 's/^/    /' || true
+  ok "brew current"
+else
+  warn "brew not installed — skipping"
+fi
+
+if have mise; then
+  step "mise install / upgrade"
+  mise install 2>&1 | sed 's/^/    /' || warn "mise install had failures"
+  mise upgrade 2>&1 | sed 's/^/    /' || warn "mise upgrade had failures"
+  ok "mise tools current"
+else
+  warn "mise not installed — skipping"
+fi
+
+if has_tty && have softwareupdate; then
+  step "softwareupdate -l (list-only — apply with: sudo softwareupdate -i -a)"
+  out=$(softwareupdate -l 2>&1)
+  if printf '%s\n' "$out" | grep -q "No new software available"; then
+    ok "no macOS updates"
+  else
+    printf '%s\n' "$out" | sed 's/^/    /'
+    warn "macOS updates available — review above"
+  fi
+else
+  warn "skipping softwareupdate (no TTY)"
+fi
+
+ok "update-system complete"

@@ -55,6 +55,7 @@ Wizard probes first, only opens what's missing.
 
 ```sh
 ws-doctor                 # keymap / launcher health — run this first when something's off
+update-sys                # brew + mise + softwareupdate sweep (also runs at the end of bootstrap)
 aerospace list-windows --all --json | jq '.[]."app-name"'   # tiler live
 pgrep -x Hyperkey         # remap live
 tests/run-all.sh          # pure-bash critical path (~1.5s)

@@ -58,6 +58,7 @@ alias ga='git add'
 alias gc='git commit'
 alias gp='git push'
 alias gpl='git pull'
+alias update-sys='~/.local/bin/update-system'
 
 # mise: brew on mac, ~/.local/bin on linux
 if   command -v mise        &>/dev/null; then eval "$(mise activate zsh)"
