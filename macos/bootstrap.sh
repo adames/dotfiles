@@ -114,6 +114,10 @@ phase_apply() {
 
   : > "$HOME/.hushlogin"
 
+  # Apply curated macOS defaults (Dark mode, Dock/Finder/Trackpad posture)
+  # — see docs/macos-defaults.md for the table and hard limits.
+  bash "$DOTFILES_DIR/macos/macos-defaults.sh"
+
   install_file "$CONFIGS_DIR/aerospace.toml"             "$HOME/.config/aerospace/aerospace.toml"
 
   # Stop legacy services BEFORE deleting their configs — otherwise
