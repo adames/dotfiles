@@ -67,15 +67,45 @@ phase_packages() {
   fi
 
   # Strip Gatekeeper quarantine so scripted `open -a` works pre-launch.
-  for app in /Applications/AeroSpace.app /Applications/Hyperkey.app; do
+  for app in /Applications/AeroSpace.app /Applications/Hyperkey.app /Applications/Helium.app; do
     [[ -d "$app" ]] && xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
   done
 
-  # Seed Hyperkey defaults (Caps→Hyper, tap-for-Esc). Idempotent.
-  if [[ -d /Applications/Hyperkey.app ]]; then
-    defaults write Hyperkey enableHyperKey -bool true 2>/dev/null || true
-    defaults write Hyperkey tapForEscape   -bool true 2>/dev/null || true
-  fi
+  seed_hyperkey_defaults
+}
+
+# Seed Hyperkey (Caps→Hyper, tap-for-Esc). v1.56 reads from the bundle-id
+# domain `com.knollsoft.Hyperkey` with the keys below; an older build (the
+# one f17cf62 patched against) read from the plain `Hyperkey` domain with
+# enableHyperKey/tapForEscape — those don't exist in v1.56, so the prior
+# seeding was a no-op and every caps chord died until the user opened
+# Hyperkey and re-toggled the switches by hand. Hyperkey rewrites its
+# prefs on quit, so the write order matters: quit → write → relaunch.
+# Idempotent.
+seed_hyperkey_defaults() {
+  [[ -d /Applications/Hyperkey.app ]] || return 0
+  local domain="com.knollsoft.Hyperkey" ver
+  ver=$(defaults read /Applications/Hyperkey.app/Contents/Info CFBundleShortVersionString 2>/dev/null || echo '?')
+  step "seeding Hyperkey ($domain · v$ver)"
+
+  osascript -e 'tell application "Hyperkey" to quit' 2>/dev/null || true
+  # Give the prefs flush a beat before we overwrite.
+  sleep 1
+
+  # Caps→Hyper (capsLockRemapped=2, keyRemap=1), Hyper = ⌃⌥⌘⇧
+  # (hyperFlags=1966080), tap-for-Esc on (executeQuickHyperKey=1) with
+  # keycode 53 (kVK_Escape).
+  defaults write "$domain" capsLockRemapped     -int  2
+  defaults write "$domain" keyRemap             -int  1
+  defaults write "$domain" hyperFlags           -int  1966080
+  defaults write "$domain" quickHyperKeycode    -int  53
+  defaults write "$domain" executeQuickHyperKey -int  1
+  defaults write "$domain" launchOnLogin        -int  1
+
+  # Relaunch in the background so the daemon picks up the seeded prefs
+  # without stealing focus.
+  open -ga Hyperkey 2>/dev/null || true
+  ok "Hyperkey seeded (caps→hyper, tap-for-esc)"
 }
 
 # ─── phase 3 · apply configs + macOS defaults ───────────────────────────────
