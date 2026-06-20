@@ -29,6 +29,8 @@ phase_sudo() {
 phase_packages() {
   section "Phase 2/4 · packages"
 
+  ensure_xcode_clt
+
   if ! have brew; then
     step "installing Homebrew"
     NONINTERACTIVE=1 /bin/bash -c \
@@ -67,6 +69,28 @@ phase_packages() {
   done
 
   seed_hyperkey_defaults
+
+  # Upgrade pass — brew/mise/softwareupdate. Same logic the user runs
+  # standalone as `update-sys`; bootstrap calls it so a fresh re-run
+  # leaves the machine fully current, not just package-list-complete.
+  bash "$DOTFILES_DIR/bin/update-system"
+}
+
+# Xcode Command Line Tools — brew needs them to install most formulae.
+# Without them, the Homebrew installer drops you into a graphical
+# "install developer tools" prompt that wedges any non-interactive run.
+ensure_xcode_clt() {
+  if xcode-select -p >/dev/null 2>&1; then
+    return 0
+  fi
+  step "installing Xcode Command Line Tools"
+  if has_tty; then
+    xcode-select --install 2>/dev/null || true
+    err "complete the Xcode CLT prompt, then re-run this bootstrap"
+    exit 1
+  fi
+  err "Xcode CLT missing and no TTY for the install prompt"
+  exit 1
 }
 
 # Seed Hyperkey (Caps→Hyper, tap-for-Esc). v1.56 reads from the bundle-id
@@ -184,6 +208,7 @@ phase_apply() {
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
   install_file "$DOTFILES_DIR/bin/ws-doctor"             "$HOME/.local/bin/ws-doctor" 755
   install_file "$DOTFILES_DIR/bin/ws-tmux-prefix"        "$HOME/.local/bin/ws-tmux-prefix" 755
+  install_file "$DOTFILES_DIR/bin/update-system"         "$HOME/.local/bin/update-system" 755
   install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
 
   # Sigil clones to ~/.config/workspace/ and its install.sh builds +
