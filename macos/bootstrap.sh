@@ -37,33 +37,28 @@ phase_packages() {
     ok "Homebrew installed"
   fi
 
-  step "installing CLI formulae"
-  brew install --quiet \
-    git zsh tmux direnv starship fzf \
-    ripgrep fd git-delta zoxide gh lazygit \
-    yazi \
-    pyright ruff \
-    zsh-autosuggestions zsh-syntax-highlighting >/dev/null
-  ok "shell + dev tools (rg, fd, delta, zoxide, gh, lazygit, yazi, pyright, ruff …)"
+  local brewfile="$DOTFILES_DIR/macos/Brewfile"
+  local brewfile_local="$DOTFILES_DIR/macos/Brewfile.local"
 
-  step "installing aerospace (window manager)"
-  brew install --quiet --cask nikitabobko/tap/aerospace >/dev/null || true
-  ok "aerospace"
+  # Formulae always; casks gated by TTY + BOOTSTRAP_SKIP_CASKS so headless
+  # runs don't wedge on a cask install that wants a sudo prompt.
+  step "installing formulae from macos/Brewfile"
+  brew bundle install --file="$brewfile" --formula --quiet 2>&1 | sed 's/^/    /' || true
+  ok "formulae"
 
-  # JetBrains Mono Nerd Font supplies the pill-strip PUA glyphs.
-  step "installing JetBrains Mono Nerd Font (cask)"
-  brew install --quiet --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1 || true
-  ok "font-jetbrains-mono-nerd-font"
-
-  local casks="hyperkey ghostty raycast orbstack"
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
-    step "installing GUI casks: $casks"
-    # shellcheck disable=SC2086
-    brew install --cask $casks 2>&1 | sed "s/^/    /" || true
-    ok "casks installed (or already present)"
+    step "installing casks from macos/Brewfile"
+    brew bundle install --file="$brewfile" --cask 2>&1 | sed 's/^/    /' || true
+    ok "casks"
   else
     warn "skipping cask installs (no TTY or BOOTSTRAP_SKIP_CASKS=1)"
-    step "later: brew install --cask $casks"
+  fi
+
+  # Per-Mac heavy apps (orbstack on the M3; the Air has no Brewfile.local).
+  if [[ -f "$brewfile_local" ]]; then
+    step "installing macos/Brewfile.local (this-machine apps)"
+    brew bundle install --file="$brewfile_local" 2>&1 | sed 's/^/    /' || true
+    ok "Brewfile.local"
   fi
 
   # Strip Gatekeeper quarantine so scripted `open -a` works pre-launch.
