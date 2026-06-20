@@ -1,0 +1,38 @@
+# macos/Brewfile — env apps shared between machines (M3 + Air).
+#
+# Idempotent. `brew bundle install --file=…` (called by phase_packages).
+# Heavy / per-Mac apps live in macos/Brewfile.local (untracked) — the Air
+# has no Brewfile.local so it stays lean.
+# Skip casks in headless runs: BOOTSTRAP_SKIP_CASKS=1 ./bootstrap.sh
+
+tap "nikitabobko/tap"
+
+# CLI formulae — shell, multiplexer, prompt, fuzzy / grep / git stack.
+brew "git"
+brew "zsh"
+brew "tmux"
+brew "direnv"
+brew "starship"
+brew "fzf"
+brew "ripgrep"
+brew "fd"
+brew "git-delta"
+brew "zoxide"
+brew "gh"
+brew "lazygit"
+brew "yazi"
+brew "pyright"
+brew "ruff"
+brew "zsh-autosuggestions"
+brew "zsh-syntax-highlighting"
+
+# Window manager + cheatsheet HUD font (supplies PUA glyphs).
+cask "aerospace"
+cask "font-jetbrains-mono-nerd-font"
+
+# GUI env — every caps launcher target lives here, or the chord fails.
+cask "hyperkey"          # caps→hyper remap (the whole keymap rides on this)
+cask "ghostty"           # caps+t
+cask "helium-browser"    # caps+b · net.imput.helium (NOT the deprecated `helium` cask)
+cask "raycast"           # caps+'
+cask "obsidian"          # caps+;
