@@ -42,25 +42,37 @@ phase_packages() {
   local brewfile="$DOTFILES_DIR/macos/Brewfile"
   local brewfile_local="$DOTFILES_DIR/macos/Brewfile.local"
 
-  # Formulae always; casks gated by TTY + BOOTSTRAP_SKIP_CASKS so headless
-  # runs don't wedge on a cask install that wants a sudo prompt.
-  step "installing formulae from macos/Brewfile"
-  brew bundle install --file="$brewfile" --formula --quiet 2>&1 | sed 's/^/    /' || true
-  ok "formulae"
-
+  # Brew Bundle no longer supports type flags (`--formula`, `--cask`) on
+  # install. Restore the full Brewfile when interactive; otherwise ask Bundle
+  # to skip every declared cask so headless runs don't wedge on sudo prompts.
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
-    step "installing casks from macos/Brewfile"
-    brew bundle install --file="$brewfile" --cask 2>&1 | sed 's/^/    /' || true
-    ok "casks"
+    step "installing macos/Brewfile"
+    if brew bundle install --file="$brewfile" --no-upgrade 2>&1 | sed 's/^/    /'; then
+      ok "Brewfile"
+    else
+      warn "macos/Brewfile install had failures"
+    fi
   else
+    local cask_skip
+    cask_skip="$(brewfile_casks "$brewfile")"
+    step "installing formulae from macos/Brewfile (casks skipped)"
+    if HOMEBREW_BUNDLE_CASK_SKIP="$cask_skip" \
+         brew bundle install --file="$brewfile" --no-upgrade 2>&1 | sed 's/^/    /'; then
+      ok "formulae"
+    else
+      warn "macos/Brewfile formula install had failures"
+    fi
     warn "skipping cask installs (no TTY or BOOTSTRAP_SKIP_CASKS=1)"
   fi
 
   # Per-Mac heavy apps (orbstack on the M3; the Air has no Brewfile.local).
   if [[ -f "$brewfile_local" ]]; then
     step "installing macos/Brewfile.local (this-machine apps)"
-    brew bundle install --file="$brewfile_local" 2>&1 | sed 's/^/    /' || true
-    ok "Brewfile.local"
+    if brew bundle install --file="$brewfile_local" --no-upgrade 2>&1 | sed 's/^/    /'; then
+      ok "Brewfile.local"
+    else
+      warn "macos/Brewfile.local install had failures"
+    fi
   fi
 
   # Strip Gatekeeper quarantine so scripted `open -a` works pre-launch.
@@ -74,6 +86,19 @@ phase_packages() {
   # standalone as `update-sys`; bootstrap calls it so a fresh re-run
   # leaves the machine fully current, not just package-list-complete.
   bash "$DOTFILES_DIR/bin/update-system"
+}
+
+brewfile_casks() {
+  local brewfile="$1"
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*cask[[:space:]]+"/ {
+      line = $0
+      sub(/^[[:space:]]*cask[[:space:]]+"/, "", line)
+      sub(/".*/, "", line)
+      print line
+    }
+  ' "$brewfile" | paste -sd' ' -
 }
 
 # Xcode Command Line Tools — brew needs them to install most formulae.
