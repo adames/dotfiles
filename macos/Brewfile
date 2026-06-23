@@ -30,6 +30,9 @@ brew "zsh-syntax-highlighting"
 cask "aerospace"
 cask "font-jetbrains-mono-nerd-font"
 
+# Network privacy.
+cask "protonvpn"
+
 # GUI env — every caps launcher target lives here, or the chord fails.
 cask "hyperkey"          # caps→hyper remap (the whole keymap rides on this)
 cask "ghostty"           # caps+t
