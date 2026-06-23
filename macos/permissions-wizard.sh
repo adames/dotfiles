@@ -3,7 +3,8 @@
 #
 # Post-Phase-6 surface (after the Karabiner → Hyperkey + yabai →
 # AeroSpace cuts): the only TCC bit that matters is Accessibility, for
-# Hyperkey + AeroSpace. No more Input Monitoring (Karabiner's
+# Hyperkey, AeroSpace, and Raycast (its global hotkey). No more Input
+# Monitoring (Karabiner's
 # kext-driven HID stream is gone), no more System Extensions pane (no
 # DriverKit dependency). Probe-gated: lib/macos-tcc.sh asks each tool
 # whether its grant is in place; an already-clean machine never opens
@@ -36,6 +37,7 @@ register() {
   step "registering apps in TCC lists"
   open -ga AeroSpace  2>/dev/null || true
   open -ga Hyperkey   2>/dev/null || true
+  open -ga Raycast    2>/dev/null || true
   sleep 2
   ok "registered"
 }
@@ -53,6 +55,11 @@ kick_services() {
 missing_accessibility() {
   pgrep -x AeroSpace >/dev/null || echo "    • AeroSpace"
   pgrep -x Hyperkey  >/dev/null || echo "    • Hyperkey"
+  # Raycast runs fine WITHOUT Accessibility (it just loses its global
+  # hotkey), so liveness is a false proxy here — probe the actual TCC
+  # grant instead. If TCC.db isn't readable (terminal lacks Full Disk
+  # Access), mac_tcc_granted returns non-zero and we err toward prompting.
+  mac_tcc_granted kTCCServiceAccessibility '%Raycast%' || echo "    • Raycast"
 }
 
 main() {
@@ -79,7 +86,8 @@ main() {
     open_pane Privacy_Accessibility
     pause_for "  Toggle ON in Accessibility:
 ${acc:-    • AeroSpace
-    • Hyperkey}"
+    • Hyperkey
+    • Raycast}"
     need_kick=1
   fi
 
