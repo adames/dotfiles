@@ -72,10 +72,31 @@ test_install_file_idempotent() {
   fi
 }
 
+test_homebrew_bundle_flags() {
+  local mac_bootstrap="$REPO_ROOT/macos/bootstrap.sh"
+
+  if grep -Eq 'brew bundle install .*--(formula|cask)([[:space:]]|$)' "$mac_bootstrap"; then
+    echo "FAIL: macOS bootstrap uses removed brew bundle install type flags"
+    ((fail++))
+  else
+    echo "PASS: macOS bootstrap avoids removed brew bundle install type flags"
+    ((pass++))
+  fi
+
+  if grep -q "HOMEBREW_BUNDLE_CASK_SKIP" "$mac_bootstrap"; then
+    echo "PASS: macOS bootstrap skips casks via Homebrew Bundle env"
+    ((pass++))
+  else
+    echo "FAIL: macOS bootstrap missing Homebrew Bundle cask skip env"
+    ((fail++))
+  fi
+}
+
 # Run tests
 echo "=== bootstrap-idempotent.test.sh ==="
 test_idempotent_run
 test_install_file_idempotent
+test_homebrew_bundle_flags
 
 echo ""
 echo "$pass passed, $fail failed"
