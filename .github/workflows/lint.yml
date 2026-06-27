@@ -21,12 +21,48 @@ jobs:
       - name: install tmux
         run: sudo apt-get update -qq && sudo apt-get install -y -qq tmux
 
+      # Match by content, not extension: the bin/ tools (ws-doctor,
+      # ws-grid, update-system, …) and configs/ helpers have no .sh
+      # suffix, so an extension-only glob skipped the most complex
+      # scripts in the repo. Select anything with a bash/sh shebang plus
+      # the known extensionless config dotfiles.
       - name: shell syntax (bash -n) on every script
         run: |
-          find . -type f \( -name '*.sh' -o -name 'zshrc' -o -name 'bashrc' \) \
+          find . -type f \
                  -not -path '*/.git/*' -not -path '*/.build/*' \
                  -print0 \
-            | xargs -0 -n1 bash -n
+            | while IFS= read -r -d '' f; do
+                case "$f" in
+                  *.sh|*/zshrc|*/bashrc) echo "$f" ;;
+                  *) head -c2 "$f" | grep -q '^#!' \
+                       && head -1 "$f" | grep -Eq '\b(ba)?sh\b' \
+                       && echo "$f" ;;
+                esac
+              done \
+            | xargs -r -n1 bash -n
+
+      # shellcheck catches real defects bash -n can't (dead error
+      # handling, unquoted splits, masked exit codes). Gated at
+      # severity=error only: errors are rare and almost always genuine
+      # bugs, so this won't redden the build on style nits. Dynamic
+      # `. "$DOTFILES_DIR/lib/..."` sources resolve at info level (SC1090),
+      # below the gate, so they don't fail here.
+      - name: shellcheck (errors only)
+        run: |
+          sudo apt-get install -y -qq shellcheck
+          find . -type f \
+                 -not -path '*/.git/*' -not -path '*/.build/*' \
+                 -print0 \
+            | while IFS= read -r -d '' f; do
+                case "$f" in
+                  */zshrc|*/bashrc) ;;   # zsh/interactive rc — bash -n only
+                  *.sh) echo "$f" ;;
+                  *) head -c2 "$f" | grep -q '^#!' \
+                       && head -1 "$f" | grep -Eq '\b(ba)?sh\b' \
+                       && echo "$f" ;;
+                esac
+              done \
+            | xargs -r shellcheck --severity=error --shell=bash
 
       - name: JSON syntax on every config
         run: |
