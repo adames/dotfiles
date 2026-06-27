@@ -208,7 +208,6 @@ phase_apply() {
   # Plus the dotfiles workspace helpers dropped with the sigil teardown
   # (replaced by native AeroSpace bindings — see docs/sigil-teardown.md).
   rm -f "$HOME/.local/bin/ws-dir"
-  rm -f "$HOME/.local/bin/ws-grid"
   rm -f "$HOME/.local/bin/ws-launch-here"
   rm -f "$HOME/.local/bin/ws-mouse-follow"
   rm -rf "$HOME/.config/sketchybar"
@@ -232,6 +231,7 @@ phase_apply() {
   install_file "$CONFIGS_DIR/CLAUDE.md"                  "$HOME/.claude/CLAUDE.md"
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
   install_file "$DOTFILES_DIR/bin/ws-doctor"             "$HOME/.local/bin/ws-doctor" 755
+  install_file "$DOTFILES_DIR/bin/ws-grid"               "$HOME/.local/bin/ws-grid" 755
   install_file "$DOTFILES_DIR/bin/ws-tmux-prefix"        "$HOME/.local/bin/ws-tmux-prefix" 755
   install_file "$DOTFILES_DIR/bin/update-system"         "$HOME/.local/bin/update-system" 755
   install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
