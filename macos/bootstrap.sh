@@ -209,6 +209,10 @@ phase_apply() {
   # (replaced by native AeroSpace bindings — see docs/sigil-teardown.md).
   rm -f "$HOME/.local/bin/ws-dir"
   rm -f "$HOME/.local/bin/ws-launch-here"
+  rm -f "$HOME/.local/bin/ws-launch-browser"
+  rm -f "$HOME/.local/bin/ws-launch-inbox"
+  rm -f "$HOME/.local/bin/ws-launch-notes"
+  rm -f "$HOME/.local/bin/ws-launch-terminal"
   rm -f "$HOME/.local/bin/ws-mouse-follow"
   rm -rf "$HOME/.config/sketchybar"
   rm -f "$HOME/.config/workspace/rename.sh"
