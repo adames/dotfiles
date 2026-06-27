@@ -52,14 +52,19 @@ test_install_uses_cmp() {
   fi
 }
 
-# Test 4: Bootstrap deploys configs idempotently
+# Test 4: Bootstrap deploys configs idempotently.
+# Bootstrap references configs via $CONFIGS_DIR (set in lib/common.sh),
+# not a literal "configs" path — the old grep for "install_file.*configs"
+# never matched and silently fell through to WARN. Match the real call
+# shape and assert hard so a refactor that stops deploying configs fails.
 test_bootstrap_deploys_configs() {
-  if grep -q "install_file.*configs" "$REPO_ROOT/macos/bootstrap.sh" 2>/dev/null || \
-     grep -q "cp.*configs" "$REPO_ROOT/macos/bootstrap.sh" 2>/dev/null; then
-    echo "PASS: Bootstrap deploys configs/"
+  local bs="$REPO_ROOT/macos/bootstrap.sh"
+  if grep -Eq 'install_file[[:space:]]+"\$CONFIGS_DIR' "$bs" 2>/dev/null; then
+    echo "PASS: Bootstrap deploys configs/ via \$CONFIGS_DIR"
     ((pass++))
   else
-    echo "WARN: Bootstrap may not deploy configs (check manually)"
+    echo "FAIL: macOS bootstrap no longer deploys configs via install_file \"\$CONFIGS_DIR/...\""
+    ((fail++))
   fi
 }
 

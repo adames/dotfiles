@@ -12,7 +12,11 @@
 #
 # Idempotent. TTY-aware (softwareupdate only runs with a TTY).
 
+# pipefail so the `cmd 2>&1 | sed | ... || warn` patterns below see the
+# real exit status of brew/mise. Without it the pipeline status is sed's
+# (always 0) and every `|| warn` is dead code — failures pass silently.
 set -u
+set -o pipefail
 
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 . "$DOTFILES_DIR/lib/common.sh"
