@@ -19,14 +19,20 @@ Source of truth: `configs/`. Apply edits with `./macos/bootstrap.sh`.
 | `y u i o` | swap window ← ↓ ↑ → |
 | `d` | move window to next display (wraps) |
 | `v` | float ↔ tile |
-| `r` | toggle tile orientation (horizontal ↔ vertical, native `layout`) |
+| `g` | grid — re-tile the focused workspace into rows of 2 (`ws-grid apply`) |
+| `r` | rotate grid — cycle every tiled window one position (`ws-grid rotate`) |
 | `x` | close focused window |
 | `z` | fullscreen toggle |
 
-AeroSpace tiles new windows natively — the old `ws-grid` auto-grid and
-its `Caps+g` / `Caps+r`-rotate were dropped with the sigil teardown (see
-[sigil-teardown.md](sigil-teardown.md)). `Caps+c` (the `ws-picker` fuzzy
-window switcher) is gone too; the chord is free for a native rebuild.
+New windows auto-tile, then `ws-grid`'s `detect` hook (a catch-all
+`[[on-window-detected]]` in aerospace.toml, kept last so the `layout
+floating` dialog rules win first) re-settles the focused workspace into a
+rows-of-2 grid. `ws-grid` is pure bash over the `aerospace` CLI, restored
+after the sigil teardown dropped it (see
+[sigil-teardown.md](sigil-teardown.md)): `Caps+g` re-grids on demand,
+`Caps+r` rotates, and `ws-grid auto` toggles the auto-grid off. `Caps+c`
+(the `ws-picker` fuzzy window switcher) is still gone; the chord is free
+for a native rebuild.
 
 The pointer follows focus (`on-focus-changed = ['move-mouse
 window-lazy-center']`) — lazy, so the mouse only jumps when it's outside
@@ -63,7 +69,7 @@ dropped — no native send picker; the chord is free to rebuild as direct
 
 | Chord | Action |
 |---|---|
-| `t` | terminal — `open -a Ghostty` |
+| `t` | terminal — **new** Ghostty window (`open -na Ghostty`) |
 | `b` | browser — `open -a Helium` |
 | `.` | Finder (AppleScript) |
 | `,` | System Settings |
@@ -75,7 +81,10 @@ dropped — no native send picker; the chord is free to rebuild as direct
 Launchers are bare `open -a` now (was `ws-launch-here`, which snapshotted
 the focused workspace so the window landed where you triggered the chord).
 `open -a` activates the app's existing window if one exists — accepted
-regression from the teardown; revisit if it annoys.
+regression from the teardown; revisit if it annoys. Terminal is the
+exception: `Caps+t` uses `open -na Ghostty` to force a fresh window every
+press (Ghostty exposes no macOS `+new-window` action, and its own CLI help
+points at `open -na`).
 
 ## tmux
 
@@ -131,7 +140,7 @@ Leader = Space. Full mappings in
 
 ## Free Hyper letters
 
-`c f g m q s w` (`c`/`f`/`g` freed by the sigil teardown). Re-derive:
+`c f m q s w` (`c`/`f` freed by the sigil teardown; `g` re-bound to grid). Re-derive:
 `grep -nE '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`.
 
 ## Add a chord
