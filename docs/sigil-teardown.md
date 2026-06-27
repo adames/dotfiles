@@ -5,6 +5,18 @@
 > bootstrap now builds the HUD via `configs/workspace/rune.toml`. sigil
 > survives as rune's macOS overlay renderer.
 
+> Update (2026-06-27): **`ws-grid` was restored.** Native AeroSpace
+> tiling is a dwindling BSP split, not the rows-of-2 grid this setup
+> wanted, and it has no rotate-the-grid verb — so `bin/ws-grid` (pure
+> bash over the `aerospace` CLI; it never depended on the Swift/sigil
+> layer) came back, along with the catch-all `[[on-window-detected]]`
+> auto-grid hook and the `Caps+g` (apply) / `Caps+r` (rotate) chords.
+> The rows below that mark the hook and those two chords as "deleted" /
+> "native replacement" are **superseded** — see `docs/keymap.md` and
+> `configs/aerospace.toml` for current behaviour. `Caps+t` also moved to
+> `open -na Ghostty` (always a new window). The rest of the teardown
+> (ws-topology, ws-dir, ws-launch-here, spaces.json, …) stands.
+
 Decision (2026-06-17): rip out sigil's workspace-management layer and
 drive everything from a hand-written `aerospace.toml`. Keep **only** the
 cheatsheet (`ws-cheatsheet` + `WsUI` + `cheatsheet.json` + the generator,

@@ -48,9 +48,18 @@ run = ['layout floating']
 if.app-id = 'com.apple.SoftwareUpdate'
 run = ['layout floating']
 
+# Auto-grid catch-all. AeroSpace runs the FIRST matching on-window-detected
+# rule, so this MUST stay last — the `layout floating` dialog rules above
+# win for Finder/System Settings/installers, and every other new window
+# falls through to here. ws-grid detect is debounced, skips floats and
+# unchanged tiled counts, and re-tiles the focused workspace into rows of
+# two. Toggle the whole behaviour off with `ws-grid auto`.
+[[on-window-detected]]
+run = ['exec-and-forget $HOME/.local/bin/ws-grid detect']
+
 # Workspace existence + monitor binding. Hand-written (was sigil-
-# generated from spaces.json). AeroSpace tiles new windows natively, so
-# the old ws-grid auto-grid catch-all is gone.
+# generated from spaces.json). New windows tile natively and then the
+# ws-grid detect hook (above) re-settles them into rows of two.
 [workspace-to-monitor-force-assignment]
 "1" = 1
 "2" = 1
@@ -69,13 +78,14 @@ run = ['layout floating']
 # @cs id      windows-focus
 # @cs family  system
 # @cs sub     AeroSpace · Hyper (⌃⌥⌘⇧) held
-# @cs idea    hjkl focuses, yuio swaps, r toggles orientation, x kills.
+# @cs idea    hjkl focuses, yuio swaps, g grids, r rotates, x kills.
 # @cs row     caps + h j k l :: focus neighbour  ←  ↓  ↑  →
 # @cs row     caps + a :: alternate — last window (back-and-forth)
 # @cs row     caps + y u i o :: swap window  ←  ↓  ↑  →  (move in tree)
 # @cs row     caps + d :: move window to next display (wraps)
 # @cs row     caps + v :: toggle float ↔ tile
-# @cs row     caps + r :: toggle tile orientation (horizontal ↔ vertical)
+# @cs row     caps + g :: grid — re-tile workspace into rows of 2
+# @cs row     caps + r :: rotate grid — cycle windows one position
 # @cs row     caps + x :: close window
 # @cs row     caps + z :: fullscreen toggle (zoom)
 # @cs end
@@ -102,10 +112,12 @@ cmd-alt-ctrl-shift-z = 'fullscreen'
 
 cmd-alt-ctrl-shift-v = 'layout floating tiling'
 
-# Caps+g (ws-grid rows-of-2) dropped — AeroSpace tiles natively. r now
-# toggles the focused container's split orientation instead of cycling a
-# grid.
-cmd-alt-ctrl-shift-r = 'layout horizontal vertical'
+# Grid restored (bin/ws-grid, pure-bash over the aerospace CLI). g re-grids
+# the focused workspace into rows of two; r rotates — cycles every tiled
+# window one position. New windows auto-settle via the on-window-detected
+# detect hook (top of file); `ws-grid auto` toggles that auto-grid off.
+cmd-alt-ctrl-shift-g = 'exec-and-forget $HOME/.local/bin/ws-grid apply'
+cmd-alt-ctrl-shift-r = 'exec-and-forget $HOME/.local/bin/ws-grid rotate'
 
 # Sizing + housekeeping on direct chords (the service drawer is gone —
 # one keypress instead of mode-enter → key → exit).
@@ -150,7 +162,7 @@ cmd-alt-ctrl-shift-tab = 'workspace-back-and-forth'
 # @cs family  system
 # @cs sub     open -a · Hyper held
 # @cs idea    Apps on the home row · capture beside it · meta on the punctuation row.
-# @cs row     caps + t :: terminal (Ghostty)
+# @cs row     caps + t :: terminal — new Ghostty window (open -na)
 # @cs row     caps + b :: browser (Helium)
 # @cs row     caps + . :: Finder
 # @cs row     caps + ; :: notes (Obsidian)
@@ -163,7 +175,11 @@ cmd-alt-ctrl-shift-tab = 'workspace-back-and-forth'
 # Launchers are bare `open -a` (was ws-launch-here, which kept the new
 # window on the focused workspace). `open -a` activates the existing
 # window if one exists — accepted regression; revisit if it annoys.
-cmd-alt-ctrl-shift-t         = 'exec-and-forget open -a Ghostty'
+#
+# Terminal is the exception: `open -na Ghostty` forces a brand-new window
+# every press (Ghostty's own CLI help recommends `open -na` since it has
+# no macOS `+new-window` action). The others keep activate-or-open.
+cmd-alt-ctrl-shift-t         = 'exec-and-forget open -na Ghostty'
 cmd-alt-ctrl-shift-b         = 'exec-and-forget open -a Helium'
 cmd-alt-ctrl-shift-comma     = 'exec-and-forget open -a "System Settings"'
 cmd-alt-ctrl-shift-semicolon = 'exec-and-forget open -a Obsidian'
