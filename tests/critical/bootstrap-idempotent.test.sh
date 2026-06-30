@@ -10,9 +10,11 @@ BOOTSTRAP="$REPO_ROOT/bootstrap.sh"
 
 pass=0; fail=0
 
-# Test 1: Bootstrap reports success on consecutive runs
+# Test 1: Bootstrap entrypoint exists and is executable.
+# Idempotency itself is exercised behaviorally by test_install_file_idempotent
+# below; the static `cmp -s` assertion lives once in config-drift.test.sh
+# (test_install_uses_cmp) and isn't duplicated here.
 test_idempotent_run() {
-  # First run (or check if already installed)
   if [[ -x "$BOOTSTRAP" ]]; then
     echo "PASS: Bootstrap script exists and is executable"
     ((pass++))
@@ -20,15 +22,6 @@ test_idempotent_run() {
     echo "FAIL: Bootstrap script missing or not executable"
     ((fail++))
     return 1
-  fi
-
-  # Check for idempotency patterns in bootstrap
-  if grep -q "cmp -s" "$REPO_ROOT/lib/common.sh" 2>/dev/null; then
-    echo "PASS: install_file uses byte-compare for idempotency"
-    ((pass++))
-  else
-    echo "FAIL: install_file missing idempotency check"
-    ((fail++))
   fi
 }
 

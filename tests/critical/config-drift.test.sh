@@ -17,11 +17,12 @@ test_doctor_has_drift_check() {
     return 0
   fi
 
-  if grep -q "source-deploy-drift\|drift" "$DOCTOR" 2>/dev/null; then
+  if grep -q "source-deploy-drift" "$DOCTOR" 2>/dev/null; then
     echo "PASS: ws-doctor has source-deploy-drift check"
     ((pass++))
   else
-    echo "WARN: ws-doctor may not check source/deploy drift"
+    echo "FAIL: ws-doctor no longer registers the source-deploy-drift check"
+    ((fail++))
   fi
 }
 
@@ -37,8 +38,13 @@ test_configs_exist() {
       ((fail++))
     fi
   done
-  echo "PASS: $found/${#configs[@]} critical configs present"
-  ((pass++))
+  if (( found == ${#configs[@]} )); then
+    echo "PASS: all ${#configs[@]} critical configs present"
+    ((pass++))
+  else
+    echo "FAIL: only $found/${#configs[@]} critical configs present"
+    ((fail++))
+  fi
 }
 
 # Test 3: install_file uses cmp for drift detection

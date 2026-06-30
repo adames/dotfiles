@@ -8,9 +8,9 @@
 # - config source/deploy drift
 # - ws-doctor core functionality
 #
-# Output convention: each test prints its own `N passed, M failed`
-# line on exit; this runner aggregates pass/fail counts across files
-# and prints a single summary at the end.
+# Output convention: each test prints its own `N passed, M failed` line on
+# exit; this runner reports per-file pass/fail and exits non-zero if any
+# file failed.
 
 set -u
 
