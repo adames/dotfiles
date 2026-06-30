@@ -46,7 +46,7 @@ phase_terminfo() {
   fi
 }
 
-# ─── phase 1 · system packages ──────────────────────────────────────────────
+# ─── phase 2 · system packages ──────────────────────────────────────────────
 phase_system() {
   section "Phase 2/6 · system packages"
   step "apt update + upgrade"
@@ -124,16 +124,6 @@ phase_configs() {
   install_file "$CONFIGS_DIR/tmux.conf"           "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/ripgreprc"           "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
-
-  # Workspace CLI: cross-platform mutation tool for spaces.json. macOS-
-  # specific consumers (sketchybar, aerospace) are silent-on-absence
-  # here, but the CLI itself works for editing JSON state from Linux.
-  # `ws` is the canonical name; `workspace` is kept as a compat symlink.
-  install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
-  ln -sf "ws" "$HOME/.local/bin/workspace"
-  install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
-  install_file "$CONFIGS_DIR/completions/_ws"               "$HOME/.config/zsh/completions/_ws"
-  install_file "$CONFIGS_DIR/completions/ws.bash"           "$HOME/.config/bash/completions/ws.bash"
   install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
   install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
 
@@ -142,16 +132,8 @@ phase_configs() {
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"    "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
-  # User info lives in ~/.gitconfig.local (not tracked, [include]'d by gitconfig).
-  # Same pattern as macos/bootstrap.sh — keeps the two paths symmetric.
-  if [[ ! -f "$HOME/.gitconfig.local" ]]; then
-    cat > "$HOME/.gitconfig.local" <<'EOF'
-[user]
-	email = you@example.com
-	name = Your Name
-EOF
-    ok "created ~/.gitconfig.local stub — edit user.email / user.name"
-  fi
+  # User info lives in ~/.gitconfig.local (untracked, [include]'d by gitconfig).
+  ensure_gitconfig_local
 }
 
 # ─── phase 6 · default shell ────────────────────────────────────────────────

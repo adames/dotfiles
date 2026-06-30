@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # update-system — full sweep of package updates. One source of truth:
 # bootstrap calls this from phase_packages, and the `update-sys` zsh alias
-# runs it standalone (`alias update-sys=~/.local/bin/update-system`).
+# runs it standalone (PATH-resolved; bootstrap installs it to ~/.local/bin).
 #
 # brew update → brew upgrade → brew cleanup catches things outside the
 # Brewfile (jq, htop, watchman, …). mise install ensures every tool in
