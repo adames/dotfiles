@@ -53,12 +53,14 @@ kick_services() {
 # Per-pane missing-items report. Echoes "    • Tool" lines for items still
 # missing in Accessibility; empty output = everything's already granted.
 missing_accessibility() {
-  pgrep -x AeroSpace >/dev/null || echo "    • AeroSpace"
-  pgrep -x Hyperkey  >/dev/null || echo "    • Hyperkey"
-  # Raycast runs fine WITHOUT Accessibility (it just loses its global
-  # hotkey), so liveness is a false proxy here — probe the actual TCC
-  # grant instead. If TCC.db isn't readable (terminal lacks Full Disk
-  # Access), mac_tcc_granted returns non-zero and we err toward prompting.
+  # Probe the actual Accessibility grant for each tool, not mere liveness:
+  # all three run fine as processes WITHOUT the grant (AeroSpace just can't
+  # move windows, Hyperkey can't remap, Raycast loses its global hotkey), so
+  # pgrep is a false proxy. Each probe reads the system TCC.db and falls back
+  # to liveness when it isn't readable (terminal lacks Full Disk Access),
+  # erring toward prompting.
+  mac_aerospace_accessibility_ok || echo "    • AeroSpace"
+  mac_hyperkey_accessibility_ok  || echo "    • Hyperkey"
   mac_tcc_granted kTCCServiceAccessibility '%Raycast%' || echo "    • Raycast"
 }
 
@@ -116,7 +118,7 @@ ${acc:-    • AeroSpace
     step "no panes opened — re-run with --force to re-verify"
   else
     ok "Done"
-    step "press Caps + ; to verify the ws-cheatsheet HUD"
+    step "press Caps + / to verify the ws-cheatsheet HUD"
   fi
 }
 
