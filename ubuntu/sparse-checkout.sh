@@ -42,8 +42,9 @@ fi
 
 cd "$DOTFILES_DIR"
 
-# Use non-cone mode so we can subtract nested paths (e.g. configs/
-# workspace/topology/ while still keeping configs/workspace/cli/).
+# Use non-cone mode so we can subtract individual nested paths (e.g. a
+# single macOS-only file like configs/aerospace.toml) while keeping the
+# rest of its parent directory.
 git sparse-checkout init --no-cone >/dev/null
 
 # Build the pattern file:

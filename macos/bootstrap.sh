@@ -238,7 +238,6 @@ phase_apply() {
   install_file "$DOTFILES_DIR/bin/ws-grid"               "$HOME/.local/bin/ws-grid" 755
   install_file "$DOTFILES_DIR/bin/ws-tmux-prefix"        "$HOME/.local/bin/ws-tmux-prefix" 755
   install_file "$DOTFILES_DIR/bin/update-system"         "$HOME/.local/bin/update-system" 755
-  install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
 
   # Sigil clones to ~/.config/workspace/ and its install.sh builds +
   # symlinks the ws-* binaries into ~/.local/bin/. Post-teardown (see
@@ -277,14 +276,8 @@ phase_apply() {
   mkdir -p "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"           "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
-  if [[ ! -f "$HOME/.gitconfig.local" ]]; then
-    cat > "$HOME/.gitconfig.local" <<'EOF'
-[user]
-	email = you@example.com
-	name = Your Name
-EOF
-    ok "created ~/.gitconfig.local stub — edit user.email / user.name"
-  fi
+  # User info lives in ~/.gitconfig.local (untracked, [include]'d by gitconfig).
+  ensure_gitconfig_local
 
   # Retry heals transient launchctl EIO from the first install.sh. Only
   # runs when the first pass failed — on a clean install the gate skips

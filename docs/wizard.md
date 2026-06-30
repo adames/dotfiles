@@ -5,8 +5,8 @@ stack needs — but only if it actually needs attention. On a working
 machine: ~2 seconds, opens nothing. On first install: opens
 Accessibility, lists only what's missing.
 
-One pane: **Accessibility** for AeroSpace · Hyperkey. No
-Input Monitoring (Karabiner's gone), no System Extensions (no
+One pane: **Accessibility** for AeroSpace · Hyperkey · Raycast (global
+hotkey). No Input Monitoring (Karabiner's gone), no System Extensions (no
 DriverKit), no logout (AeroSpace doesn't need it).
 
 ## Run
@@ -25,11 +25,12 @@ Direct pane:
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 ```
 
-Probes live in [`lib/macos-tcc.sh`](../lib/macos-tcc.sh): `pgrep` +
-socket round-trip for AeroSpace, `pgrep` + optional TCC.db read for
-Hyperkey. No TCC.db writes — Apple invalidates direct writes. No
-signed `.mobileconfig` — paid Developer ID required. No synthetic
-clicks — System Settings is hardened.
+Probes live in [`lib/macos-tcc.sh`](../lib/macos-tcc.sh): for AeroSpace,
+Hyperkey, and Raycast, a read of the system Accessibility `TCC.db` (needs
+the calling terminal to have Full Disk Access) with a `pgrep` liveness
+fallback when the db isn't readable. No TCC.db writes — Apple invalidates
+direct writes. No signed `.mobileconfig` — paid Developer ID required. No
+synthetic clicks — System Settings is hardened.
 
 ## Troubleshoot
 

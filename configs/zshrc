@@ -58,7 +58,7 @@ alias ga='git add'
 alias gc='git commit'
 alias gp='git push'
 alias gpl='git pull'
-alias update-sys='~/.local/bin/update-system'
+alias update-sys='update-system'
 
 # mise: brew on mac, ~/.local/bin on linux
 if   command -v mise        &>/dev/null; then eval "$(mise activate zsh)"
@@ -68,16 +68,7 @@ fi
 command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 
-# Source workspace env on each prompt so starship shows the current space.
-_workspace_env() {
-  [[ -r "$HOME/.cache/workspace/current.env" ]] && \
-    source "$HOME/.cache/workspace/current.env"
-}
-_workspace_env
-typeset -ag precmd_functions
-precmd_functions+=(_workspace_env)
-
-# ws CLI completion from ~/.config/zsh/completions.
+# User zsh completions from ~/.config/zsh/completions.
 if [[ -d "$HOME/.config/zsh/completions" ]]; then
   fpath=("$HOME/.config/zsh/completions" $fpath)
 fi

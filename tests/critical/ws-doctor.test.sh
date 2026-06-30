@@ -35,53 +35,50 @@ test_doctor_help() {
   fi
 }
 
-# Test 3: Doctor checks for critical components
+# Test 3: Doctor registers its critical checks.
+# Assert against the dispatcher's actual check names (via `--list`), not
+# free-text words like "config"/"permission" that survive in any comment
+# and pass even when the named check doesn't exist.
 test_doctor_checks_critical() {
-  if [[ ! -f "$DOCTOR" ]]; then
-    return 0
-  fi
+  [[ -x "$DOCTOR" ]] || { echo "FAIL: ws-doctor not executable"; ((fail++)); return; }
 
-  local checks=0
-
-  if grep -q "aerospace\|tiler" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks aerospace/window manager"
-    ((checks++))
-  fi
-
-  if grep -q "keystroke\|hotkey\|hyper" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks hotkey / keystroke layer"
-    ((checks++))
-  fi
-
-  if grep -q "config\|drift" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks config drift"
-    ((checks++))
-  fi
-
-  if grep -q "permission\|tcc\|accessibility" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks permissions"
-    ((checks++))
-  fi
-
-  if ((checks >= 2)); then
-    ((pass++))
-  else
-    echo "WARN: Doctor may be missing critical checks"
-  fi
+  local listing
+  listing="$("$DOCTOR" --list 2>/dev/null)"
+  local required=(aerospace-freshness keystroke-collision source-deploy-drift)
+  local c
+  for c in "${required[@]}"; do
+    if grep -q "$c" <<<"$listing"; then
+      echo "PASS: ws-doctor registers $c"
+      ((pass++))
+    else
+      echo "FAIL: ws-doctor no longer registers check: $c"
+      ((fail++))
+    fi
+  done
 }
 
-# Test 4: Doctor can run (may return non-zero if issues found, but shouldn't crash)
+# Test 4: Doctor runs to completion without hanging.
+# ws-doctor exits with the number of FAILed checks, so a non-zero exit is a
+# legitimate result, not a crash. macOS ships no `timeout`, so detect a real
+# wrapper and run bare if none exists — never let a "command not found" error
+# masquerade as ws-doctor output (the old `| grep -q .` bug).
 test_doctor_runs() {
-  if [[ ! -x "$DOCTOR" ]]; then
-    return 0
+  [[ -x "$DOCTOR" ]] || return 0
+
+  local runner=
+  if   command -v timeout  >/dev/null 2>&1; then runner="timeout 20"
+  elif command -v gtimeout >/dev/null 2>&1; then runner="gtimeout 20"
   fi
 
-  # Run with timeout to avoid hanging
-  if timeout 10 "$DOCTOR" &>/dev/null || timeout 10 "$DOCTOR" 2>&1 | grep -q .; then
-    echo "PASS: ws-doctor executes without hanging"
-    ((pass++))
+  local rc
+  $runner "$DOCTOR" >/dev/null 2>&1
+  rc=$?
+  if (( rc == 124 || rc == 126 || rc == 127 )); then
+    echo "FAIL: ws-doctor did not run cleanly (rc=$rc — timeout or exec failure)"
+    ((fail++))
   else
-    echo "WARN: ws-doctor may have issues (check manually)"
+    echo "PASS: ws-doctor ran to completion (exit $rc = FAILed checks, not a crash)"
+    ((pass++))
   fi
 }
 

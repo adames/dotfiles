@@ -34,3 +34,18 @@ install_file() {
   ok "installed ${dst/#$HOME/~}"
 }
 
+# ensure_gitconfig_local — create the untracked ~/.gitconfig.local stub
+# ([include]'d by configs/gitconfig) on first run. Idempotent: never
+# clobbers an existing file. Shared by both per-OS bootstraps so the
+# placeholder + guard live in one place.
+ensure_gitconfig_local() {
+  local f="$HOME/.gitconfig.local"
+  [[ -f "$f" ]] && return 0
+  cat > "$f" <<'EOF'
+[user]
+	email = you@example.com
+	name = Your Name
+EOF
+  ok "created ~/.gitconfig.local stub — edit user.email / user.name"
+}
+

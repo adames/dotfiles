@@ -2,9 +2,9 @@
 #
 # Sources are the @cs-annotated configs; the 4 lenses below mirror the old
 # cheatsheet-layout.json. Bootstrap runs `rune build` against this to emit
-# cheatsheet.json, which the sigil overlay renders. Replaced lib/cheatsheet-
-# gen.py + sigil's committed cheatsheet.json fallback (vim-motion / vim-edit
-# now live as @cs blocks in nvim-init.lua).
+# cheatsheet.json, which the surviving ws-cheatsheet HUD binary renders. The
+# HUD is built purely from @cs annotations (vim-motion / vim-edit live as @cs
+# blocks in nvim-init.lua) — no committed-JSON merge.
 root = "~/dotfiles"
 banner = [
   { k = "Caps", v = "Hyper (⌃⌥⌘⇧) — single layer; tap = Esc" },

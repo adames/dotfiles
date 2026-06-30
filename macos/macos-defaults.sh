@@ -4,9 +4,8 @@
 # Called from phase_apply. Idempotent: `defaults write` is set-not-toggle.
 # Safe to re-run unconditionally.
 #
-# Encoded values are the **live M3 baseline** reconciled against
-# POLISH_PROMPT.md (Goal D). Three settings differed from the doc's
-# recollection — live wins:
+# Encoded values are the **live M3 baseline**. Three settings differed
+# from an earlier recollection — live wins:
 #   - ApplePressAndHoldEnabled: live=false (vim posture), doc said true
 #   - dock tilesize:            live=44,    doc said 42
 #   - Finder view style:        live=Nlsv,  doc said clmv

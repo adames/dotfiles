@@ -20,7 +20,17 @@ set -u
 # service+client query. Empty string on failure (no Full Disk Access, etc.).
 _tcc_auth() {
   local service="$1" client_like="$2"
-  local db="$HOME/Library/Application Support/com.apple.TCC/TCC.db"
+  # System-scoped services (Accessibility, screen capture, HID event taps)
+  # are stored in the ROOT-owned system TCC.db; per-app services live in the
+  # per-user db. Reading EITHER needs the calling terminal to have Full Disk
+  # Access — callers fall back to a behavioral probe on an empty/failed read.
+  local db
+  case "$service" in
+    kTCCServiceAccessibility|kTCCServiceScreenCapture|kTCCServiceListenEvent|kTCCServicePostEvent)
+      db="/Library/Application Support/com.apple.TCC/TCC.db" ;;
+    *)
+      db="$HOME/Library/Application Support/com.apple.TCC/TCC.db" ;;
+  esac
   [[ -r "$db" ]] || return 1
   sqlite3 "$db" \
     "SELECT auth_value FROM access WHERE service='$service' AND client LIKE '$client_like' LIMIT 1;" \
@@ -36,6 +46,17 @@ mac_hyperkey_accessibility_ok() {
   [[ "$(_tcc_auth kTCCServiceAccessibility '%Hyperkey%' 2>/dev/null)" == "2" ]] \
     && return 0
   pgrep -x Hyperkey >/dev/null 2>&1
+}
+
+# ---- AeroSpace --------------------------------------------------------------
+# AeroSpace's Accessibility grant is what lets it move / focus windows; the
+# process runs fine without it, so liveness alone is a false proxy. Probe the
+# TCC grant (bundle id bobko.aerospace) with a live-process fallback for when
+# the system db isn't readable.
+mac_aerospace_accessibility_ok() {
+  [[ "$(_tcc_auth kTCCServiceAccessibility '%aerospace%' 2>/dev/null)" == "2" ]] \
+    && return 0
+  pgrep -x AeroSpace >/dev/null 2>&1
 }
 
 # ---- generic "is this app's bundle in Accessibility?" probe -----------------
