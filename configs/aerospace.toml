@@ -2,6 +2,13 @@
 # Fully hand-written — the sigil workspace layer was removed (see
 # docs/sigil-teardown.md); only the cheatsheet HUD (Caps+/) survives.
 
+# config-version 2: persistent-workspaces must be explicit (v1 inferred it
+# from binding right-hand sides, which the guide calls error-prone; v2's
+# fallback is an empty array). Keep this list in lockstep with the digit
+# bindings and the workspace-to-monitor-force-assignment block below.
+config-version = 2
+persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+
 start-at-login = true
 
 default-root-container-layout = 'tiles'
