@@ -15,7 +15,9 @@
 #             (debugging / manual re-verification)
 
 set -euo pipefail
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+# Default to the repo this script lives in, so a clone outside ~/dotfiles
+# still finds itself; explicit DOTFILES_DIR wins.
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 . "$DOTFILES_DIR/lib/macos-tcc.sh"
 
@@ -42,24 +44,19 @@ register() {
   ok "registered"
 }
 
-# Post-Karabiner, no launchctl kickstart is needed — Hyperkey runs as a
-# regular GUI app (no daemon split), and AeroSpace doesn't have a
-# launchctl label to refresh. Kept as a no-op stub so the wizard's
-# need_kick flag still has somewhere to land if a future tool needs it.
-kick_services() {
-  :
-}
-
 # Per-pane missing-items report. Echoes "    • Tool" lines for items still
 # missing in Accessibility; empty output = everything's already granted.
+# All three probe the actual TCC grant (auth_value == 2) — liveness is a
+# false proxy: register() launches exactly these apps before the re-probe
+# (running ≠ granted), and Raycast runs fine WITHOUT Accessibility anyway
+# (it just loses its global hotkey). Client ids verified against the live
+# system TCC.db. If neither TCC.db is readable (terminal lacks Full Disk
+# Access), mac_tcc_granted returns non-zero and we err toward prompting,
+# as the header promises.
 missing_accessibility() {
-  pgrep -x AeroSpace >/dev/null || echo "    • AeroSpace"
-  pgrep -x Hyperkey  >/dev/null || echo "    • Hyperkey"
-  # Raycast runs fine WITHOUT Accessibility (it just loses its global
-  # hotkey), so liveness is a false proxy here — probe the actual TCC
-  # grant instead. If TCC.db isn't readable (terminal lacks Full Disk
-  # Access), mac_tcc_granted returns non-zero and we err toward prompting.
-  mac_tcc_granted kTCCServiceAccessibility '%Raycast%' || echo "    • Raycast"
+  mac_tcc_granted kTCCServiceAccessibility 'bobko.aerospace'      || echo "    • AeroSpace"
+  mac_tcc_granted kTCCServiceAccessibility 'com.knollsoft.Hyperkey' || echo "    • Hyperkey"
+  mac_tcc_granted kTCCServiceAccessibility 'com.raycast.macos'    || echo "    • Raycast"
 }
 
 main() {
@@ -72,12 +69,16 @@ main() {
 
   if [[ -n "$acc" || -n "$FORCE" ]]; then
     register
-    # Re-probe now that registration has run. A freshly-installed app
-    # might pass on the second try where it failed on the first.
+    # Re-probe now that registration has run — launching is what creates
+    # the TCC rows, so an app whose grant survived a reinstall can pass
+    # here where the first probe found no row at all.
     acc=$(missing_accessibility)
   fi
 
-  local need_kick=
+  # Post-Karabiner there's nothing to restart after a grant — Hyperkey is
+  # a regular GUI app (no daemon split) and AeroSpace has no launchctl
+  # label to kickstart. The flag only records whether we opened a pane.
+  local opened_pane=
 
   if [[ -z "$acc" && -z "$FORCE" ]]; then
     ok "Accessibility — already granted"
@@ -88,11 +89,7 @@ main() {
 ${acc:-    • AeroSpace
     • Hyperkey
     • Raycast}"
-    need_kick=1
-  fi
-
-  if [[ -n "$need_kick" ]]; then
-    kick_services
+    opened_pane=1
   fi
 
   # Surface anything bootstrap.sh deferred. Belt-and-braces: trust the
@@ -111,12 +108,12 @@ ${acc:-    • AeroSpace
     printf '         https://apps.apple.com/app/xcode/id497799835\n\n'
   fi
 
-  if [[ -z "$need_kick" ]]; then
+  if [[ -z "$opened_pane" ]]; then
     ok "All permissions already in place"
     step "no panes opened — re-run with --force to re-verify"
   else
     ok "Done"
-    step "press Caps + ; to verify the ws-cheatsheet HUD"
+    step "press Caps + / to verify the ws-cheatsheet HUD"
   fi
 }
 

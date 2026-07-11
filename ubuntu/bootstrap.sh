@@ -4,7 +4,9 @@
 
 set -euo pipefail
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+# Default to the repo this script lives in, so a clone outside ~/dotfiles
+# still finds itself; explicit DOTFILES_DIR wins.
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
 # ─── phase 0 · sparse-checkout (idempotent, runs first) ─────────────────────
@@ -34,15 +36,18 @@ phase_terminfo() {
   section "Phase 1/6 · terminfo (xterm-ghostty)"
   if ! have tic; then
     step "installing ncurses-bin (provides tic)"
-    sudo apt update -qq && sudo apt install -y ncurses-bin >/dev/null
+    sudo apt-get update -qq && sudo apt-get install -y ncurses-bin >/dev/null
   fi
   if [[ -f "$HOME/.terminfo/x/xterm-ghostty" ]]; then
     ok "xterm-ghostty already in ~/.terminfo — skipping"
   else
     step "compiling configs/xterm-ghostty.terminfo → ~/.terminfo"
-    tic -x -o "$HOME/.terminfo" "$CONFIGS_DIR/xterm-ghostty.terminfo" 2>&1 \
-      | sed 's/^/    /' || warn "tic returned non-zero — entry may still be usable"
-    ok "xterm-ghostty installed (reconnect SSH or 'exec zsh' to pick up)"
+    if tic -x -o "$HOME/.terminfo" "$CONFIGS_DIR/xterm-ghostty.terminfo" 2>&1 \
+         | sed 's/^/    /'; then
+      ok "xterm-ghostty installed (reconnect SSH or 'exec zsh' to pick up)"
+    else
+      warn "tic returned non-zero — entry may still be usable"
+    fi
   fi
 }
 
@@ -50,11 +55,11 @@ phase_terminfo() {
 phase_system() {
   section "Phase 2/6 · system packages"
   step "apt update + upgrade"
-  sudo apt update && sudo apt upgrade -y >/dev/null
+  sudo apt-get update && sudo apt-get upgrade -y >/dev/null
   ok "system up to date"
 
   step "installing apt packages"
-  sudo apt install -y \
+  sudo apt-get install -y \
     git curl zsh build-essential direnv tmux htop neovim jq \
     ripgrep fd-find git-delta zoxide >/dev/null
   ok "git zsh tmux neovim direnv jq ripgrep fd zoxide …"
@@ -73,7 +78,7 @@ phase_system() {
     sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
       | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
-    sudo apt update -qq && sudo apt install -y gh >/dev/null
+    sudo apt-get update -qq && sudo apt-get install -y gh >/dev/null
     ok "gh installed"
   fi
 }
@@ -95,11 +100,17 @@ phase_shell() {
   ok "zsh-autosuggestions + zsh-syntax-highlighting"
 
   if [[ ! -d ~/.fzf ]]; then
-    step "installing fzf shell integration"
+    step "installing fzf (binary only)"
     git clone --depth 1 -q https://github.com/junegunn/fzf.git ~/.fzf
-    ~/.fzf/install --all --no-bash >/dev/null
-    ok "fzf shell integration"
+    # --bin, not --all: the installer's rc edits get overwritten by
+    # phase_configs anyway. The shared zshrc gates on `command -v fzf`,
+    # so all we owe it is the binary on PATH.
+    ~/.fzf/install --bin >/dev/null
+    ok "fzf binary built"
   fi
+  # Outside the clone gate so a re-run heals installs from the --all era.
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$HOME/.fzf/bin/fzf" "$HOME/.local/bin/fzf"
 }
 
 # ─── phase 4 · runtimes ─────────────────────────────────────────────────────
@@ -115,7 +126,13 @@ phase_runtimes() {
     ok "mise installed"
   fi
   step "mise install (per ~/.tool-versions / .mise.toml)"
-  "$HOME/.local/bin/mise" install || mise install || true
+  local mise_bin
+  mise_bin="$(command -v mise || echo "$HOME/.local/bin/mise")"
+  if "$mise_bin" install; then
+    ok "mise runtimes installed"
+  else
+    warn "mise install had failures"
+  fi
 }
 
 # ─── phase 5 · configs ──────────────────────────────────────────────────────
@@ -124,16 +141,7 @@ phase_configs() {
   install_file "$CONFIGS_DIR/tmux.conf"           "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/ripgreprc"           "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
-
-  # Workspace CLI: cross-platform mutation tool for spaces.json. macOS-
-  # specific consumers (sketchybar, aerospace) are silent-on-absence
-  # here, but the CLI itself works for editing JSON state from Linux.
-  # `ws` is the canonical name; `workspace` is kept as a compat symlink.
-  install_file "$CONFIGS_DIR/workspace/cli/ws"              "$HOME/.local/bin/ws"                              755
-  ln -sf "ws" "$HOME/.local/bin/workspace"
-  install_file "$CONFIGS_DIR/workspace/cli/test-cascade.sh" "$HOME/.config/workspace/cli/test-cascade.sh"      755
-  install_file "$CONFIGS_DIR/completions/_ws"               "$HOME/.config/zsh/completions/_ws"
-  install_file "$CONFIGS_DIR/completions/ws.bash"           "$HOME/.config/bash/completions/ws.bash"
+  install_file "$CONFIGS_DIR/starship.toml"       "$HOME/.config/starship.toml"
   install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
   install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
 
@@ -142,24 +150,26 @@ phase_configs() {
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"    "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
-  # User info lives in ~/.gitconfig.local (not tracked, [include]'d by gitconfig).
-  # Same pattern as macos/bootstrap.sh — keeps the two paths symmetric.
-  if [[ ! -f "$HOME/.gitconfig.local" ]]; then
-    cat > "$HOME/.gitconfig.local" <<'EOF'
-[user]
-	email = you@example.com
-	name = Your Name
-EOF
-    ok "created ~/.gitconfig.local stub — edit user.email / user.name"
-  fi
+  # Retired surfaces: the ws CLI was macOS-only all along (sigil), so the
+  # old install block here shipped a binary and completions for a command
+  # that can't work on Linux. Sweep the orphans off machines bootstrapped
+  # from those versions (same convention as macos/bootstrap.sh).
+  rm -f "$HOME/.local/bin/ws" "$HOME/.local/bin/workspace"
+  rm -f "$HOME/.config/zsh/completions/_ws"
+  rm -f "$HOME/.config/bash/completions/ws.bash"
+  rm -f "$HOME/.config/workspace/cli/test-cascade.sh"
+
+  ensure_gitconfig_local
 }
 
 # ─── phase 6 · default shell ────────────────────────────────────────────────
 phase_default_shell() {
   section "Phase 6/6 · default shell"
-  if [[ "$SHELL" != "$(command -v zsh)" ]]; then
+  # ${VAR:-} guards: minimal environments (containers, cloud-init) run
+  # without USER/SHELL exported, and set -u would abort right here.
+  if [[ "${SHELL:-}" != "$(command -v zsh)" ]]; then
     step "setting login shell to zsh"
-    sudo chsh -s "$(command -v zsh)" "$USER" || warn "chsh failed; run manually"
+    sudo chsh -s "$(command -v zsh)" "${USER:-$(id -un)}" || warn "chsh failed; run manually"
     ok "default shell → zsh (effective on next login)"
   else
     ok "zsh already default shell"

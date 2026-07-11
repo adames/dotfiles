@@ -5,37 +5,33 @@
 # poll them in a tight loop without worrying about overhead.
 #
 # References:
-#   - pgrep for AeroSpace.app + Hyperkey.app liveness
 #   - TCC.db reads via sqlite3 for generic auth-value lookups (reads are
-#     safe — Apple invalidates writes, not reads). Requires Terminal/iTerm
-#     to have Full Disk Access; falls back to a behavioral probe when the
-#     read fails.
+#     safe — Apple invalidates writes, not reads). Accessibility rows live
+#     in the SYSTEM db (/Library/Application Support/com.apple.TCC/TCC.db),
+#     not the per-user one, so that's queried first. Either read requires
+#     Terminal/iTerm to have Full Disk Access; when both reads fail the
+#     probe returns non-zero and callers err toward prompting.
 #
 # Source it: `. "$DOTFILES_DIR/lib/macos-tcc.sh"`
 
 set -u
 
 # ---- TCC.db read helper -----------------------------------------------------
-# Internal. Returns auth_value (0=denied, 1=unknown, 2=allowed) for a given
-# service+client query. Empty string on failure (no Full Disk Access, etc.).
+# Internal. Prints auth_value (0=denied, 1=unknown, 2=allowed) for a given
+# service+client query. System db first (kTCCServiceAccessibility lives
+# there), then the user db. Non-zero + no output on failure (no Full Disk
+# Access, no matching row, etc.).
 _tcc_auth() {
-  local service="$1" client_like="$2"
-  local db="$HOME/Library/Application Support/com.apple.TCC/TCC.db"
-  [[ -r "$db" ]] || return 1
-  sqlite3 "$db" \
-    "SELECT auth_value FROM access WHERE service='$service' AND client LIKE '$client_like' LIMIT 1;" \
-    2>/dev/null
-}
-
-# ---- Hyperkey ---------------------------------------------------------------
-# Hyperkey is a regular GUI app (no daemon split, no kext). The
-# Accessibility grant is the only thing that matters; behavior is a live
-# process + a non-zero TCC.db auth_value, with the process check as the
-# fallback when Full Disk Access isn't granted to the terminal.
-mac_hyperkey_accessibility_ok() {
-  [[ "$(_tcc_auth kTCCServiceAccessibility '%Hyperkey%' 2>/dev/null)" == "2" ]] \
-    && return 0
-  pgrep -x Hyperkey >/dev/null 2>&1
+  local service="$1" client_like="$2" db val
+  for db in "/Library/Application Support/com.apple.TCC/TCC.db" \
+            "$HOME/Library/Application Support/com.apple.TCC/TCC.db"; do
+    [[ -r "$db" ]] || continue
+    val="$(sqlite3 "$db" \
+      "SELECT auth_value FROM access WHERE service='$service' AND client LIKE '$client_like' LIMIT 1;" \
+      2>/dev/null)" || continue
+    [[ -n "$val" ]] && { printf '%s\n' "$val"; return 0; }
+  done
+  return 1
 }
 
 # ---- generic "is this app's bundle in Accessibility?" probe -----------------

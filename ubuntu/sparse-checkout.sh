@@ -15,7 +15,9 @@
 
 set -euo pipefail
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+# Default to the repo this script lives in, so a clone outside ~/dotfiles
+# still finds itself; explicit DOTFILES_DIR wins.
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Only meaningful inside a git working tree.
 if [[ ! -d "$DOTFILES_DIR/.git" ]]; then
@@ -42,10 +44,6 @@ fi
 
 cd "$DOTFILES_DIR"
 
-# Use non-cone mode so we can subtract nested paths (e.g. configs/
-# workspace/topology/ while still keeping configs/workspace/cli/).
-git sparse-checkout init --no-cone >/dev/null
-
 # Build the pattern file:
 #   /*              — include everything at the root, recursively (the
 #                     default in non-cone mode with `*` patterns)
@@ -60,13 +58,21 @@ tmp_file="$(mktemp)"
   done
 } > "$tmp_file"
 
-# Only re-apply if the pattern set actually changed (avoids the working-
-# tree refresh on every bootstrap).
+# Only (re-)init and re-apply if the pattern set actually changed. This
+# gate does double duty: it avoids the working-tree refresh on every
+# bootstrap, AND it keeps the init below from silently re-enabling
+# sparse-checkout for clones that ran the documented opt-out
+# (`git sparse-checkout disable` leaves the pattern file in place).
 if [[ -r "$sparse_file" ]] && cmp -s "$tmp_file" "$sparse_file"; then
   rm -f "$tmp_file"
   echo "sparse-checkout: patterns already current ($(wc -l < "$sparse_file" | tr -d ' ') rules)"
   exit 0
 fi
+
+# Use non-cone mode so we can subtract nested paths (e.g. configs/
+# workspace/topology/ while still keeping configs/workspace/cli/).
+# Init first, then overwrite whatever pattern file it seeded with ours.
+git sparse-checkout init --no-cone >/dev/null
 
 mv -f "$tmp_file" "$sparse_file"
 

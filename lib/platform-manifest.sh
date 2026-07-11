@@ -24,7 +24,3 @@ MACOS_ONLY_PATHS=(
   "configs/ghostty-config"
   "macos/"
 )
-
-# Linux-only paths: currently empty. Add entries here if a file is
-# Linux-exclusive (e.g. a systemd unit, an apt repo key script).
-LINUX_ONLY_PATHS=()

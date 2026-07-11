@@ -4,7 +4,9 @@
 
 set -euo pipefail
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+# Default to the repo this script lives in, so a clone outside ~/dotfiles
+# still finds itself; explicit DOTFILES_DIR wins.
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
 # ─── phase 1 · sudo ─────────────────────────────────────────────────────────
@@ -21,7 +23,11 @@ phase_sudo() {
       sleep 50
       kill -0 "$$" 2>/dev/null || exit
     done ) &
-  trap 'kill '"$!"' 2>/dev/null' EXIT
+  # `|| true` so a dead keepalive doesn't overwrite the script's exit
+  # status with the kill's 1. (On the success path the trap never fires —
+  # phase_wizard exec's away — and the keepalive self-terminates via its
+  # kill -0 check.)
+  trap 'kill '"$!"' 2>/dev/null || true' EXIT
   ok "sudo cached"
 }
 
@@ -85,7 +91,12 @@ phase_packages() {
   # Upgrade pass — brew/mise/softwareupdate. Same logic the user runs
   # standalone as `update-sys`; bootstrap calls it so a fresh re-run
   # leaves the machine fully current, not just package-list-complete.
-  bash "$DOTFILES_DIR/bin/update-system"
+  # Non-fatal: a flaky upgrade must not abort before configs deploy.
+  if bash "$DOTFILES_DIR/bin/update-system"; then
+    ok "upgrade pass"
+  else
+    warn "update-system had failures — continuing to configs"
+  fi
 }
 
 brewfile_casks() {
@@ -133,8 +144,14 @@ seed_hyperkey_defaults() {
   step "seeding Hyperkey ($domain · v$ver)"
 
   osascript -e 'tell application "Hyperkey" to quit' 2>/dev/null || true
-  # Give the prefs flush a beat before we overwrite.
-  sleep 1
+  # Quit is async — wait for the process to actually exit so its on-quit
+  # prefs rewrite can't clobber ours (a fixed sleep lost the race on slow
+  # machines). ~5s cap, then proceed regardless.
+  local waited=0
+  while pgrep -x Hyperkey >/dev/null 2>&1 && (( waited < 50 )); do
+    sleep 0.1
+    waited=$((waited + 1))
+  done
 
   # Caps→Hyper (capsLockRemapped=2, keyRemap=1), Hyper = ⌃⌥⌘⇧
   # (hyperFlags=1966080), tap-for-Esc on (executeQuickHyperKey=1) with
@@ -166,8 +183,11 @@ phase_apply() {
 
   # Stop legacy services BEFORE deleting their configs — otherwise
   # Karabiner's grabber can wedge the input system on its way out.
+  # `brew services list` costs ~1s, so capture it once, not per service.
+  local brew_services
+  brew_services="$(brew services list 2>/dev/null || true)"
   for svc in yabai skhd; do
-    if brew services list 2>/dev/null | grep -q "^$svc.*started"; then
+    if grep -q "^$svc.*started" <<<"$brew_services"; then
       step "stopping legacy service: $svc"
       brew services stop "$svc" >/dev/null 2>&1 || true
     fi
@@ -182,11 +202,67 @@ phase_apply() {
   rm -f  "$HOME/.skhdrc" "$HOME/.yabairc"
   rm -rf "$HOME/.config/yabai" "$HOME/.config/skhd" "$HOME/.config/karabiner"
 
+  # Sigil clones to ~/.config/workspace/ and its install.sh builds +
+  # symlinks the ws-* binaries into ~/.local/bin/. Post-teardown (see
+  # docs/sigil-teardown.md) only ws-cheatsheet is wired to a chord
+  # (Caps+/ HUD); sigil survives as that overlay renderer. install.sh
+  # still builds the rest — trimming it is a deferred sigil-repo change.
+  # MUST run before anything that writes into ~/.config/workspace/ —
+  # the cheatsheet install below mkdir -p's that dir, and `git clone`
+  # hard-fails on a non-empty target. Clone first, overlay after.
+  if [[ ! -d "$HOME/.config/workspace/.git" ]]; then
+    step "installing workspace from https://github.com/adames/sigil"
+    if command -v git >/dev/null 2>&1; then
+      if [[ -d "$HOME/.config/workspace" ]] \
+           && [[ -n "$(ls -A "$HOME/.config/workspace" 2>/dev/null)" ]]; then
+        # Heal path: earlier bootstrap versions populated this dir (the
+        # cheatsheet install ran first) and then died right here. Clone to
+        # a temp dir and overlay, so those machines recover instead of
+        # hard-failing on git's non-empty-target check again.
+        local sigil_tmp
+        sigil_tmp="$(mktemp -d)"
+        git clone --depth 1 https://github.com/adames/sigil.git "$sigil_tmp/sigil"
+        cp -R "$sigil_tmp/sigil/." "$HOME/.config/workspace/"
+        rm -rf "$sigil_tmp"
+        ok "workspace cloned (merged into existing ~/.config/workspace/)"
+      else
+        git clone --depth 1 https://github.com/adames/sigil.git "$HOME/.config/workspace"
+        ok "workspace cloned"
+      fi
+    else
+      warn "git not found — skipping workspace install"
+      export BOOTSTRAP_SIGIL_BUILD_FAILED=1
+    fi
+  else
+    step "workspace already installed at ~/.config/workspace/"
+  fi
+
+  if [[ -f "$HOME/.config/workspace/install.sh" ]]; then
+    if command -v swift >/dev/null 2>&1; then
+      step "building workspace (Swift toolchain found)"
+      if ! bash "$HOME/.config/workspace/install.sh"; then
+        warn "workspace install.sh failed (binaries may be stale or missing)"
+        export BOOTSTRAP_SIGIL_BUILD_FAILED=1
+      fi
+    else
+      warn "swift toolchain not found — workspace binaries will not be built;"
+      warn "  install via 'xcode-select --install', then re-run this bootstrap"
+      export BOOTSTRAP_SIGIL_BUILD_FAILED=1
+    fi
+  fi
+
   # Regenerate the cheatsheet HUD from @cs annotations via rune
   # (https://github.com/adames/rune — the generalized successor to the old
   # lib/cheatsheet-gen.py). Layout + sources live in workspace/rune.toml;
   # vim-motion/vim-edit are @cs blocks in nvim-init.lua now, not a fallback.
   step "regenerating workspace/cheatsheet.json (rune)"
+  # Re-derive the python user-base bin here: main() computes it before
+  # phase_packages, which is too early on a virgin Mac (no CLT yet, so the
+  # xcode-select gate leaves it empty). By this point ensure_xcode_clt has
+  # run, so the pip --user console script lands somewhere we can see.
+  local pyuser
+  pyuser="$(python3 -m site --user-base 2>/dev/null || true)"
+  [[ -n "$pyuser" ]] && export PATH="$pyuser/bin:$PATH"
   if ! command -v rune >/dev/null 2>&1; then
     step "installing rune (pip)"
     python3 -m pip install --user --quiet "git+https://github.com/adames/rune" \
@@ -240,51 +316,12 @@ phase_apply() {
   install_file "$DOTFILES_DIR/bin/update-system"         "$HOME/.local/bin/update-system" 755
   install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
 
-  # Sigil clones to ~/.config/workspace/ and its install.sh builds +
-  # symlinks the ws-* binaries into ~/.local/bin/. Post-teardown (see
-  # docs/sigil-teardown.md) only ws-cheatsheet is wired to a chord
-  # (Caps+/ HUD); sigil survives as that overlay renderer. install.sh
-  # still builds the rest — trimming it is a deferred sigil-repo change.
-  if [[ ! -d "$HOME/.config/workspace/.git" ]]; then
-    step "installing workspace from https://github.com/adames/sigil"
-    if command -v git >/dev/null 2>&1; then
-      git clone --depth 1 https://github.com/adames/sigil.git "$HOME/.config/workspace"
-      ok "workspace cloned"
-    else
-      warn "git not found — skipping workspace install"
-      export BOOTSTRAP_SIGIL_BUILD_FAILED=1
-    fi
-  else
-    step "workspace already installed at ~/.config/workspace/"
-  fi
-
-  if [[ -f "$HOME/.config/workspace/install.sh" ]]; then
-    if command -v swift >/dev/null 2>&1; then
-      step "building workspace (Swift toolchain found)"
-      if ! bash "$HOME/.config/workspace/install.sh"; then
-        warn "workspace install.sh failed (binaries may be stale or missing)"
-        export BOOTSTRAP_SIGIL_BUILD_FAILED=1
-      fi
-    else
-      warn "swift toolchain not found — workspace binaries will not be built;"
-      warn "  install via 'xcode-select --install', then re-run this bootstrap"
-      export BOOTSTRAP_SIGIL_BUILD_FAILED=1
-    fi
-  fi
-
   install_file "$CONFIGS_DIR/nvim-init.lua"              "$HOME/.config/nvim/init.lua"
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json"        "$HOME/.config/nvim/lazy-lock.json"
   mkdir -p "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"           "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
-  if [[ ! -f "$HOME/.gitconfig.local" ]]; then
-    cat > "$HOME/.gitconfig.local" <<'EOF'
-[user]
-	email = you@example.com
-	name = Your Name
-EOF
-    ok "created ~/.gitconfig.local stub — edit user.email / user.name"
-  fi
+  ensure_gitconfig_local
 
   # Retry heals transient launchctl EIO from the first install.sh. Only
   # runs when the first pass failed — on a clean install the gate skips
@@ -314,6 +351,17 @@ phase_wizard() {
 
 main() {
   section "Hyper-key dotfiles bootstrap (macOS)"
+  # pip --user console scripts (rune) land in the Python user-base bin
+  # (~/Library/Python/3.x/bin) — off PATH on a fresh Mac, so `command -v
+  # rune` would miss a successful install and re-run it every bootstrap.
+  # ~/.local/bin matches the Ubuntu bootstrap's PATH posture. The
+  # xcode-select gate keeps the python3 CLT shim from popping the GUI
+  # installer prompt before ensure_xcode_clt handles it deliberately.
+  local pyuser=
+  if xcode-select -p >/dev/null 2>&1; then
+    pyuser="$(python3 -m site --user-base 2>/dev/null || true)"
+  fi
+  export PATH="$HOME/.local/bin${pyuser:+:$pyuser/bin}:$PATH"
   phase_sudo
   phase_packages
   phase_apply

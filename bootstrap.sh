@@ -8,7 +8,9 @@
 
 set -euo pipefail
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+# Default to the repo this script lives in, so a clone outside ~/dotfiles
+# still finds itself; explicit DOTFILES_DIR wins.
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
 case "$(uname -s)" in
@@ -16,7 +18,10 @@ case "$(uname -s)" in
     exec "$DOTFILES_DIR/macos/bootstrap.sh" "$@"
     ;;
   Linux)
-    if [[ -f /etc/lsb-release ]] && grep -qi ubuntu /etc/lsb-release; then
+    # /etc/os-release is the systemd-standard identity file; matching
+    # ID_LIKE too catches derivatives (Pop!_OS, Mint) that the old
+    # lsb-release check missed.
+    if [[ -r /etc/os-release ]] && grep -qiE '^ID(_LIKE)?=.*ubuntu' /etc/os-release; then
       exec "$DOTFILES_DIR/ubuntu/bootstrap.sh" "$@"
     fi
     err "unsupported Linux distribution (only Ubuntu is wired up)"
