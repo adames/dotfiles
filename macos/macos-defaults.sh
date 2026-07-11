@@ -5,10 +5,8 @@
 # and the Dock/Finder restart only fires when a value actually changed.
 # Safe to re-run unconditionally.
 #
-# Encoded values are the **live M3 baseline**, reconciled against the
-# one-shot cross-Mac mirror prompt (completed and removed; see git
-# history). Three settings differed from the doc's recollection — live
-# wins:
+# Encoded values are the **live M3 baseline**. Three settings differed
+# from an earlier recollection — live wins:
 #   - ApplePressAndHoldEnabled: live=false (vim posture), doc said true
 #   - dock tilesize:            live=44,    doc said 42
 #   - Finder view style:        live=Nlsv,  doc said clmv

@@ -58,22 +58,25 @@ Hard limits — don't try to drive these from `defaults`:
 
 ## Cross-machine reconciliation
 
-The encoded values are the **live M3 baseline** as of branch
-`polish/cross-mac-mirror`. Three differed from the working prompt's
-recollection at capture time — live won (it's the actual user-set state):
+The encoded values are the **live M3 baseline**. Three were reconciled
+against an earlier recollection — live won (it's the actual user-set state):
 
-| Setting | Doc | Live (M3) | Encoded |
+| Setting | Earlier note | Live (M3) | Encoded |
 |---|---|---|---|
 | `ApplePressAndHoldEnabled` | `true` | `false` | `false` |
 | Dock `tilesize` | `42` | `44` | `44` |
 | Finder `FXPreferredViewStyle` | `clmv` (column) | `Nlsv` (list) | `Nlsv` |
 
-When the Air is live-readable, diff against this script and reconcile:
-read the Air's current values, diff each against this table, **ask
-before overwriting either machine**, then codify the agreed set here
-and in `macos/macos-defaults.sh`. (This was "Goal D" in the one-shot
-working prompt that drove the original cross-Mac mirror — completed
-and removed; see git history for the full checklist if needed.)
+To bring a second Mac (the M1/Air) into parity, don't assume either machine
+is canonical:
+
+1. On the other Mac, read its live value for every domain/key in the script.
+2. Diff against the encoded baseline and build a table of every *difference*
+   (setting · M3 value · other value · recommendation). Settings that
+   already match need no decision.
+3. Pick the winner per difference, update `macos/macos-defaults.sh` to the
+   agreed set, and re-run on both. Never silently overwrite the other
+   machine. Dark mode is the one given — both machines stay Dark.
 
 ## App-pref parity
 

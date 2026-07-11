@@ -314,7 +314,10 @@ phase_apply() {
   install_file "$DOTFILES_DIR/bin/ws-grid"               "$HOME/.local/bin/ws-grid" 755
   install_file "$DOTFILES_DIR/bin/ws-tmux-prefix"        "$HOME/.local/bin/ws-tmux-prefix" 755
   install_file "$DOTFILES_DIR/bin/update-system"         "$HOME/.local/bin/update-system" 755
-  install_file "$CONFIGS_DIR/completions/_ws"            "$HOME/.config/zsh/completions/_ws"
+  # ws completions moved into sigil itself (cli/completions/, symlinked by
+  # its install.sh) — sweep the stale dotfiles-era copy so a dead _ws can't
+  # shadow the live one.
+  rm -f "$HOME/.config/zsh/completions/_ws"
 
   install_file "$CONFIGS_DIR/nvim-init.lua"              "$HOME/.config/nvim/init.lua"
   install_file "$CONFIGS_DIR/nvim-lazy-lock.json"        "$HOME/.config/nvim/lazy-lock.json"

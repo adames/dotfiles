@@ -51,7 +51,7 @@ phase_terminfo() {
   fi
 }
 
-# ─── phase 1 · system packages ──────────────────────────────────────────────
+# ─── phase 2 · system packages ──────────────────────────────────────────────
 phase_system() {
   section "Phase 2/6 · system packages"
   step "apt update + upgrade"

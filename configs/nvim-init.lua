@@ -14,9 +14,9 @@ vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
 -- Annotations below are scraped by rune (configs/workspace/rune.toml) into the
--- HUD's neovim lens. Keep each section next to the bindings it
--- documents. sigil's committed cheatsheet.json wins on conflicts;
--- annotations here surface content for ids sigil doesn't already track.
+-- HUD's neovim lens. Keep each section next to the bindings it documents.
+-- These @cs blocks are the sole source for the vim/neovim lenses — rune
+-- builds the HUD from annotations only (no committed cheatsheet.json merge).
 
 -- @cs section Neovim · Files & Buffers
 -- @cs id neovim-files-buffers
@@ -49,8 +49,7 @@ vim.g.maplocalleader = " "
 -- @cs end
 
 -- Vim motion/edit reference. Not bindings — plain vim literacy, kept here
--- because the cheatsheet HUD's vim lens needs a home now that it's annotation-
--- driven (was sigil's committed cheatsheet.json fallback).
+-- because the cheatsheet HUD's vim lens is annotation-driven and needs a home.
 -- @cs section Vim · Motion
 -- @cs id vim-motion
 -- @cs family vim
@@ -102,10 +101,6 @@ opt.updatetime     = 250
 opt.splitbelow     = true
 opt.splitright     = true
 vim.fn.mkdir(vim.fn.stdpath("data") .. "/undo", "p")
-
--- leetcode.nvim lazy-load gate: eager only when nvim's argv is literally
--- "leetcode.nvim" (the plugin's own README recipe for its :Leet command).
-local leet_arg = "leetcode.nvim"
 
 require("lazy").setup({
 
@@ -196,27 +191,6 @@ require("lazy").setup({
   },
 
   -- No DAP/neotest: debug with breakpoint()/pdb, test with pytest in a tmux pane.
-
-  {
-    -- Lazy-loaded per the plugin's own README recipe: only eager when nvim
-    -- was launched as `nvim leetcode.nvim` (its internal buffer-name hack),
-    -- otherwise deferred to the :Leet command so normal startup doesn't
-    -- pay for nui/plenary/fzf-lua on every launch.
-    "kawre/leetcode.nvim",
-    build = ":TSUpdate html",
-    lazy = leet_arg ~= vim.fn.argv(0, -1),
-    cmd = "Leet",
-    dependencies = {
-      "nvim-treesitter/nvim-treesitter",
-      "MunifTanjim/nui.nvim",
-      "ibhagwan/fzf-lua",
-      "echasnovski/mini.icons",
-      "nvim-lua/plenary.nvim",
-    },
-    opts = {
-      lang = "python3",
-    },
-  },
 }, {
   rocks = { enabled = false },
 })
