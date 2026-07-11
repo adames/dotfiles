@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # tmux-sessionizer — fzf-pick a project dir, then switch-or-create a tmux
-# session named after it. Bind in tmux.conf:  bind f run-shell "tmux-sessionizer"
+# session named after it. Bind in tmux.conf (needs a real tty for fzf, so
+# popup -E, not run-shell):
+#   bind f display-popup -E -w 80% -h 60% "tmux-sessionizer"
 #
 # Edit ROOTS below to match where your code lives. Each entry is a (root, depth)
 # pair: root is searched up to depth levels deep for directories.

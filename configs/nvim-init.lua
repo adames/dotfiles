@@ -1,6 +1,6 @@
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
+if not vim.uv.fs_stat(lazypath) then
   vim.fn.system({
     "git", "clone", "--filter=blob:none",
     "https://github.com/folke/lazy.nvim.git",
@@ -103,6 +103,10 @@ opt.splitbelow     = true
 opt.splitright     = true
 vim.fn.mkdir(vim.fn.stdpath("data") .. "/undo", "p")
 
+-- leetcode.nvim lazy-load gate: eager only when nvim's argv is literally
+-- "leetcode.nvim" (the plugin's own README recipe for its :Leet command).
+local leet_arg = "leetcode.nvim"
+
 require("lazy").setup({
 
   {
@@ -194,8 +198,14 @@ require("lazy").setup({
   -- No DAP/neotest: debug with breakpoint()/pdb, test with pytest in a tmux pane.
 
   {
+    -- Lazy-loaded per the plugin's own README recipe: only eager when nvim
+    -- was launched as `nvim leetcode.nvim` (its internal buffer-name hack),
+    -- otherwise deferred to the :Leet command so normal startup doesn't
+    -- pay for nui/plenary/fzf-lua on every launch.
     "kawre/leetcode.nvim",
     build = ":TSUpdate html",
+    lazy = leet_arg ~= vim.fn.argv(0, -1),
+    cmd = "Leet",
     dependencies = {
       "nvim-treesitter/nvim-treesitter",
       "MunifTanjim/nui.nvim",

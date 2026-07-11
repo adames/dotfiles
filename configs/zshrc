@@ -1,4 +1,4 @@
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 typeset -U PATH
 
 # @cs section Shell
@@ -20,16 +20,12 @@ typeset -U PATH
 # vi-mode first: fzf/autosuggestions bind to the active keymap at source time.
 bindkey -v
 
-eval "$(starship init zsh)"
+command -v starship &>/dev/null && eval "$(starship init zsh)"
 
 # brew on macOS, ~/.zsh git-clone on Linux
 for _zp in \
   /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
   ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
-do [[ -f "$_zp" ]] && { source "$_zp"; break; }; done
-for _zp in \
-  /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
-  ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 do [[ -f "$_zp" ]] && { source "$_zp"; break; }; done
 unset _zp
 
@@ -68,37 +64,51 @@ fi
 command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 
-# Source workspace env on each prompt so starship shows the current space.
-_workspace_env() {
-  [[ -r "$HOME/.cache/workspace/current.env" ]] && \
-    source "$HOME/.cache/workspace/current.env"
-}
-_workspace_env
-typeset -ag precmd_functions
-precmd_functions+=(_workspace_env)
-
 # ws CLI completion from ~/.config/zsh/completions.
 if [[ -d "$HOME/.config/zsh/completions" ]]; then
   fpath=("$HOME/.config/zsh/completions" $fpath)
 fi
 
-# Prune broken completion symlinks (e.g. uninstalled Homebrew casks) before compinit.
-# Gate on a directory listing instead of a glob: zsh's default NOMATCH errors
-# at glob-expansion time, before any `ls`/`test` guard can intercept. Listing
-# the dir with ls + grep keeps the for-loop's glob safe (only enters the body
-# when ≥1 match exists) and keeps the whole block bash-parseable for CI lint.
+# Prune broken completion symlinks (e.g. uninstalled Homebrew casks) before
+# compinit. Plain glob + [[ -L && ! -e ]] does the dangling-link test with
+# zero forks per fpath dir; null_glob makes an empty dir a no-op instead of
+# a NOMATCH error. Deliberately bash-parseable — CI lints this file with
+# bash -n (glob qualifiers like (N-@) would break it).
+setopt null_glob
 for _zd in $fpath; do
   [[ -d $_zd ]] || continue
-  ls -A "$_zd" 2>/dev/null | grep -q '^_' || continue
   for _zf in "$_zd"/_*; do
-    [[ -L $_zf && ! -e $_zf ]] && command rm -f -- "$_zf" 2>/dev/null
+    [[ -L "$_zf" && ! -e "$_zf" ]] && command rm -f -- "$_zf" 2>/dev/null
   done
 done
+unsetopt null_glob
 unset _zd _zf
 
-autoload -Uz compinit && compinit -i
+# .zcompdump: a full compinit forks compaudit (an insecure-directory scan)
+# on every shell start. Skip it once the dump is <24h old — compinit -C
+# trusts the cache and just sources it. find(1) does the mtime check: one
+# cheap fork, and unlike (#q...) glob qualifiers it needs no extendedglob
+# and stays bash-parseable for CI lint.
+autoload -Uz compinit
+_zcompdump="${ZDOTDIR:-$HOME}/.zcompdump"
+if [[ -f "$_zcompdump" && -n "$(find "$_zcompdump" -mmin -1440 2>/dev/null)" ]]; then
+  compinit -C
+else
+  compinit -i
+fi
+unset _zcompdump
 
 # Auto-attach tmux on SSH
 if [[ -n "$SSH_CONNECTION" && -z "$TMUX" ]]; then
   tmux attach-session -t main 2>/dev/null || tmux new-session -s main
 fi
+
+# zsh-syntax-highlighting: its own docs require sourcing at the very end of
+# .zshrc — it wraps every widget already defined, so anything sourced after
+# it (fzf/zoxide/mise key bindings, etc.) would silently lose highlighting.
+# brew on macOS, ~/.zsh git-clone on Linux
+for _zp in \
+  /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+do [[ -f "$_zp" ]] && { source "$_zp"; break; }; done
+unset _zp

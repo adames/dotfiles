@@ -9,8 +9,21 @@ map("n", "<leader>bp", "<cmd>bprevious<cr>", { desc = "Prev buffer" })
 map("n", "<leader>bd", "<cmd>bdelete<cr>", { desc = "Delete buffer" })
 map("n", "<leader>bo", function()
   -- Close every buffer except the current one. `%bd | e# | bd#` is the
-  -- idiomatic dance: wipe all, re-edit alt buffer, kill the leftover [No Name].
-  vim.cmd("%bdelete | edit # | bdelete #")
+  -- idiomatic dance: wipe all, re-edit alt buffer, kill the leftover
+  -- [No Name] — but %bdelete throws E89 on any modified buffer, and `e#`
+  -- errors if there's no alternate file (single-buffer session). Guard both.
+  local current = vim.api.nvim_get_current_buf()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if buf ~= current and vim.bo[buf].modified then
+      vim.notify("Buffer has unsaved changes, not closed: " .. vim.api.nvim_buf_get_name(buf),
+        vim.log.levels.WARN)
+    end
+  end
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if buf ~= current and vim.bo[buf].buflisted and not vim.bo[buf].modified then
+      pcall(vim.api.nvim_buf_delete, buf, {})
+    end
+  end
 end, { desc = "Close others" })
 
 -- Open the file under cursor (oil) or current buffer in a new tmux pane to the right.

@@ -1,10 +1,6 @@
 # Starship prompt. Cyberpunk minimal — single line, semantic chips.
-# Workspace identity is the leftmost chip; pulls from MACOS_SPACE_*
-# env vars set by configs/workspace/on-space-changed.sh and refreshed
-# every precmd by configs/zshrc.
 
 format = """
-$custom\
 $directory\
 $git_branch$git_status\
 $python$nodejs\
@@ -13,20 +9,6 @@ $line_break\
 $character"""
 
 add_newline = false
-scan_timeout = 30
-command_timeout = 500
-
-# ── workspace chip (leftmost) ───────────────────────────────────────────
-# Pre-rendered truecolor ANSI in MACOS_SPACE_ANSI, computed once per
-# space switch by configs/workspace/on-space-changed.sh. The prompt
-# path is just a printf — no hex parsing, no command substitution work.
-# Missing var (no aerospace, fresh login, ssh remote) → empty chip.
-[custom.workspace]
-description = "Active aerospace workspace identity (configs/workspace/on-space-changed.sh)"
-when        = "true"
-shell       = ["bash", "--noprofile", "--norc"]
-command     = 'printf %s "${MACOS_SPACE_ANSI:-}"'
-format      = "$output "
 
 # ── directory ───────────────────────────────────────────────────────────
 [directory]

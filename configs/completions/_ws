@@ -1,55 +1,59 @@
 #compdef ws workspace
 # Zsh completion for the `ws` workspace CLI (and the `workspace` compat alias).
 #
-# Loaded by zshrc's `fpath` hook. The bash equivalent lives in ws.bash.
+# Loaded by zshrc's `fpath` hook. Rebuilt against the real dispatcher in
+# ~/code/sigil/cli/ws (case statement near the bottom of the file) and its
+# `cmd_palette` — cross-check there before adding/removing a subcommand.
+#
+# spaces.json (v3 schema) keys are composite strings like "_unassigned:01",
+# not integers — never `tonumber` a `.spaces` key. A workspace is addressed
+# by its aerospace name (`.value.workspaceName`, e.g. "2") or by a unique
+# identity name (`.value.name`, e.g. "dev"), exactly like the CLI's own
+# `_resolve_ws`. This file mirrors that resolution order instead of the
+# old numeric-slot-index model.
 
 local -a subcommands
 subcommands=(
-  'status:list every slot with color swatches'
-  'get:dump a single slot as JSON'
-  'count:print current slot count'
+  'status:list every workspace with identity + color swatches'
+  'get:dump a workspace'\''s identity overlay as JSON'
+  'count:print workspace count'
   'themes:list available palettes'
-  'name:rename a slot'
-  'color:set a slot color (#RRGGBB)'
-  'icon:set a slot icon (or invoke fzf picker / SF Symbol search)'
-  'add:append a new slot (interactive unless --no-prompt)'
-  'remove:delete a slot, renumber the rest'
-  'swap:exchange two slots (name + icon)'
-  'reorder:permute every slot by position list'
-  'move:move a slot to a new position or before/after another'
-  'rotate:shift all (name, icon) by N positions'
-  'reverse:reverse the slot order'
+  'name:set a workspace'\''s identity name'
+  'icon:set a workspace'\''s icon (or invoke fzf picker / SF Symbol search)'
+  'theme:apply a color palette across all workspaces'
+  'palette:sync/show/reset the terminal-derived palette.json'
   'layout:save / load / list / delete named snapshots'
-  'theme:apply a color palette to all slots'
   'edit:open spaces.json in $EDITOR'
   'reset:restore spaces.json from spaces.default.json'
-  'doctor:validate spaces.json schema'
+  'doctor:validate spaces.json schema + report environment'
   'verify:run end-to-end cascade test harness'
-  'migrate:import a legacy v1 spaces.json'
-  'refresh:force re-run cascade (current.env + ws-statusbar)'
+  'migrate:validate / re-render spaces.json via ws-topology'
   'host:manage the per-host overlay (spaces.<hostname>.json)'
+  'refresh:force re-run cascade'
   'help:print usage'
 )
 
-# Resolve slots from the live spaces.json. Each completion candidate is
-# `<index>:<name>` so zsh shows both number and human-readable label.
+# Workspace candidates for anywhere `_resolve_ws` is called: the aerospace
+# workspace name (workspaceName, e.g. "2") and the slot's identity name
+# (e.g. "dev"), each on its own so either form tab-completes. Colons are
+# legal in an identity name (cmd_name only rejects a leading digit), and
+# _describe splits its "word:description" candidates on the first colon —
+# so any colon inside the word half must be backslash-escaped or it
+# corrupts the split.
 __ws_slots() {
   local cfg="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
   [[ -r "$cfg" ]] || return
   local -a slots
-  while IFS=$'\t' read -r idx name; do
-    [[ -z "$idx" ]] && continue
-    slots+=("$idx:$name")
-  done < <(jq -r '.spaces | to_entries | sort_by(.key | tonumber) | .[] | [.key, (.value.name // "")] | join("\t")' "$cfg" 2>/dev/null)
-  _describe -t slots 'slot' slots
-}
-
-__ws_slot_names() {
-  local cfg="${WS_CONFIG:-$HOME/.config/workspace/spaces.json}"
-  [[ -r "$cfg" ]] || return
-  local -a names
-  names=( ${(f)"$(jq -r '.spaces | to_entries | sort_by(.key | tonumber) | .[].value.name // empty' "$cfg" 2>/dev/null)"} )
-  _describe -t names 'slot name' names
+  local wsname name
+  while IFS=$'\t' read -r wsname name; do
+    [[ -z "$wsname" ]] && continue
+    slots+=("${wsname//:/\\:}:workspace $wsname${name:+ ($name)}")
+    [[ -n "$name" ]] && slots+=("${name//:/\\:}:identity name for workspace $wsname")
+  done < <(jq -r '
+    .spaces | to_entries[]
+    | [.value.workspaceName, (.value.name // "")] | join("\t")
+  ' "$cfg" 2>/dev/null)
+  _describe -t slots 'workspace (aerospace name or identity name)' slots
 }
 
 __ws_themes() {
@@ -82,16 +86,30 @@ _ws() {
       ;;
     args)
       case ${line[1]} in
-        get|name|color|icon|remove|swap|move|rotate)
-          # First positional after the subcommand is a slot.
+        get|name)
+          (( CURRENT == 2 )) && __ws_slots
+          ;;
+        icon)
           if (( CURRENT == 2 )); then
-            __ws_slots
-          elif [[ ${line[1]} == swap || ${line[1]} == move ]] && (( CURRENT == 3 )); then
-            __ws_slots
+            _alternative 'subcommand:icon subcommand:(search)' 'workspace:workspace:__ws_slots'
           fi
           ;;
         theme)
-          (( CURRENT == 2 )) && __ws_themes
+          if (( CURRENT == 2 )); then
+            __ws_themes
+          elif (( CURRENT == 3 )); then
+            _values 'flag' '--with-icons[also paint the theme'\''s icons]'
+          fi
+          ;;
+        palette)
+          if (( CURRENT == 2 )); then
+            _values 'palette subcommand' \
+              'sync[derive palette.json from the terminal]' \
+              'show[preview the active palette with swatches]' \
+              'reset[revert to the built-in Catppuccin palette]'
+          elif (( CURRENT == 3 )) && [[ ${line[2]} == sync ]]; then
+            _values 'flag' '--force[overwrite a "source":"manual" palette.json]'
+          fi
           ;;
         layout)
           if (( CURRENT == 2 )); then
@@ -102,6 +120,8 @@ _ws() {
               'delete[remove a saved layout]'
           elif (( CURRENT == 3 )) && [[ ${line[2]} == (load|delete) ]]; then
             __ws_layouts
+          elif (( CURRENT == 4 )) && [[ ${line[2]} == (load|delete) ]]; then
+            _values 'flag' '-y[skip confirmation]' '--yes[skip confirmation]'
           fi
           ;;
         host)
@@ -111,21 +131,20 @@ _ws() {
             'reset[remove overlay, fall back to shared]' \
             'list[list known overlays]'
           ;;
+        reset)
+          (( CURRENT == 2 )) && _values 'flag' '-y[skip confirmation]' '--yes[skip confirmation]'
+          ;;
+        migrate)
+          (( CURRENT == 2 )) && _values 'flag' '--apply[write the re-rendered file in place]'
+          ;;
         refresh)
           (( CURRENT == 2 )) && _values 'flag' '--full[also kickstart ws-topologyd]'
           ;;
-        icon)
-          if (( CURRENT == 2 )); then
-            _alternative 'subcommand:icon subcommand:(search)' 'slot:slot:__ws_slots'
-          fi
+        status|themes)
+          (( CURRENT == 2 )) && _values 'flag' '--json[machine-readable output]'
           ;;
-        migrate)
-          (( CURRENT == 2 )) && _values 'flag' '--apply[write the v2 file]'
-          ;;
-        add)
-          (( CURRENT == 2 )) && _values 'flag' \
-            '--no-prompt[skip interactive prompts; use positional args or auto-gen]' \
-            '-q[short for --no-prompt]'
+        count)
+          (( CURRENT == 2 )) && _values 'flag' '--customized[count only workspaces carrying an identity overlay]'
           ;;
       esac
       ;;

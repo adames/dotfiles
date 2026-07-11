@@ -33,10 +33,6 @@ if.app-id = 'com.apple.systempreferences'
 run = ['layout floating']
 
 [[on-window-detected]]
-if.app-id = 'com.apple.SystemPreferences'
-run = ['layout floating']
-
-[[on-window-detected]]
 if.app-id = 'com.apple.calculator'
 run = ['layout floating']
 
@@ -227,7 +223,7 @@ cmd-alt-ctrl-shift-0 = 'workspace 10'
 # @cs row     caps + ␣ → [ :: copy / scroll mode  (q to exit)
 # @cs row     caps + ␣ → f :: sessionizer — fzf pick → switch/create session
 # @cs row     caps + ␣ → c :: new window
-# @cs row     caps + ␣ → n / p :: next / prev window
+# @cs row     caps + ␣ → n / p :: prev / next window
 # @cs row     caps + ␣ → 1…9 :: go to window N
 # @cs row     caps + ␣ → x :: kill pane  (no confirmation)
 # @cs row     caps + ␣ → esc / ␣ :: abort — exit mode, nothing fires
@@ -261,8 +257,8 @@ f = ['exec-and-forget tmux display-popup -E -w 80% -h 60% tmux-sessionizer', 'mo
 
 # window management
 c = ['exec-and-forget tmux new-window',      'mode main']
-n = ['exec-and-forget tmux next-window',     'mode main']
-p = ['exec-and-forget tmux previous-window', 'mode main']
+n = ['exec-and-forget tmux previous-window', 'mode main']
+p = ['exec-and-forget tmux next-window',     'mode main']
 
 1 = ['exec-and-forget tmux select-window -t :1', 'mode main']
 2 = ['exec-and-forget tmux select-window -t :2', 'mode main']

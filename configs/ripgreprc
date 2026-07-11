@@ -4,14 +4,14 @@
 --max-columns=200
 --max-columns-preview
 
---glob=!.git/*
---glob=!node_modules/*
---glob=!.venv/*
---glob=!__pycache__/*
---glob=!.next/*
---glob=!dist/*
---glob=!build/*
---glob=!target/*
+--glob=!.git
+--glob=!node_modules
+--glob=!.venv
+--glob=!__pycache__
+--glob=!.next
+--glob=!dist
+--glob=!build
+--glob=!target
 
 --colors=line:fg:yellow
 --colors=line:style:bold
