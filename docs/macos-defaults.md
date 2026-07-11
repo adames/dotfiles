@@ -59,8 +59,8 @@ Hard limits — don't try to drive these from `defaults`:
 ## Cross-machine reconciliation
 
 The encoded values are the **live M3 baseline** as of branch
-`polish/cross-mac-mirror`. Three differ from what POLISH_PROMPT.md
-recalled — live won (it's the actual user-set state):
+`polish/cross-mac-mirror`. Three differed from the working prompt's
+recollection at capture time — live won (it's the actual user-set state):
 
 | Setting | Doc | Live (M3) | Encoded |
 |---|---|---|---|
@@ -68,8 +68,12 @@ recalled — live won (it's the actual user-set state):
 | Dock `tilesize` | `42` | `44` | `44` |
 | Finder `FXPreferredViewStyle` | `clmv` (column) | `Nlsv` (list) | `Nlsv` |
 
-When the Air is live-readable, diff against this script and reconcile per
-the Goal D workflow in `POLISH_PROMPT.md`.
+When the Air is live-readable, diff against this script and reconcile:
+read the Air's current values, diff each against this table, **ask
+before overwriting either machine**, then codify the agreed set here
+and in `macos/macos-defaults.sh`. (This was "Goal D" in the one-shot
+working prompt that drove the original cross-Mac mirror — completed
+and removed; see git history for the full checklist if needed.)
 
 ## App-pref parity
 

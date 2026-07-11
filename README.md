@@ -13,11 +13,14 @@ git clone git@github.com:adames/dotfiles.git ~/dotfiles
 ~/dotfiles/bootstrap.sh
 ```
 
-macOS: 5 phases. Ubuntu: 6, skips AeroSpace + Hyperkey + Docker.
+macOS: 4 phases. Ubuntu: 7 (0–6), skips AeroSpace + Hyperkey + Docker.
 
-Window manager + workspace overlays come from
+Window tiling is native AeroSpace. The cheatsheet HUD (`Caps + /`) is
+the one piece still building from
 [sigil](https://github.com/adames/sigil) (cloned to
-`~/.config/workspace/`, swift-built, symlinked into `~/.local/bin/`).
+`~/.config/workspace/`, swift-built, symlinked into `~/.local/bin/`) —
+sigil's workspace-management layer was torn down, see
+[docs/sigil-teardown.md](docs/sigil-teardown.md).
 
 ## Keymap
 
@@ -26,29 +29,32 @@ Live cheatsheet: `Caps + /`. Full inventory:
 
 ```
 Caps tap                  → Esc
-Caps + hjkl  (tiled)      → focus neighbour
-Caps + hjkl  (floating)   → snap: h left · l right · j center · k fill
+Caps + hjkl               → focus neighbour
 Caps + yuio               → swap window
 Caps + d                  → move window to next display
-Caps + v / r / x / z      → float · rotate tree · close · fullscreen
-Caps + s → -/= b ⌫ ⏎      → resize / balance / close-all-but / reload
+Caps + v / g / r          → float ↔ tile · grid (rows of 2) · rotate grid (cycles windows through grid slots)
+Caps + x / z              → close window · fullscreen
+Caps + -/= / e / ⌫ / ⏎    → resize / balance / close-all-but / reload
 Caps + n/p / tab / 1..0   → workspace prev/next · last · go N
-Caps + c                  → change application (fuzzy by app + title)
-Caps + f                  → follow (send window to slot N + travel)
 Caps + t / b / . / , / ; / '   → terminal / browser / Finder / settings / notes / inbox
-Caps + space              → tmux prefix (C-Space)
+Caps + /                  → cheatsheet HUD toggle
+Caps + space              → enter tmux mode (direct commands, no keystroke injection)
 
 tmux prefix h/j/k/l v/s z d r x f → pane nav / split / zoom / detach / reload / kill / sessionizer
 nvim <leader> ff/fg/fb rn/=       → fzf / LSP rename / format
 ```
 
-Free Hyper letters: `a e g m q w`. Re-derive:
+Caps+c (fuzzy window switcher) and Caps+f (send-and-follow) were
+dropped in the sigil teardown, no native replacement yet — free
+chords. Full detail: [docs/keymap.md](docs/keymap.md).
+
+Free Hyper letters: `c f m q s w`. Re-derive:
 `grep -nE '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`.
 
 ## Permissions
 
-One pane, ~30 seconds: Accessibility for AeroSpace · Hyperkey.
-Wizard probes first, only opens what's missing.
+One pane, ~30 seconds: Accessibility for AeroSpace · Hyperkey ·
+Raycast. Wizard probes first, only opens what's missing.
 [docs/wizard.md](docs/wizard.md).
 
 ## Verify
@@ -65,11 +71,10 @@ tests/run-all.sh          # pure-bash critical path (~1.5s)
 
 | Symptom | Fix |
 |---|---|
-| `Caps + c/f` no-op | `ws-prompt` / `ws-picker` missing — re-run bootstrap |
-| Cheatsheet doesn't show | `ws-cheatsheet` missing — same fix |
-| Workspace pills missing | `launchctl kickstart -k gui/$(id -u)/com.user.workspace.statusbar` |
-| Workspace pill stale | `~/.config/workspace/on-space-changed.sh` not firing — check `exec-on-workspace-change` in aerospace.toml |
-| Wrong monitor after hot-plug | `ws-topology` to rewrite spaces.json display UUIDs |
+| Any chord no-op / feels stale | `aerospace reload-config` (or Caps+⏎), then `ws-doctor` |
+| Cheatsheet doesn't show | `ws-cheatsheet` missing/not built — re-run bootstrap |
+| New window doesn't settle into the grid | `ws-grid apply` to force it; `ws-grid auto` to check the detect hook is on |
+| Wrong monitor after hot-plug | `[workspace-to-monitor-force-assignment]` in aerospace.toml pins everything to monitor 1 — edit + `aerospace reload-config` |
 | Bootstrap hangs on cask | `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | Doubled chars over SSH | `infocmp -x xterm-ghostty | ssh user@host -- tic -x -` |
 
@@ -80,7 +85,7 @@ tests/run-all.sh          # pure-bash critical path (~1.5s)
 ├── bootstrap.sh              # OS dispatcher
 ├── macos/  ubuntu/           # per-OS phases
 ├── lib/                      # bash helpers (logging, install_file, TCC probes)
-├── bin/                      # ws-dir, ws-doctor, ws-launch-here, ws-tmux-prefix
+├── bin/                      # update-system, ws-doctor, ws-grid, ws-tmux-prefix
 ├── configs/                  # aerospace.toml, ghostty, tmux, zsh, nvim, …
 └── docs/                     # architecture.md · keymap.md · wizard.md
 ```

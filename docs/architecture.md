@@ -27,9 +27,13 @@ The sigil workspace-management layer was removed — see
 [sigil-teardown.md](sigil-teardown.md). `aerospace.toml` is now fully
 hand-written (no `# >>> sigil generated >>>` fences, no
 `ws-topology emit-aerospace`), `spaces.json` is gone, and the workspace
-binaries (ws-topology, ws-picker, ws-prompt, ws-focus, ws-grid, ws-dir,
+binaries (ws-topology, ws-picker, ws-prompt, ws-focus, ws-dir,
 ws-launch-here, ws-mouse-follow, ws-snap) were dropped in favor of native
-AeroSpace commands. Only the cheatsheet HUD survives.
+AeroSpace commands. `ws-grid` was dropped in the same pass and later
+restored (native AeroSpace tiling has no rows-of-2 grid or rotate verb)
+as a plain-bash `bin/ws-grid` with no sigil dependency — see the
+2026-06-27 update in [sigil-teardown.md](sigil-teardown.md). Otherwise
+only the cheatsheet HUD survives from sigil itself.
 
 ## Who owns what
 

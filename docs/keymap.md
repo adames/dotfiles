@@ -107,7 +107,7 @@ Direct commands sidestep the problem entirely.
 | `Caps+␣  [` | copy / scroll mode |
 | `Caps+␣  x` | kill pane (no confirm) |
 | `Caps+␣  f` | tmux-sessionizer fzf popup |
-| `Caps+␣  c` / `n` / `p` | new window / next / prev |
+| `Caps+␣  c` / `n` / `p` | new window / previous / next |
 | `Caps+␣  1..9` | go to window N |
 
 No `Option/M-*` bindings — collides with Ghostty's left-Alt bytes.

@@ -5,7 +5,7 @@ stack needs — but only if it actually needs attention. On a working
 machine: ~2 seconds, opens nothing. On first install: opens
 Accessibility, lists only what's missing.
 
-One pane: **Accessibility** for AeroSpace · Hyperkey. No
+One pane: **Accessibility** for AeroSpace · Hyperkey · Raycast. No
 Input Monitoring (Karabiner's gone), no System Extensions (no
 DriverKit), no logout (AeroSpace doesn't need it).
 
@@ -25,11 +25,16 @@ Direct pane:
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 ```
 
-Probes live in [`lib/macos-tcc.sh`](../lib/macos-tcc.sh): `pgrep` +
-socket round-trip for AeroSpace, `pgrep` + optional TCC.db read for
-Hyperkey. No TCC.db writes — Apple invalidates direct writes. No
-signed `.mobileconfig` — paid Developer ID required. No synthetic
-clicks — System Settings is hardened.
+Probes live in [`lib/macos-tcc.sh`](../lib/macos-tcc.sh): a TCC.db
+auth-value read for all three apps — system DB first (that's where
+Accessibility rows actually live), user DB as fallback. Liveness
+(`pgrep`) is deliberately NOT a probe: an app runs fine without its
+grant, and the wizard itself launches the apps to register them, so
+"running" proves nothing. If the DB is unreadable (terminal lacks
+Full Disk Access) the wizard errs toward prompting. No TCC.db writes
+— Apple invalidates direct writes. No signed `.mobileconfig` — paid
+Developer ID required. No synthetic clicks — System Settings is
+hardened.
 
 ## Troubleshoot
 
