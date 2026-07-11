@@ -24,9 +24,14 @@ test_idempotent_run() {
 }
 
 # stat's mtime/inode flags differ BSD (macOS) vs GNU (CI's ubuntu-latest);
-# try both. Emits "mtime inode" as one string.
+# try both, GNU form FIRST. Order matters: GNU stat parses `-f` as
+# file-system mode, so the BSD form "succeeds" enough on Linux to spray a
+# filesystem-info block (with live free-block counters) into the capture —
+# on a busy CI runner those counters drift between calls and the
+# comparison false-FAILs. BSD stat rejects `-c` cleanly with no stdout,
+# so GNU-first is safe on both. Emits "mtime inode" as one string.
 _stat_mtime_inode() {
-  stat -f '%m %i' "$1" 2>/dev/null || stat -c '%Y %i' "$1" 2>/dev/null
+  stat -c '%Y %i' "$1" 2>/dev/null || stat -f '%m %i' "$1" 2>/dev/null
 }
 
 # Test 2: install_file helper is idempotent
