@@ -45,7 +45,14 @@ fi
 if has_tty && have softwareupdate; then
   step "softwareupdate -l (list-only — apply with: sudo softwareupdate -i -a)"
   out=$(softwareupdate -l 2>&1)
-  if printf '%s\n' "$out" | grep -q "No new software available"; then
+  sw_status=$?
+  if (( sw_status != 0 )); then
+    # A daemon/network failure exits non-zero and its output won't
+    # contain "No new software available" either — that used to fall
+    # through to the else branch and get misreported as "updates
+    # available" when we just couldn't reach softwareupdate at all.
+    warn "couldn't check for macOS updates (softwareupdate exited $sw_status)"
+  elif printf '%s\n' "$out" | grep -q "No new software available"; then
     ok "no macOS updates"
   else
     printf '%s\n' "$out" | sed 's/^/    /'

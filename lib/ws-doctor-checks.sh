@@ -173,17 +173,17 @@ check_source_deploy_drift() {
     src="${pair%%::*}"; dst="${pair#*::}"
     if [[ ! -f "$src" ]]; then
       missing=$((missing + 1))
-      detail+="  missing source: ${src/#$HOME/~}\n"
+      detail+="  missing source: ${src/#$HOME/~}"$'\n'
       continue
     fi
     if [[ ! -f "$dst" ]]; then
       missing=$((missing + 1))
-      detail+="  not deployed: ${dst/#$HOME/~}\n"
+      detail+="  not deployed: ${dst/#$HOME/~}"$'\n'
       continue
     fi
     if ! cmp -s "$src" "$dst"; then
       drifted=$((drifted + 1))
-      detail+="  drift: ${src/#$HOME/~} vs ${dst/#$HOME/~}\n"
+      detail+="  drift: ${src/#$HOME/~} vs ${dst/#$HOME/~}"$'\n'
     fi
   done
 
@@ -248,6 +248,12 @@ check_menu_items() {
           last_app = unquote(substr(line, RSTART, RLENGTH))
           line = substr(line, RSTART + RLENGTH)
         }
+        # last_app used to persist file-wide, so a click-menu-item line
+        # far from its tell block (e.g. after the block closed but
+        # before a new one opened) got attributed to a stale app. Clear
+        # it on "end tell" so attribution stays scoped to the block it
+        # was actually seen in.
+        if ($0 ~ /end[[:space:]]+tell/) { last_app = "" }
         # Now scan the original line for click-menu-item references.
         if (match($0, /click[[:space:]]+menu[[:space:]]+item[[:space:]]+"[^"]+"[[:space:]]+of[[:space:]]+menu[[:space:]]+"[^"]+"/)) {
           frag = substr($0, RSTART, RLENGTH)
@@ -289,28 +295,37 @@ check_menu_items() {
   local ref
   for ref in "${refs[@]}"; do
     IFS=$'\t' read -r file app menu item <<< "$ref"
-    if ! pgrep -ixq "$app" 2>/dev/null && ! pgrep -ix "$(printf '%s' "$app" | tr '[:upper:]' '[:lower:]')" >/dev/null 2>&1; then
+    if ! pgrep -ixq "$app" 2>/dev/null; then
       skipped=$((skipped + 1))
-      detail+="  skip ($app not running): $menu › $item\n"
+      detail+="  skip ($app not running): $menu › $item"$'\n'
       continue
     fi
     # Probe: list every menu-item name under (app, menu). If our item
-    # is in the list, pass. Errors → fail.
+    # is in the list, pass. Errors → fail. Emit one item per line
+    # (text item delimiters = linefeed before the list→text coercion)
+    # instead of AppleScript's default comma-join — an item name that
+    # itself contains a comma would otherwise splinter into two "items"
+    # and false-FAIL.
     local names
     names=$(osascript 2>/dev/null \
-      -e "tell application \"System Events\" to tell process \"$app\" to get name of every menu item of menu \"$menu\" of menu bar 1" \
+      -e "tell application \"System Events\"" \
+      -e "  tell process \"$app\"" \
+      -e "    set AppleScript's text item delimiters to linefeed" \
+      -e "    set itemNames to name of every menu item of menu \"$menu\" of menu bar 1" \
+      -e "    return itemNames as text" \
+      -e "  end tell" \
+      -e "end tell" \
       || true)
     if [[ -z "$names" ]]; then
       fail_count=$((fail_count + 1))
-      detail+="  FAIL: $app menu \"$menu\" unreadable (Accessibility?)\n"
+      detail+="  FAIL: $app menu \"$menu\" unreadable (Accessibility?)"$'\n'
       continue
     fi
-    # Names come back comma-separated. Match exactly.
-    if printf '%s' "$names" | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -Fxq -- "$item"; then
+    if printf '%s\n' "$names" | grep -Fxq -- "$item"; then
       ok_count=$((ok_count + 1))
     else
       fail_count=$((fail_count + 1))
-      detail+="  FAIL: $app › $menu has no item \"$item\" (${file##*/})\n"
+      detail+="  FAIL: $app › $menu has no item \"$item\" (${file##*/})"$'\n'
     fi
   done
 
@@ -366,7 +381,10 @@ check_app_references() {
   done
 
   if (( ${#apps[@]} == 0 )); then
-    PASS app-references "no `tell application` references found"
+    # Backticks here must be escaped — unescaped, bash treats them as a
+    # command substitution even inside double quotes, so the message
+    # would silently swallow "tell application" and try to run it.
+    PASS app-references "no \`tell application\` references found"
     return
   fi
 
@@ -393,7 +411,7 @@ check_app_references() {
       # the first one installed. We treat all references as WARN — a
       # missing optional candidate isn't a bug.
       missing=$((missing + 1))
-      detail+="  missing: $app (${file##*/})\n"
+      detail+="  missing: $app (${file##*/})"$'\n'
     fi
   done
 
@@ -411,15 +429,21 @@ check_app_references() {
 # names can diverge.
 check_aerospace_app_casing() {
   command -v aerospace >/dev/null 2>&1 || { SKIP aerospace-app-casing "aerospace not installed"; return; }
-  if ! aerospace list-windows --all --json >/dev/null 2>&1; then
+
+  # Capture once and branch on exit status — list-windows was previously
+  # invoked twice back-to-back here (once just to probe the daemon, once
+  # for the data), doubling this check's aerospace round-trips for no
+  # reason.
+  local windows_json daemon_status
+  windows_json=$(aerospace list-windows --all --json 2>/dev/null)
+  daemon_status=$?
+  if (( daemon_status != 0 )); then
     SKIP aerospace-app-casing "aerospace daemon not responding"
     return
   fi
 
   local live_names
-  live_names=$(aerospace list-windows --all --json 2>/dev/null \
-               | jq -r '.[]."app-name" // empty' 2>/dev/null \
-               | sort -u)
+  live_names=$(jq -r '.[]."app-name" // empty' <<<"$windows_json" 2>/dev/null | sort -u)
 
   local files=(
     "$DOTFILES_DIR/bin/"*
@@ -431,7 +455,7 @@ check_aerospace_app_casing() {
     [[ -z "$match" ]] && continue
     name=$(sed -nE 's/.*(\.app|"app-name")[[:space:]]*==[[:space:]]*"([^"]+)".*/\2/p' <<<"$match")
     [[ -z "$name" ]] && continue
-    if printf '%s\n' $live_names | grep -Fxq -- "$name"; then continue; fi
+    if printf '%s\n' "$live_names" | grep -Fxq -- "$name"; then continue; fi
     match_norm=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')
     hit=
     while IFS= read -r live; do
@@ -440,7 +464,7 @@ check_aerospace_app_casing() {
     done <<< "$live_names"
     if [[ -n "$hit" ]]; then
       mismatches=$((mismatches + 1))
-      detail+="  casing: script uses \"$name\" but aerospace reports \"$hit\" — ${match%%:*}\n"
+      detail+="  casing: script uses \"$name\" but aerospace reports \"$hit\" — ${match%%:*}"$'\n'
     fi
   done < <(grep -rHn -E '(\.app|"app-name")[[:space:]]*==[[:space:]]*"[^"]+"' "${files[@]}" 2>/dev/null \
            | grep -v -E '#.*(\.app|"app-name")[[:space:]]*==')
@@ -519,22 +543,40 @@ check_phantom_tiles() {
     return
   fi
 
+  # AX window counts for every process, in one System Events round-trip.
+  # This used to be one osascript spawn per app on the workspace
+  # (~100-200ms each — a dozen apps turns a chord-triggered doctor run
+  # into a visible stall); batching gets the whole map in a single call
+  # and we match it against aerospace's per-app counts in bash below.
+  # Text item delimiters = linefeed before the list→text coercion so
+  # entries land one-per-line instead of joined with no separator.
+  local ax_dump
+  ax_dump=$(osascript \
+    -e "tell application \"System Events\"" \
+    -e "  set AppleScript's text item delimiters to linefeed" \
+    -e "  set out to {}" \
+    -e "  repeat with p in (every process whose background only is false)" \
+    -e "    set end of out to (name of p) & tab & (count of windows of p)" \
+    -e "  end repeat" \
+    -e "  return out as text" \
+    -e "end tell" 2>/dev/null)
+
+  local -A ax_counts=()
+  while IFS=$'\t' read -r ax_app ax_n; do
+    [[ -z "$ax_app" ]] && continue
+    ax_counts["$ax_app"]="$ax_n"
+  done <<< "$ax_dump"
+
   # Group by app-name, compare per-app aerospace count vs AX count.
   local phantoms=0 detail=""
   while IFS=$'\t' read -r app aero_n; do
     [[ -z "$app" ]] && continue
-    local ax_n
-    ax_n=$(osascript -e "tell application \"System Events\"" \
-                    -e "  if exists process \"$app\" then" \
-                    -e "    return count of windows of process \"$app\"" \
-                    -e "  end if" \
-                    -e "  return 0" \
-                    -e "end tell" 2>/dev/null)
-    [[ -z "$ax_n" || ! "$ax_n" =~ ^[0-9]+$ ]] && ax_n=0
+    local ax_n="${ax_counts[$app]:-0}"
+    [[ "$ax_n" =~ ^[0-9]+$ ]] || ax_n=0
     if (( aero_n > ax_n )); then
       local diff=$(( aero_n - ax_n ))
       phantoms=$(( phantoms + diff ))
-      detail+="    • $app: aerospace tracks $aero_n, AX-visible $ax_n (phantom: $diff)\n"
+      detail+="    • $app: aerospace tracks $aero_n, AX-visible $ax_n (phantom: $diff)"$'\n'
     fi
   done < <(jq -r 'group_by(.["app-name"]) | .[] | "\(.[0].["app-name"])\t\(length)"' \
              <<<"$aero_json" 2>/dev/null)

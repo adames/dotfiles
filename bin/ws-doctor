@@ -93,12 +93,21 @@ done
 # Run state. Each check appends one line:
 #   <status>\t<check>\t<message>
 # Status ∈ {PASS, WARN, FAIL, SKIP}. Tab-separated so we can re-render
-# without re-running.
+# without re-running. Checks that want multi-line detail (e.g. a list of
+# drifted files) embed real newlines in $msg — since REPORT is read
+# line-by-line, a raw newline would split into an orphan physical line
+# the renderer's case statement doesn't recognize, and it'd be silently
+# dropped. So _record swaps embedded newlines for \x1e (ASCII RS, never
+# appears in our messages) before writing, and the renderer swaps them
+# back and prints continuation lines indented beneath the status line.
 REPORT=$(mktemp)
 trap 'rm -f "$REPORT"' EXIT
 
 _record() {
   local status="$1" check="$2" msg="$3"
+  msg="${msg%$'\n'}"           # a detail block built with trailing "\n" would
+                                # otherwise leave a blank continuation line
+  msg="${msg//$'\n'/$'\x1e'}"  # encode so the record stays one physical line
   printf '%s\t%s\t%s\n' "$status" "$check" "$msg" >> "$REPORT"
 }
 PASS() { _record PASS "$1" "${2:-ok}"; }
@@ -145,25 +154,64 @@ fi
 
 [[ -z "$QUIET" ]] && section "ws-doctor (keymap / launcher health)"
 
+only_matched=
 for spec in "${CHECKS[@]}"; do
   name="${spec%%:*}"; rest="${spec#*:}"
   fn="${rest%%:*}"
   [[ -n "$ONLY" && "$ONLY" != "$name" ]] && continue
+  only_matched=1
   "$fn"
 done
 
+# --only=<typo> matches nothing above: the dispatch loop silently ran
+# zero checks and (without this guard) we'd fall through to an empty,
+# all-zero "clean" report — a false pass in hooks/CI. Fail loud instead.
+if [[ -n "$ONLY" && -z "$only_matched" ]]; then
+  err "--only=$ONLY matches no check; valid names:"
+  for spec in "${CHECKS[@]}"; do
+    err "  ${spec%%:*}"
+  done
+  exit 2
+fi
+
 # Render. Sort failures first so they're visible without scrolling.
+# Print any continuation lines (detail beyond the first) indented under
+# the status line, honoring the same quiet gating the caller just used.
+_print_detail() {
+  local detail="$1"
+  [[ -z "$detail" ]] && return
+  while IFS= read -r line; do
+    printf '  %s\n' "$line"
+  done <<< "$detail"
+}
+
 fails=0 warns=0 passes=0 skips=0
 while IFS=$'\t' read -r status check msg; do
+  msg="${msg//$'\x1e'/$'\n'}"
+  first="${msg%%$'\n'*}"
+  detail=""
+  [[ "$msg" == *$'\n'* ]] && detail="${msg#*$'\n'}"
   case "$status" in
     PASS) passes=$((passes + 1))
-          [[ -z "$QUIET" ]] && ok "$(printf '%-22s %s' "$check" "$msg")" ;;
+          if [[ -z "$QUIET" ]]; then
+            ok "$(printf '%-22s %s' "$check" "$first")"
+            _print_detail "$detail"
+          fi
+          ;;
     WARN) warns=$((warns + 1))
-          warn "$(printf '%-22s %s' "$check" "$msg")" ;;
+          warn "$(printf '%-22s %s' "$check" "$first")"
+          _print_detail "$detail"
+          ;;
     FAIL) fails=$((fails + 1))
-          err  "$(printf '%-22s %s' "$check" "$msg")" ;;
+          err  "$(printf '%-22s %s' "$check" "$first")"
+          _print_detail "$detail"
+          ;;
     SKIP) skips=$((skips + 1))
-          [[ -z "$QUIET" ]] && printf "skip %-17s %s\n" "$check" "$msg" ;;
+          if [[ -z "$QUIET" ]]; then
+            printf "skip %-17s %s\n" "$check" "$first"
+            _print_detail "$detail"
+          fi
+          ;;
   esac
 done < "$REPORT"
 
@@ -175,22 +223,31 @@ done < "$REPORT"
 # the hook stays plumbed for future fixers.
 if [[ -n "$FIX" ]] && (( fails > 0 )); then
   [[ -z "$QUIET" ]] && printf '\n' && section "--fix: attempting to repair $fails FAIL(s)"
-  fix_fails=0
+  fixer_failed=0
+  no_fixer=0
   while IFS=$'\t' read -r status check _; do
     [[ "$status" == "FAIL" ]] || continue
     fixer="${FIXERS[$check]:-}"
     if [[ -z "$fixer" ]]; then
       warn "no fixer registered for $check; skipping"
+      no_fixer=$((no_fixer + 1))
       continue
     fi
     if ! "$fixer"; then
       err "fixer for $check exited non-zero"
-      fix_fails=$((fix_fails + 1))
+      fixer_failed=$((fixer_failed + 1))
     fi
   done < "$REPORT"
-  [[ -z "$QUIET" ]] && printf '\n' && printf "fix summary: %d/%d repaired\n" "$((fails - fix_fails))" "$fails"
-  # Re-exit reflects how many fixes failed (not how many checks failed).
-  exit "$fix_fails"
+  # A FAIL with no registered fixer is just as unrepaired as one whose
+  # fixer ran and failed — count both, or "N/N repaired" lies (the
+  # empty FIXERS map today would otherwise always read "all repaired").
+  unrepaired=$((fixer_failed + no_fixer))
+  repaired=$((fails - unrepaired))
+  [[ -z "$QUIET" ]] && printf '\n' && printf "fix summary: %d/%d repaired (%d no fixer, %d fixer failed)\n" \
+    "$repaired" "$fails" "$no_fixer" "$fixer_failed"
+  # Exit non-zero whenever a FAIL is still unrepaired, whether that's
+  # because its fixer errored or because none is registered yet.
+  exit "$unrepaired"
 fi
 
 # Exit code: fails (or fails+warns under --strict).
