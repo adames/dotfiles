@@ -50,7 +50,10 @@ run = ['layout floating']
 # falls through to here. ws-grid detect is debounced, skips floats and
 # unchanged tiled counts, and re-tiles the focused workspace into rows of
 # two. Toggle the whole behaviour off with `ws-grid auto`.
+# `if = 'true'` is the explicit match-everything condition — reload-config
+# errors on an omitted `if` (0.21.2-Beta calls it error-prone).
 [[on-window-detected]]
+if = 'true'
 run = ['exec-and-forget $HOME/.local/bin/ws-grid detect']
 
 # Workspace existence + monitor binding. Hand-written (was sigil-
