@@ -7,21 +7,28 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOCTOR="$REPO_ROOT/bin/ws-doctor"
+CHECKS_LIB="$REPO_ROOT/lib/ws-doctor-checks.sh"
 
 pass=0; fail=0
 
 # Test 1: ws-doctor has source-deploy-drift check
+# Grepping "drift" against the whole doctor script matched the word in
+# any stray comment — tighten to the actual check: the function body
+# must exist in lib/ws-doctor-checks.sh AND be wired into bin/ws-doctor's
+# CHECKS dispatcher, or the check simply doesn't run.
 test_doctor_has_drift_check() {
   if [[ ! -x "$DOCTOR" ]]; then
     echo "SKIP: ws-doctor not found"
     return 0
   fi
 
-  if grep -q "source-deploy-drift\|drift" "$DOCTOR" 2>/dev/null; then
-    echo "PASS: ws-doctor has source-deploy-drift check"
+  if grep -q 'check_source_deploy_drift()' "$CHECKS_LIB" 2>/dev/null \
+     && grep -q 'source-deploy-drift:check_source_deploy_drift' "$DOCTOR" 2>/dev/null; then
+    echo "PASS: ws-doctor defines and registers source-deploy-drift check"
     ((pass++))
   else
-    echo "WARN: ws-doctor may not check source/deploy drift"
+    echo "FAIL: source-deploy-drift check missing or not registered in CHECKS"
+    ((fail++))
   fi
 }
 
@@ -37,8 +44,13 @@ test_configs_exist() {
       ((fail++))
     fi
   done
-  echo "PASS: $found/${#configs[@]} critical configs present"
-  ((pass++))
+  # Only count the summary as a pass when every config was actually
+  # found — printing PASS unconditionally masked the per-config FAILs
+  # above.
+  if (( found == ${#configs[@]} )); then
+    echo "PASS: $found/${#configs[@]} critical configs present"
+    ((pass++))
+  fi
 }
 
 # Test 3: install_file uses cmp for drift detection

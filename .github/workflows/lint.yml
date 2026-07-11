@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # tmux is required so we can parse-check configs/tmux.conf with a
       # short-lived isolated server. bash + jq are pre-installed on
@@ -26,6 +26,10 @@ jobs:
       # suffix, so an extension-only glob skipped the most complex
       # scripts in the repo. Select anything with a bash/sh shebang plus
       # the known extensionless config dotfiles.
+      #
+      # printf '%s\0' + xargs -0 (not echo + newline-delimited xargs):
+      # a filename with a space in it would otherwise get split across
+      # two xargs arguments. Mirrors the JSON step below.
       - name: shell syntax (bash -n) on every script
         run: |
           find . -type f \
@@ -33,13 +37,13 @@ jobs:
                  -print0 \
             | while IFS= read -r -d '' f; do
                 case "$f" in
-                  *.sh|*/zshrc|*/bashrc) echo "$f" ;;
+                  *.sh|*/zshrc|*/bashrc) printf '%s\0' "$f" ;;
                   *) head -c2 "$f" | grep -q '^#!' \
                        && head -1 "$f" | grep -Eq '\b(ba)?sh\b' \
-                       && echo "$f" ;;
+                       && printf '%s\0' "$f" ;;
                 esac
               done \
-            | xargs -r -n1 bash -n
+            | xargs -0 -r -n1 bash -n
 
       # shellcheck catches real defects bash -n can't (dead error
       # handling, unquoted splits, masked exit codes). Gated at
@@ -56,13 +60,13 @@ jobs:
             | while IFS= read -r -d '' f; do
                 case "$f" in
                   */zshrc|*/bashrc) ;;   # zsh/interactive rc — bash -n only
-                  *.sh) echo "$f" ;;
+                  *.sh) printf '%s\0' "$f" ;;
                   *) head -c2 "$f" | grep -q '^#!' \
                        && head -1 "$f" | grep -Eq '\b(ba)?sh\b' \
-                       && echo "$f" ;;
+                       && printf '%s\0' "$f" ;;
                 esac
               done \
-            | xargs -r shellcheck --severity=error --shell=bash
+            | xargs -0 -r shellcheck --severity=error --shell=bash
 
       - name: JSON syntax on every config
         run: |

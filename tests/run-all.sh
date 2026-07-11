@@ -9,7 +9,7 @@
 # - ws-doctor core functionality
 #
 # Output convention: each test prints its own `N passed, M failed`
-# line on exit; this runner aggregates pass/fail counts across files
+# line on exit; this runner just tallies how many test files failed
 # and prints a single summary at the end.
 
 set -u

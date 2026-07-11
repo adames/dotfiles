@@ -31,7 +31,8 @@ test_doctor_help() {
     echo "PASS: ws-doctor supports --help"
     ((pass++))
   else
-    echo "INFO: ws-doctor may not have --help (not critical)"
+    echo "FAIL: ws-doctor does not support --help/-h"
+    ((fail++))
   fi
 }
 
@@ -66,7 +67,8 @@ test_doctor_checks_critical() {
   if ((checks >= 2)); then
     ((pass++))
   else
-    echo "WARN: Doctor may be missing critical checks"
+    echo "FAIL: Doctor is missing critical checks ($checks/4 keyword groups found)"
+    ((fail++))
   fi
 }
 
@@ -76,12 +78,38 @@ test_doctor_runs() {
     return 0
   fi
 
-  # Run with timeout to avoid hanging
-  if timeout 10 "$DOCTOR" &>/dev/null || timeout 10 "$DOCTOR" 2>&1 | grep -q .; then
-    echo "PASS: ws-doctor executes without hanging"
+  # `timeout` is GNU coreutils; CI (ubuntu-latest) has it built in, but
+  # plain macOS doesn't ship it (Homebrew's coreutils installs it as
+  # `gtimeout` to avoid clobbering nothing — there just isn't a native
+  # one). Prefer a real timeout binary; fall back to running untimed
+  # rather than silently no-op'ing the hang guard the way the old
+  # `timeout 10 ... || timeout 10 ... | grep -q .` fallback did (that
+  # matched "bash: timeout: command not found" on stderr as "output").
+  local timeout_bin=""
+  if command -v timeout >/dev/null 2>&1; then
+    timeout_bin="timeout"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    timeout_bin="gtimeout"
+  fi
+
+  local out exit_code
+  if [[ -n "$timeout_bin" ]]; then
+    out=$("$timeout_bin" 10 "$DOCTOR" 2>&1)
+  else
+    out=$("$DOCTOR" 2>&1)
+  fi
+  exit_code=$?
+
+  # A real, non-hanging run exits 0 (clean) or 1 (a single check
+  # legitimately FAILed) and prints its actual summary line. 2+ means
+  # either multiple checks failed or `timeout` killed it (124/137) —
+  # not "any output", which a stack trace also satisfies.
+  if (( exit_code <= 1 )) && grep -qE 'summary: [0-9]+ pass' <<<"$out"; then
+    echo "PASS: ws-doctor executes cleanly and emits its summary line"
     ((pass++))
   else
-    echo "WARN: ws-doctor may have issues (check manually)"
+    echo "FAIL: ws-doctor exited $exit_code or didn't emit a summary line"
+    ((fail++))
   fi
 }
 

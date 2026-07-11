@@ -21,18 +21,22 @@ test_idempotent_run() {
     ((fail++))
     return 1
   fi
+}
 
-  # Check for idempotency patterns in bootstrap
-  if grep -q "cmp -s" "$REPO_ROOT/lib/common.sh" 2>/dev/null; then
-    echo "PASS: install_file uses byte-compare for idempotency"
-    ((pass++))
-  else
-    echo "FAIL: install_file missing idempotency check"
-    ((fail++))
-  fi
+# stat's mtime/inode flags differ BSD (macOS) vs GNU (CI's ubuntu-latest);
+# try both. Emits "mtime inode" as one string.
+_stat_mtime_inode() {
+  stat -f '%m %i' "$1" 2>/dev/null || stat -c '%Y %i' "$1" 2>/dev/null
 }
 
 # Test 2: install_file helper is idempotent
+# A before/after md5 of the *destination* is vacuous: it's equal by
+# construction whether install_file short-circuits on cmp -s or just
+# blindly re-copies identical bytes. Prove the short-circuit actually
+# fires by asserting the file's mtime + inode survive an unchanged
+# re-install (a real `install` invocation always creates a fresh
+# inode) — then prove it isn't a no-op unconditionally by changing the
+# source and asserting the destination DOES update.
 test_install_file_idempotent() {
   . "$REPO_ROOT/lib/common.sh" 2>/dev/null || {
     echo "SKIP: Cannot source common.sh"
@@ -54,20 +58,33 @@ test_install_file_idempotent() {
   else
     echo "FAIL: install_file did not create destination"
     ((fail++))
+    return
   fi
 
-  # Second install (should be no-op)
-  local before_md5
-  before_md5=$(md5 -q "$dst" 2>/dev/null || md5sum "$dst" 2>/dev/null | cut -d' ' -f1)
+  # Re-run against an unchanged source: mtime + inode must be untouched.
+  local before after
+  before=$(_stat_mtime_inode "$dst")
+  sleep 1
   install_file "$src" "$dst" 2>/dev/null
-  local after_md5
-  after_md5=$(md5 -q "$dst" 2>/dev/null || md5sum "$dst" 2>/dev/null | cut -d' ' -f1)
+  after=$(_stat_mtime_inode "$dst")
 
-  if [[ "$before_md5" == "$after_md5" ]]; then
-    echo "PASS: install_file is idempotent (no change on re-run)"
+  if [[ -n "$before" && "$before" == "$after" ]]; then
+    echo "PASS: install_file no-ops on unchanged source (mtime+inode stable)"
     ((pass++))
   else
-    echo "FAIL: install_file modified file on re-run"
+    echo "FAIL: install_file touched the destination for an unchanged source"
+    ((fail++))
+  fi
+
+  # Now change the source — the destination must actually update.
+  sleep 1
+  echo "changed content" > "$src"
+  install_file "$src" "$dst" 2>/dev/null
+  if [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
+    echo "PASS: install_file updates destination when source changes"
+    ((pass++))
+  else
+    echo "FAIL: install_file did not update destination on source change"
     ((fail++))
   fi
 }
