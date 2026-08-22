@@ -88,6 +88,13 @@ phase_packages() {
 
   seed_hyperkey_defaults
 
+  # Devin is required on every Mac. No cask exists, so brew can't
+  # own it — the app self-updates; bootstrap just refuses to stay silent
+  # when it's missing.
+  if [[ ! -d /Applications/Devin.app ]]; then
+    warn "Devin.app missing — install from https://devin.ai (no cask)"
+  fi
+
   # Upgrade pass — brew/mise/softwareupdate. Same logic the user runs
   # standalone as `update-sys`; bootstrap calls it so a fresh re-run
   # leaves the machine fully current, not just package-list-complete.
