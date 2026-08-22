@@ -8,7 +8,7 @@ mouse-hide-while-typing = true
 window-padding-x = 8
 window-padding-y = 8
 
-# new_window instead of macOS tab: each tab is a separate NSWindow that
-# halves the aerospace tile. cmd-t / cmd-n always make a fresh tile.
+# cmd-t / cmd-n both make a fresh window (tabs never earned their keep;
+# habit kept from the aerospace era, where a tab halved the tile).
 keybind = cmd+t=new_window
 keybind = cmd+n=new_window

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Walks the one TCC pane the Hyper-key + tiling stack needs.
+# Walks the one TCC pane the Hyper-key stack needs.
 #
-# Post-Phase-6 surface (after the Karabiner → Hyperkey + yabai →
-# AeroSpace cuts): the only TCC bit that matters is Accessibility, for
-# Hyperkey, AeroSpace, and Raycast (its global hotkey). No more Input
+# Post-Phase-6 surface (after the Karabiner → Hyperkey cut and the
+# AeroSpace retirement): the only TCC bit that matters is Accessibility,
+# for Hyperkey and Raycast (its global hotkey). No more Input
 # Monitoring (Karabiner's
 # kext-driven HID stream is gone), no more System Extensions pane (no
 # DriverKit dependency). Probe-gated: lib/macos-tcc.sh asks each tool
@@ -37,7 +37,6 @@ pause_for() {
 # Launching them once is what registers them.
 register() {
   step "registering apps in TCC lists"
-  open -ga AeroSpace  2>/dev/null || true
   open -ga Hyperkey   2>/dev/null || true
   open -ga Raycast    2>/dev/null || true
   sleep 2
@@ -46,7 +45,7 @@ register() {
 
 # Per-pane missing-items report. Echoes "    • Tool" lines for items still
 # missing in Accessibility; empty output = everything's already granted.
-# All three probe the actual TCC grant (auth_value == 2) — liveness is a
+# Both probe the actual TCC grant (auth_value == 2) — liveness is a
 # false proxy: register() launches exactly these apps before the re-probe
 # (running ≠ granted), and Raycast runs fine WITHOUT Accessibility anyway
 # (it just loses its global hotkey). Client ids verified against the live
@@ -54,7 +53,6 @@ register() {
 # Access), mac_tcc_granted returns non-zero and we err toward prompting,
 # as the header promises.
 missing_accessibility() {
-  mac_tcc_granted kTCCServiceAccessibility 'bobko.aerospace'      || echo "    • AeroSpace"
   mac_tcc_granted kTCCServiceAccessibility 'com.knollsoft.Hyperkey' || echo "    • Hyperkey"
   mac_tcc_granted kTCCServiceAccessibility 'com.raycast.macos'    || echo "    • Raycast"
 }
@@ -76,8 +74,8 @@ main() {
   fi
 
   # Post-Karabiner there's nothing to restart after a grant — Hyperkey is
-  # a regular GUI app (no daemon split) and AeroSpace has no launchctl
-  # label to kickstart. The flag only records whether we opened a pane.
+  # a regular GUI app (no daemon split). The flag only records whether we
+  # opened a pane.
   local opened_pane=
 
   if [[ -z "$acc" && -z "$FORCE" ]]; then
@@ -86,26 +84,9 @@ main() {
     section "Accessibility"
     open_pane Privacy_Accessibility
     pause_for "  Toggle ON in Accessibility:
-${acc:-    • AeroSpace
-    • Hyperkey
+${acc:-    • Hyperkey
     • Raycast}"
     opened_pane=1
-  fi
-
-  # Surface anything bootstrap.sh deferred. Belt-and-braces: trust the
-  # flag AND verify the binary actually landed (the flag has been seen
-  # set on a transient launchctl EIO that the second pass healed).
-  if [[ -n "${BOOTSTRAP_SIGIL_BUILD_FAILED:-}" && ! -x "$HOME/.local/bin/ws-cheatsheet" ]]; then
-    section "Follow-up required"
-    err "sigil Swift package did not build — the ws-cheatsheet HUD is missing"
-    printf '\n  Most common cause: Command Line Tools went version-skewed\n'
-    printf '  (PackageDescription was built against an older swift major).\n\n'
-    printf '  Fix one of these, then re-run ./bootstrap.sh:\n\n'
-    printf '    A. Reinstall CLT (fast; recommended):\n'
-    printf '         sudo rm -rf /Library/Developer/CommandLineTools\n'
-    printf '         xcode-select --install\n\n'
-    printf '    B. Install full Xcode (larger; only needed if you build other Swift apps):\n'
-    printf '         https://apps.apple.com/app/xcode/id497799835\n\n'
   fi
 
   if [[ -z "$opened_pane" ]]; then
@@ -113,7 +94,7 @@ ${acc:-    • AeroSpace
     step "no panes opened — re-run with --force to re-verify"
   else
     ok "Done"
-    step "press Caps + / to verify the ws-cheatsheet HUD"
+    step "tap Caps to verify it registers as Esc"
   fi
 }
 

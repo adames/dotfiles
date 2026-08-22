@@ -82,7 +82,7 @@ phase_packages() {
   fi
 
   # Strip Gatekeeper quarantine so scripted `open -a` works pre-launch.
-  for app in /Applications/AeroSpace.app /Applications/Hyperkey.app /Applications/Helium.app; do
+  for app in /Applications/Hyperkey.app /Applications/Helium.app; do
     [[ -d "$app" ]] && xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
   done
 
@@ -179,8 +179,6 @@ phase_apply() {
   # — see docs/macos-defaults.md for the table and hard limits.
   bash "$DOTFILES_DIR/macos/macos-defaults.sh"
 
-  install_file "$CONFIGS_DIR/aerospace.toml"             "$HOME/.config/aerospace/aerospace.toml"
-
   # Stop legacy services BEFORE deleting their configs — otherwise
   # Karabiner's grabber can wedge the input system on its way out.
   # `brew services list` costs ~1s, so capture it once, not per service.
@@ -202,104 +200,34 @@ phase_apply() {
   rm -f  "$HOME/.skhdrc" "$HOME/.yabairc"
   rm -rf "$HOME/.config/yabai" "$HOME/.config/skhd" "$HOME/.config/karabiner"
 
-  # Sigil clones to ~/.config/workspace/ and its install.sh builds +
-  # symlinks the ws-* binaries into ~/.local/bin/. Post-teardown (see
-  # docs/sigil-teardown.md) only ws-cheatsheet is wired to a chord
-  # (Caps+/ HUD); sigil survives as that overlay renderer. install.sh
-  # still builds the rest — trimming it is a deferred sigil-repo change.
-  # MUST run before anything that writes into ~/.config/workspace/ —
-  # the cheatsheet install below mkdir -p's that dir, and `git clone`
-  # hard-fails on a non-empty target. Clone first, overlay after.
-  if [[ ! -d "$HOME/.config/workspace/.git" ]]; then
-    step "installing workspace from https://github.com/adames/sigil"
-    if command -v git >/dev/null 2>&1; then
-      if [[ -d "$HOME/.config/workspace" ]] \
-           && [[ -n "$(ls -A "$HOME/.config/workspace" 2>/dev/null)" ]]; then
-        # Heal path: earlier bootstrap versions populated this dir (the
-        # cheatsheet install ran first) and then died right here. Clone to
-        # a temp dir and overlay, so those machines recover instead of
-        # hard-failing on git's non-empty-target check again.
-        local sigil_tmp
-        sigil_tmp="$(mktemp -d)"
-        git clone --depth 1 https://github.com/adames/sigil.git "$sigil_tmp/sigil"
-        cp -R "$sigil_tmp/sigil/." "$HOME/.config/workspace/"
-        rm -rf "$sigil_tmp"
-        ok "workspace cloned (merged into existing ~/.config/workspace/)"
-      else
-        git clone --depth 1 https://github.com/adames/sigil.git "$HOME/.config/workspace"
-        ok "workspace cloned"
-      fi
-    else
-      warn "git not found — skipping workspace install"
-      export BOOTSTRAP_SIGIL_BUILD_FAILED=1
-    fi
-  else
-    step "workspace already installed at ~/.config/workspace/"
+  # AeroSpace retired (mouse + single screen won; tiling never earned its
+  # keep). Quit the app, drop the cask, sweep its config. Idempotent — a
+  # machine that never had it just no-ops through.
+  if pgrep -x AeroSpace >/dev/null 2>&1; then
+    step "stopping AeroSpace (retired)"
+    osascript -e 'tell application "AeroSpace" to quit' 2>/dev/null || true
   fi
+  if brew list --cask aerospace >/dev/null 2>&1; then
+    step "uninstalling aerospace cask"
+    brew uninstall --cask aerospace >/dev/null 2>&1 || warn "aerospace cask uninstall failed"
+  fi
+  rm -rf "$HOME/.config/aerospace"
 
-  if [[ -f "$HOME/.config/workspace/install.sh" ]]; then
-    if command -v swift >/dev/null 2>&1; then
-      step "building workspace (Swift toolchain found)"
-      if ! bash "$HOME/.config/workspace/install.sh"; then
-        warn "workspace install.sh failed (binaries may be stale or missing)"
-        export BOOTSTRAP_SIGIL_BUILD_FAILED=1
-      fi
-    else
-      warn "swift toolchain not found — workspace binaries will not be built;"
-      warn "  install via 'xcode-select --install', then re-run this bootstrap"
-      export BOOTSTRAP_SIGIL_BUILD_FAILED=1
-    fi
-  fi
+  # Sigil (the Swift workspace package) is fully retired with AeroSpace —
+  # its last survivor, the ws-cheatsheet HUD, was only reachable via the
+  # Caps+/ chord that lived in aerospace.toml. Sweep the clone, its
+  # symlinked binaries, and the rune generator that fed it.
+  rm -rf "$HOME/.config/workspace"
+  for bin in "$HOME/.local/bin/ws-"*; do
+    [[ -e "$bin" || -L "$bin" ]] || continue
+    [[ "${bin##*/}" == "ws-doctor" ]] || rm -f "$bin"
+  done
+  python3 -m pip uninstall --quiet --yes rune 2>/dev/null || true
 
-  # Regenerate the cheatsheet HUD from @cs annotations via rune
-  # (https://github.com/adames/rune — the generalized successor to the old
-  # lib/cheatsheet-gen.py). Layout + sources live in workspace/rune.toml;
-  # vim-motion/vim-edit are @cs blocks in nvim-init.lua now, not a fallback.
-  step "regenerating workspace/cheatsheet.json (rune)"
-  # Re-derive the python user-base bin here: main() computes it before
-  # phase_packages, which is too early on a virgin Mac (no CLT yet, so the
-  # xcode-select gate leaves it empty). By this point ensure_xcode_clt has
-  # run, so the pip --user console script lands somewhere we can see.
-  local pyuser
-  pyuser="$(python3 -m site --user-base 2>/dev/null || true)"
-  [[ -n "$pyuser" ]] && export PATH="$pyuser/bin:$PATH"
-  if ! command -v rune >/dev/null 2>&1; then
-    step "installing rune (pip)"
-    python3 -m pip install --user --quiet "git+https://github.com/adames/rune" \
-      || warn "rune install failed — will fall back to the last committed cheatsheet.json"
-  fi
-  if command -v rune >/dev/null 2>&1 \
-       && rune -c "$CONFIGS_DIR/workspace/rune.toml" build \
-            -o "$CONFIGS_DIR/workspace/cheatsheet.json"; then
-    ok "cheatsheet.json regenerated"
-    install_file "$CONFIGS_DIR/workspace/cheatsheet.json" "$HOME/.config/workspace/cheatsheet.json"
-  elif [[ -f "$CONFIGS_DIR/workspace/cheatsheet.json" ]]; then
-    warn "rune unavailable/failed; installing the last committed cheatsheet.json"
-    install_file "$CONFIGS_DIR/workspace/cheatsheet.json" "$HOME/.config/workspace/cheatsheet.json"
-  else
-    warn "no cheatsheet artifact available; leaving $HOME/.config/workspace/cheatsheet.json untouched"
-  fi
-
-  # Retired surfaces: sketchybar / yabai-era workspace scripts / borders.
-  # Plus the dotfiles workspace helpers dropped with the sigil teardown
-  # (replaced by native AeroSpace bindings — see docs/sigil-teardown.md).
-  rm -f "$HOME/.local/bin/ws-dir"
-  rm -f "$HOME/.local/bin/ws-launch-here"
-  rm -f "$HOME/.local/bin/ws-launch-browser"
-  rm -f "$HOME/.local/bin/ws-launch-inbox"
-  rm -f "$HOME/.local/bin/ws-launch-notes"
-  rm -f "$HOME/.local/bin/ws-launch-terminal"
-  rm -f "$HOME/.local/bin/ws-mouse-follow"
+  # Retired surfaces from earlier eras: sketchybar / borders. (The ws-*
+  # launchers and ~/.config/workspace scripts are covered by the sigil
+  # sweep above.)
   rm -rf "$HOME/.config/sketchybar"
-  rm -f "$HOME/.config/workspace/rename.sh"
-  rm -f "$HOME/.local/bin/ws-info"
-  rm -f "$HOME/.local/bin/ws-destroy-current"
-  rm -f "$HOME/.config/workspace/borders-refresh.sh"
-  rm -f "$HOME/.config/workspace/lib/colors.sh"
-  rm -f "$HOME/.config/workspace/reconcile-displays.sh"
-  rm -f "$HOME/.config/workspace/laptop-uuid-init.sh"
-  rm -f "$HOME/.config/workspace/laptop.uuid"
-  rm -f "$HOME/.config/workspace/sketchybar-tuning.env"
   rm -rf "$HOME/.config/borders"
 
   install_file "$CONFIGS_DIR/ghostty-config"             "$HOME/.config/ghostty/config"
@@ -311,12 +239,7 @@ phase_apply() {
   install_file "$CONFIGS_DIR/CLAUDE.md"                  "$HOME/.claude/CLAUDE.md"
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
   install_file "$DOTFILES_DIR/bin/ws-doctor"             "$HOME/.local/bin/ws-doctor" 755
-  install_file "$DOTFILES_DIR/bin/ws-grid"               "$HOME/.local/bin/ws-grid" 755
-  install_file "$DOTFILES_DIR/bin/ws-tmux-prefix"        "$HOME/.local/bin/ws-tmux-prefix" 755
   install_file "$DOTFILES_DIR/bin/update-system"         "$HOME/.local/bin/update-system" 755
-  # ws completions moved into sigil itself (cli/completions/, symlinked by
-  # its install.sh) — sweep the stale dotfiles-era copy so a dead _ws can't
-  # shadow the live one.
   rm -f "$HOME/.config/zsh/completions/_ws"
 
   install_file "$CONFIGS_DIR/nvim-init.lua"              "$HOME/.config/nvim/init.lua"
@@ -325,24 +248,6 @@ phase_apply() {
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"           "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
   ensure_gitconfig_local
-
-  # Retry heals transient launchctl EIO from the first install.sh. Only
-  # runs when the first pass failed — on a clean install the gate skips
-  # a ~1.5s swift build + relink + launchctl reload that was duplicating
-  # work.
-  if [[ -n "${BOOTSTRAP_SIGIL_BUILD_FAILED:-}" && -f "$HOME/.config/workspace/install.sh" ]]; then
-    step "retrying workspace runtime (first pass failed)"
-    if bash "$HOME/.config/workspace/install.sh"; then
-      unset BOOTSTRAP_SIGIL_BUILD_FAILED
-    else
-      warn "workspace runtime retry also failed"
-    fi
-  fi
-
-  # Workspace digit bindings are now hand-written in aerospace.toml — the
-  # ws-topology emit-aerospace step was removed with the sigil workspace
-  # layer (see docs/sigil-teardown.md). aerospace.toml is the source of
-  # truth; reload picks it up on next login or `aerospace reload-config`.
 }
 
 # ─── phase 4 · permission wizard ────────────────────────────────────────────
@@ -354,12 +259,11 @@ phase_wizard() {
 
 main() {
   section "Hyper-key dotfiles bootstrap (macOS)"
-  # pip --user console scripts (rune) land in the Python user-base bin
-  # (~/Library/Python/3.x/bin) — off PATH on a fresh Mac, so `command -v
-  # rune` would miss a successful install and re-run it every bootstrap.
-  # ~/.local/bin matches the Ubuntu bootstrap's PATH posture. The
-  # xcode-select gate keeps the python3 CLT shim from popping the GUI
-  # installer prompt before ensure_xcode_clt handles it deliberately.
+  # pip --user console scripts land in the Python user-base bin
+  # (~/Library/Python/3.x/bin) — off PATH on a fresh Mac. ~/.local/bin
+  # matches the Ubuntu bootstrap's PATH posture. The xcode-select gate
+  # keeps the python3 CLT shim from popping the GUI installer prompt
+  # before ensure_xcode_clt handles it deliberately.
   local pyuser=
   if xcode-select -p >/dev/null 2>&1; then
     pyuser="$(python3 -m site --user-base 2>/dev/null || true)"

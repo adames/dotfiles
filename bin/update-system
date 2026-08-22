@@ -6,7 +6,8 @@
 # brew update → brew upgrade → brew cleanup catches things outside the
 # Brewfile (jq, htop, watchman, …). mise install ensures every tool in
 # ~/.config/mise/config.toml is materialized, then mise upgrade pulls
-# the latest matching version. softwareupdate is list-only — applying
+# the latest matching version. mas upgrades App Store apps in place.
+# softwareupdate is list-only — applying
 # needs sudo and risks an unwanted reboot, so this surfaces what's
 # pending and tells you the one-liner to apply it.
 #
@@ -40,6 +41,14 @@ if have mise; then
   ok "mise tools current"
 else
   warn "mise not installed — skipping"
+fi
+
+# App Store apps (Xcode, …) — mas upgrades them in place, no App Store
+# GUI round-trip. Skipped silently where mas isn't installed (Ubuntu).
+if have mas; then
+  step "mas upgrade (App Store apps)"
+  mas upgrade 2>&1 | sed 's/^/    /' || warn "mas upgrade had failures"
+  ok "App Store apps current"
 fi
 
 if has_tty && have softwareupdate; then

@@ -34,7 +34,7 @@ test_doctor_has_drift_check() {
 
 # Test 2: Key configs exist in configs/
 test_configs_exist() {
-  local configs=("tmux.conf" "zshrc" "gitconfig" "aerospace.toml")
+  local configs=("tmux.conf" "zshrc" "gitconfig" "ghostty-config")
   local found=0
   for cfg in "${configs[@]}"; do
     if [[ -f "$REPO_ROOT/configs/$cfg" ]]; then

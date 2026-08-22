@@ -1,69 +1,41 @@
 # Architecture
 
-Caps Lock is king of the dev surface. Chord lookups + collisions live in
-[keymap.md](keymap.md).
+Terminal is the dev surface; window management is mouse + native macOS.
+Chord lookups + collisions live in [keymap.md](keymap.md).
 
 ## Stack
 
 ```
 Caps Lock → Hyperkey ─┬─ tap → Esc
-                      └─ hold → Hyper (⌃⌥⌘⇧) → AeroSpace
-                                                  ├─ tiles windows (native)
-                                                  ├─ launchers (open -a)
-                                                  └─ cheatsheet HUD (ws-cheatsheet)
+                      └─ hold → Hyper (⌃⌥⌘⇧) — unbound, held in reserve
 
 Ghostty → tmux (C-Space) → zsh (vi-mode) → Neovim (Space leader)
 ```
 
-One Hyper layer. Hyperkey can't reproduce Karabiner's
-Caps+Shift→separate-Mod, so swap chords live on `Caps + y/u/i/o` rather
-than Caps+Shift+hjkl. Modifier sets the scope: bare `h` moves the vim
-cursor, `Caps+␣ h` moves the tmux pane, `Caps + h` moves the OS window.
-Same letter, no overlap.
+Modifier sets the scope: bare `h` moves the vim cursor, `C-Space h`
+moves the tmux pane. Same letter, no overlap.
 
-## The sigil teardown
+## The AeroSpace retirement (2026-08)
 
-The sigil workspace-management layer was removed — see
-[sigil-teardown.md](sigil-teardown.md). `aerospace.toml` is now fully
-hand-written (no `# >>> sigil generated >>>` fences, no
-`ws-topology emit-aerospace`), `spaces.json` is gone, and the workspace
-binaries (ws-topology, ws-picker, ws-prompt, ws-focus, ws-dir,
-ws-launch-here, ws-mouse-follow, ws-snap) were dropped in favor of native
-AeroSpace commands. The cheatsheet HUD survives, and `ws-grid` was later
-restored as a pure-bash grid/rotate helper over the `aerospace` CLI
-(`bin/ws-grid`, bound to `Caps+g`/`Caps+r`).
+AeroSpace — and before it the whole sigil workspace layer (see
+[sigil-teardown.md](sigil-teardown.md)) — is gone. The honest audit: a
+mouse and a single screen were doing the work; the tiler, its Hyper
+chord layer, the `ws-grid` helper, the cheatsheet HUD, and the rune
+generator that fed it were maintenance without payoff. Bootstrap now
+tears the stack down on machines that still carry it (quits the app,
+uninstalls the cask, sweeps `~/.config/aerospace` and
+`~/.config/workspace`, prunes the `ws-*` binaries). Hyperkey survives
+for tap-Caps = Esc; the Hyper layer is intentionally empty.
 
 ## Who owns what
 
 | Concern | Owner |
 |---|---|
-| Caps remap | Hyperkey (user defaults) |
-| Window tiling + chord dispatch | AeroSpace · `aerospace.toml` (hand-written) |
-| Workspace nav / focus / move | AeroSpace native (`workspace`, `focus`, `move`, …) |
-| Pointer-follows-focus | AeroSpace native (`on-focus-changed = move-mouse`) |
-| Launchers | `open -a` in `aerospace.toml` |
-| Cheatsheet HUD (Caps+/) | ws-cheatsheet · [sigil](https://github.com/adames/sigil)/Sources/ws-cheatsheet/ |
-| Health check | ws-doctor · `bin/ws-doctor` |
+| Caps remap (tap = Esc) | Hyperkey (user defaults) |
+| Window management | macOS native + mouse |
+| Terminal multiplexing | tmux (`C-Space`) |
+| Health check | ws-doctor · `bin/ws-doctor` (drift, menu items, app refs) |
+| Package updates | `bin/update-system` (brew + mise + softwareupdate) |
 
-## Why AeroSpace plus a single Swift CLI
-
-AeroSpace has a built-in keybinding engine and runs entirely in
-userspace. Each `[mode.main.binding]` entry maps a chord to a native
-command or an `exec-and-forget`. Native commands now cover the workspace,
-focus, move, resize, layout, and pointer-follow concerns that previously
-shelled out to sigil binaries. The one remaining Swift binary is the
-cheatsheet HUD (a SwiftUI overlay reading `cheatsheet.json`); it builds
-from the sigil clone but has no dependency on the workspace code. No
-DriverKit kext, no scripting addition, no SIP modification, no Lua runtime.
-
-## Workspace existence is config-time
-
-Aerospace declares workspaces statically in
-`[workspace-to-monitor-force-assignment]` (hand-written, all pinned to
-monitor 1). There's no runtime add/destroy — to add a workspace, edit the
-toml, add a `cmd-alt-ctrl-shift-N = 'workspace N'` binding, and
-`aerospace reload-config`.
-
-`outer.top = 26` in `aerospace.toml` reserves the menu-bar strip.
-`[[on-window-detected]]` rules pick float-vs-tile by bundle ID at
-window-open time; `Caps+v` toggles manually.
+No DriverKit kext, no scripting addition, no SIP modification, no
+window-manager daemon.

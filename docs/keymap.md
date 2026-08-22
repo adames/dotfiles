@@ -3,112 +3,31 @@
 Chord inventory. Narrative in [architecture.md](architecture.md).
 Source of truth: `configs/`. Apply edits with `./macos/bootstrap.sh`.
 
-- **Stack**: Hyperkey → AeroSpace → app → tmux → zsh / nvim
-- **Caps**: tap = `Esc` · hold = `Hyper` (`⌃⌥⌘⇧`)
-- **One layer**: Hyperkey can't reproduce Caps+Shift→separate-Mod,
-  so swap chords live on Caps+yuio not Caps+Shift+hjkl
+AeroSpace (and its whole Hyper chord layer, the cheatsheet HUD, and the
+tmux mode) is retired — window management is mouse + native macOS now.
+What survives:
 
-## AeroSpace (Hyper = `cmd-alt-ctrl-shift`)
-
-### Windows
-
-| Chord | Action |
-|---|---|
-| `h j k l` | focus neighbour ← ↓ ↑ → (native `focus`) |
-| `a` | alternate — bounce to the last focused window (crosses workspaces) |
-| `y u i o` | swap window ← ↓ ↑ → |
-| `d` | move window to next display (wraps) |
-| `v` | float ↔ tile |
-| `g` | grid — re-tile the focused workspace into rows of 2 (`ws-grid apply`) |
-| `r` | rotate grid — cycle every tiled window one position (`ws-grid rotate`) |
-| `x` | close focused window |
-| `z` | fullscreen toggle |
-
-New windows auto-tile, then `ws-grid`'s `detect` hook (a catch-all
-`[[on-window-detected]]` in aerospace.toml, kept last so the `layout
-floating` dialog rules win first) re-settles the focused workspace into a
-rows-of-2 grid. `ws-grid` is pure bash over the `aerospace` CLI, restored
-after the sigil teardown dropped it (see
-[sigil-teardown.md](sigil-teardown.md)): `Caps+g` re-grids on demand,
-`Caps+r` rotates, and `ws-grid auto` toggles the auto-grid off. `Caps+c`
-(the `ws-picker` fuzzy window switcher) is still gone; the chord is free
-for a native rebuild.
-
-The pointer follows focus (`on-focus-changed = ['move-mouse
-window-lazy-center']`) — lazy, so the mouse only jumps when it's outside
-the window the focus landed in. Delete the `on-focus-changed` line in
-aerospace.toml to opt back out.
-
-### Layout ops (direct chords — the service drawer is retired)
-
-| Chord | Action |
-|---|---|
-| `-` / `=` | resize -50 / +50 (hold Caps, tap to repeat) |
-| `e` | equalize window sizes |
-| `⌫` | close all windows but current |
-| `⏎` | reload aerospace config |
-
-Why no drawer: every op was one key deep behind a mode-enter — a drawer
-earns its keystroke tax only when chords run out, and they haven't.
-
-### Workspaces
-
-| Chord | Action |
-|---|---|
-| `n` / `p` | prev / next workspace, wraps (native `workspace --wrap-around`) |
-| `tab` | last / recent workspace (native `workspace-back-and-forth`) |
-| `1..9, 0` | go to workspace N — `0` → 10 (native `workspace N`, hand-written) |
-
-All native now. The digit block is hand-written in aerospace.toml (was
-sigil-generated; the generator's lexical slot sort once mapped `Caps+2`
-→ workspace 10). `Caps+f` (the `ws-prompt` send-and-follow overlay) was
-dropped — no native send picker; the chord is free to rebuild as direct
-`move-node-to-workspace N` bindings or a native picker later.
-
-### Launchers
-
-| Chord | Action |
-|---|---|
-| `t` | terminal — **new** Ghostty window (`open -na Ghostty`) |
-| `b` | browser — `open -a Helium` |
-| `.` | Finder (AppleScript) |
-| `,` | System Settings |
-| `;` | notes — `open -a Obsidian` |
-| `'` | inbox — `open -a Raycast` |
-| `/` | cheatsheet HUD toggle (`ws-cheatsheet`) |
-| `space` | enter AeroSpace tmux mode (`mode.tmux` — direct commands, no keystroke injection) |
-
-Launchers are bare `open -a` now (was `ws-launch-here`, which snapshotted
-the focused workspace so the window landed where you triggered the chord).
-`open -a` activates the app's existing window if one exists — accepted
-regression from the teardown; revisit if it annoys. Terminal is the
-exception: `Caps+t` uses `open -na Ghostty` to force a fresh window every
-press (Ghostty exposes no macOS `+new-window` action, and its own CLI help
-points at `open -na`).
+- **Caps** (Hyperkey): tap = `Esc` · hold = `Hyper` (`⌃⌥⌘⇧`) — the Hyper
+  layer currently has **no bindings**; it's held in reserve for any
+  future global hotkeys (Raycast etc.)
+- **Stack**: app → tmux → zsh / nvim
 
 ## tmux
 
-`tmux.conf` + AeroSpace `mode.tmux`. Caps+Space enters the AeroSpace tmux
-mode; the next key fires a direct tmux command and exits. Press `esc` or
-`space` to abort without doing anything. `C-Space` is kept as the physical
-tmux prefix for SSH sessions and environments without AeroSpace.
-
-Why mode over shim: `tmux send-keys C-Space` writes bytes to the pane's
-stdin, bypassing tmux's key-binding layer — the prefix is never entered.
-Direct commands sidestep the problem entirely.
+Prefix = `C-Space`, everywhere (local and SSH).
 
 | Chord | Action |
 |---|---|
-| `Caps+␣` | enter AeroSpace `tmux` mode (`esc` / `space` to abort) |
-| `Caps+␣  h/j/k/l` | pane focus |
-| `Caps+␣  v` / `s` (or `-`) | split right / below |
-| `Caps+␣  z` | zoom pane |
-| `Caps+␣  d` / `r` | detach / reload config |
-| `Caps+␣  [` | copy / scroll mode |
-| `Caps+␣  x` | kill pane (no confirm) |
-| `Caps+␣  f` | tmux-sessionizer fzf popup |
-| `Caps+␣  c` / `n` / `p` | new window / previous / next |
-| `Caps+␣  1..9` | go to window N |
+| `C-Space  h/j/k/l` | pane focus |
+| `C-Space  v` / `s` (or `-` / `|`) | split right / below |
+| `C-Space  z` | zoom pane |
+| `C-Space  d` / `r` | detach / reload config |
+| `C-Space  [` | copy / scroll mode |
+| `C-Space  x` | kill pane (no confirm) |
+| `C-Space  f` | tmux-sessionizer fzf popup |
+| `C-Space  c` / `n` / `p` | new window / previous / next |
+| `C-Space  1..9` | go to window N |
+| `C-Space  C-Space` | send literal `C-Space` to inner program |
 
 No `Option/M-*` bindings — collides with Ghostty's left-Alt bytes.
 
@@ -132,37 +51,13 @@ Leader = Space. Full mappings in
 
 | Collision | Resolution |
 |---|---|
-| `Caps + 1..0` vs `Caps + Shift + 1..0` | Hyperkey collapses Shift; the two are the same chord |
-| `Caps + T` (launcher) vs Ghostty `Cmd + T` | Different modifier sets |
 | Caps-tap `Esc` vs Ghostty option-as-alt | `escape-time 10` in tmux.conf gives ESC time |
-| tmux prefix `C-Space` vs inner program wanting literal `C-Space` | Physical `C-Space C-Space` in terminal (`send-prefix` binding) — AeroSpace mode path doesn't inject `C-Space` |
-| Held-Caps + injected `Cmd+X` in a launcher | Use AX `click menu item` (bypasses aerospace); `ws-doctor` lints for this |
-
-## Free Hyper letters
-
-`c f m q s w` (`c`/`f` freed by the sigil teardown; `g` re-bound to grid). Re-derive:
-`grep -nE '^cmd-alt-ctrl-shift-' ~/.config/aerospace/aerospace.toml`.
+| tmux prefix `C-Space` vs inner program wanting literal `C-Space` | `C-Space C-Space` (`send-prefix` binding) |
 
 ## Add a chord
 
-1. Edit `configs/aerospace.toml` `[mode.main.binding]` (or tmux.conf,
-   zshrc, nvim-keymaps.lua).
-2. Update the adjacent `# @cs row` — the HUD (`Caps + /`) is generated
-   from these blocks, so the cheatsheet stays truthful only if the row
-   changes with the binding. Regenerate via `./macos/bootstrap.sh` or
-   `rune -c configs/workspace/rune.toml build -o configs/workspace/cheatsheet.json`
-   ([rune](https://github.com/adames/rune)).
-3. `aerospace reload-config` (or Caps+Space → `r` for tmux).
-4. `ws-doctor` — catches stale toml, keystroke contamination,
-   source/deploy drift, menu-item rename, aerospace casing.
-
-## Gotchas
-
-- **Keystroke contamination.** `osascript … keystroke "X" using …` in a
-  launcher fires as `Hyper+X` if Caps is still held. Drive via
-  `click menu item` (AX, bypasses aerospace) or pick an unbound letter.
-- **Aerospace monitor ordinals drift on hot-plug.** The
-  `[workspace-to-monitor-force-assignment]` table pins every workspace
-  to monitor 1; revisit if you run a fixed multi-monitor layout.
-- **Stale aerospace.toml.** `aerospace reload-config` after edits;
-  it's idempotent.
+1. Edit tmux.conf, zshrc, or nvim-keymaps.lua in `configs/`.
+2. Update the adjacent doc comment (`# @cs row` blocks are plain docs
+   now — keep them truthful or delete them with the binding).
+3. Redeploy: `./macos/bootstrap.sh` (or copy the file by hand and let
+   `ws-doctor`'s drift check confirm).

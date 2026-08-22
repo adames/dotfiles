@@ -5,8 +5,6 @@
 # has no Brewfile.local so it stays lean.
 # Skip casks in headless runs: BOOTSTRAP_SKIP_CASKS=1 ./bootstrap.sh
 
-tap "nikitabobko/tap"
-
 # CLI formulae — shell, multiplexer, prompt, fuzzy / grep / git stack.
 brew "git"
 brew "zsh"
@@ -25,17 +23,17 @@ brew "pyright"
 brew "ruff"
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
+brew "mas"               # App Store CLI — lets update-system upgrade App Store apps (Xcode)
 
-# Window manager + cheatsheet HUD font (supplies PUA glyphs).
-cask "aerospace"
+# Terminal font (nerd glyphs for starship / yazi).
 cask "font-jetbrains-mono-nerd-font"
 
 # Network privacy.
 cask "protonvpn"
 
-# GUI env — every caps launcher target lives here, or the chord fails.
-cask "hyperkey"          # caps→hyper remap (the whole keymap rides on this)
-cask "ghostty"           # caps+t
-cask "helium-browser"    # caps+b · net.imput.helium (NOT the deprecated `helium` cask)
-cask "raycast"           # caps+'
-cask "obsidian"          # caps+;
+# GUI env shared between machines.
+cask "hyperkey"          # caps tap→esc (the one keymap survivor)
+cask "ghostty"
+cask "helium-browser"    # net.imput.helium (NOT the deprecated `helium` cask)
+cask "raycast"
+cask "obsidian"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Idempotent Ubuntu bootstrap (VPS / VM). No aerospace/Hyperkey — shell + nvim only.
+# Idempotent Ubuntu bootstrap (VPS / VM). No Hyperkey — shell + nvim only.
 # Override dotfiles repo with DOTFILES_REPO=...
 
 set -euo pipefail
@@ -10,8 +10,8 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
 # ─── phase 0 · sparse-checkout (idempotent, runs first) ─────────────────────
-# Prune the working tree of macOS-only paths (aerospace, sketchybar,
-# the Swift workspace package, etc.) so a Linux clone only contains
+# Prune the working tree of macOS-only paths (ghostty, the macos/
+# scripts, etc.) so a Linux clone only contains
 # files this host actually uses. Manifest at lib/platform-manifest.sh
 # is the single source of truth — see ubuntu/sparse-checkout.sh.
 # Safe to run every bootstrap; no-ops when patterns are already current.

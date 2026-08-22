@@ -13,10 +13,9 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
--- Annotations below are scraped by rune (configs/workspace/rune.toml) into the
--- HUD's neovim lens. Keep each section next to the bindings it documents.
--- These @cs blocks are the sole source for the vim/neovim lenses — rune
--- builds the HUD from annotations only (no committed cheatsheet.json merge).
+-- @cs blocks are plain keybinding docs now (the rune/cheatsheet HUD that
+-- scraped them retired with AeroSpace). Keep each section next to the
+-- bindings it documents.
 
 -- @cs section Neovim · Files & Buffers
 -- @cs id neovim-files-buffers

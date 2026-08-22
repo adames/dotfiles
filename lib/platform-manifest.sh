@@ -16,11 +16,8 @@
 # is the source of truth for "what files exist on this OS's clone." Two
 # axes, two files — keeps the deploy logic auditable at a glance.
 
-# macOS-only paths. The Swift workspace package (sigil) lives in a
-# separate repo cloned at bootstrap, not under dotfiles. Hyperkey is
-# .app-only (no file in configs/).
+# macOS-only paths. Hyperkey is .app-only (no file in configs/).
 MACOS_ONLY_PATHS=(
-  "configs/aerospace.toml"
   "configs/ghostty-config"
   "macos/"
 )

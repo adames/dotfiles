@@ -1,5 +1,11 @@
 # Sigil teardown — migrate workspace layer to native AeroSpace
 
+> **Historical document.** As of 2026-08-22 AeroSpace itself is retired
+> too — along with the cheatsheet HUD, rune, ws-grid, and the entire
+> Hyper chord layer. Window management is mouse + native macOS. See
+> [architecture.md](architecture.md). Nothing below reflects the live
+> setup.
+
 > Update: the cheatsheet generator (`lib/cheatsheet-gen.py`) was later
 > extracted and generalized into [rune](https://github.com/adames/rune);
 > bootstrap now builds the HUD via `configs/workspace/rune.toml`. sigil

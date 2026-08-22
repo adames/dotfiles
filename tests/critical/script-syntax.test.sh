@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Critical test: every shell script in the repo parses (bash -n).
 #
-# The bin/ tools (ws-doctor, ws-grid, update-system, ws-tmux-prefix) and
+# The bin/ tools (ws-doctor, update-system) and
 # several configs/ helpers have no .sh extension, so an extension-only
 # lint glob silently skipped the most complex scripts in the tree. This
 # test selects scripts by content (bash/sh shebang) plus the known
@@ -39,7 +39,7 @@ fi
 
 # Sanity floor: the four bin/ tools must be among the discovered set —
 # guards against a future refactor that re-hides them from the linter.
-for must in bin/update-system bin/ws-doctor bin/ws-grid bin/ws-tmux-prefix; do
+for must in bin/update-system bin/ws-doctor; do
   found=
   for s in "${scripts[@]}"; do [[ "$s" == "$REPO_ROOT/$must" ]] && found=1 && break; done
   if [[ -n "$found" ]]; then

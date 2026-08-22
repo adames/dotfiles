@@ -1,49 +1,24 @@
 #!/usr/bin/env bash
 # ws-doctor — keymap / launcher health check.
 #
-# Catches the failure modes the workspace stack has actually shipped:
+# Catches the failure modes this setup has actually shipped (the
+# aerospace-era checks — config freshness, Hyper keystroke collision,
+# phantom tiles, app-name casing — retired with AeroSpace itself):
 #
-#   1. stale aerospace.toml       — `aerospace.toml` edited after the
-#                                   daemon started, so new bindings aren't
-#                                   live (run `aerospace reload-config`).
-#                                   Symptom: chord does nothing.
+#   1. source/deploy drift        — a config in `configs/` was patched but
+#                                   the deployed copy under `~/.config/` is
+#                                   stale (or vice versa — fixing only the
+#                                   deployed copy lets the next
+#                                   `bootstrap.sh` clobber the fix).
 #
-#   2. keystroke collision        — `osascript … keystroke "X" using …` driven
-#                                   from a Hyper chord fires while the user is
-#                                   still holding Caps. The synthetic event
-#                                   picks up the live Hyper modifier state and
-#                                   becomes Hyper+X. If Hyper+X is bound in
-#                                   aerospace.toml, the wrong action fires.
-#                                   (Historically this made a held Caps+T move
-#                                   spaces: a launcher sent Cmd+N, which became
-#                                   Hyper+N.) Launchers are bare `open -a` now,
-#                                   so the live surface is small — but the lint
-#                                   stays as a guard for any osascript chord.
-#
-#   3. source/deploy drift        — `configs/aerospace.toml` (or ghostty-config)
-#                                   was patched but the deployed copy under
-#                                   `~/.config/` is stale (or vice versa —
-#                                   fixing only the deployed copy lets the next
-#                                   `bootstrap.sh` clobber the fix). aerospace.toml
-#                                   is hand-written now, so it pair-cmps cleanly.
-#
-#   4. menu item drift            — a launcher uses
+#   2. menu item drift            — a script uses
 #                                   `click menu item "New Window" of menu "File"`
 #                                   to drive an app whose menu item silently
 #                                   got renamed by an upstream release.
 #
-#   5. missing target app         — `tell application "Foo"` where Foo isn't
+#   3. missing target app         — `tell application "Foo"` where Foo isn't
 #                                   installed; AppleScript prompts for the
-#                                   app and the launcher hangs.
-#
-#   6. phantom workspace tiles    — aerospace's tree tracks more windows on a
-#                                   workspace than the AX window list reports
-#                                   for those apps (window was closed without
-#                                   aerospace getting a destroy event, or a
-#                                   chord moved a stale tree node onto the
-#                                   workspace). The reserved tile slots eat
-#                                   layout space — the visible grid is shifted
-#                                   right with empty space the user can't fill.
+#                                   app and the script hangs.
 #
 # Each check is independent; the script keeps going on failure so one report
 # covers everything. Exit code is the number of FAILED checks (0 = clean).
@@ -60,10 +35,6 @@
 #                            # No fixers are registered today, so --fix
 #                            # reports "no fixer" for each FAIL; the hook
 #                            # stays plumbed for future repair automation.
-#
-# The Hyper layer is discovered at runtime by parsing aerospace.toml, so
-# adding / removing a Hyper binding automatically updates the collision
-# matrix.
 
 set -u
 
@@ -127,14 +98,9 @@ SKIP() { _record SKIP "$1" "$2"; }
 
 # ─── render ─────────────────────────────────────────────────────────────────
 declare -a CHECKS=(
-  "aerospace-freshness:check_aerospace_freshness:Is AeroSpace serving the current aerospace.toml?"
-  "keystroke-collision:check_keystroke_collision:osascript keystrokes vs Hyper layer"
   "source-deploy-drift:check_source_deploy_drift:configs/ matches deployed copies"
   "menu-items:check_menu_items:click-menu-item refs resolve in live apps"
   "app-references:check_app_references:tell application targets are installed"
-  "aerospace-app-casing:check_aerospace_app_casing:script .app filters match aerospace output"
-  "aerospace-daemon:check_aerospace_daemon:AeroSpace.app is running + reachable"
-  "phantom-tiles:check_phantom_tiles:focused workspace has no phantom tile slots eating layout space"
 )
 
 # Map check-name → fixer-function-name. Only entries here are

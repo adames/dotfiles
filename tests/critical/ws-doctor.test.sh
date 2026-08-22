@@ -44,30 +44,25 @@ test_doctor_checks_critical() {
 
   local checks=0
 
-  if grep -q "aerospace\|tiler" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks aerospace/window manager"
-    ((checks++))
-  fi
-
-  if grep -q "keystroke\|hotkey\|hyper" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks hotkey / keystroke layer"
-    ((checks++))
-  fi
-
   if grep -q "config\|drift" "${DOCTOR_SRC[@]}" 2>/dev/null; then
     echo "PASS: Doctor checks config drift"
     ((checks++))
   fi
 
-  if grep -q "permission\|tcc\|accessibility" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks permissions"
+  if grep -q "menu-items\|menu item" "${DOCTOR_SRC[@]}" 2>/dev/null; then
+    echo "PASS: Doctor checks menu-item resolution"
+    ((checks++))
+  fi
+
+  if grep -q "app-references\|tell application" "${DOCTOR_SRC[@]}" 2>/dev/null; then
+    echo "PASS: Doctor checks app references"
     ((checks++))
   fi
 
   if ((checks >= 2)); then
     ((pass++))
   else
-    echo "FAIL: Doctor is missing critical checks ($checks/4 keyword groups found)"
+    echo "FAIL: Doctor is missing critical checks ($checks/3 keyword groups found)"
     ((fail++))
   fi
 }
