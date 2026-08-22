@@ -5,7 +5,7 @@ stack needs — but only if it actually needs attention. On a working
 machine: ~2 seconds, opens nothing. On first install: opens
 Accessibility, lists only what's missing.
 
-One pane: **Accessibility** for Hyperkey · Raycast (global hotkey). No
+One pane: **Accessibility** for Hyperkey. No
 Input Monitoring (Karabiner's gone), no System Extensions (no
 DriverKit), no logout.
 

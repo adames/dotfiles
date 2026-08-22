@@ -2,8 +2,8 @@
 # Walks the one TCC pane the Hyper-key stack needs.
 #
 # Post-Phase-6 surface (after the Karabiner → Hyperkey cut and the
-# AeroSpace retirement): the only TCC bit that matters is Accessibility,
-# for Hyperkey and Raycast (its global hotkey). No more Input
+# AeroSpace + Raycast retirements): the only TCC bit that matters is
+# Accessibility, for Hyperkey. No more Input
 # Monitoring (Karabiner's
 # kext-driven HID stream is gone), no more System Extensions pane (no
 # DriverKit dependency). Probe-gated: lib/macos-tcc.sh asks each tool
@@ -38,23 +38,20 @@ pause_for() {
 register() {
   step "registering apps in TCC lists"
   open -ga Hyperkey   2>/dev/null || true
-  open -ga Raycast    2>/dev/null || true
   sleep 2
   ok "registered"
 }
 
 # Per-pane missing-items report. Echoes "    • Tool" lines for items still
 # missing in Accessibility; empty output = everything's already granted.
-# Both probe the actual TCC grant (auth_value == 2) — liveness is a
-# false proxy: register() launches exactly these apps before the re-probe
-# (running ≠ granted), and Raycast runs fine WITHOUT Accessibility anyway
-# (it just loses its global hotkey). Client ids verified against the live
-# system TCC.db. If neither TCC.db is readable (terminal lacks Full Disk
-# Access), mac_tcc_granted returns non-zero and we err toward prompting,
-# as the header promises.
+# Probes the actual TCC grant (auth_value == 2) — liveness is a false
+# proxy: register() launches the app before the re-probe (running ≠
+# granted). Client id verified against the live system TCC.db. If
+# neither TCC.db is readable (terminal lacks Full Disk Access),
+# mac_tcc_granted returns non-zero and we err toward prompting, as the
+# header promises.
 missing_accessibility() {
   mac_tcc_granted kTCCServiceAccessibility 'com.knollsoft.Hyperkey' || echo "    • Hyperkey"
-  mac_tcc_granted kTCCServiceAccessibility 'com.raycast.macos'    || echo "    • Raycast"
 }
 
 main() {
@@ -84,8 +81,7 @@ main() {
     section "Accessibility"
     open_pane Privacy_Accessibility
     pause_for "  Toggle ON in Accessibility:
-${acc:-    • Hyperkey
-    • Raycast}"
+${acc:-    • Hyperkey}"
     opened_pane=1
   fi
 

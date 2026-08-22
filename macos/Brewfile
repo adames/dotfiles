@@ -35,5 +35,4 @@ cask "protonvpn"
 cask "hyperkey"          # caps tap→esc (the one keymap survivor)
 cask "ghostty"
 cask "helium-browser"    # net.imput.helium (NOT the deprecated `helium` cask)
-cask "raycast"
 cask "obsidian"

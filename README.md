@@ -29,7 +29,7 @@ layer is currently unbound, held in reserve. The real keymap is tmux
 
 ## Permissions
 
-One pane, ~30 seconds: Accessibility for Hyperkey · Raycast.
+One pane, ~30 seconds: Accessibility for Hyperkey.
 Wizard probes the actual grants first, only opens what's missing.
 [docs/wizard.md](docs/wizard.md).
 

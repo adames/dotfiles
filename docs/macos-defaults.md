@@ -80,6 +80,6 @@ is canonical:
 
 ## App-pref parity
 
-For per-app prefs (Ghostty, Raycast, etc.), prefer per-app
+For per-app prefs (Ghostty, etc.), prefer per-app
 `defaults export <domain> <file>` checked into `configs/`. We don't use
 mackup — its symlink mode is broken on macOS 14+.

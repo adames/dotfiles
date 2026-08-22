@@ -9,7 +9,7 @@ What survives:
 
 - **Caps** (Hyperkey): tap = `Esc` · hold = `Hyper` (`⌃⌥⌘⇧`) — the Hyper
   layer currently has **no bindings**; it's held in reserve for any
-  future global hotkeys (Raycast etc.)
+  future global hotkeys
 - **Stack**: app → tmux → zsh / nvim
 
 ## tmux
