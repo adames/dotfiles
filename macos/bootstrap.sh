@@ -220,6 +220,21 @@ phase_apply() {
   fi
   rm -rf "$HOME/.config/aerospace"
 
+  # Raycast retired too (native Tahoe Spotlight is the launcher). Same
+  # idempotent teardown shape: quit, drop the cask, sweep local state.
+  if pgrep -x Raycast >/dev/null 2>&1; then
+    step "stopping Raycast (retired)"
+    osascript -e 'tell application "Raycast" to quit' 2>/dev/null || true
+  fi
+  if brew list --cask raycast >/dev/null 2>&1; then
+    step "uninstalling raycast cask"
+    brew uninstall --cask raycast >/dev/null 2>&1 || warn "raycast cask uninstall failed"
+  fi
+  rm -rf "$HOME/Library/Application Support/com.raycast.macos" \
+         "$HOME/Library/Caches/com.raycast.macos" \
+         "$HOME/Library/Application Support/com.raycast.shared"
+  defaults delete com.raycast.macos >/dev/null 2>&1 || true
+
   # Sigil (the Swift workspace package) is fully retired with AeroSpace —
   # its last survivor, the ws-cheatsheet HUD, was only reachable via the
   # Caps+/ chord that lived in aerospace.toml. Sweep the clone, its
