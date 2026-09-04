@@ -74,6 +74,58 @@ dw com.apple.finder FXPreferredViewStyle -string Nlsv   # list view
 dw com.apple.finder FXDefaultSearchScope -string SCcf   # current folder
 ok "list view, search current folder"
 
+# ── Spotlight ───────────────────────────────────────────────────────────────
+# Cmd+Space got switched off when Raycast took over as launcher; retiring
+# Raycast left it off, so Spotlight had no hotkey at all. 64 = Spotlight
+# search (Cmd+Space), 65 = Finder search window (Cmd+Opt+Space). These live
+# in a nested dict, so dw() can't touch them — compare-first by hand.
+step "spotlight hotkeys"
+SHK_CHANGED=0
+shk() {  # shk <id> <modifier-mask> — enable a Space-key symbolic hotkey
+  local id="$1" mask="$2" cur
+  cur="$(/usr/libexec/PlistBuddy -c "Print :AppleSymbolicHotKeys:$id:enabled" \
+         "$HOME/Library/Preferences/com.apple.symbolichotkeys.plist" 2>/dev/null || true)"
+  [[ "$cur" == "true" ]] && return 0
+  defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "$id" "
+    <dict><key>enabled</key><true/><key>value</key><dict>
+    <key>type</key><string>standard</string>
+    <key>parameters</key><array>
+      <integer>65535</integer><integer>49</integer><integer>$mask</integer>
+    </array></dict></dict>"
+  SHK_CHANGED=1
+}
+shk 64 1048576   # Cmd+Space       — Spotlight search
+shk 65 1572864   # Cmd+Opt+Space   — Finder search window
+if (( SHK_CHANGED )); then
+  # Without this the new binding only takes effect at next login.
+  /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u \
+    2>/dev/null || true
+  ok "Cmd+Space -> Spotlight, Cmd+Opt+Space -> Finder search"
+else
+  ok "Spotlight hotkeys already bound"
+fi
+
+# Tahoe's Spotlight pane splits results into (a) apps/files/folders and the
+# calculator, which are always on and NOT listed here, and (b) this opt-in
+# list of app-content sources. We want a launcher, not a second Mail search
+# box: keep only on-device related content and Dictionary lookups. Notably
+# dropped — System.menuItems (frontmost app's menu commands) and
+# System.iphoneApps (iPhone Mirroring), both "search inside an app".
+# Hidden File Types stays empty so nothing on disk is suppressed.
+step "spotlight search results"
+SPOT_RULES=(Custom.relatedContents com.apple.Dictionary)
+cur_rules="$(defaults read com.apple.Spotlight EnabledPreferenceRules 2>/dev/null | \
+             tr -d ' \n"(),' || true)"
+want_rules="$(printf '%s' "${SPOT_RULES[*]}" | tr -d ' ')"
+if [[ "$cur_rules" != "$want_rules" ]]; then
+  defaults write com.apple.Spotlight EnabledPreferenceRules -array "${SPOT_RULES[@]}"
+  defaults write com.apple.Spotlight DisabledUTTypes -array
+  killall Spotlight 2>/dev/null || true
+  ok "app-content sources trimmed to related content + Dictionary"
+else
+  ok "Spotlight search results already current"
+fi
+
 # ── Trackpad ────────────────────────────────────────────────────────────────
 step "trackpad"
 dw com.apple.AppleMultitouchTrackpad Clicking -bool false

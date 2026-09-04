@@ -1,8 +1,8 @@
 # macOS defaults
 
 `macos/macos-defaults.sh` is run by `phase_apply` so both Macs (M3 + Air)
-converge on the same appearance / keyboard / Dock / Finder / trackpad
-posture. Encoded values live in the script — edit there, re-run
+converge on the same appearance / keyboard / Dock / Finder / Spotlight /
+trackpad posture. Encoded values live in the script — edit there, re-run
 `./macos/bootstrap.sh` to apply (idempotent).
 
 ## What's covered
@@ -22,9 +22,41 @@ posture. Encoded values live in the script — edit there, re-run
 | Dock | `orientation` | `bottom` | |
 | Finder | `FXPreferredViewStyle` | `Nlsv` | list view |
 | Finder | `FXDefaultSearchScope` | `SCcf` | search current folder |
+| Spotlight | `AppleSymbolicHotKeys` 64 | enabled | Cmd+Space — Spotlight search |
+| Spotlight | `AppleSymbolicHotKeys` 65 | enabled | Cmd+Opt+Space — Finder search window |
+| Spotlight | `EnabledPreferenceRules` | related content + Dictionary | app-content sources; see below |
+| Spotlight | `DisabledUTTypes` | `()` | Hidden File Types — nothing suppressed |
 | Trackpad | `Clicking` (built-in) | `false` | |
 | Trackpad | `Clicking` (bluetooth) | `false` | |
 | Trackpad | `com.apple.mouse.tapBehavior` | `0` | global tap-to-click off |
+
+## Spotlight
+
+Cmd+Space was switched off when Raycast became the launcher, and retiring
+Raycast (see `macos/bootstrap.sh`) left it off — Spotlight had no hotkey at
+all. Hotkeys 64/65 are nested dicts under `AppleSymbolicHotKeys`, so `dw()`
+can't drive them; the script compares `:<id>:enabled` by hand and calls
+`activateSettings -u` on change so the binding takes effect without a logout.
+
+Tahoe's Spotlight pane splits results in two:
+
+- **Always on, not listed anywhere** — apps, files, folders, and the
+  calculator. `EnabledPreferenceRules` does not govern these. The only way
+  to suppress on-disk results is Hidden File Types (`DisabledUTTypes`),
+  which we deliberately keep empty.
+- **`EnabledPreferenceRules`** — opt-in *app-content* sources. This is the
+  "search inside my apps" layer, and we want a launcher instead. Trimmed to
+  `Custom.relatedContents` (on-device related content) and
+  `com.apple.Dictionary` (definitions — same quick-utility class as the
+  calculator).
+
+Dropped from the stock list: Mail, Messages, Notes, Contacts, Calendar,
+Reminders, Photos, Books, Pages, Podcasts, Voice Memos, Phone, Shortcuts,
+Tips, plus `System.menuItems` (frontmost app's menu commands) and
+`System.iphoneApps` (iPhone Mirroring). Re-enable any of them by adding the
+identifier back to `SPOT_RULES`.
+
+Spotlight caches its prefs, so the script `killall Spotlight` on change.
 
 ## What's NOT scriptable
 
