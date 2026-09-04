@@ -85,11 +85,14 @@ check_source_deploy_drift() {
 
   (( unparsed > 0 )) && detail+="  $unparsed install_file line(s) not parsed"$'\n'
 
+  # Every branch leads with "<N> configs" so the count is parseable from any
+  # outcome — a CI runner with nothing deployed hits the WARN branch, and the
+  # test that guards this check's coverage still needs to read N there.
   if (( drifted == 0 && missing == 0 && unparsed == 0 )); then
     PASS source-deploy-drift "${#pairs[@]} configs in sync"
   elif (( drifted == 0 )); then
-    WARN source-deploy-drift "$missing missing, $unparsed unparsed of ${#pairs[@]}"$'\n'"$detail"
+    WARN source-deploy-drift "${#pairs[@]} configs: $missing missing, $unparsed unparsed"$'\n'"$detail"
   else
-    FAIL source-deploy-drift "$drifted of ${#pairs[@]} config(s) drifted; run: bash $bootstrap"$'\n'"$detail"
+    FAIL source-deploy-drift "${#pairs[@]} configs: $drifted drifted; run: bash $bootstrap"$'\n'"$detail"
   fi
 }

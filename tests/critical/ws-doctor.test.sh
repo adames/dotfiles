@@ -58,9 +58,10 @@ test_doctor_drift_check_covers_all_configs() {
 
   local out count
   out=$("$DOCTOR" --only=source-deploy-drift 2>&1)
-  # "N configs in sync" (clean) or "X of N config(s) drifted" (dirty).
-  count=$(sed -nE 's/.*[^0-9]([0-9]+) config(s)? in sync.*/\1/p;
-                   s/.*of ([0-9]+) config\(s\) drifted.*/\1/p' <<<"$out" | head -1)
+  # Every outcome leads with "<N> configs ...", so this reads the coverage
+  # count whether the machine is clean, drifted, or (as on CI) has nothing
+  # deployed at all.
+  count=$(sed -nE 's/.*[[:space:]]([0-9]+) configs.*/\1/p' <<<"$out" | head -1)
 
   if [[ -n "$count" ]] && (( count >= 10 )); then
     echo "PASS: drift check covers $count deployed configs"
@@ -104,7 +105,21 @@ test_doctor_runs() {
   # legitimately FAILed) and prints its actual summary line. 2+ means
   # either multiple checks failed or `timeout` killed it (124/137) —
   # not "any output", which a stack trace also satisfies.
-  if (( exit_code <= 1 )) && grep -qE 'summary: [0-9]+ pass' <<<"$out"; then
+  # Require at least one check to have actually RUN. The old assertion took
+  # any summary line as success, so a doctor that couldn't source its own
+  # libs — every check undefined — still reported
+  # "summary: 0 pass · 0 warn · 0 fail · 0 skip" and passed this test.
+  # Sum all four buckets: on CI nothing is deployed, so the only check
+  # legitimately WARNs and "pass" is 0. What must never happen is every
+  # bucket reading 0 — that's the signature of a doctor that couldn't
+  # source its checks yet still printed a summary.
+  local ran
+  # [^0-9]+ for the separators, not ".": the renderer joins them with "·",
+  # which is two bytes in UTF-8, and CI runs under LC_ALL=C where "." matches
+  # a single byte and the whole pattern silently fails to match.
+  ran=$(sed -nE 's/.*summary: ([0-9]+) pass[^0-9]+([0-9]+) warn[^0-9]+([0-9]+) fail[^0-9]+([0-9]+) skip.*/\1+\2+\3+\4/p' <<<"$out" | head -1)
+  ran=$(( ${ran:-0} ))
+  if (( exit_code <= 1 )) && (( ran >= 1 )); then
     echo "PASS: ws-doctor executes cleanly and emits its summary line"
     ((pass++))
   else

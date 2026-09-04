@@ -36,7 +36,33 @@
 
 set -u
 
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+# Resolve the repo. Unlike the bootstraps, ws-doctor can't just walk up from
+# its own path: it's *deployed* to ~/.local/bin/ws-doctor, where script-
+# relative resolution yields ~/.local. So try script-relative first but only
+# accept it if lib/ is actually there (true for the in-repo copy, and for a
+# clone anywhere on disk — CI checks out to /home/runner/work/...), then fall
+# back to ~/dotfiles (true for the deployed copy). Explicit DOTFILES_DIR wins.
+if [[ -z "${DOTFILES_DIR:-}" ]]; then
+  _self_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  if [[ -f "$_self_root/lib/ws-doctor-checks.sh" ]]; then
+    DOTFILES_DIR="$_self_root"
+  else
+    DOTFILES_DIR="$HOME/dotfiles"
+  fi
+  unset _self_root
+fi
+
+# Fail loudly. Sourcing a missing lib used to leave every helper undefined
+# and still print "summary: 0 pass · 0 warn · 0 fail · 0 skip" — a broken
+# run that reads as a clean one.
+for _lib in lib/common.sh lib/ws-doctor-checks.sh; do
+  if [[ ! -f "$DOTFILES_DIR/$_lib" ]]; then
+    printf 'ws-doctor: cannot find %s under %s\n' "$_lib" "$DOTFILES_DIR" >&2
+    printf 'ws-doctor: set DOTFILES_DIR to your dotfiles checkout\n' >&2
+    exit 2
+  fi
+done
+unset _lib
 . "$DOTFILES_DIR/lib/common.sh"
 
 STRICT=
