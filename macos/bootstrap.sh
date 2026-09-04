@@ -53,7 +53,7 @@ phase_packages() {
   # to skip every declared cask so headless runs don't wedge on sudo prompts.
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
     step "installing macos/Brewfile"
-    if brew bundle install --file="$brewfile" --no-upgrade 2>&1 | sed 's/^/    /'; then
+    if brew bundle install --file="$brewfile" --no-upgrade 2>&1 | brew_quiet; then
       ok "Brewfile"
     else
       warn "macos/Brewfile install had failures"
@@ -63,7 +63,7 @@ phase_packages() {
     cask_skip="$(brewfile_casks "$brewfile")"
     step "installing formulae from macos/Brewfile (casks skipped)"
     if HOMEBREW_BUNDLE_CASK_SKIP="$cask_skip" \
-         brew bundle install --file="$brewfile" --no-upgrade 2>&1 | sed 's/^/    /'; then
+         brew bundle install --file="$brewfile" --no-upgrade 2>&1 | brew_quiet; then
       ok "formulae"
     else
       warn "macos/Brewfile formula install had failures"
@@ -74,7 +74,7 @@ phase_packages() {
   # Per-Mac heavy apps (orbstack on the M3; the Air has no Brewfile.local).
   if [[ -f "$brewfile_local" ]]; then
     step "installing macos/Brewfile.local (this-machine apps)"
-    if brew bundle install --file="$brewfile_local" --no-upgrade 2>&1 | sed 's/^/    /'; then
+    if brew bundle install --file="$brewfile_local" --no-upgrade 2>&1 | brew_quiet; then
       ok "Brewfile.local"
     else
       warn "macos/Brewfile.local install had failures"
@@ -276,7 +276,11 @@ phase_apply() {
 phase_wizard() {
   section "Phase 4/4 · permission wizard"
   step "handing off to permissions-wizard.sh"
-  exec "$DOTFILES_DIR/macos/permissions-wizard.sh"
+  # Called, not exec'd: exec replaces this process, which would skip both
+  # run_summary and phase_sudo's keepalive-killing EXIT trap. The wizard's
+  # own exit code is advisory (it's a walk-through, not a gate).
+  bash "$DOTFILES_DIR/macos/permissions-wizard.sh" \
+    || warn "permissions wizard exited non-zero"
 }
 
 main() {
@@ -295,6 +299,7 @@ main() {
   phase_packages
   phase_apply
   phase_wizard
+  run_summary
 }
 
 main "$@"

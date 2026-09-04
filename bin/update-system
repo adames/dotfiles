@@ -37,7 +37,19 @@ fi
 if have mise; then
   step "mise install / upgrade"
   mise install 2>&1 | sed 's/^/    /' || warn "mise install had failures"
-  mise upgrade 2>&1 | sed 's/^/    /' || warn "mise upgrade had failures"
+
+  # Capture rather than stream: mise reports "newer versions exist but your
+  # config pins you below them" as ordinary output, so it scrolled past
+  # under an [ok] and read as success. That's the single most useful
+  # up-to-date signal in the whole run — promote it to a note. The pinned
+  # lines look like "  python 3.12.14 → 3.14.7 (~/.config/mise/config.toml)".
+  mise_out="$(mise upgrade 2>&1)" || warn "mise upgrade had failures"
+  printf '%s\n' "$mise_out" | sed 's/^/    /'
+  if grep -q 'do not match the configured version ranges' <<<"$mise_out"; then
+    while IFS= read -r pin; do
+      note "pinned below latest: $pin  (bump: mise upgrade --bump)"
+    done < <(grep -oE '[a-z0-9_-]+ [0-9][0-9.]* → [0-9][0-9.]*' <<<"$mise_out")
+  fi
   ok "mise tools current"
 else
   warn "mise not installed — skipping"

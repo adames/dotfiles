@@ -10,12 +10,5 @@
 .idea/
 *.swp
 
-# Sigil runtime clone (not part of this repo); track the rune config and a
-# baseline cheatsheet.json so the Caps+/ HUD has a fallback on a fresh clone
-# when rune isn't available (bootstrap regenerates it via rune when it is).
-configs/workspace/*
-!configs/workspace/rune.toml
-!configs/workspace/cheatsheet.json
-
 # Per-machine heavy apps — mirrors the ~/.gitconfig.local pattern.
 macos/Brewfile.local

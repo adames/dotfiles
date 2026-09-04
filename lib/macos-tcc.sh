@@ -26,8 +26,12 @@ _tcc_auth() {
   for db in "/Library/Application Support/com.apple.TCC/TCC.db" \
             "$HOME/Library/Application Support/com.apple.TCC/TCC.db"; do
     [[ -r "$db" ]] || continue
+    # Single-quotes doubled per SQL escaping. Both args are literals at
+    # every call site today, so this is belt-and-braces — but a probe that
+    # ever takes a bundle id from the environment shouldn't be the place we
+    # discover string interpolation into SQL.
     val="$(sqlite3 "$db" \
-      "SELECT auth_value FROM access WHERE service='$service' AND client LIKE '$client_like' LIMIT 1;" \
+      "SELECT auth_value FROM access WHERE service='${service//\'/\'\'}' AND client LIKE '${client_like//\'/\'\'}' LIMIT 1;" \
       2>/dev/null)" || continue
     [[ -n "$val" ]] && { printf '%s\n' "$val"; return 0; }
   done

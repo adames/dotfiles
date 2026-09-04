@@ -36,33 +36,38 @@ test_doctor_help() {
   fi
 }
 
-# Test 3: Doctor checks for critical components
-test_doctor_checks_critical() {
-  if [[ ! -f "$DOCTOR" ]]; then
+# Test 3: the drift check is registered AND actually covers every deployed
+# config. The old version of this test grepped the source for check-name
+# keywords, which is why it kept reporting three healthy checks while two
+# of them had been scanning for AppleScript patterns the repo no longer
+# contained. Assert observable behaviour instead: the check must appear in
+# --list, and a real run must report a pair count in double digits (it
+# derives them from macos/bootstrap.sh's install_file calls — a regression
+# to a hand-maintained list would drop it back to 2).
+test_doctor_drift_check_covers_all_configs() {
+  if [[ ! -x "$DOCTOR" ]]; then
+    echo "SKIP: ws-doctor not executable"
     return 0
   fi
 
-  local checks=0
-
-  if grep -q "config\|drift" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks config drift"
-    ((checks++))
+  if ! "$DOCTOR" --list 2>/dev/null | grep -q '^source-deploy-drift'; then
+    echo "FAIL: source-deploy-drift not registered in CHECKS"
+    ((fail++))
+    return 0
   fi
 
-  if grep -q "menu-items\|menu item" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks menu-item resolution"
-    ((checks++))
-  fi
+  local out count
+  out=$("$DOCTOR" --only=source-deploy-drift 2>&1)
+  # "N configs in sync" (clean) or "X of N config(s) drifted" (dirty).
+  count=$(sed -nE 's/.*[^0-9]([0-9]+) config(s)? in sync.*/\1/p;
+                   s/.*of ([0-9]+) config\(s\) drifted.*/\1/p' <<<"$out" | head -1)
 
-  if grep -q "app-references\|tell application" "${DOCTOR_SRC[@]}" 2>/dev/null; then
-    echo "PASS: Doctor checks app references"
-    ((checks++))
-  fi
-
-  if ((checks >= 2)); then
+  if [[ -n "$count" ]] && (( count >= 10 )); then
+    echo "PASS: drift check covers $count deployed configs"
     ((pass++))
   else
-    echo "FAIL: Doctor is missing critical checks ($checks/3 keyword groups found)"
+    echo "FAIL: drift check covered '${count:-?}' configs (expected >= 10)"
+    echo "$out" | sed 's/^/       /'
     ((fail++))
   fi
 }
@@ -112,7 +117,7 @@ test_doctor_runs() {
 echo "=== ws-doctor.test.sh ==="
 test_doctor_exists
 test_doctor_help
-test_doctor_checks_critical
+test_doctor_drift_check_covers_all_configs
 test_doctor_runs
 
 echo ""

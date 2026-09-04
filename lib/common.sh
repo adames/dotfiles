@@ -14,12 +14,92 @@ else
   C_RESET=''; C_BOLD=''; C_BLUE=''; C_GREEN=''; C_YELLOW=''; C_RED=''
 fi
 
+# Run log — every warn/err also appends here so the end-of-run summary can
+# replay them without any call site having to opt in. It's a FILE, not an
+# array, because bootstrap shells out to separate processes (update-system,
+# macos-defaults.sh, the wizard); an array would only ever collect the
+# parent's own warnings. Exported, so children append to the same log.
+# A caller that sources common.sh outside a bootstrap run (ws-doctor) gets
+# one too and simply never prints a summary.
+if [[ -z "${DOTFILES_RUN_LOG:-}" ]]; then
+  DOTFILES_RUN_LOG="$(mktemp -t dotfiles-run)"
+  export DOTFILES_RUN_LOG
+  : "${DOTFILES_RUN_START:=$SECONDS}"
+  export DOTFILES_RUN_START
+fi
+
 section() { printf '\n%s==>%s %s\n' "$C_BOLD" "$C_RESET" "$*"; }
 
 step() { printf '%s-->%s %s\n' "$C_BLUE" "$C_RESET" "$*"; }
 ok()   { printf '%s[ok]%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
-warn() { printf '%s[warn]%s %s\n' "$C_YELLOW" "$C_RESET" "$*" >&2; }
-err()  { printf '%s[err]%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; }
+warn() { printf '%s[warn]%s %s\n' "$C_YELLOW" "$C_RESET" "$*" >&2
+         printf 'WARN\t%s\n' "$*" >> "$DOTFILES_RUN_LOG" 2>/dev/null || true; }
+err()  { printf '%s[err]%s %s\n' "$C_RED" "$C_RESET" "$*" >&2
+         printf 'ERR\t%s\n' "$*" >> "$DOTFILES_RUN_LOG" 2>/dev/null || true; }
+
+# note <msg> — a real finding that isn't a failure. Things like "a newer
+# python exists but your mise config pins you below it": burying that under
+# [ok] is how it goes unread for months, but it isn't a warning either.
+note() { printf '%s[note]%s %s\n' "$C_BLUE" "$C_RESET" "$*"
+         printf 'NOTE\t%s\n' "$*" >> "$DOTFILES_RUN_LOG" 2>/dev/null || true; }
+
+# brew_quiet — filter for `brew bundle` output. On a settled machine every
+# one of the ~25 entries prints "Using <pkg>", which buries the two lines
+# that matter. Collapse those into a count; pass Installing/Upgrading/Error
+# through verbatim, since those ARE the state change or the failure.
+# Zero maintenance: it keys off brew's verbs, not off our package list.
+brew_quiet() {
+  awk -v ind="    " '
+    /^Using /                    { using++;   next }
+    /^Skipping /                 { skipped++; next }
+    /^`brew bundle` complete!/   { next }        # our tally replaces it
+    { print ind $0 }                             # Installing/Upgrading/errors
+    END {
+      line = ""
+      if (using)   line = using " already installed"
+      if (skipped) line = line (line ? " · " : "") skipped " skipped"
+      if (line)    print ind line
+    }
+  '
+}
+
+# run_summary — the closing block. Reads the run log, so it needs no
+# cooperation from any phase: whatever called warn/err/note shows up.
+run_summary() {
+  local warns errs notes elapsed
+  # `grep -c` already prints 0 when nothing matches — it just exits 1 while
+  # doing so. `|| true` swallows the status; `|| echo 0` would append a
+  # second zero and feed "0\n0" into the arithmetic below.
+  warns=$(grep -c '^WARN' "$DOTFILES_RUN_LOG" 2>/dev/null || true)
+  errs=$(grep  -c '^ERR'  "$DOTFILES_RUN_LOG" 2>/dev/null || true)
+  notes=$(grep -c '^NOTE' "$DOTFILES_RUN_LOG" 2>/dev/null || true)
+  : "${warns:=0}" "${errs:=0}" "${notes:=0}"
+  elapsed=$(( SECONDS - ${DOTFILES_RUN_START:-0} ))
+
+  if (( errs > 0 )); then
+    section "Finished with errors · ${elapsed}s"
+  elif (( warns > 0 )); then
+    section "Finished with warnings · ${elapsed}s"
+  else
+    section "All good · ${elapsed}s"
+  fi
+  printf '    %d error · %d warning · %d note\n' "$errs" "$warns" "$notes"
+
+  # Replay the non-ok lines so a long scrollback doesn't hide them.
+  if (( errs + warns + notes > 0 )); then
+    printf '\n'
+    local kind msg colour
+    while IFS=$'\t' read -r kind msg; do
+      case "$kind" in
+        ERR)  colour="$C_RED" ;;
+        WARN) colour="$C_YELLOW" ;;
+        *)    colour="$C_BLUE" ;;
+      esac
+      printf '    %s%-6s%s %s\n' "$colour" "$(tr A-Z a-z <<<"$kind")" "$C_RESET" "$msg"
+    done < "$DOTFILES_RUN_LOG"
+  fi
+  printf '\n'
+}
 
 have() { command -v "$1" >/dev/null 2>&1; }
 # Interactive ⇔ stdin is a tty. stdin ONLY — gating on stdout too made

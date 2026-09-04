@@ -18,8 +18,9 @@ Hyperkey + Docker.
 
 No window manager. AeroSpace (and the sigil HUD stack behind it) is
 retired — mouse + native macOS won; a tiler never earned its keep here.
-Bootstrap actively tears it down on machines that still have it. History:
-[docs/sigil-teardown.md](docs/sigil-teardown.md).
+Bootstrap actively tears it down on machines that still have it. The
+launcher is Spotlight (`⌘Space`); see
+[docs/architecture.md](docs/architecture.md).
 
 ## Keymap
 
@@ -42,6 +43,27 @@ pgrep -x Hyperkey         # remap live
 tests/run-all.sh          # pure-bash critical path (~1.5s)
 ```
 
+## Reading bootstrap output
+
+Four phases, then a summary. Lines are graded, so a settled machine is
+quiet and anything worth your attention is loud:
+
+| Marker | Means |
+|---|---|
+| `[ok]` | already in the desired state, or just put there |
+| `[note]` | true, useful, not a problem — e.g. a newer python exists but your mise config pins you below it |
+| `[warn]` | a step was skipped or degraded; the run continued |
+| `[err]` | a step failed |
+
+`brew bundle` chatter is collapsed to a tally (`18 already installed`);
+only real installs, upgrades and errors print in full. The closing block
+counts each grade and replays every non-`[ok]` line, so you never have to
+scroll back through a long run to find what happened.
+
+Nothing about this needs maintaining — `warn`/`err`/`note` in
+`lib/common.sh` feed the summary themselves, and the brew filter keys off
+brew's own verbs, not off our package list.
+
 ## Troubleshoot
 
 | Symptom | Fix |
@@ -60,6 +82,6 @@ tests/run-all.sh          # pure-bash critical path (~1.5s)
 ├── lib/                      # bash helpers (logging, install_file, TCC probes)
 ├── bin/                      # update-system, ws-doctor
 ├── configs/                  # ghostty, tmux, zsh, nvim, …
-└── docs/                     # architecture · keymap · wizard · macos-defaults · sigil-teardown
+└── docs/                     # architecture · keymap · wizard · macos-defaults
 ```
 

@@ -22,7 +22,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq tmux
 
       # Match by content, not extension: the bin/ tools (ws-doctor,
-      # ws-grid, update-system, …) and configs/ helpers have no .sh
+      # update-system) and configs/ helpers have no .sh
       # suffix, so an extension-only glob skipped the most complex
       # scripts in the repo. Select anything with a bash/sh shebang plus
       # the known extensionless config dotfiles.

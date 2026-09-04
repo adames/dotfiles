@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
 # ws-doctor — keymap / launcher health check.
 #
-# Catches the failure modes this setup has actually shipped (the
-# aerospace-era checks — config freshness, Hyper keystroke collision,
-# phantom tiles, app-name casing — retired with AeroSpace itself):
+# Catches the failure mode this setup has actually shipped:
 #
 #   1. source/deploy drift        — a config in `configs/` was patched but
 #                                   the deployed copy under `~/.config/` is
 #                                   stale (or vice versa — fixing only the
 #                                   deployed copy lets the next
-#                                   `bootstrap.sh` clobber the fix).
+#                                   `bootstrap.sh` clobber the fix). Pairs
+#                                   are read from macos/bootstrap.sh's
+#                                   install_file calls, so every deployed
+#                                   file is covered automatically.
 #
-#   2. menu item drift            — a script uses
-#                                   `click menu item "New Window" of menu "File"`
-#                                   to drive an app whose menu item silently
-#                                   got renamed by an upstream release.
-#
-#   3. missing target app         — `tell application "Foo"` where Foo isn't
-#                                   installed; AppleScript prompts for the
-#                                   app and the script hangs.
+# The aerospace-era checks (config freshness, Hyper keystroke collision,
+# phantom tiles, app-name casing) retired with AeroSpace; the sigil-era
+# ones (menu-item resolution, `tell application` targets) retired with
+# sigil — both had scanned for AppleScript patterns the repo no longer
+# contains. Git history has the bodies.
 #
 # Each check is independent; the script keeps going on failure so one report
 # covers everything. Exit code is the number of FAILED checks (0 = clean).
@@ -99,8 +97,6 @@ SKIP() { _record SKIP "$1" "$2"; }
 # ─── render ─────────────────────────────────────────────────────────────────
 declare -a CHECKS=(
   "source-deploy-drift:check_source_deploy_drift:configs/ matches deployed copies"
-  "menu-items:check_menu_items:click-menu-item refs resolve in live apps"
-  "app-references:check_app_references:tell application targets are installed"
 )
 
 # Map check-name → fixer-function-name. Only entries here are

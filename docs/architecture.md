@@ -17,8 +17,7 @@ moves the tmux pane. Same letter, no overlap.
 
 ## The AeroSpace retirement (2026-08)
 
-AeroSpace — and before it the whole sigil workspace layer (see
-[sigil-teardown.md](sigil-teardown.md)) — is gone. The honest audit: a
+AeroSpace — and before it the whole sigil workspace layer — is gone. The honest audit: a
 mouse and a single screen were doing the work; the tiler, its Hyper
 chord layer, the `ws-grid` helper, the cheatsheet HUD, and the rune
 generator that fed it were maintenance without payoff. Bootstrap now
@@ -33,8 +32,9 @@ for tap-Caps = Esc; the Hyper layer is intentionally empty.
 |---|---|
 | Caps remap (tap = Esc) | Hyperkey (user defaults) |
 | Window management | macOS native + mouse |
+| Launcher | Spotlight (`⌘Space`) — see [macos-defaults.md](macos-defaults.md) |
 | Terminal multiplexing | tmux (`C-Space`) |
-| Health check | ws-doctor · `bin/ws-doctor` (drift, menu items, app refs) |
+| Health check | ws-doctor · `bin/ws-doctor` (config source/deploy drift) |
 | Package updates | `bin/update-system` (brew + mise + softwareupdate) |
 
 No DriverKit kext, no scripting addition, no SIP modification, no
