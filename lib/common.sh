@@ -22,7 +22,13 @@ fi
 # A caller that sources common.sh outside a bootstrap run (ws-doctor) gets
 # one too and simply never prints a summary.
 if [[ -z "${DOTFILES_RUN_LOG:-}" ]]; then
-  DOTFILES_RUN_LOG="$(mktemp -t dotfiles-run)"
+  # Explicit XXXXXX template, not `mktemp -t dotfiles-run`: BSD/macOS mktemp
+  # appends the random suffix for you, GNU/Linux mktemp rejects the template
+  # outright ("too few X's"). Under ubuntu/bootstrap.sh's `set -euo pipefail`
+  # that aborted the run on the first sourced line. Fall back to a PID-named
+  # path so a read-only or unusual TMPDIR degrades instead of killing the run.
+  DOTFILES_RUN_LOG="$(mktemp "${TMPDIR:-/tmp}/dotfiles-run.XXXXXX" 2>/dev/null \
+                      || printf '%s/dotfiles-run.%s' "${TMPDIR:-/tmp}" "$$")"
   export DOTFILES_RUN_LOG
   : "${DOTFILES_RUN_START:=$SECONDS}"
   export DOTFILES_RUN_START
@@ -61,6 +67,50 @@ brew_quiet() {
       if (line)    print ind line
     }
   '
+}
+
+# apt_quiet — filter for apt-get. Allowlist, not blocklist: apt's verbose
+# output is mostly multi-line package manifests with indented continuation
+# lines, so "drop these prefixes" let ~100 lines of dependency names through
+# on a first install. Print only what carries information — apt's own
+# one-line tally, and anything it flags as a problem — and drop the rest.
+# Robust by construction: new apt chatter is dropped by default rather than
+# needing a new rule here.
+apt_quiet() {
+  awk -v ind="    " '
+    /upgraded,.*newly installed/          { tally = $0; next }
+    /^[EW]:/                              { print ind $0; next }
+    /^(dpkg|apt): error/                  { print ind $0; next }
+    /[Ee]rror:/                           { print ind $0; next }
+    { next }
+    END { if (tally) print ind tally }
+  '
+}
+
+# run_quiet <label> <cmd…> — for third-party installers that spray progress
+# bars over stderr (the fzf and mise installers both do, and `>/dev/null`
+# misses them because they write to fd 2). Swallow the output on success;
+# replay all of it on failure, which is the only time anyone wants it.
+run_quiet() {
+  local label="$1"; shift
+  local out status=0
+  # `if` context so `set -e` doesn't abort before we can report.
+  if out="$("$@" 2>&1)"; then status=0; else status=$?; fi
+  if (( status != 0 )); then
+    err "$label failed (exit $status)"
+    printf '%s\n' "$out" | sed 's/^/    /'
+  fi
+  return "$status"
+}
+
+# phase <title> — auto-numbered section header. The count comes from the
+# PHASES array the caller iterates, so inserting, removing or reordering a
+# phase never means renumbering the rest by hand. (ubuntu/bootstrap.sh used
+# to label seven phases "0/6" through "6/6".)
+PHASE_N=0
+phase() {
+  PHASE_N=$((PHASE_N + 1))
+  section "Phase $PHASE_N/${PHASE_TOTAL:-?} · $*"
 }
 
 # run_summary — the closing block. Reads the run log, so it needs no

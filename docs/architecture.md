@@ -36,6 +36,7 @@ for tap-Caps = Esc; the Hyper layer is intentionally empty.
 | Terminal multiplexing | tmux (`C-Space`) |
 | Health check | ws-doctor · `bin/ws-doctor` (config source/deploy drift) |
 | Package updates | `bin/update-system` (brew + mise + softwareupdate) |
+| Run output | `lib/common.sh` — graded lines, `brew_quiet`/`apt_quiet`, `run_summary` |
 
 No DriverKit kext, no scripting addition, no SIP modification, no
 window-manager daemon.

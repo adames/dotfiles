@@ -45,8 +45,10 @@ tests/run-all.sh          # pure-bash critical path (~1.5s)
 
 ## Reading bootstrap output
 
-Four phases, then a summary. Lines are graded, so a settled machine is
-quiet and anything worth your attention is loud:
+Numbered phases, then a summary — the same shape on both platforms (macOS
+has 4, Ubuntu 7; the numbers come from the phase list itself, so they can't
+drift). Lines are graded, so a settled machine is quiet and anything worth
+your attention is loud:
 
 | Marker | Means |
 |---|---|
@@ -55,14 +57,19 @@ quiet and anything worth your attention is loud:
 | `[warn]` | a step was skipped or degraded; the run continued |
 | `[err]` | a step failed |
 
-`brew bundle` chatter is collapsed to a tally (`18 already installed`);
-only real installs, upgrades and errors print in full. The closing block
-counts each grade and replays every non-`[ok]` line, so you never have to
-scroll back through a long run to find what happened.
+Package-manager chatter is collapsed to a tally — `18 already installed`
+for brew, `0 upgraded, 154 newly installed, 0 to remove` for apt — while
+real installs, upgrades and errors print in full. Third-party installers
+that draw progress bars on stderr (fzf, mise, starship) are silent unless
+they fail, in which case you get all of their output. The closing block
+counts each grade and replays every non-`[ok]` line, so you never scroll
+back through a long run to find what happened.
 
-Nothing about this needs maintaining — `warn`/`err`/`note` in
-`lib/common.sh` feed the summary themselves, and the brew filter keys off
-brew's own verbs, not off our package list.
+Nothing here needs maintaining. `warn`/`err`/`note` in `lib/common.sh` feed
+the summary themselves; the brew filter keys off brew's own verbs; and the
+apt filter is an allowlist — it prints apt's one-line tally plus anything
+apt flags, and drops everything else by default, so new apt chatter never
+needs a new rule.
 
 ## Troubleshoot
 

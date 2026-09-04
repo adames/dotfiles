@@ -11,7 +11,7 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # ─── phase 1 · sudo ─────────────────────────────────────────────────────────
 phase_sudo() {
-  section "Phase 1/4 · sudo"
+  phase "sudo"
   if ! has_tty; then
     warn "no TTY — cask installs and Accessibility prompts will be skipped"
     return 0
@@ -33,7 +33,7 @@ phase_sudo() {
 
 # ─── phase 2 · packages ─────────────────────────────────────────────────────
 phase_packages() {
-  section "Phase 2/4 · packages"
+  phase "packages"
 
   ensure_xcode_clt
 
@@ -178,7 +178,7 @@ seed_hyperkey_defaults() {
 
 # ─── phase 3 · apply configs + macOS defaults ───────────────────────────────
 phase_apply() {
-  section "Phase 3/4 · deploy configs & defaults"
+  phase "deploy configs & defaults"
 
   : > "$HOME/.hushlogin"
 
@@ -274,7 +274,7 @@ phase_apply() {
 
 # ─── phase 4 · permission wizard ────────────────────────────────────────────
 phase_wizard() {
-  section "Phase 4/4 · permission wizard"
+  phase "permission wizard"
   step "handing off to permissions-wizard.sh"
   # Called, not exec'd: exec replaces this process, which would skip both
   # run_summary and phase_sudo's keepalive-killing EXIT trap. The wizard's
@@ -295,10 +295,12 @@ main() {
     pyuser="$(python3 -m site --user-base 2>/dev/null || true)"
   fi
   export PATH="$HOME/.local/bin${pyuser:+:$pyuser/bin}:$PATH"
-  phase_sudo
-  phase_packages
-  phase_apply
-  phase_wizard
+  # Same self-numbering list as ubuntu/bootstrap.sh — phase() takes the total
+  # from here, so the headers can never drift out of sync with reality.
+  local phases=(phase_sudo phase_packages phase_apply phase_wizard)
+  PHASE_TOTAL=${#phases[@]}
+  local p
+  for p in "${phases[@]}"; do "$p"; done
   run_summary
 }
 
