@@ -1,0 +1,16 @@
+#!/bin/sh
+# Mirror every Claude project memory (*.md only) to ~/documents/claude-memory/<project>/ (iCloud-synced).
+# --restore copies the other way, never overwriting a newer local file. Copy, never symlink.
+set -e
+SRC="$HOME/.claude/projects"; DST="$HOME/documents/claude-memory"; mkdir -p "$DST"
+if [ "$1" = "--restore" ]; then
+  for d in "$DST"/*/; do p=$(basename "$d"); [ -f "$d/MEMORY.md" ] || continue
+    mkdir -p "$SRC/$p/memory"; rsync -a --update --include='*.md' --exclude='*' "$d" "$SRC/$p/memory/"; done
+  echo "$(date '+%F %T')  restored" >> "$DST/.last-sync"; exit 0
+fi
+n=0
+for m in "$SRC"/*/memory; do [ -d "$m" ] || continue; p=$(basename "$(dirname "$m")")
+  case "$p" in *--claude-worktrees-*) continue;; esac
+  ls "$m"/*.md >/dev/null 2>&1 || continue
+  mkdir -p "$DST/$p"; rsync -a --include='*.md' --exclude='*' "$m/" "$DST/$p/"; n=$((n+1)); done
+echo "$(date '+%F %T')  synced $n projects" >> "$DST/.last-sync"; echo "synced $n projects -> $DST"

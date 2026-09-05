@@ -166,6 +166,21 @@ install_file() {
   ok "installed ${dst/#$HOME/~}"
 }
 
+# ensure_claude_skills — ~/.claude/skills is its own repo (adames/claude-skills),
+# cloned *as* that directory so Claude Code discovers skills without copying.
+# Clone if absent; if the dir exists without .git, leave it and warn — local
+# skills there would be lost by a blind clone.
+ensure_claude_skills() {
+  local dir="$HOME/.claude/skills"
+  if [[ -d "$dir/.git" ]]; then return 0; fi
+  if [[ -d "$dir" ]]; then warn "~/.claude/skills exists but is not the claude-skills repo — see its README"; return 0; fi
+  if git clone -q git@github.com:adames/claude-skills.git "$dir" 2>/dev/null; then
+    ok "cloned claude-skills -> ~/.claude/skills"
+  else
+    warn "could not clone claude-skills (no SSH key yet?) — rerun bootstrap after keys are set"
+  fi
+}
+
 # ensure_gitconfig_local — one-time ~/.gitconfig.local stub. User identity
 # lives there (untracked, [include]'d by configs/gitconfig); both platform
 # bootstraps call this so the two paths stay symmetric.

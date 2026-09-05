@@ -22,6 +22,16 @@ Bootstrap actively tears it down on machines that still have it. The
 launcher is Spotlight (`⌘Space`); see
 [docs/architecture.md](docs/architecture.md).
 
+## Claude Code
+
+`configs/CLAUDE.md` and `configs/claude-settings.json` deploy to `~/.claude/`.
+Skills are a separate repo cloned *as* `~/.claude/skills` (bootstrap does it).
+Project memory is **not** synced through git or iCloud; `backup-claude-memory`
+mirrors `~/.claude/projects/*/memory/*.md` into `~/documents/claude-memory/`
+(iCloud), and `--restore` seeds a fresh Mac. Session transcripts stay
+per-machine — use `claude --remote-control` to reach a session from elsewhere.
+Where files live overall: `~/documents/REORG-PLAN-2026-09-05.md`.
+
 ## Keymap
 
 Caps is the center: **tap = `Esc`**, **hold = Hyper (⌃⌥⌘⇧)** — the Hyper

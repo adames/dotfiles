@@ -172,6 +172,10 @@ phase_configs() {
   install_file "$CONFIGS_DIR/starship.toml"       "$HOME/.config/starship.toml"
   install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
   install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
+  install_file "$CONFIGS_DIR/CLAUDE.md"           "$HOME/.claude/CLAUDE.md"
+  install_file "$CONFIGS_DIR/claude-settings.json" "$HOME/.claude/settings.json"
+  install_file "$DOTFILES_DIR/bin/backup-claude-memory" "$HOME/.local/bin/backup-claude-memory.sh" 755
+  ensure_claude_skills
 
   mkdir -p "$HOME/.config/nvim/after/plugin"
   install_file "$CONFIGS_DIR/nvim-init.lua"       "$HOME/.config/nvim/init.lua"

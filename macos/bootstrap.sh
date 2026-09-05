@@ -259,6 +259,9 @@ phase_apply() {
   install_file "$CONFIGS_DIR/gitconfig"                  "$HOME/.gitconfig"
   install_file "$CONFIGS_DIR/ripgreprc"                  "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/CLAUDE.md"                  "$HOME/.claude/CLAUDE.md"
+  install_file "$CONFIGS_DIR/claude-settings.json"       "$HOME/.claude/settings.json"
+  install_file "$DOTFILES_DIR/bin/backup-claude-memory"  "$HOME/.local/bin/backup-claude-memory.sh" 755
+  ensure_claude_skills
   install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
   install_file "$DOTFILES_DIR/bin/ws-doctor"             "$HOME/.local/bin/ws-doctor" 755
   install_file "$DOTFILES_DIR/bin/update-system"         "$HOME/.local/bin/update-system" 755
