@@ -18,8 +18,9 @@ Hyperkey + Docker.
 
 Packages are declared, never assumed: `macos/Brewfile` is the whole truth
 for formulae, and bootstrap tears down what falls off it (2026-09: Firefox,
-VS Code, ExpressVPN, and six stale formulae). `uv` is the Python entry
-point; `pyright` + `ruff` are the servers behind nvim.
+VS Code, ExpressVPN, and six stale formulae). Editor stack is nvim with
+system language servers — `pyright` + `ruff` for Python, `tsc --lsp`
+(TypeScript 7's native server) for JS/TS — and `uv` for Python tooling.
 
 No window manager. AeroSpace (and the sigil HUD stack behind it) is
 retired — mouse + native macOS won; a tiler never earned its keep here.

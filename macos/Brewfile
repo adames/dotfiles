@@ -38,10 +38,17 @@ brew "mise"
 
 # Language servers / linters. Nvim gates each on `executable()`, so a
 # missing one degrades instead of erroring — but the whole point is that
-# they're here. Python is the one that matters: read at work, and the
-# only language with a server on these machines today.
+# they're here. Python (read at work): pyright + ruff.
 brew "pyright"
 brew "ruff"
+
+# JS/TS (personal projects): the LSP is `tsc --lsp`, TypeScript 7's own
+# Go-native server. NOT typescript-language-server — that wraps the old
+# tsserver.js, which TS 7 no longer ships, so the brew pairing is broken
+# on arrival ("Could not find a valid TypeScript installation"). The
+# native server also needs no node_modules, so a stray .ts file opened
+# anywhere still gets gd / K / diagnostics.
+brew "typescript"
 
 # uv: the Python entry point — `uv run`, `uv venv`, `uv tool install`.
 # Replaces pipx (removed in phase_apply) and keeps work Python readable

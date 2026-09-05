@@ -39,12 +39,21 @@ Also removed: `resvg` and `pipx` (fed rune, retired with the cheatsheet
 HUD), `watchman` (React Native era), `ruby` and `git-filter-repo`
 (one-offs). Nothing depended on any of them.
 
-Added: `uv` — the Python entry point (`uv run`, `uv venv`,
-`uv tool install`), and pipx's replacement.
+Added, because the stack is JS/TS at home and Python at work:
+`typescript` (nvim had treesitter for `.ts` but no server behind `gd`)
+and `uv` (the Python entry point, and pipx's replacement).
 
 Adopted, because both Macs already had them undeclared — a fresh machine
 would have deployed nvim's config with no nvim: `neovim`, `mise`, `jq`,
 `htop`, `ffmpeg`.
+
+The JS/TS server is `tsc --lsp` — TypeScript 7's own Go-native LSP —
+configured by hand in `nvim-init.lua` rather than through lspconfig's
+`ts_ls`. The obvious choice, `typescript-language-server`, is broken
+against Homebrew today: it wraps `tsserver.js`, which TypeScript 7 no
+longer ships, so it installs cleanly and then dies on every buffer with
+"Could not find a valid TypeScript installation". The native server also
+needs no `node_modules`, so a loose `.ts` file anywhere gets diagnostics.
 
 The rule this leaves behind: **`macos/Brewfile` is the whole truth for
 formulae.** Anything that shows up in `brew leaves` and isn't declared

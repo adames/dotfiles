@@ -35,7 +35,7 @@ vim.g.maplocalleader = " "
 -- @cs section Neovim · LSP & Search
 -- @cs id neovim-lsp-search
 -- @cs family nvim
--- @cs sub leader = space · pyright + ruff for *.py
+-- @cs sub leader = space · pyright + ruff (py) · ts_ls (js/ts)
 -- @cs idea Leader is your nvim command palette. LSP for code, fzf for everything else.
 -- @cs row gd   gr           :: go to definition / references
 -- @cs row K                 :: hover docs
@@ -125,7 +125,10 @@ require("lazy").setup({
     config = function()
       require("nvim-treesitter").setup()
       require("nvim-treesitter").install({
-        "python", "typescript", "tsx", "bash", "json", "yaml",
+        -- javascript: the typescript parser doesn't cover plain .js.
+        -- lua/markdown: this repo's own two languages (nvim config, docs).
+        "python", "typescript", "javascript", "tsx", "bash", "json", "yaml",
+        "lua", "markdown",
       })
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "*",
@@ -134,7 +137,9 @@ require("lazy").setup({
     end,
   },
 
-  -- LSP via system-installed pyright + ruff (brew) — no mason.
+  -- LSP via system-installed servers (brew) — no mason. Each server is
+  -- gated on its binary, so a machine missing one degrades to plain
+  -- editing instead of erroring on every buffer.
   {
     "neovim/nvim-lspconfig",
     config = function()
@@ -158,6 +163,24 @@ require("lazy").setup({
       if vim.fn.executable("ruff") == 1 then
         vim.lsp.config("ruff", {})
         vim.lsp.enable("ruff")
+      end
+
+      -- JS/TS — the personal-project half of the stack. Treesitter has
+      -- parsed typescript/tsx all along; until now there was no server
+      -- behind gd/gr/K in a .ts buffer.
+      --
+      -- Spelled out by hand rather than via lspconfig's `ts_ls`: that one
+      -- runs typescript-language-server, which wraps the tsserver.js that
+      -- TypeScript 7 stopped shipping. `tsc --lsp` is TS 7's own Go-native
+      -- server — one brew formula, no node_modules required, so a loose
+      -- .ts file in /tmp gets diagnostics like anything else.
+      if vim.fn.executable("tsc") == 1 then
+        vim.lsp.config("tsgo", {
+          cmd = { "tsc", "--lsp", "--stdio" },
+          filetypes = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
+          root_markers = { "tsconfig.json", "jsconfig.json", "package.json", ".git" },
+        })
+        vim.lsp.enable("tsgo")
       end
 
     end,
