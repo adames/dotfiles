@@ -334,6 +334,52 @@ prune_retired_apps() {
       warn "expressvpnd still installed — needs sudo: launchctl bootout system $daemon"
     fi
   fi
+
+  sweep_expressvpn_leftovers
+}
+
+# ExpressVPN's own trail: prefs, caches, logs, a crash report, and a
+# root-owned socket directory — all of which outlive both the .app and
+# the daemon, and none of which is user data worth keeping (a VPN client
+# holds no documents). Firefox and VS Code are deliberately NOT swept
+# this way: their support directories hold bookmarks, saved logins and
+# editor settings, which are yours to delete, not bootstrap's.
+#
+# Globs need nullglob — an unmatched pattern would otherwise be passed to
+# rm as a literal path. Idempotent: everything here is `rm -rf` on a path
+# that is usually already gone.
+sweep_expressvpn_leftovers() {
+  local found=0 p
+  shopt -s nullglob
+  local paths=(
+    "$HOME/Library/Application Support/com.expressvpn.ExpressVPN"
+    "$HOME/Library/Preferences/com.expressvpn.ExpressVPN.plist"
+    "$HOME/Library/Caches/com.expressvpn.ExpressVPN"
+    "$HOME/Library/HTTPStorages/com.expressvpn.ExpressVPN"
+    "$HOME/Library/Logs/ExpressVPN"
+    "$HOME/Library/Application Support/CrashReporter/ExpressVPN_"*.plist
+  )
+  shopt -u nullglob
+  for p in "${paths[@]}"; do
+    [[ -e "$p" ]] || continue
+    found=1
+    rm -rf "$p" 2>/dev/null || warn "could not remove $p"
+  done
+
+  # Root-owned, and left behind holding a dead expressvpnd.socket.
+  local sys="/Library/Application Support/com.expressvpn.ExpressVPN"
+  if [[ -d "$sys" ]]; then
+    found=1
+    if ! sudo -n rm -rf "$sys" 2>/dev/null; then
+      warn "ExpressVPN system dir remains — needs sudo: rm -rf \"$sys\""
+    fi
+  fi
+
+  # `(( found )) && ok …` would be a set -e footgun: with found=0 the
+  # AND-list returns 1 and aborts the whole bootstrap. Spelled as an if.
+  if (( found )); then
+    ok "swept ExpressVPN leftovers"
+  fi
 }
 
 # Formulae that drifted into `brew leaves` and outlived their reason.

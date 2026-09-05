@@ -32,8 +32,13 @@ An audit against actual use, not intent. Removed: **Firefox** (a fourth
 browser — Chrome and Helium do the work), **VS Code** (idle since May;
 the editor is nvim + Claude Code), **ExpressVPN** (a second VPN client
 behind ProtonVPN, plus a privileged daemon that outlived it). App
-bundles and the ExpressVPN daemon are torn down by `phase_apply`;
-browser profiles and editor settings are deliberately left alone.
+bundles and the ExpressVPN daemon are torn down by `phase_apply`.
+
+The `~/Library` trail gets asymmetric treatment on purpose. ExpressVPN's
+prefs, caches, logs and root-owned socket dir are swept — a VPN client
+holds no documents, and every one of those outlives both the app and the
+daemon. Firefox's and VS Code's are not: bookmarks, saved logins and
+editor settings are yours to delete, not bootstrap's.
 
 Also removed: `resvg` and `pipx` (fed rune, retired with the cheatsheet
 HUD), `watchman` (React Native era), `ruby` and `git-filter-repo`
