@@ -4,6 +4,11 @@
 # Heavy / per-Mac apps live in macos/Brewfile.local (untracked) — the Air
 # has no Brewfile.local so it stays lean.
 # Skip casks in headless runs: BOOTSTRAP_SKIP_CASKS=1 ./bootstrap.sh
+#
+# This file is the whole truth for formulae: `brew leaves` should contain
+# nothing that isn't listed here. Anything that drifts in gets adopted
+# (add a line, with the reason) or torn down in phase_apply — never left
+# floating, or the next fresh Mac silently comes up different.
 
 # CLI formulae — shell, multiplexer, prompt, fuzzy / grep / git stack.
 brew "git"
@@ -19,20 +24,41 @@ brew "zoxide"
 brew "gh"
 brew "lazygit"
 brew "yazi"
-brew "pyright"
-brew "ruff"
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
+brew "jq"                # JSON surgery — every script here and at work
+brew "htop"
 brew "mas"               # App Store CLI — lets update-system upgrade App Store apps (Xcode)
+
+# Editor + runtimes. These were installed by hand on both Macs and never
+# declared, so a fresh machine deployed nvim's config with no nvim, and
+# update-system's mise pass had no mise. Declared now.
+brew "neovim"
+brew "mise"
+
+# Language servers / linters. Nvim gates each on `executable()`, so a
+# missing one degrades instead of erroring — but the whole point is that
+# they're here. Python is the one that matters: read at work, and the
+# only language with a server on these machines today.
+brew "pyright"
+brew "ruff"
+
+# uv: the Python entry point — `uv run`, `uv venv`, `uv tool install`.
+# Replaces pipx (removed in phase_apply) and keeps work Python readable
+# without a global site-packages to maintain.
+brew "uv"
+
+# ffmpeg: yazi's video thumbnails, plus ad-hoc transcodes.
+brew "ffmpeg"
 
 # Terminal font (nerd glyphs for starship / yazi).
 cask "font-jetbrains-mono-nerd-font"
 
-# Network privacy.
+# Network privacy. One VPN, not two — ExpressVPN is torn down in phase_apply.
 cask "protonvpn"
 
 # GUI env shared between machines.
 cask "hyperkey"          # caps tap→esc (the one keymap survivor)
 cask "ghostty"
 cask "helium-browser"    # net.imput.helium (NOT the deprecated `helium` cask)
-cask "obsidian"
+cask "obsidian"          # home notes; Notion is the work surface, not managed here

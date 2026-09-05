@@ -16,6 +16,11 @@ git clone git@github.com:adames/dotfiles.git ~/dotfiles
 macOS: 4 phases. Ubuntu: 6 (after a phase-0 sparse-checkout prune), skips
 Hyperkey + Docker.
 
+Packages are declared, never assumed: `macos/Brewfile` is the whole truth
+for formulae, and bootstrap tears down what falls off it (2026-09: Firefox,
+VS Code, ExpressVPN, and six stale formulae). `uv` is the Python entry
+point; `pyright` + `ruff` are the servers behind nvim.
+
 No window manager. AeroSpace (and the sigil HUD stack behind it) is
 retired — mouse + native macOS won; a tiler never earned its keep here.
 Bootstrap actively tears it down on machines that still have it. The

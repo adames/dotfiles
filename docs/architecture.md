@@ -26,6 +26,31 @@ uninstalls the cask, sweeps `~/.config/aerospace` and
 `~/.config/workspace`, prunes the `ws-*` binaries). Hyperkey survives
 for tap-Caps = Esc; the Hyper layer is intentionally empty.
 
+## The 2026-09 prune
+
+An audit against actual use, not intent. Removed: **Firefox** (a fourth
+browser — Chrome and Helium do the work), **VS Code** (idle since May;
+the editor is nvim + Claude Code), **ExpressVPN** (a second VPN client
+behind ProtonVPN, plus a privileged daemon that outlived it). App
+bundles and the ExpressVPN daemon are torn down by `phase_apply`;
+browser profiles and editor settings are deliberately left alone.
+
+Also removed: `resvg` and `pipx` (fed rune, retired with the cheatsheet
+HUD), `watchman` (React Native era), `ruby` and `git-filter-repo`
+(one-offs). Nothing depended on any of them.
+
+Added: `uv` — the Python entry point (`uv run`, `uv venv`,
+`uv tool install`), and pipx's replacement.
+
+Adopted, because both Macs already had them undeclared — a fresh machine
+would have deployed nvim's config with no nvim: `neovim`, `mise`, `jq`,
+`htop`, `ffmpeg`.
+
+The rule this leaves behind: **`macos/Brewfile` is the whole truth for
+formulae.** Anything that shows up in `brew leaves` and isn't declared
+there gets a line in the Brewfile with its reason, or a line in
+`prune_undeclared_formulae`. Nothing floats.
+
 ## Who owns what
 
 | Concern | Owner |

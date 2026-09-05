@@ -88,9 +88,11 @@ phase_packages() {
 
   seed_hyperkey_defaults
 
-  # Devin is required on every Mac. No cask exists, so brew can't
-  # own it — the app self-updates; bootstrap just refuses to stay silent
-  # when it's missing.
+  # Devin is a work tool that lives on the personal Macs too, for as long
+  # as the work does — this repo never runs on the work machine, so here
+  # is the only place it can be checked. Revisit if that job ends. No cask
+  # exists, so brew can't own it; the app self-updates and bootstrap just
+  # refuses to stay silent when it's missing.
   if [[ ! -d /Applications/Devin.app ]]; then
     warn "Devin.app missing — install from https://devin.ai (no cask)"
   fi
@@ -252,6 +254,9 @@ phase_apply() {
   rm -rf "$HOME/.config/sketchybar"
   rm -rf "$HOME/.config/borders"
 
+  prune_retired_apps
+  prune_undeclared_formulae
+
   install_file "$CONFIGS_DIR/ghostty-config"             "$HOME/.config/ghostty/config"
   install_file "$CONFIGS_DIR/tmux.conf"                  "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/zshrc"                      "$HOME/.zshrc"
@@ -273,6 +278,80 @@ phase_apply() {
   install_file "$CONFIGS_DIR/nvim-keymaps.lua"           "$HOME/.config/nvim/after/plugin/keymaps.lua"
 
   ensure_gitconfig_local
+}
+
+# ─── the 2026-09 prune ──────────────────────────────────────────────────────
+# Hand-installed .apps (no cask ever owned them) that lost their argument:
+#
+#   Firefox      — a fourth browser. Chrome and Helium are the two in use.
+#   VS Code      — the editor is nvim + Claude Code. Idle since May.
+#   ExpressVPN   — a second VPN client. ProtonVPN is the declared one.
+#
+# App bundles only. Browser profiles and editor settings under
+# ~/Library/Application Support are deliberately NOT swept: bookmarks and
+# saved logins are not ours to delete, and a re-download re-adopts them.
+# Delete those by hand if you want the disk back.
+prune_retired_apps() {
+  local app
+  for app in Firefox "Visual Studio Code" ExpressVPN; do
+    [[ -d "/Applications/$app.app" ]] || continue
+    step "removing /Applications/$app.app (retired)"
+    osascript -e "tell application \"$app\" to quit" 2>/dev/null || true
+    if rm -rf "/Applications/$app.app" 2>/dev/null; then
+      ok "$app removed"
+    # An .app installed by a pkg can be root-owned; retry under the sudo
+    # already cached in phase 1. -n so a run without it warns instead of
+    # blocking on a password prompt nobody is watching.
+    elif sudo -n rm -rf "/Applications/$app.app" 2>/dev/null; then
+      ok "$app removed (sudo)"
+    else
+      warn "$app.app could not be removed — delete it by hand"
+    fi
+  done
+
+  # ExpressVPN ships a privileged daemon that keeps running after the app
+  # is gone. Nothing else in this repo installs a LaunchDaemon, so this
+  # stays a named special case rather than a generic sweep.
+  local daemon=/Library/LaunchDaemons/com.expressvpn.expressvpnd.plist
+  if [[ -f "$daemon" ]]; then
+    step "unloading ExpressVPN privileged daemon"
+    if sudo -n launchctl bootout system "$daemon" 2>/dev/null \
+         && sudo -n rm -f "$daemon" 2>/dev/null; then
+      ok "expressvpnd unloaded and removed"
+    else
+      warn "expressvpnd still installed — needs sudo: launchctl bootout system $daemon"
+    fi
+  fi
+}
+
+# Formulae that drifted into `brew leaves` and outlived their reason.
+# resvg + pipx fed rune (retired with the cheatsheet HUD), watchman was
+# React Native, ruby and git-filter-repo were one-offs. Nothing on this
+# machine depends on any of them — the Brewfile is now the whole truth
+# for formulae, so anything undeclared either gets a line there or a line
+# here. Guarded by `brew uses --installed`: a formula something else pulled
+# in since is kept, loudly.
+prune_undeclared_formulae() {
+  have brew || return 0
+  local f users
+  # python@3.14 is here as pipx's orphan: brew pulled it in as a dependency,
+  # and removing pipx left it a leaf. Python on these machines is mise's
+  # 3.12 — a second interpreter on PATH is exactly the kind of drift that
+  # makes `python3` mean different things on two Macs.
+  for f in resvg pipx watchman ruby git-filter-repo python@3.14; do
+    brew list --formula "$f" >/dev/null 2>&1 || continue
+    users="$(brew uses --installed "$f" 2>/dev/null | tr '\n' ' ')"
+    if [[ -n "${users// /}" ]]; then
+      note "keeping $f — still used by: ${users% }"
+      continue
+    fi
+    step "uninstalling undeclared formula: $f"
+    if brew uninstall --formula "$f" >/dev/null 2>&1; then
+      ok "$f uninstalled"
+    else
+      warn "$f uninstall failed"
+    fi
+  done
 }
 
 # ─── phase 4 · permission wizard ────────────────────────────────────────────
@@ -298,6 +377,7 @@ main() {
     pyuser="$(python3 -m site --user-base 2>/dev/null || true)"
   fi
   export PATH="$HOME/.local/bin${pyuser:+:$pyuser/bin}:$PATH"
+
   # Same self-numbering list as ubuntu/bootstrap.sh — phase() takes the total
   # from here, so the headers can never drift out of sync with reality.
   local phases=(phase_sudo phase_packages phase_apply phase_wizard)
