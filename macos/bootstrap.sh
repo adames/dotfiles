@@ -299,13 +299,27 @@ deploy_configs() {
 #   VS Code      — the editor is nvim + Claude Code. Idle since May.
 #   ExpressVPN   — a second VPN client. ProtonVPN is the declared one.
 #
+# And the App Store tier, re-downloadable at any time since the purchases
+# stay on the Apple ID — which is exactly why they don't need to sit on
+# every disk:
+#
+#   Keynote      — never opened on this machine.
+#   Pages        — same. Ships as "Pages Creator Studio.app" here: the
+#                  bundle is com.apple.Pages, just renamed on disk, so
+#                  the loop matches the filename rather than the app name.
+#   MD Viewer    — 381 MB to render markdown. `glow` does it in 10 MB and
+#                  works over SSH too. PDFgear stays: it's the current
+#                  PDF app, bought in June.
+#   Elmedia      — lost to IINA, which is now a declared cask.
+#
 # App bundles only. Browser profiles and editor settings under
 # ~/Library/Application Support are deliberately NOT swept: bookmarks and
 # saved logins are not ours to delete, and a re-download re-adopts them.
 # Delete those by hand if you want the disk back.
 prune_retired_apps() {
   local app
-  for app in Firefox "Visual Studio Code" ExpressVPN; do
+  for app in Firefox "Visual Studio Code" ExpressVPN \
+             Keynote "Pages Creator Studio" "MD Viewer" "Elmedia Player"; do
     [[ -d "/Applications/$app.app" ]] || continue
     step "removing /Applications/$app.app (retired)"
     osascript -e "tell application \"$app\" to quit" 2>/dev/null || true

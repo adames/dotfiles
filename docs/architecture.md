@@ -34,6 +34,19 @@ the editor is nvim + Claude Code), **ExpressVPN** (a second VPN client
 behind ProtonVPN, plus a privileged daemon that outlived it). App
 bundles and the ExpressVPN daemon are torn down by `phase_apply`.
 
+A second pass took the App Store tier: **Keynote** and **Pages** (never
+opened here), **MD Viewer** (381 MB to render markdown), and **Elmedia
+Player** (lost to IINA on merit). Purchases stay on the Apple ID, so
+these are one click away if a machine ever needs them — which is the
+argument against keeping them resident on every disk. **PDFgear** stays;
+it's the current PDF app. **Zoom** stays, for interviews. **UTM** stays:
+rarely used, but nothing else opens a VM.
+
+Markdown viewing is `glow` now — one viewer, 10 MB, and the same command
+over SSH on the Linux box, which a GUI app can't do. Obsidian is still
+where markdown gets written. **IINA** is a declared cask rather than a
+hand-installed app, so it lands on every Mac.
+
 The `~/Library` trail gets asymmetric treatment on purpose. ExpressVPN's
 prefs, caches, logs and root-owned socket dir are swept — a VPN client
 holds no documents, and every one of those outlives both the app and the

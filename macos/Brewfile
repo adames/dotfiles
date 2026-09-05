@@ -58,6 +58,12 @@ brew "uv"
 # ffmpeg: yazi's video thumbnails, plus ad-hoc transcodes.
 brew "ffmpeg"
 
+# glow: the markdown viewer. One, deliberately. A 381 MB App Store app
+# for rendering a README lost to a 10 MB binary that also works over SSH
+# on the Linux box — same command on every machine, which is the whole
+# point. Obsidian is still the place markdown gets *written*.
+brew "glow"
+
 # Terminal font (nerd glyphs for starship / yazi).
 cask "font-jetbrains-mono-nerd-font"
 
@@ -69,3 +75,4 @@ cask "hyperkey"          # caps tap→esc (the one keymap survivor)
 cask "ghostty"
 cask "helium-browser"    # net.imput.helium (NOT the deprecated `helium` cask)
 cask "obsidian"          # home notes; Notion is the work surface, not managed here
+cask "iina"              # video. Beat Elmedia on merit; declared so every Mac has it.
