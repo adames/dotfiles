@@ -60,6 +60,29 @@ formulae.** Anything that shows up in `brew leaves` and isn't declared
 there gets a line in the Brewfile with its reason, or a line in
 `prune_undeclared_formulae`. Nothing floats.
 
+## Two Macs, one work machine
+
+This repo installs on personal machines only. The work Mac has its own
+restrictions and its own tools — iTerm2 instead of Ghostty, Notion
+instead of Obsidian — and bootstrap is never run there.
+
+What crosses the gap is muscle memory, not machinery: the tmux prefix,
+the zsh vi-mode surface, the nvim leader map, the git aliases. Those live
+in `deploy_configs()` (macOS) / `phase_configs` (Ubuntu) and touch
+nothing host-specific, so:
+
+```sh
+BOOTSTRAP_CONFIGS_ONLY=1 ~/dotfiles/bootstrap.sh
+```
+
+deploys exactly that core — no Homebrew, no macOS defaults, no teardown
+of another machine's apps, no TCC wizard, no `chsh`. It is also the
+shape of a work-friendly fork: that one function plus `configs/`.
+
+Terminal parity is the one manual step. `configs/ghostty-config` sets
+left Option as Alt so tmux and vim see the modifier; iTerm2 needs the
+same thing set by hand (Profiles → Keys → Left Option key → Esc+).
+
 ## Who owns what
 
 | Concern | Owner |

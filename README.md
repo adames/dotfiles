@@ -16,9 +16,22 @@ git clone git@github.com:adames/dotfiles.git ~/dotfiles
 macOS: 4 phases. Ubuntu: 6 (after a phase-0 sparse-checkout prune), skips
 Hyperkey + Docker.
 
+On a machine this repo doesn't own — a work Mac, a borrowed box — deploy
+the portable core and nothing else:
+
+```sh
+BOOTSTRAP_CONFIGS_ONLY=1 ~/dotfiles/bootstrap.sh
+```
+
+That's zsh, tmux, nvim, git, starship, ripgrep and the Claude config: no
+Homebrew, no macOS defaults, no app teardown, no permission wizard, no
+`chsh`. Same flag on both platforms. See
+[docs/architecture.md](docs/architecture.md) for what stays behind the
+line and why.
+
 Packages are declared, never assumed: `macos/Brewfile` is the whole truth
 for formulae, and bootstrap tears down what falls off it (2026-09: Firefox,
-VS Code, ExpressVPN, and six stale formulae). Editor stack is nvim with
+VS Code, ExpressVPN, and five stale formulae). Editor stack is nvim with
 system language servers — `pyright` + `ruff` for Python, `tsc --lsp`
 (TypeScript 7's native server) for JS/TS — and `uv` for Python tooling.
 

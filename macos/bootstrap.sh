@@ -257,6 +257,18 @@ phase_apply() {
   prune_retired_apps
   prune_undeclared_formulae
 
+  deploy_configs
+}
+
+# The portable core: every file that is just as true on a machine this
+# repo doesn't own. No brew, no defaults, no teardown, no wizard — so
+# `BOOTSTRAP_CONFIGS_ONLY=1 ./bootstrap.sh` is a safe thing to run on a
+# locked-down or borrowed Mac, and a work-friendly fork of this repo can
+# be this function plus configs/.
+#
+# ghostty-config is deployed unconditionally: it's an inert file under
+# ~/.config/ghostty, and a machine on iTerm2 simply never reads it.
+deploy_configs() {
   install_file "$CONFIGS_DIR/ghostty-config"             "$HOME/.config/ghostty/config"
   install_file "$CONFIGS_DIR/tmux.conf"                  "$HOME/.tmux.conf"
   install_file "$CONFIGS_DIR/zshrc"                      "$HOME/.zshrc"
@@ -377,6 +389,17 @@ main() {
     pyuser="$(python3 -m site --user-base 2>/dev/null || true)"
   fi
   export PATH="$HOME/.local/bin${pyuser:+:$pyuser/bin}:$PATH"
+
+  # Configs-only mode: the portable core and nothing else. No sudo, no
+  # brew, no macOS defaults, no teardown of another machine's apps, no
+  # TCC wizard. For a Mac this repo doesn't own.
+  if [[ -n "${BOOTSTRAP_CONFIGS_ONLY:-}" ]]; then
+    PHASE_TOTAL=1
+    phase "deploy configs (configs-only mode)"
+    deploy_configs
+    run_summary
+    return
+  fi
 
   # Same self-numbering list as ubuntu/bootstrap.sh — phase() takes the total
   # from here, so the headers can never drift out of sync with reality.

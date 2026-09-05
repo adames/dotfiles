@@ -220,6 +220,15 @@ main() {
   # waiting for input forever. noninteractive takes the package defaults.
   export DEBIAN_FRONTEND=noninteractive
 
+  # Configs-only mode — same contract as macos/bootstrap.sh: the portable
+  # core, no apt, no chsh, no installers. For a box this repo doesn't own.
+  if [[ -n "${BOOTSTRAP_CONFIGS_ONLY:-}" ]]; then
+    PHASE_TOTAL=1
+    phase_configs
+    run_summary
+    return
+  fi
+
   # The list is the source of truth for both order and count — phase() reads
   # PHASE_TOTAL from it, so adding or reordering a phase needs no edits
   # anywhere else.
