@@ -91,3 +91,5 @@ cask "ghostty"
 cask "helium-browser"    # net.imput.helium (NOT the deprecated `helium` cask)
 cask "obsidian"          # home notes; Notion is the work surface, not managed here
 cask "iina"              # video. Beat Elmedia on merit; declared so every Mac has it.
+cask "orbstack"          # containers/Linux VMs. macOS-only by design (Apple
+                         # Virtualization.framework); Ubuntu runs docker natively.
