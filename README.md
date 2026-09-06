@@ -90,7 +90,7 @@ your attention is loud:
 Package-manager chatter is collapsed to a tally — `18 already installed`
 for brew, `0 upgraded, 154 newly installed, 0 to remove` for apt — while
 real installs, upgrades and errors print in full. Third-party installers
-that draw progress bars on stderr (fzf, mise, starship) are silent unless
+that draw progress bars on stderr (fzf, starship, `npm -g`) are silent unless
 they fail, in which case you get all of their output. The closing block
 counts each grade and replays every non-`[ok]` line, so you never scroll
 back through a long run to find what happened.
