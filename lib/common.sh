@@ -156,6 +156,19 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # `./bootstrap.sh | tee log` go headless (casks skipped, sudo not cached).
 has_tty() { [[ -t 0 ]]; }
 
+# WSL detection. /proc/sys/kernel/osrelease carries "microsoft" (WSL2) or
+# "Microsoft" (WSL1) in the kernel string — checked case-insensitively,
+# and preferred over $WSL_DISTRO_NAME because that one is absent under
+# sudo and in some service contexts. Cheap enough to call repeatedly.
+#
+# Why the platform needs a name at all: a WSL box is Ubuntu for every
+# purpose this repo cares about except one — the clipboard, which has to
+# cross into Windows. See configs/nvim-init.lua.
+is_wsl() {
+  [[ -r /proc/sys/kernel/osrelease ]] || return 1
+  grep -qi microsoft /proc/sys/kernel/osrelease
+}
+
 # install_file <src> <dst> [mode] — byte-compare; no-op if identical
 install_file() {
   local src="$1" dst="$2" mode="${3:-644}"

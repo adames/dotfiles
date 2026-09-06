@@ -66,6 +66,30 @@ rm -f /tmp/syntax-err.$$
 echo "PASS: parse-checked ${#scripts[@]} shell script(s)"
 ((pass++))
 
+# macOS ships bash 3.2 and always will (bash went GPLv3 in 4.0, which
+# Apple won't ship), so `#!/usr/bin/env bash` resolves to 3.2 on any Mac
+# without brew's bash — which is every fresh Mac, since the Brewfile
+# deliberately declares none. ws-doctor carried a `declare -A` for months,
+# printing an error on every run, masked by brew's bash arriving as an
+# accidental dependency of direnv. When direnv went, the error surfaced.
+# --exclude this file: it names the constructs it is looking for, both in
+# the pattern and in the comment above, and would otherwise flag itself.
+bash4_hits="$(grep -rnE 'declare -A|local -A|mapfile |readarray ' \
+  --include='*.sh' --include='ws-doctor' --include='update-system' \
+  --include='backup-claude-memory' --include='tmux-sessionizer' \
+  --exclude='script-syntax.test.sh' \
+  "$REPO_ROOT" 2>/dev/null \
+  | grep -v '/\.git/' \
+  | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)"
+if [[ -z "$bash4_hits" ]]; then
+  echo "PASS: no bash-4-only constructs (macOS ships 3.2)"
+  ((pass++))
+else
+  echo "FAIL: bash-4-only construct(s) — these break on stock macOS bash:"
+  printf '%s\n' "$bash4_hits" | sed 's/^/       /'
+  ((fail++))
+fi
+
 echo ""
 echo "$pass passed, $fail failed"
 exit $((fail > 0 ? 1 : 0))

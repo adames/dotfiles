@@ -35,12 +35,12 @@ vim.g.maplocalleader = " "
 -- @cs section Neovim · LSP & Search
 -- @cs id neovim-lsp-search
 -- @cs family nvim
--- @cs sub leader = space · pyright + ruff (py) · ts_ls (js/ts)
+-- @cs sub leader = space · pyright (py) · tsc --lsp (js/ts)
 -- @cs idea Leader is your nvim command palette. LSP for code, fzf for everything else.
 -- @cs row gd   gr           :: go to definition / references
 -- @cs row K                 :: hover docs
 -- @cs row ⟨leader⟩ rn       :: rename symbol
--- @cs row ⟨leader⟩ =        :: format buffer  (auto-runs ruff on :w for *.py)
+-- @cs row ⟨leader⟩ =        :: format buffer  (whatever the server offers)
 -- @cs row ⟨leader⟩ fg       :: fzf live grep
 -- @cs row ⟨leader⟩ gs       :: fzf git status
 -- @cs row ctrl-w  v / s     :: split right / below
@@ -81,6 +81,34 @@ vim.g.maplocalleader = " "
 -- @cs row q⟨x⟩ … q → @⟨x⟩      :: record macro to x / replay x
 -- @cs row :%s/foo/bar/g        :: replace all in buffer  (add c for confirm)
 -- @cs end
+
+-- Clipboard. Yanking has to reach the system clipboard on every machine
+-- this config lands on, and each has a different answer.
+--
+-- WSL: the Linux clipboard isn't Windows', so route through the Windows
+-- binaries that WSL exposes on PATH for free — clip.exe to copy,
+-- powershell Get-Clipboard to paste. Deliberately not win32yank, which is
+-- faster but means downloading a .exe and keeping it current; these two
+-- ship with Windows. The \r strip matters: Get-Clipboard returns CRLF,
+-- and without it every pasted line ends in a stray ^M.
+--
+-- Everything else (macOS, a Linux server over SSH): OSC 52, the escape
+-- sequence that hands the clipboard to whichever terminal is drawing the
+-- session. That's what makes a yank inside tmux on a remote box land in
+-- the local clipboard — Ghostty and Windows Terminal both support it.
+if vim.fn.has("wsl") == 1 then
+  vim.g.clipboard = {
+    name = "wsl-interop",
+    copy = { ["+"] = "clip.exe", ["*"] = "clip.exe" },
+    paste = {
+      ["+"] = 'powershell.exe -NoLogo -NoProfile -Command [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
+      ["*"] = 'powershell.exe -NoLogo -NoProfile -Command [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))',
+    },
+    cache_enabled = 0,
+  }
+elseif vim.env.SSH_CONNECTION and vim.env.SSH_CONNECTION ~= "" then
+  vim.g.clipboard = "osc52"
+end
 
 local opt = vim.opt
 opt.number         = true
@@ -158,11 +186,6 @@ require("lazy").setup({
       if vim.fn.executable("pyright-langserver") == 1 then
         vim.lsp.config("pyright", {})
         vim.lsp.enable("pyright")
-      end
-
-      if vim.fn.executable("ruff") == 1 then
-        vim.lsp.config("ruff", {})
-        vim.lsp.enable("ruff")
       end
 
       -- JS/TS — the personal-project half of the stack. Treesitter has

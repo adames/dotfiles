@@ -411,7 +411,10 @@ prune_undeclared_formulae() {
   # and removing pipx left it a leaf. Python on these machines is mise's
   # 3.12 — a second interpreter on PATH is exactly the kind of drift that
   # makes `python3` mean different things on two Macs.
-  for f in resvg pipx watchman ruby git-filter-repo python@3.14; do
+  # direnv and ruff went with the authoring workflow (2026-09): no .envrc
+  # exists on either machine, and ruff is a formatter/linter for code you
+  # write by hand. pyright stays — reading unfamiliar Python is the job now.
+  for f in resvg pipx watchman ruby git-filter-repo python@3.14 direnv ruff; do
     brew list --formula "$f" >/dev/null 2>&1 || continue
     users="$(brew uses --installed "$f" 2>/dev/null | tr '\n' ' ')"
     if [[ -n "${users// /}" ]]; then

@@ -79,9 +79,9 @@ phase_system() {
 
   step "installing apt packages"
   sudo apt-get install -y \
-    git curl zsh build-essential direnv tmux htop neovim jq \
+    git curl zsh build-essential tmux htop neovim jq \
     ripgrep fd-find git-delta zoxide 2>&1 | apt_quiet
-  ok "git zsh tmux neovim direnv jq ripgrep fd zoxide …"
+  ok "git zsh tmux neovim jq ripgrep fd zoxide …"
 
   # Debian/Ubuntu calls fd "fdfind"; symlink for cross-OS parity.
   if have fdfind && ! have fd; then
@@ -211,7 +211,11 @@ phase_default_shell() {
 
 # ─── entry ──────────────────────────────────────────────────────────────────
 main() {
-  section "Hyper-key dotfiles bootstrap (Ubuntu · minerva dev env)"
+  if is_wsl; then
+    section "Hyper-key dotfiles bootstrap (Ubuntu on WSL)"
+  else
+    section "Hyper-key dotfiles bootstrap (Ubuntu · minerva dev env)"
+  fi
   export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 
   # Without this, tzdata's postinst opens an interactive "select your
@@ -248,6 +252,15 @@ main() {
   # Ubuntu drops this file when a kernel or libc upgrade needs a restart to
   # take effect. On a VPS that's the difference between "patched" and
   # "patched after you reboot", and nothing else in the run would tell you.
+  # WSL is Ubuntu for every purpose here except the clipboard, which has
+  # to cross into Windows — nvim routes through clip.exe / Get-Clipboard,
+  # tmux through OSC 52. Both are config, not packages, so there is
+  # nothing to install; say so, because a silent success is
+  # indistinguishable from an untested platform.
+  if is_wsl; then
+    note "WSL detected — clipboard routed to Windows (nvim: clip.exe, tmux: OSC 52)"
+  fi
+
   if [[ -f /var/run/reboot-required ]]; then
     note "reboot required to finish applying updates$(
       [[ -f /var/run/reboot-required.pkgs ]] &&

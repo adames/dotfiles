@@ -130,6 +130,63 @@ mise stays on the Ubuntu playground, where apt's node is years behind and
 mise is the cheapest fix. The activation block in `configs/zshrc` is
 gated on Linux rather than deleted, so one shared zshrc still serves both.
 
+## The AI-authored era (2026-09)
+
+The work changed shape: code is written by harnesses (Devin, Claude,
+ChatGPT) and the job here is judging it — jumping into unfamiliar code,
+reading a diff, finding a root cause in whatever subsystem it turns out
+to live in. Not authoring. The stack was audited against that.
+
+What survived is what serves *reading*: nvim with LSP (`gd`, `gr`, `K` on
+code nobody here wrote), treesitter, ripgrep and fd for hunting, delta
+and lazygit for diffs, `gh` for PRs, `jq` for logs and APIs, and the
+runtimes — because reviewing includes running the thing to see whether it
+actually works.
+
+What went: `direnv` (per-project env vars, an authoring convenience — no
+`.envrc` existed on either machine) and `ruff` (a formatter and linter
+for code you type yourself). `pyright` stays: reading unfamiliar Python
+is now a daily act. The nvim annotation claiming `ruff` auto-ran on `:w`
+had been false the whole time — there was never a `BufWritePre` autocmd
+behind it.
+
+Git tooling was deliberately left alone. Aliases and a structural diff
+(difftastic) were proposed and declined; delta as pager is enough.
+
+## Anywhere: macOS, a Linux server, WSL
+
+"Works on whatever machine I'm sitting at" is a requirement, not a nice
+to have. macOS and Ubuntu were already covered; WSL is Ubuntu for every
+purpose here except one, so it gets a name (`is_wsl` in `lib/common.sh`)
+rather than a platform directory.
+
+The exception is the clipboard, and it's config rather than packages:
+
+| Context | Clipboard route |
+|---|---|
+| macOS | native (nvim finds `pbcopy`) |
+| WSL | `clip.exe` to copy, `powershell Get-Clipboard` to paste |
+| SSH (Linux server) | OSC 52 — the terminal owns it |
+| tmux, everywhere | OSC 52 (`set -s set-clipboard on`) |
+
+WSL deliberately uses the two binaries Windows already ships rather than
+`win32yank`, which is faster but means downloading an `.exe` and keeping
+it current. `Get-Clipboard` returns CRLF, so the paste command strips
+`\r` — without that every pasted line ends in a stray `^M`.
+
+## bash 3.2 is the floor
+
+macOS ships bash 3.2 and always will — bash went GPLv3 at 4.0, which
+Apple won't ship — so `#!/usr/bin/env bash` means 3.2 on any Mac without
+brew's bash, which is every fresh Mac since the Brewfile declares none.
+
+`bin/ws-doctor` carried a `declare -A` for months and printed
+`declare: -A: invalid option` on every run. Nobody saw it because brew's
+bash was installed as an accidental dependency of `direnv` and shadowed
+the system one. Removing direnv surfaced it immediately.
+`tests/critical/script-syntax.test.sh` now fails on bash-4-only
+constructs, so the floor is enforced rather than remembered.
+
 ## Who owns what
 
 | Concern | Owner |
@@ -142,6 +199,8 @@ gated on Linux rather than deleted, so one shared zshrc still serves both.
 | Package updates | `bin/update-system` (brew + mas + softwareupdate) |
 | Runtimes (macOS) | brew — `node@24`, `python@3.12`, `neovim`, `tree-sitter-cli` |
 | Runtimes (Ubuntu) | mise — apt's node is too far behind |
+| Clipboard | terminal via OSC 52; WSL via clip.exe / Get-Clipboard |
+| Shell floor | bash 3.2 (macOS ships no newer), enforced by tests |
 | Run output | `lib/common.sh` — graded lines, `brew_quiet`/`apt_quiet`, `run_summary` |
 
 No DriverKit kext, no scripting addition, no SIP modification, no

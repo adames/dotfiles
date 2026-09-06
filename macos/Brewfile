@@ -14,7 +14,6 @@
 brew "git"
 brew "zsh"
 brew "tmux"
-brew "direnv"
 brew "starship"
 brew "fzf"
 brew "ripgrep"
@@ -51,11 +50,11 @@ brew "python@3.12"
 # it's what mise was actually providing under the name "tree-sitter".
 brew "tree-sitter-cli"
 
-# Language servers / linters. Nvim gates each on `executable()`, so a
-# missing one degrades instead of erroring — but the whole point is that
-# they're here. Python (read at work): pyright + ruff.
+# Language servers. Nvim gates each on `executable()`, so a missing one
+# degrades instead of erroring. These are reading tools: gd, gr, K and
+# diagnostics on code that something else wrote. Python is read at work,
+# so pyright earns its place; ruff went with the authoring workflow.
 brew "pyright"
-brew "ruff"
 
 # JS/TS (personal projects): the LSP is `tsc --lsp`, TypeScript 7's own
 # Go-native server. NOT typescript-language-server — that wraps the old

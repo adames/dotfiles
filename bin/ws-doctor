@@ -114,7 +114,7 @@ SKIP() { _record SKIP "$1" "$2"; }
 # they can use the PASS/WARN/FAIL/SKIP recorders defined just above). The
 # dispatcher (CHECKS array), --fix hook, and rendering stay below.
 . "$DOTFILES_DIR/lib/ws-doctor-checks.sh"
-# ─── fixers (paired with checks via FIXERS map) ────────────────────────────
+# ─── fixers (paired with checks via fixer_for) ───────────────────────────────
 # Each fix_<name> function takes no args. It's called by the --fix
 # dispatcher AFTER all checks have run, only for checks whose status
 # was FAIL. Fixers print their own banner; their exit code drives the
@@ -125,11 +125,22 @@ declare -a CHECKS=(
   "source-deploy-drift:check_source_deploy_drift:configs/ matches deployed copies"
 )
 
-# Map check-name → fixer-function-name. Only entries here are
-# eligible for --fix dispatch; everything else is detect-only.
-# Empty today — every check is detect-only — but the --fix dispatch
-# hook below stays plumbed for future fixers.
-declare -A FIXERS=()
+# Map check-name → fixer-function-name. Only names answered here are
+# eligible for --fix dispatch; everything else is detect-only. Empty
+# today — every check is detect-only — but the hook below stays plumbed.
+#
+# A case statement, not `declare -A`: macOS ships bash 3.2, which has no
+# associative arrays and printed "declare: -A: invalid option" on every
+# single run of this script. Brew's bash had been hiding that as an
+# accidental dependency of direnv, and went out with it. Nothing in this
+# repo may assume a bash newer than the one macOS actually ships —
+# tests/critical/script-syntax.test.sh enforces that now.
+fixer_for() {
+  case "$1" in
+    # source-deploy-drift) echo fix_source_deploy_drift ;;
+    *) echo "" ;;
+  esac
+}
 
 if [[ -n "$LIST" ]]; then
   for spec in "${CHECKS[@]}"; do
@@ -206,16 +217,16 @@ done < "$REPORT"
 [[ -z "$QUIET" ]] && printf '\n'
 [[ -z "$QUIET" ]] && printf "summary: %d pass · %d warn · %d fail · %d skip\n" "$passes" "$warns" "$fails" "$skips"
 
-# --fix: for each FAILed check with a fixer in FIXERS, invoke it. FIXERS
-# is empty today (see the map above), so --fix just reports "no fixer" —
-# the hook stays plumbed for future fixers.
+# --fix: for each FAILed check with a fixer, invoke it. fixer_for answers
+# nothing today (see above), so --fix just reports "no fixer" — the hook
+# stays plumbed for future fixers.
 if [[ -n "$FIX" ]] && (( fails > 0 )); then
   [[ -z "$QUIET" ]] && printf '\n' && section "--fix: attempting to repair $fails FAIL(s)"
   fixer_failed=0
   no_fixer=0
   while IFS=$'\t' read -r status check _; do
     [[ "$status" == "FAIL" ]] || continue
-    fixer="${FIXERS[$check]:-}"
+    fixer="$(fixer_for "$check")"
     if [[ -z "$fixer" ]]; then
       warn "no fixer registered for $check; skipping"
       no_fixer=$((no_fixer + 1))
@@ -228,7 +239,7 @@ if [[ -n "$FIX" ]] && (( fails > 0 )); then
   done < "$REPORT"
   # A FAIL with no registered fixer is just as unrepaired as one whose
   # fixer ran and failed — count both, or "N/N repaired" lies (the
-  # empty FIXERS map today would otherwise always read "all repaired").
+  # empty fixer map today would otherwise always read "all repaired").
   unrepaired=$((fixer_failed + no_fixer))
   repaired=$((fails - unrepaired))
   [[ -z "$QUIET" ]] && printf '\n' && printf "fix summary: %d/%d repaired (%d no fixer, %d fixer failed)\n" \

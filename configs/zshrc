@@ -14,7 +14,6 @@ typeset -U PATH
 # @cs row zi             :: zoxide: interactive picker
 # @cs row rg ⟨pat⟩       :: ripgrep — uses ~/.ripgreprc defaults
 # @cs row fd ⟨pat⟩       :: fd — fast find replacement
-# @cs row direnv allow   :: trust this dir's .envrc on first entry
 # @cs end
 
 # vi-mode first: fzf/autosuggestions bind to the active keymap at source time.
@@ -75,7 +74,6 @@ if [ -x ~/.local/bin/mise ] && [ "$(uname -s)" = "Linux" ]; then
   eval "$(~/.local/bin/mise activate zsh)"
 fi
 
-command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 
 # User zsh completions from ~/.config/zsh/completions.

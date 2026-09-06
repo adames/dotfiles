@@ -14,7 +14,8 @@ git clone git@github.com:adames/dotfiles.git ~/dotfiles
 ```
 
 macOS: 4 phases. Ubuntu: 6 (after a phase-0 sparse-checkout prune), skips
-Hyperkey + Docker.
+Hyperkey + Docker. WSL runs the Ubuntu path — it's detected, and the
+clipboard is routed into Windows for you.
 
 On a machine this repo doesn't own — a work Mac, a borrowed box — deploy
 the portable core and nothing else:
