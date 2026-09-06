@@ -71,7 +71,23 @@ configured by hand in `nvim-init.lua` rather than through lspconfig's
 against Homebrew today: it wraps `tsserver.js`, which TypeScript 7 no
 longer ships, so it installs cleanly and then dies on every buffer with
 "Could not find a valid TypeScript installation". The native server also
-needs no `node_modules`, so a loose `.ts` file anywhere gets diagnostics.
+needs no `node_modules`: on macOS a `.ts` file in a directory with no
+`tsconfig.json`, `package.json` or `.git` anywhere above it still
+attaches and reports real type errors — nvim falls back to the file's own
+directory as the root.
+
+That last part is **macOS-verified only, and the Linux box behaves
+differently**: there, a markerless `.ts` file leaves the server dead with
+`File or directory "/<default workspace root>" does not exist`. The
+likely difference is which config wins. Ours sets `cmd` explicitly
+(`tsc --lsp --stdio`), and where that block is live the client runs it —
+confirmed by reading `client.config.cmd` off a running client, not by
+inferring it. Where the deployed `nvim-init.lua` is stale, lspconfig's
+own bundled `lsp/tsgo.lua` supplies both the cmd (a literal `tsgo`
+binary, which the npm distribution doesn't ship) and its own root logic,
+which is exactly the failure seen. So: with a root marker it works
+everywhere; without one, trust it on macOS and check before relying on
+it elsewhere.
 
 The rule this leaves behind: **`macos/Brewfile` is the whole truth for
 formulae.** Anything that shows up in `brew leaves` and isn't declared
