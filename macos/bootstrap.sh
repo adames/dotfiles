@@ -417,9 +417,7 @@ prune_undeclared_formulae() {
   # direnv and ruff went with the authoring workflow (2026-09): no .envrc
   # exists on either machine, and ruff is a formatter/linter for code you
   # write by hand. pyright stays — reading unfamiliar Python is the job now.
-  # yazi went the same way (2026-09): a TUI file manager duplicating
-  # oil.nvim, which is already one keystroke away inside the editor.
-  for f in resvg pipx watchman ruby git-filter-repo python@3.14 direnv ruff yazi; do
+  for f in resvg pipx watchman ruby git-filter-repo python@3.14 direnv ruff; do
     brew list --formula "$f" >/dev/null 2>&1 || continue
     users="$(brew uses --installed "$f" 2>/dev/null | tr '\n' ' ')"
     if [[ -n "${users// /}" ]]; then

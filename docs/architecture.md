@@ -150,9 +150,20 @@ is now a daily act. The nvim annotation claiming `ruff` auto-ran on `:w`
 had been false the whole time — there was never a `BufWritePre` autocmd
 behind it.
 
-`yazi` went in a second pass — a TUI file manager duplicating `oil.nvim`,
-which is already one keystroke away inside the editor. **HandBrake** went
-with it: never launched, and `ffmpeg` does the same job from the terminal.
+**HandBrake** went too: never launched, and `ffmpeg` does the same job
+from the terminal. `yazi` was cut in the same pass and put back, for
+the honest reason rather than a constructed one: the overlap with
+`oil.nvim` is real and it isn't load-bearing, but I like it. That's
+allowed. Everything else here has to earn its place on the work it does;
+this one earns it on preference, stated plainly so a future audit doesn't
+"discover" the redundancy and cut it again.
+
+`tree-sitter-cli` stays, and the reason is worth writing down because it
+looks like pure build tooling: nvim-treesitter shells out to it every
+time it installs a parser. Remove it and this machine looks fine — the
+already-compiled parsers keep working — while a *fresh* Mac gets zero
+parsers and no structural highlighting at all. Tested, not assumed:
+without it on PATH, `tree-sitter build` fails.
 
 Git tooling was deliberately left alone. Aliases and a structural diff
 (difftastic) were proposed and declined; delta as pager is enough.
