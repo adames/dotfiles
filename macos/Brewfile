@@ -22,7 +22,6 @@ brew "git-delta"
 brew "zoxide"
 brew "gh"
 brew "lazygit"
-brew "yazi"
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
 brew "jq"                # JSON surgery — every script here and at work
@@ -69,7 +68,9 @@ brew "typescript"
 # without a global site-packages to maintain.
 brew "uv"
 
-# ffmpeg: yazi's video thumbnails, plus ad-hoc transcodes.
+# ffmpeg: the transcoder now that HandBrake is gone. It was justified by
+# yazi's video thumbnails before yazi went too — restating the reason so
+# the line doesn't quietly become an orphan with a stale comment.
 brew "ffmpeg"
 
 # glow: the markdown viewer. One, deliberately. A 381 MB App Store app

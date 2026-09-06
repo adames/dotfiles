@@ -312,6 +312,8 @@ deploy_configs() {
 #                  works over SSH too. PDFgear stays: it's the current
 #                  PDF app, bought in June.
 #   Elmedia      — lost to IINA, which is now a declared cask.
+#   HandBrake    — never launched, and ffmpeg (declared) does the job
+#                  from the terminal.
 #
 # App bundles only. Browser profiles and editor settings under
 # ~/Library/Application Support are deliberately NOT swept: bookmarks and
@@ -320,7 +322,8 @@ deploy_configs() {
 prune_retired_apps() {
   local app
   for app in Firefox "Visual Studio Code" ExpressVPN \
-             Keynote "Pages Creator Studio" "MD Viewer" "Elmedia Player"; do
+             Keynote "Pages Creator Studio" "MD Viewer" "Elmedia Player" \
+             HandBrake; do
     [[ -d "/Applications/$app.app" ]] || continue
     step "removing /Applications/$app.app (retired)"
     osascript -e "tell application \"$app\" to quit" 2>/dev/null || true
@@ -414,7 +417,9 @@ prune_undeclared_formulae() {
   # direnv and ruff went with the authoring workflow (2026-09): no .envrc
   # exists on either machine, and ruff is a formatter/linter for code you
   # write by hand. pyright stays — reading unfamiliar Python is the job now.
-  for f in resvg pipx watchman ruby git-filter-repo python@3.14 direnv ruff; do
+  # yazi went the same way (2026-09): a TUI file manager duplicating
+  # oil.nvim, which is already one keystroke away inside the editor.
+  for f in resvg pipx watchman ruby git-filter-repo python@3.14 direnv ruff yazi; do
     brew list --formula "$f" >/dev/null 2>&1 || continue
     users="$(brew uses --installed "$f" 2>/dev/null | tr '\n' ' ')"
     if [[ -n "${users// /}" ]]; then

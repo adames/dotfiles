@@ -150,6 +150,10 @@ is now a daily act. The nvim annotation claiming `ruff` auto-ran on `:w`
 had been false the whole time — there was never a `BufWritePre` autocmd
 behind it.
 
+`yazi` went in a second pass — a TUI file manager duplicating `oil.nvim`,
+which is already one keystroke away inside the editor. **HandBrake** went
+with it: never launched, and `ffmpeg` does the same job from the terminal.
+
 Git tooling was deliberately left alone. Aliases and a structural diff
 (difftastic) were proposed and declined; delta as pager is enough.
 
