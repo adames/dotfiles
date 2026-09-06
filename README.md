@@ -67,7 +67,7 @@ Wizard probes the actual grants first, only opens what's missing.
 
 ```sh
 ws-doctor                 # config-drift / script health — run this first when something's off
-update-sys                # brew + mise + softwareupdate sweep (also runs at the end of bootstrap)
+update-sys                # brew + mas + softwareupdate sweep (also runs at the end of bootstrap)
 pgrep -x Hyperkey         # remap live
 tests/run-all.sh          # pure-bash critical path (~1.5s)
 ```
@@ -82,7 +82,7 @@ your attention is loud:
 | Marker | Means |
 |---|---|
 | `[ok]` | already in the desired state, or just put there |
-| `[note]` | true, useful, not a problem — e.g. a newer python exists but your mise config pins you below it |
+| `[note]` | true, useful, not a problem — e.g. apt held a package back, or a reboot is pending |
 | `[warn]` | a step was skipped or degraded; the run continued |
 | `[err]` | a step failed |
 

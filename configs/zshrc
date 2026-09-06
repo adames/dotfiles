@@ -56,9 +56,23 @@ alias gp='git push'
 alias gpl='git pull'
 alias update-sys='update-system'
 
-# mise: brew on mac, ~/.local/bin on linux
-if   command -v mise        &>/dev/null; then eval "$(mise activate zsh)"
-elif [ -f ~/.local/bin/mise ];                then eval "$(~/.local/bin/mise activate zsh)"
+# Keg-only brew formulae: versioned ones aren't symlinked into
+# /opt/homebrew/bin, so their bin dirs go on PATH by hand. python@3.12
+# via libexec/bin, which is the only place brew provides bare `python3`
+# and `python` — without it python3 falls through to macOS's system 3.9.
+# No-ops on Linux, where neither path exists.
+for _kb in /opt/homebrew/opt/node@24/bin \
+           /opt/homebrew/opt/python@3.12/libexec/bin
+do [[ -d "$_kb" ]] && PATH="$_kb:$PATH"; done
+unset _kb
+
+# mise is Linux-only now. macOS runtimes come from brew (node@24,
+# python@3.12, neovim, tree-sitter) — mise was shipping byte-identical
+# versions through a shim layer, and the per-project switching that would
+# have justified it was never actually in use. The Ubuntu playground
+# keeps it: apt's node is far behind, and mise is the cheapest fix there.
+if [ -x ~/.local/bin/mise ] && [ "$(uname -s)" = "Linux" ]; then
+  eval "$(~/.local/bin/mise activate zsh)"
 fi
 
 command -v direnv &>/dev/null && eval "$(direnv hook zsh)"

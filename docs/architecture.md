@@ -62,8 +62,8 @@ Added, because the stack is JS/TS at home and Python at work:
 and `uv` (the Python entry point, and pipx's replacement).
 
 Adopted, because both Macs already had them undeclared — a fresh machine
-would have deployed nvim's config with no nvim: `neovim`, `mise`, `jq`,
-`htop`, `ffmpeg`.
+would have deployed nvim's config with no nvim: `neovim`, `jq`, `htop`,
+`ffmpeg`.
 
 The JS/TS server is `tsc --lsp` — TypeScript 7's own Go-native LSP —
 configured by hand in `nvim-init.lua` rather than through lspconfig's
@@ -101,6 +101,35 @@ Terminal parity is the one manual step. `configs/ghostty-config` sets
 left Option as Alt so tmux and vim see the modifier; iTerm2 needs the
 same thing set by hand (Profiles → Keys → Left Option key → Esc+).
 
+## Dropping mise (2026-09)
+
+mise managed node, python, neovim and tree-sitter on macOS. Every version
+it handed out was byte-identical to a Homebrew formula — node 24.20.0,
+python 3.12.14, tree-sitter 0.27.0, neovim 0.12.5 — reached through a
+shim layer that also shadowed brew's own `nvim`. The one thing it offered
+that brew can't, per-project version switching, was never in use: the
+`.nvmrc` files in `~/code` were silently ignored (mise's
+`idiomatic_version_file_enable_tools` defaults to empty) and nobody
+noticed for five weeks, while an orphaned node 22 sat there taking
+362 MB.
+
+So runtimes are brew's now. Versioned formulae pin exactly as hard —
+`node@24` stays on 24 through a `brew upgrade` — and `uv` handles
+per-project Python better than a global pin ever did. One package
+manager, no shims, and `which node` answers honestly.
+
+Two edges worth remembering. Versioned formulae are keg-only, so
+`configs/zshrc` puts their bin dirs on PATH by hand; `python@3.12` goes
+in via `libexec/bin`, the only place brew provides a bare `python3` —
+without it, `python3` falls through to macOS's system 3.9. And the CLI
+nvim-treesitter shells out to is `tree-sitter-cli`; the `tree-sitter`
+formula is the C library, and installing that one gets you no binary at
+all.
+
+mise stays on the Ubuntu playground, where apt's node is years behind and
+mise is the cheapest fix. The activation block in `configs/zshrc` is
+gated on Linux rather than deleted, so one shared zshrc still serves both.
+
 ## Who owns what
 
 | Concern | Owner |
@@ -110,7 +139,9 @@ same thing set by hand (Profiles → Keys → Left Option key → Esc+).
 | Launcher | Spotlight (`⌘Space`) — see [macos-defaults.md](macos-defaults.md) |
 | Terminal multiplexing | tmux (`C-Space`) |
 | Health check | ws-doctor · `bin/ws-doctor` (config source/deploy drift) |
-| Package updates | `bin/update-system` (brew + mise + softwareupdate) |
+| Package updates | `bin/update-system` (brew + mas + softwareupdate) |
+| Runtimes (macOS) | brew — `node@24`, `python@3.12`, `neovim`, `tree-sitter-cli` |
+| Runtimes (Ubuntu) | mise — apt's node is too far behind |
 | Run output | `lib/common.sh` — graded lines, `brew_quiet`/`apt_quiet`, `run_summary` |
 
 No DriverKit kext, no scripting addition, no SIP modification, no

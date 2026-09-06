@@ -256,6 +256,7 @@ phase_apply() {
 
   prune_retired_apps
   prune_undeclared_formulae
+  retire_mise
 
   deploy_configs
 }
@@ -424,6 +425,32 @@ prune_undeclared_formulae() {
       warn "$f uninstall failed"
     fi
   done
+}
+
+# mise is retired on macOS (it stays on the Ubuntu playground, where
+# apt's node is years behind). It was handing out versions byte-identical
+# to brew's — node 24.20.0, python 3.12.14, tree-sitter 0.27.0, neovim
+# 0.12.5 — through a shim layer, and the per-project switching that would
+# have paid for that layer was never in use: the .nvmrc files in ~/code
+# were silently ignored for five weeks. node@24 and python@3.12 pin just
+# as hard, and uv handles per-project Python properly.
+#
+# Order matters: the Brewfile has already installed the replacements by
+# the time phase_apply runs, so nothing is without a node or a python
+# between the uninstall and the next shell. Idempotent.
+retire_mise() {
+  have brew || return 0
+  if brew list --formula mise >/dev/null 2>&1; then
+    step "uninstalling mise (macOS runtimes are brew's now)"
+    if brew uninstall --formula mise >/dev/null 2>&1; then
+      ok "mise uninstalled"
+    else
+      warn "mise uninstall failed"
+    fi
+  fi
+  # The install tree survives a brew uninstall — ~350 MB of runtimes plus
+  # the shims that shadowed brew's binaries on PATH.
+  rm -rf "$HOME/.local/share/mise" "$HOME/.cache/mise" "$HOME/.config/mise"
 }
 
 # ─── phase 4 · permission wizard ────────────────────────────────────────────

@@ -3,10 +3,11 @@
 # bootstrap calls this from phase_packages, and the `update-sys` zsh alias
 # runs it standalone (PATH-resolved; bootstrap installs it to ~/.local/bin).
 #
-# brew update → brew upgrade → brew cleanup catches things outside the
-# Brewfile (jq, htop, watchman, …). mise install ensures every tool in
-# ~/.config/mise/config.toml is materialized, then mise upgrade pulls
-# the latest matching version. mas upgrades App Store apps in place.
+# brew update → brew upgrade → brew cleanup covers everything now: the
+# runtimes are versioned formulae (node@24, python@3.12), so a `brew
+# upgrade` moves them within their pin and never across it. The mise
+# pass that used to live here went with mise itself. mas upgrades App
+# Store apps in place.
 # softwareupdate is list-only — applying
 # needs sudo and risks an unwanted reboot, so this surfaces what's
 # pending and tells you the one-liner to apply it.
@@ -14,7 +15,7 @@
 # Idempotent. TTY-aware (softwareupdate only runs with a TTY).
 
 # pipefail so the `cmd 2>&1 | sed | ... || warn` patterns below see the
-# real exit status of brew/mise. Without it the pipeline status is sed's
+# real exit status of brew. Without it the pipeline status is sed's
 # (always 0) and every `|| warn` is dead code — failures pass silently.
 set -u
 set -o pipefail
@@ -32,27 +33,6 @@ if have brew; then
   ok "brew current"
 else
   warn "brew not installed — skipping"
-fi
-
-if have mise; then
-  step "mise install / upgrade"
-  mise install 2>&1 | sed 's/^/    /' || warn "mise install had failures"
-
-  # Capture rather than stream: mise reports "newer versions exist but your
-  # config pins you below them" as ordinary output, so it scrolled past
-  # under an [ok] and read as success. That's the single most useful
-  # up-to-date signal in the whole run — promote it to a note. The pinned
-  # lines look like "  python 3.12.14 → 3.14.7 (~/.config/mise/config.toml)".
-  mise_out="$(mise upgrade 2>&1)" || warn "mise upgrade had failures"
-  printf '%s\n' "$mise_out" | sed 's/^/    /'
-  if grep -q 'do not match the configured version ranges' <<<"$mise_out"; then
-    while IFS= read -r pin; do
-      note "pinned below latest: $pin  (bump: mise upgrade --bump)"
-    done < <(grep -oE '[a-z0-9_-]+ [0-9][0-9.]* → [0-9][0-9.]*' <<<"$mise_out")
-  fi
-  ok "mise tools current"
-else
-  warn "mise not installed — skipping"
 fi
 
 # App Store apps (Xcode, …) — mas upgrades them in place, no App Store

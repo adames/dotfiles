@@ -30,11 +30,26 @@ brew "jq"                # JSON surgery — every script here and at work
 brew "htop"
 brew "mas"               # App Store CLI — lets update-system upgrade App Store apps (Xcode)
 
-# Editor + runtimes. These were installed by hand on both Macs and never
-# declared, so a fresh machine deployed nvim's config with no nvim, and
-# update-system's mise pass had no mise. Declared now.
+# Editor + runtimes. neovim was installed by hand on both Macs and never
+# declared, so a fresh machine deployed nvim's config with no nvim.
+#
+# The runtimes are brew's now, not mise's. mise was handing out versions
+# byte-identical to these formulae through an extra shim layer, and its
+# one real advantage — per-project switching — went unused: the .nvmrc
+# files in ~/code were being ignored and nobody noticed for five weeks.
+# Versioned formulae pin just as hard (node@24 stays on 24 through a
+# `brew upgrade`), and uv covers per-project Python properly.
+#
+# Both versioned formulae are keg-only — configs/zshrc puts their bin
+# dirs on PATH, python@3.12 via libexec/bin so bare `python3` resolves
+# here instead of falling back to macOS's system 3.9.
 brew "neovim"
-brew "mise"
+brew "node@24"
+brew "python@3.12"
+# The CLI, not `tree-sitter` — that formula is the C library. This is the
+# binary nvim-treesitter shells out to when it compiles a parser, and
+# it's what mise was actually providing under the name "tree-sitter".
+brew "tree-sitter-cli"
 
 # Language servers / linters. Nvim gates each on `executable()`, so a
 # missing one degrades instead of erroring — but the whole point is that
