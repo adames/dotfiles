@@ -281,6 +281,13 @@ phase_apply() {
     [[ -e "$bin" || -L "$bin" ]] || continue
     [[ "${bin##*/}" == "ws-doctor" ]] || rm -f "$bin"
   done
+  # The `ws-*` glob above never matched the two plainest names sigil
+  # installed — bare `ws` and its `workspace` alias — so both survived
+  # every teardown since the retirement, still symlinked into
+  # ~/code/sigil/cli/ws. ubuntu/bootstrap.sh has removed them by name all
+  # along; this side just never did. Named explicitly rather than widening
+  # the glob, which would swallow ws-doctor.
+  rm -f "$HOME/.local/bin/ws" "$HOME/.local/bin/workspace"
   python3 -m pip uninstall --quiet --yes rune 2>/dev/null || true
 
   # Retired surfaces from earlier eras: sketchybar / borders. (The ws-*
