@@ -170,6 +170,8 @@ phase_configs() {
   install_file "$CONFIGS_DIR/ripgreprc"           "$HOME/.ripgreprc"
   install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
   install_file "$CONFIGS_DIR/starship.toml"       "$HOME/.config/starship.toml"
+  install_file "$CONFIGS_DIR/zshenv"               "$HOME/.zshenv"
+  install_file "$CONFIGS_DIR/zprofile"               "$HOME/.zprofile"
   install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
   install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
   install_file "$CONFIGS_DIR/CLAUDE.md"           "$HOME/.claude/CLAUDE.md"

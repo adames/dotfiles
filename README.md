@@ -105,6 +105,8 @@ needs a new rule.
 
 | Symptom | Fix |
 |---|---|
+| `python3` is 3.9, or `node` is the wrong major | a shell that missed `~/.zshenv`/`~/.zprofile` — re-run bootstrap, then `exec zsh` |
+| `_mise_hook`/`_direnv_hook: no such file` | a shell older than the teardown that removed them — `exec zsh` |
 | Caps-tap isn't Esc | `macos/permissions-wizard.sh --force`, check Hyperkey is running |
 | Config edit not live | you edited the deployed copy — fix `configs/`, re-run bootstrap; `ws-doctor` catches the drift |
 | Bootstrap hangs on cask | `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |

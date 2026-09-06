@@ -1,5 +1,11 @@
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
-typeset -U PATH
+# PATH is set in ~/.zshenv, which every zsh reads. This re-asserts it,
+# and is NOT redundant: macOS's /etc/zprofile runs path_helper for login
+# shells, which rebuilds PATH from /etc/paths with the system dirs first
+# and everything else appended. That silently puts /usr/bin ahead of the
+# keg-only prepends — so a login shell would resolve `python3` to macOS's
+# system 3.9 instead of python@3.12. Ghostty opens login shells, so this
+# is the common case, not the exotic one.
+[[ -f "$HOME/.zshenv" ]] && source "$HOME/.zshenv"
 
 # @cs section Shell
 # @cs family terminal
@@ -54,16 +60,6 @@ alias gc='git commit'
 alias gp='git push'
 alias gpl='git pull'
 alias update-sys='update-system'
-
-# Keg-only brew formulae: versioned ones aren't symlinked into
-# /opt/homebrew/bin, so their bin dirs go on PATH by hand. python@3.12
-# via libexec/bin, which is the only place brew provides bare `python3`
-# and `python` — without it python3 falls through to macOS's system 3.9.
-# No-ops on Linux, where neither path exists.
-for _kb in /opt/homebrew/opt/node@24/bin \
-           /opt/homebrew/opt/python@3.12/libexec/bin
-do [[ -d "$_kb" ]] && PATH="$_kb:$PATH"; done
-unset _kb
 
 # mise is Linux-only now. macOS runtimes come from brew (node@24,
 # python@3.12, neovim, tree-sitter) — mise was shipping byte-identical

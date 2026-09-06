@@ -1,0 +1,17 @@
+# ~/.zprofile — login shells only, and it exists for exactly one reason.
+#
+# zsh startup order on macOS:
+#   /etc/zshenv → ~/.zshenv → /etc/zprofile → ~/.zprofile → ~/.zshrc
+#
+# /etc/zprofile runs Apple's path_helper, which REBUILDS PATH from
+# /etc/paths and /etc/paths.d with the system directories first and
+# whatever you had appended after. So a login shell silently undoes
+# ~/.zshenv: /usr/bin lands ahead of the keg-only prepends, and
+# `python3` resolves to macOS's system 3.9 instead of python@3.12.
+# Measured, not theorised — before this file, `zsh -l -c python3 -V`
+# said 3.9.6 while `zsh -c python3 -V` said 3.12.14.
+#
+# Re-asserting after path_helper puts them back. `typeset -U PATH` in
+# .zshenv makes this idempotent: the entries move to the front rather
+# than accumulating.
+[[ -f "$HOME/.zshenv" ]] && source "$HOME/.zshenv"

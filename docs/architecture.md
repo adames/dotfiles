@@ -189,6 +189,37 @@ WSL deliberately uses the two binaries Windows already ships rather than
 it current. `Get-Clipboard` returns CRLF, so the paste command strips
 `\r` — without that every pasted line ends in a stray `^M`.
 
+## PATH lives in .zshenv, and why .zprofile exists
+
+`.zshrc` is read by interactive shells and nothing else. With PATH set
+only there, `node` was v24 when typed by hand and v26 everywhere else —
+scripts, cron, editor subprocesses, and the non-interactive shells that
+Claude Code and Devin run builds in. Reviewing on one runtime while the
+agent that wrote the code built on another is an invisible bug generator:
+both shells report success.
+
+So PATH moved to `configs/zshenv`, which every zsh reads. That alone was
+not enough, and the failure is worth recording because it looks like it
+should be:
+
+| Shell | Before the fix | After |
+|---|---|---|
+| `zsh -c` (non-interactive) | node 26, python 3.9 | 24 / 3.12 |
+| `zsh -i -c` (interactive) | node 24, python 3.12 | 24 / 3.12 |
+| `zsh -l -c` (login) | **node 26, python 3.9.6** | 24 / 3.12 |
+
+The login row is Apple's `path_helper`, run from `/etc/zprofile`. It
+rebuilds PATH from `/etc/paths` with the system directories first and
+everything else appended — silently undoing `.zshenv` and resolving
+`python3` to macOS's system 3.9. Ghostty opens login shells, so this is
+the common case.
+
+`configs/zprofile` re-asserts PATH after `path_helper` has run;
+`configs/zshrc` does the same for non-login interactive shells. Both are
+one line sourcing `.zshenv`, and `typeset -U PATH` makes re-sourcing
+idempotent — entries move to the front instead of accumulating. Verified
+across all four invocation modes, with no duplicate PATH entries.
+
 ## bash 3.2 is the floor
 
 macOS ships bash 3.2 and always will — bash went GPLv3 at 4.0, which
