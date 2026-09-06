@@ -103,7 +103,10 @@ phase_packages() {
     warn "skipping cask installs (no TTY or BOOTSTRAP_SKIP_CASKS=1)"
   fi
 
-  # Per-Mac heavy apps (orbstack on the M3; the Air has no Brewfile.local).
+  # Per-Mac heavy apps. orbstack used to be the example here and no
+  # longer is — containers are every Mac's, so it graduated to the
+  # shared Brewfile. What's left is genuinely machine-specific, and
+  # the Air has no Brewfile.local at all.
   if [[ -f "$brewfile_local" ]]; then
     step "installing macos/Brewfile.local (this-machine apps)"
     if brew bundle install --file="$brewfile_local" --no-upgrade 2>&1 | brew_quiet; then
