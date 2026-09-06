@@ -1,0 +1,15 @@
+# npm global installs land in ~/.local: no sudo, ~/.local/bin is already
+# first on PATH in every shell mode (see zshenv), and the packages survive
+# apt's node upgrades. Declared here rather than via `npm config set`,
+# which writes an untracked ~/.npmrc the repo can't drift-check. npm
+# expands ${HOME} itself, so one file serves every machine.
+prefix=${HOME}/.local
+
+# npm 11 blocks install scripts it doesn't know and prints a standing
+# warning. tree-sitter-cli's (node install.js) is a fallback binary
+# download; on arm64/x86_64 the binary arrives via an optional platform
+# dependency and the script is redundant — verified by hard-deleting the
+# package, reinstalling with the script blocked, and compiling a parser.
+# Allowed anyway, by name only: on a platform with no prebuilt dep the
+# script IS the install.
+allow-scripts=tree-sitter-cli

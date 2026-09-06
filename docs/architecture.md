@@ -76,18 +76,18 @@ needs no `node_modules`: on macOS a `.ts` file in a directory with no
 attaches and reports real type errors — nvim falls back to the file's own
 directory as the root.
 
-That last part is **macOS-verified only, and the Linux box behaves
-differently**: there, a markerless `.ts` file leaves the server dead with
-`File or directory "/<default workspace root>" does not exist`. The
-likely difference is which config wins. Ours sets `cmd` explicitly
-(`tsc --lsp --stdio`), and where that block is live the client runs it —
-confirmed by reading `client.config.cmd` off a running client, not by
-inferring it. Where the deployed `nvim-init.lua` is stale, lspconfig's
-own bundled `lsp/tsgo.lua` supplies both the cmd (a literal `tsgo`
-binary, which the npm distribution doesn't ship) and its own root logic,
-which is exactly the failure seen. So: with a root marker it works
-everywhere; without one, trust it on macOS and check before relying on
-it elsewhere.
+Now verified on both platforms — read off live clients
+(`client.config.cmd`), not inferred. The Linux "failure" that briefly
+put a hedge here was a stale deployed `nvim-init.lua`: without our
+config block, lspconfig's bundled `lsp/tsgo.lua` supplies both the cmd
+(a literal `tsgo` binary, which neither brew's nor npm's typescript
+ships) and its own lockfile-hunting root logic — the server dies with
+`File or directory "/<default workspace root>" does not exist`. With
+the block live, a markerless `.ts` in a markerless cwd attaches with
+`{ "tsc", "--lsp", "--stdio" }` and the file's own directory as root,
+identically on macOS and Ubuntu. The durable lesson is about deploys,
+not LSP: the box ran a months-stale init.lua and nothing said so, which
+is why ws-doctor's drift check now covers Linux.
 
 The rule this leaves behind: **`macos/Brewfile` is the whole truth for
 formulae.** Anything that shows up in `brew leaves` and isn't declared
@@ -159,13 +159,18 @@ per-project versions.
 
 So three install paths replaced the one tool — a worse trade than macOS
 got, accepted with eyes open: the alternative was keeping a whole version
-manager alive for one box, and two of the three paths (`apt`, `npm`) are
-maintained by their package managers anyway. The pinned nvim tarball is
-the single surface nothing auto-maintains; bumping `NVIM_VERSION` and
-re-running bootstrap is the upgrade path. The mise activation block in
-`configs/zshrc` went with it, and `retire_mise` in `ubuntu/bootstrap.sh`
-sweeps the install tree — after the replacements land, so the box is
-never without a node.
+manager alive for one box. Be precise about what "maintained" means,
+because the first draft of this section got it wrong: only apt maintains
+anything unattended. `npm install -g` is install-once — the three npm
+globals freeze at whatever version bootstrap first installed, exactly
+like the nvim tarball. Four frozen surfaces, not one. That's what
+`bin/update-system` now exists for on Linux: an apt sweep, an explicit
+`npm -g @latest` pass for the three tools, and a version check that
+notes when `NVIM_VERSION` has fallen behind the latest release — the
+bump itself stays a deliberate one-line edit in `ubuntu/bootstrap.sh`.
+The mise activation block in `configs/zshrc` went with it, and
+`retire_mise` in `ubuntu/bootstrap.sh` sweeps the install tree — after
+the replacements land, so the box is never without a node.
 
 ## The AI-authored era (2026-09)
 
@@ -289,7 +294,7 @@ there is no per-machine package file any more.
 | Launcher | Spotlight (`⌘Space`) — see [macos-defaults.md](macos-defaults.md) |
 | Terminal multiplexing | tmux (`C-Space`) |
 | Health check | ws-doctor · `bin/ws-doctor` (config source/deploy drift) |
-| Package updates | `bin/update-system` (brew + mas + softwareupdate) |
+| Package updates | `bin/update-system` — brew + mas (macOS) · apt + `npm -g @latest` + nvim-pin check (Ubuntu) |
 | Runtimes (macOS) | brew — `node@24`, `python@3.12`, `neovim`, `tree-sitter-cli` |
 | Runtimes (Ubuntu) | NodeSource apt (node 24) · system python3 (3.12) · pinned nvim release tarball · `npm -g` (tree-sitter-cli, pyright, typescript) |
 | Clipboard | terminal via OSC 52; WSL via clip.exe / Get-Clipboard |

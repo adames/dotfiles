@@ -245,12 +245,12 @@ install_nvim() {
 }
 
 install_npm_tools() {
-  # npm globals go to ~/.local: no sudo, already first on PATH in every
-  # shell mode (configs/zshenv), and they survive apt's node upgrades.
-  if [[ "$(npm config get prefix 2>/dev/null)" != "$HOME/.local" ]]; then
-    step "pointing npm's global prefix at ~/.local"
-    npm config set prefix "$HOME/.local"
-  fi
+  # The npm prefix (~/.local) is a declared config, deployed here rather
+  # than in phase_configs because the npm installs just below need it and
+  # runtimes run before configs. Not `npm config set`: that writes an
+  # untracked ~/.npmrc with the literal expanded path, which the drift
+  # check could never reconcile with a source file.
+  install_file "$CONFIGS_DIR/npmrc" "$HOME/.npmrc"
   # tree-sitter-cli is load-bearing, not build sugar: nvim-treesitter's main
   # branch shells out to it for every parser it installs. Without it a fresh
   # box compiles zero parsers and gets zero structural highlighting. (And the
@@ -321,6 +321,11 @@ phase_configs() {
   install_file "$CONFIGS_DIR/CLAUDE.md"           "$HOME/.claude/CLAUDE.md"
   install_file "$CONFIGS_DIR/claude-settings.json" "$HOME/.claude/settings.json"
   install_file "$DOTFILES_DIR/bin/backup-claude-memory" "$HOME/.local/bin/backup-claude-memory.sh" 755
+  # update-sys was a dangling alias on Ubuntu until 2026-09: the shared
+  # zshrc promised update-system on both platforms and only macOS
+  # delivered it. It now carries the apt + npm -g @latest sweep — the
+  # only thing keeping the npm globals from freezing at install time.
+  install_file "$DOTFILES_DIR/bin/update-system" "$HOME/.local/bin/update-system" 755
   ensure_claude_skills
 
   mkdir -p "$HOME/.config/nvim/after/plugin"

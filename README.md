@@ -68,7 +68,7 @@ Wizard probes the actual grants first, only opens what's missing.
 
 ```sh
 ws-doctor                 # config-drift / script health — run this first when something's off
-update-sys                # brew + mas + softwareupdate sweep (also runs at the end of bootstrap)
+update-sys                # package sweep: brew + mas (macOS) / apt + npm -g @latest (Ubuntu)
 pgrep -x Hyperkey         # remap live
 tests/run-all.sh          # pure-bash critical path (~1.5s)
 ```

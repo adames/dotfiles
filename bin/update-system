@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# update-system — full sweep of package updates. One source of truth:
-# bootstrap calls this from phase_packages, and the `update-sys` zsh alias
-# runs it standalone (PATH-resolved; bootstrap installs it to ~/.local/bin).
+# update-system — full sweep of package updates, both platforms. One source
+# of truth: macOS bootstrap calls this from phase_packages, Ubuntu's
+# phase_configs deploys it, and the `update-sys` zsh alias runs it
+# standalone (PATH-resolved from ~/.local/bin).
 #
-# brew update → brew upgrade → brew cleanup covers everything now: the
+# macOS: brew update → brew upgrade → brew cleanup covers everything: the
 # runtimes are versioned formulae (node@24, python@3.12), so a `brew
 # upgrade` moves them within their pin and never across it. The mise
 # pass that used to live here went with mise itself. mas upgrades App
 # Store apps in place.
+#
+# Ubuntu: apt covers node (NodeSource pins the major) and the system
+# python, but the three npm globals do NOT self-update — `npm install -g`
+# is install-once, and bootstrap only installs what's missing — so they
+# get an explicit @latest pass here. The nvim tarball can't be upgraded
+# from here at all (the pin lives in ubuntu/bootstrap.sh); it gets a
+# version check that notes when the pin has fallen behind, because
+# rotting silently is how pins die.
 # macOS itself is deliberately untouched here — not even a list-only
 # `softwareupdate -l`. That cost a network round trip on every run and
 # left a standing [warn] for as long as Apple had anything queued, which
@@ -35,8 +44,50 @@ if have brew; then
   brew upgrade         2>&1 | sed 's/^/    /' || warn "brew upgrade had failures"
   brew cleanup --quiet 2>&1 | sed 's/^/    /' || true
   ok "brew current"
-else
+elif [[ "$(uname -s)" == "Darwin" ]]; then
+  # Only a warn where brew is actually expected — on Linux the apt
+  # section below speaks for the platform, and a standing [warn] on
+  # every Ubuntu run is exactly the noise this script exists to avoid.
   warn "brew not installed — skipping"
+fi
+
+if [[ "$(uname -s)" == "Linux" ]] && have apt-get; then
+  step "apt update / upgrade"
+  sudo apt-get update 2>&1 | apt_quiet || warn "apt update failed"
+  if upgrade_out="$(sudo apt-get upgrade -y 2>&1)"; then
+    printf '%s\n' "$upgrade_out" | apt_quiet
+    held="$(sed -nE 's/.*and ([0-9]+) not upgraded.*/\1/p' <<<"$upgrade_out" | head -1)"
+    if [[ -n "${held:-}" ]] && (( held > 0 )); then
+      note "$held package(s) held back by apt (see: apt list --upgradable)"
+    fi
+    ok "apt current"
+  else
+    printf '%s\n' "$upgrade_out" | apt_quiet
+    warn "apt upgrade had failures"
+  fi
+
+  # The Linux twin of `brew upgrade` for the editor toolchain: these
+  # three froze at whatever version bootstrap first installed.
+  if have npm; then
+    step "npm -g @latest (tree-sitter-cli, pyright, typescript)"
+    npm install -g tree-sitter-cli@latest pyright@latest typescript@latest \
+      2>&1 | sed 's/^/    /' || warn "npm -g update had failures"
+    ok "npm globals current"
+  fi
+
+  # Compare the pinned nvim against the latest release. note(), not
+  # warn: a lagging pin is a true finding, not a failure — and the fix
+  # is a one-line bump of NVIM_VERSION, not anything this script does.
+  # Degrades silently offline (curl fails ⇒ no claim either way).
+  if have nvim && have curl; then
+    nvim_latest="$(curl -fsSL --max-time 10 \
+        https://api.github.com/repos/neovim/neovim/releases/latest 2>/dev/null \
+      | sed -nE 's/.*"tag_name": *"([^"]+)".*/\1/p')"
+    nvim_installed="$(nvim --version | sed -n '1s/^NVIM //p')"
+    if [[ -n "$nvim_latest" && -n "$nvim_installed" && "$nvim_latest" != "$nvim_installed" ]]; then
+      note "nvim $nvim_installed pinned, $nvim_latest released — bump NVIM_VERSION in ubuntu/bootstrap.sh, re-run bootstrap"
+    fi
+  fi
 fi
 
 # App Store apps (Xcode, …) — mas upgrades them in place, no App Store
