@@ -254,6 +254,16 @@ the system one. Removing direnv surfaced it immediately.
 `tests/critical/script-syntax.test.sh` now fails on bash-4-only
 constructs, so the floor is enforced rather than remembered.
 
+## The fleet
+
+Two Macs, both MacBook Pros: **`m1`** (Apple M1) and **`m3`** (M3 Max),
+plus a Linux box used as a playground and a work Mac this repo never
+touches. Older comments in here called m1 "the Air" — it is not an Air
+and never was; the nickname stuck because it is the lighter, older one,
+and it cost a session's worth of confusion when it read as a third
+machine that was months out of date. Both Macs run the same Brewfile;
+there is no per-machine package file any more.
+
 ## Who owns what
 
 | Concern | Owner |

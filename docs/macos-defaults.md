@@ -1,6 +1,6 @@
 # macOS defaults
 
-`macos/macos-defaults.sh` is run by `phase_apply` so both Macs (M3 + Air)
+`macos/macos-defaults.sh` is run by `phase_apply` so both Macs (`m3` + `m1`)
 converge on the same appearance / keyboard / Dock / Finder / Spotlight /
 trackpad posture. Encoded values live in the script — edit there, re-run
 `./macos/bootstrap.sh` to apply (idempotent).
@@ -63,7 +63,7 @@ Spotlight caches its prefs, so the script `killall Spotlight` on change.
 Hard limits — don't try to drive these from `defaults`:
 
 - **Wallpaper.** Historically iCloud-coupled and brittle to script. The
-  Air is signed out of Apple ID, so wallpaper has no sync path either
+  m1 is signed out of Apple ID, so wallpaper has no sync path either
   way — set it once manually on each Mac after first login.
 - **Display arrangement** (multi-monitor layout). No `defaults` surface.
 - **pmset** items that touch the SMC. Use `sudo pmset -a …` directly.
@@ -99,7 +99,7 @@ against an earlier recollection — live won (it's the actual user-set state):
 | Dock `tilesize` | `42` | `44` | `44` |
 | Finder `FXPreferredViewStyle` | `clmv` (column) | `Nlsv` (list) | `Nlsv` |
 
-To bring a second Mac (the M1/Air) into parity, don't assume either machine
+To bring the second Mac (`m1`) into parity, don't assume either machine
 is canonical:
 
 1. On the other Mac, read its live value for every domain/key in the script.

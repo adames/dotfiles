@@ -1,8 +1,11 @@
-# macos/Brewfile — env apps shared between machines (M3 + Air).
+# macos/Brewfile — every package on both Macs. There is no second file:
+# the per-machine macos/Brewfile.local is gone, so this is the list.
+#
+# The fleet is two machines, both MacBook Pros: `m1` (Apple M1) and `m3`
+# (M3 Max). Older comments called m1 "the Air" — it is not an Air, and
+# never was; the nickname stuck because it's the lighter, older one.
 #
 # Idempotent. `brew bundle install --file=…` (called by phase_packages).
-# Heavy / per-Mac apps live in macos/Brewfile.local (untracked) — the Air
-# has no Brewfile.local so it stays lean.
 # Skip casks in headless runs: BOOTSTRAP_SKIP_CASKS=1 ./bootstrap.sh
 #
 # This file is the whole truth for formulae: `brew leaves` should contain

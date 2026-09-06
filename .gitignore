@@ -9,6 +9,3 @@
 .vscode/
 .idea/
 *.swp
-
-# Per-machine heavy apps — mirrors the ~/.gitconfig.local pattern.
-macos/Brewfile.local

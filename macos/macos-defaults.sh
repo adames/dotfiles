@@ -10,8 +10,9 @@
 #   - ApplePressAndHoldEnabled: live=false (vim posture), doc said true
 #   - dock tilesize:            live=44,    doc said 42
 #   - Finder view style:        live=Nlsv,  doc said clmv
-# M1/Air reconciliation deferred until the Air can be live-read. Until
-# then this gives the Air the same posture as the M3.
+# Reconciliation with m1 was deferred until it could be live-read. Until
+# then this gives m1 the same posture as m3. (m1 was called "the Air" in
+# older comments — it is a MacBook Pro, not an Air. There are two Macs.)
 #
 # Hard limits live in docs/macos-defaults.md.
 

@@ -78,7 +78,6 @@ phase_packages() {
   fi
 
   local brewfile="$DOTFILES_DIR/macos/Brewfile"
-  local brewfile_local="$DOTFILES_DIR/macos/Brewfile.local"
 
   # Brew Bundle no longer supports type flags (`--formula`, `--cask`) on
   # install. Restore the full Brewfile when interactive; otherwise ask Bundle
@@ -103,18 +102,13 @@ phase_packages() {
     warn "skipping cask installs (no TTY or BOOTSTRAP_SKIP_CASKS=1)"
   fi
 
-  # Per-Mac heavy apps. orbstack used to be the example here and no
-  # longer is — containers are every Mac's, so it graduated to the
-  # shared Brewfile. What's left is genuinely machine-specific, and
-  # the Air has no Brewfile.local at all.
-  if [[ -f "$brewfile_local" ]]; then
-    step "installing macos/Brewfile.local (this-machine apps)"
-    if brew bundle install --file="$brewfile_local" --no-upgrade 2>&1 | brew_quiet; then
-      ok "Brewfile.local"
-    else
-      warn "macos/Brewfile.local install had failures"
-    fi
-  fi
+  # No Brewfile.local. It existed for per-Mac heavy apps, and orbstack was
+  # the only tenant it ever had — which graduated to the shared Brewfile
+  # once containers turned out to be every Mac's business. An untracked
+  # file that installs software is a bad thing to keep on spec: it can't
+  # be reviewed in a diff, it doesn't travel, and its header on m1 still
+  # claimed the host was m3 months after being copied. If a machine ever
+  # does need something of its own, add it back deliberately.
 
   # Strip Gatekeeper quarantine so scripted `open -a` works pre-launch.
   for app in /Applications/Hyperkey.app /Applications/Helium.app; do
