@@ -126,9 +126,30 @@ nvim-treesitter shells out to is `tree-sitter-cli`; the `tree-sitter`
 formula is the C library, and installing that one gets you no binary at
 all.
 
-mise stays on the Ubuntu playground, where apt's node is years behind and
-mise is the cheapest fix. The activation block in `configs/zshrc` is
-gated on Linux rather than deleted, so one shared zshrc still serves both.
+Ubuntu followed within the month, and the trade was not the same shape.
+On macOS dropping mise was pure subtraction — brew already carried every
+runtime at identical versions. On noble each tool needed its own source:
+**node 24** comes from the NodeSource apt repo (same keyring-and-signed-by
+shape as the GitHub CLI repo; the `node_24.x` repo only ever carries 24.x,
+so `apt upgrade` tracks patches while pinning the major, exactly like
+brew's `node@24`), **neovim** is the official release tarball pinned by
+`NVIM_VERSION` in `ubuntu/bootstrap.sh` (apt ships 0.9.5, which predates
+the 0.11+ `vim.lsp.config()`/`vim.uv` APIs the nvim config uses), and
+**tree-sitter-cli, pyright and typescript** come from `npm -g` into
+`~/.local` (apt's tree-sitter-cli is 0.20, below nvim-treesitter's 0.25
+floor; the LSP servers have no apt package at all). **python** is the one
+that cost nothing: noble's system python3 is already 3.12, and `uv` covers
+per-project versions.
+
+So three install paths replaced the one tool — a worse trade than macOS
+got, accepted with eyes open: the alternative was keeping a whole version
+manager alive for one box, and two of the three paths (`apt`, `npm`) are
+maintained by their package managers anyway. The pinned nvim tarball is
+the single surface nothing auto-maintains; bumping `NVIM_VERSION` and
+re-running bootstrap is the upgrade path. The mise activation block in
+`configs/zshrc` went with it, and `retire_mise` in `ubuntu/bootstrap.sh`
+sweeps the install tree — after the replacements land, so the box is
+never without a node.
 
 ## The AI-authored era (2026-09)
 
@@ -244,7 +265,7 @@ constructs, so the floor is enforced rather than remembered.
 | Health check | ws-doctor · `bin/ws-doctor` (config source/deploy drift) |
 | Package updates | `bin/update-system` (brew + mas + softwareupdate) |
 | Runtimes (macOS) | brew — `node@24`, `python@3.12`, `neovim`, `tree-sitter-cli` |
-| Runtimes (Ubuntu) | mise — apt's node is too far behind |
+| Runtimes (Ubuntu) | NodeSource apt (node 24) · system python3 (3.12) · pinned nvim release tarball · `npm -g` (tree-sitter-cli, pyright, typescript) |
 | Clipboard | terminal via OSC 52; WSL via clip.exe / Get-Clipboard |
 | Shell floor | bash 3.2 (macOS ships no newer), enforced by tests |
 | Run output | `lib/common.sh` — graded lines, `brew_quiet`/`apt_quiet`, `run_summary` |

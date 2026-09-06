@@ -61,15 +61,6 @@ alias gp='git push'
 alias gpl='git pull'
 alias update-sys='update-system'
 
-# mise is Linux-only now. macOS runtimes come from brew (node@24,
-# python@3.12, neovim, tree-sitter) — mise was shipping byte-identical
-# versions through a shim layer, and the per-project switching that would
-# have justified it was never actually in use. The Ubuntu playground
-# keeps it: apt's node is far behind, and mise is the cheapest fix there.
-if [ -x ~/.local/bin/mise ] && [ "$(uname -s)" = "Linux" ]; then
-  eval "$(~/.local/bin/mise activate zsh)"
-fi
-
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 
 # User zsh completions from ~/.config/zsh/completions.
@@ -113,7 +104,7 @@ fi
 
 # zsh-syntax-highlighting: its own docs require sourcing at the very end of
 # .zshrc — it wraps every widget already defined, so anything sourced after
-# it (fzf/zoxide/mise key bindings, etc.) would silently lose highlighting.
+# it (fzf/zoxide key bindings, etc.) would silently lose highlighting.
 # brew on macOS, ~/.zsh git-clone on Linux
 for _zp in \
   /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \

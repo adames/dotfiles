@@ -34,7 +34,14 @@ test_doctor_has_drift_check() {
 
 # Test 2: Key configs exist in configs/
 test_configs_exist() {
-  local configs=("tmux.conf" "zshrc" "gitconfig" "ghostty-config")
+  local configs=("tmux.conf" "zshrc" "gitconfig")
+  # ghostty-config is macOS-only and pruned from sparse Linux clones
+  # (lib/platform-manifest.sh). Only exempt it when sparse-checkout is
+  # actually active — a full clone missing it must still fail.
+  if [[ -f "$REPO_ROOT/configs/ghostty-config" ]] \
+     || [[ "$(git -C "$REPO_ROOT" config --type=bool core.sparsecheckout 2>/dev/null)" != "true" ]]; then
+    configs+=("ghostty-config")
+  fi
   local found=0
   for cfg in "${configs[@]}"; do
     if [[ -f "$REPO_ROOT/configs/$cfg" ]]; then
@@ -70,12 +77,15 @@ test_install_uses_cmp() {
 # never matched and silently fell through to WARN. Match the real call
 # shape and assert hard so a refactor that stops deploying configs fails.
 test_bootstrap_deploys_configs() {
-  local bs="$REPO_ROOT/macos/bootstrap.sh"
+  # Same invariant on both platforms — assert against the bootstrap this
+  # clone actually carries (sparse Linux clones prune macos/).
+  local bs="$REPO_ROOT/macos/bootstrap.sh" name="macos"
+  [[ -f "$bs" ]] || { bs="$REPO_ROOT/ubuntu/bootstrap.sh"; name="ubuntu"; }
   if grep -Eq 'install_file[[:space:]]+"\$CONFIGS_DIR' "$bs" 2>/dev/null; then
-    echo "PASS: Bootstrap deploys configs/ via \$CONFIGS_DIR"
+    echo "PASS: $name bootstrap deploys configs/ via \$CONFIGS_DIR"
     ((pass++))
   else
-    echo "FAIL: macOS bootstrap no longer deploys configs via install_file \"\$CONFIGS_DIR/...\""
+    echo "FAIL: $name bootstrap no longer deploys configs via install_file \"\$CONFIGS_DIR/...\""
     ((fail++))
   fi
 }

@@ -97,6 +97,15 @@ test_install_file_idempotent() {
 test_homebrew_bundle_flags() {
   local mac_bootstrap="$REPO_ROOT/macos/bootstrap.sh"
 
+  # A Linux clone prunes macos/ via sparse-checkout (lib/platform-manifest.sh).
+  # Skip only when the prune is the reason the file is gone — a full clone
+  # (CI's ubuntu-latest, any Mac) with the file missing must still FAIL.
+  if [[ ! -f "$mac_bootstrap" ]] \
+     && [[ "$(git -C "$REPO_ROOT" config --type=bool core.sparsecheckout 2>/dev/null)" == "true" ]]; then
+    echo "SKIP: macos/bootstrap.sh pruned by sparse-checkout on this clone"
+    return 0
+  fi
+
   if grep -Eq 'brew bundle install .*--(formula|cask)([[:space:]]|$)' "$mac_bootstrap"; then
     echo "FAIL: macOS bootstrap uses removed brew bundle install type flags"
     ((fail++))

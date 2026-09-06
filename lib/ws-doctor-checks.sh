@@ -34,9 +34,13 @@
 # Hyperkey stores its config in user defaults, not a file we can
 # pair-cmp, so it's still not represented here.
 check_source_deploy_drift() {
+  # macos/bootstrap.sh where it exists (any Mac, any full clone); a sparse
+  # Linux clone prunes macos/, and ubuntu/bootstrap.sh's phase_configs uses
+  # the identical install_file shape — parse whichever this clone runs.
   local bootstrap="$DOTFILES_DIR/macos/bootstrap.sh"
+  [[ -f "$bootstrap" ]] || bootstrap="$DOTFILES_DIR/ubuntu/bootstrap.sh"
   if [[ ! -f "$bootstrap" ]]; then
-    SKIP source-deploy-drift "macos/bootstrap.sh not found"
+    SKIP source-deploy-drift "no platform bootstrap found"
     return 0
   fi
 
@@ -60,7 +64,7 @@ check_source_deploy_drift() {
   done < <(grep -E '^[[:space:]]*install_file[[:space:]]+"' "$bootstrap")
 
   if (( ${#pairs[@]} == 0 )); then
-    SKIP source-deploy-drift "no install_file pairs parsed from macos/bootstrap.sh"
+    SKIP source-deploy-drift "no install_file pairs parsed from ${bootstrap#"$DOTFILES_DIR"/}"
     return 0
   fi
 

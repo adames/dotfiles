@@ -19,6 +19,18 @@ pass=0; fail=0
 
 echo "=== hyperkey-defaults.test.sh ==="
 
+# Every check here reads macos/bootstrap.sh, which a Linux clone prunes via
+# sparse-checkout (lib/platform-manifest.sh). Skip only when the prune is the
+# reason it's gone — a full clone (CI, any Mac) missing the file must still
+# fail all seven ways.
+if [[ ! -f "$BOOTSTRAP" ]] \
+   && [[ "$(git -C "$REPO_ROOT" config --type=bool core.sparsecheckout 2>/dev/null)" == "true" ]]; then
+  echo "SKIP: macos/bootstrap.sh pruned by sparse-checkout on this clone"
+  echo ""
+  echo "hyperkey-defaults: 0 passed, 0 failed"
+  exit 0
+fi
+
 # 1. Writes the bundle-id domain (com.knollsoft.Hyperkey)
 if grep -qE 'defaults write[[:space:]]+"?(com\.knollsoft\.Hyperkey|\$domain)"?' "$BOOTSTRAP" \
    && grep -qE 'domain="com\.knollsoft\.Hyperkey"' "$BOOTSTRAP"; then
