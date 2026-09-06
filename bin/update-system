@@ -8,11 +8,15 @@
 # upgrade` moves them within their pin and never across it. The mise
 # pass that used to live here went with mise itself. mas upgrades App
 # Store apps in place.
-# softwareupdate is list-only — applying
-# needs sudo and risks an unwanted reboot, so this surfaces what's
-# pending and tells you the one-liner to apply it.
+# macOS itself is deliberately untouched here — not even a list-only
+# `softwareupdate -l`. That cost a network round trip on every run and
+# left a standing [warn] for as long as Apple had anything queued, which
+# is noise in a summary whose whole job is to replay the lines that
+# aren't [ok]. Apple nags about its own updates perfectly well. What the
+# repo does care about — that the OS is new enough for the Tahoe-only
+# defaults — is a local version check in macos/bootstrap.sh.
 #
-# Idempotent. TTY-aware (softwareupdate only runs with a TTY).
+# Idempotent.
 
 # pipefail so the `cmd 2>&1 | sed | ... || warn` patterns below see the
 # real exit status of brew. Without it the pipeline status is sed's
@@ -41,26 +45,6 @@ if have mas; then
   step "mas upgrade (App Store apps)"
   mas upgrade 2>&1 | sed 's/^/    /' || warn "mas upgrade had failures"
   ok "App Store apps current"
-fi
-
-if has_tty && have softwareupdate; then
-  step "softwareupdate -l (list-only — apply with: sudo softwareupdate -i -a)"
-  out=$(softwareupdate -l 2>&1)
-  sw_status=$?
-  if (( sw_status != 0 )); then
-    # A daemon/network failure exits non-zero and its output won't
-    # contain "No new software available" either — that used to fall
-    # through to the else branch and get misreported as "updates
-    # available" when we just couldn't reach softwareupdate at all.
-    warn "couldn't check for macOS updates (softwareupdate exited $sw_status)"
-  elif printf '%s\n' "$out" | grep -q "No new software available"; then
-    ok "no macOS updates"
-  else
-    printf '%s\n' "$out" | sed 's/^/    /'
-    warn "macOS updates available — review above"
-  fi
-else
-  warn "skipping softwareupdate (no TTY)"
 fi
 
 ok "update-system complete"

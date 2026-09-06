@@ -9,6 +9,38 @@ set -euo pipefail
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
+# ─── preflight · macOS version floor ────────────────────────────────────────
+# Two things downstream assume Tahoe (macOS 26): phase_apply retires
+# Raycast *because* native Tahoe Spotlight replaced it as the launcher,
+# and macos-defaults writes the Spotlight keys for Tahoe's two-section
+# results pane. On 25 or older that pairing is silently destructive —
+# the launcher goes away, and `defaults write` happily invents keys the
+# old pane never reads, so nothing errors and nothing works.
+#
+# A warn, not an err: an old Mac can still take everything else, and the
+# user gets to decide. Deliberately a local `sw_vers` read rather than
+# the `softwareupdate -l` that used to live in update-system — this
+# answers "is this Mac new enough for the repo", which is ours to know,
+# instead of "does Apple have something queued", which is Apple's.
+check_macos_floor() {
+  local want=26 have major
+  have="$(sw_vers -productVersion 2>/dev/null || true)"
+  major="${have%%.*}"
+  # Empty or non-numeric means sw_vers didn't answer in the shape we
+  # parse; say so rather than pass a comparison we couldn't make.
+  case "$major" in
+    ''|*[!0-9]*)
+      warn "couldn't read macOS version (sw_vers said '${have:-nothing}')"
+      return 0
+      ;;
+  esac
+  if (( major < want )); then
+    warn "macOS $have is below the $want (Tahoe) floor — the Spotlight defaults and the Raycast teardown assume Tahoe"
+  else
+    ok "macOS $have (Tahoe floor $want)"
+  fi
+}
+
 # ─── phase 1 · sudo ─────────────────────────────────────────────────────────
 phase_sudo() {
   phase "sudo"
@@ -493,6 +525,8 @@ main() {
     run_summary
     return
   fi
+
+  check_macos_floor
 
   # Same self-numbering list as ubuntu/bootstrap.sh — phase() takes the total
   # from here, so the headers can never drift out of sync with reality.
