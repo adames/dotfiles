@@ -44,7 +44,7 @@ err()  { printf '%s[err]%s %s\n' "$C_RED" "$C_RESET" "$*" >&2
          printf 'ERR\t%s\n' "$*" >> "$DOTFILES_RUN_LOG" 2>/dev/null || true; }
 
 # note <msg> — a real finding that isn't a failure. Things like "a newer
-# python exists but your mise config pins you below it": burying that under
+# neovim exists but NVIM_VERSION pins you below it": burying that under
 # [ok] is how it goes unread for months, but it isn't a warning either.
 note() { printf '%s[note]%s %s\n' "$C_BLUE" "$C_RESET" "$*"
          printf 'NOTE\t%s\n' "$*" >> "$DOTFILES_RUN_LOG" 2>/dev/null || true; }
@@ -88,7 +88,7 @@ apt_quiet() {
 }
 
 # run_quiet <label> <cmd…> — for third-party installers that spray progress
-# bars over stderr (the fzf and mise installers both do, and `>/dev/null`
+# bars over stderr (the fzf and starship installers both do, and `>/dev/null`
 # misses them because they write to fd 2). Swallow the output on success;
 # replay all of it on failure, which is the only time anyone wants it.
 run_quiet() {
