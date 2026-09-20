@@ -10,7 +10,7 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
 # ─── preflight · macOS version floor ────────────────────────────────────────
-# Two things downstream assume Tahoe (macOS 26): phase_apply retires
+# Two things downstream assume Tahoe (macOS 26): macos/retire.sh drops
 # Raycast *because* native Tahoe Spotlight replaced it as the launcher,
 # and macos-defaults writes the Spotlight keys for Tahoe's two-section
 # results pane. On 25 or older that pairing is silently destructive —
@@ -102,14 +102,6 @@ phase_packages() {
     warn "skipping cask installs (no TTY or BOOTSTRAP_SKIP_CASKS=1)"
   fi
 
-  # No Brewfile.local. It existed for per-Mac heavy apps, and orbstack was
-  # the only tenant it ever had — which graduated to the shared Brewfile
-  # once containers turned out to be every Mac's business. An untracked
-  # file that installs software is a bad thing to keep on spec: it can't
-  # be reviewed in a diff, it doesn't travel, and its header on m1 still
-  # claimed the host was m3 months after being copied. If a machine ever
-  # does need something of its own, add it back deliberately.
-
   # Strip Gatekeeper quarantine so scripted `open -a` works pre-launch.
   for app in /Applications/Hyperkey.app /Applications/Helium.app; do
     [[ -d "$app" ]] && xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
@@ -126,8 +118,8 @@ phase_packages() {
     warn "Devin.app missing — install from https://devin.ai (no cask)"
   fi
 
-  # Upgrade pass — brew/mise/softwareupdate. Same logic the user runs
-  # standalone as `update-sys`; bootstrap calls it so a fresh re-run
+  # Upgrade pass — brew + mas. Same script the user runs standalone as
+  # `update-sys`; bootstrap calls it so a fresh re-run
   # leaves the machine fully current, not just package-list-complete.
   # Non-fatal: a flaky upgrade must not abort before configs deploy.
   if bash "$DOTFILES_DIR/bin/update-system"; then
@@ -137,17 +129,11 @@ phase_packages() {
   fi
 }
 
+# The cask names from a Brewfile, space-joined for
+# HOMEBREW_BUNDLE_CASK_SKIP. The `^[[:space:]]*cask` anchor already skips
+# commented-out lines, since a `#` would come first.
 brewfile_casks() {
-  local brewfile="$1"
-  awk '
-    /^[[:space:]]*#/ { next }
-    /^[[:space:]]*cask[[:space:]]+"/ {
-      line = $0
-      sub(/^[[:space:]]*cask[[:space:]]+"/, "", line)
-      sub(/".*/, "", line)
-      print line
-    }
-  ' "$brewfile" | paste -sd' ' -
+  awk -F'"' '/^[[:space:]]*cask[[:space:]]+"/ { print $2 }' "$1" | paste -sd' ' -
 }
 
 # Xcode Command Line Tools — brew needs them to install most formulae.
@@ -217,284 +203,14 @@ phase_apply() {
   # — see docs/macos-defaults.md for the table and hard limits.
   bash "$DOTFILES_DIR/macos/macos-defaults.sh"
 
-  # Stop legacy services BEFORE deleting their configs — otherwise
-  # Karabiner's grabber can wedge the input system on its way out.
-  # `brew services list` costs ~1s, so capture it once, not per service.
-  local brew_services
-  brew_services="$(brew services list 2>/dev/null || true)"
-  for svc in yabai skhd; do
-    if grep -q "^$svc.*started" <<<"$brew_services"; then
-      step "stopping legacy service: $svc"
-      brew services stop "$svc" >/dev/null 2>&1 || true
-    fi
-  done
-  if pgrep -x karabiner_grabber >/dev/null 2>&1 \
-       || pgrep -x Karabiner-Elements >/dev/null 2>&1; then
-    step "stopping Karabiner-Elements (replaced by Hyperkey)"
-    osascript -e 'tell application "Karabiner-Elements" to quit' 2>/dev/null || true
-    launchctl unload -w "$HOME/Library/LaunchAgents/org.pqrs."*.plist 2>/dev/null || true
-    sleep 1
-  fi
-  rm -f  "$HOME/.skhdrc" "$HOME/.yabairc"
-  rm -rf "$HOME/.config/yabai" "$HOME/.config/skhd" "$HOME/.config/karabiner"
-
-  # AeroSpace retired (mouse + single screen won; tiling never earned its
-  # keep). Quit the app, drop the cask, sweep its config. Idempotent — a
-  # machine that never had it just no-ops through.
-  if pgrep -x AeroSpace >/dev/null 2>&1; then
-    step "stopping AeroSpace (retired)"
-    osascript -e 'tell application "AeroSpace" to quit' 2>/dev/null || true
-  fi
-  if brew list --cask aerospace >/dev/null 2>&1; then
-    step "uninstalling aerospace cask"
-    brew uninstall --cask aerospace >/dev/null 2>&1 || warn "aerospace cask uninstall failed"
-  fi
-  rm -rf "$HOME/.config/aerospace"
-
-  # Raycast retired too (native Tahoe Spotlight is the launcher). Same
-  # idempotent teardown shape: quit, drop the cask, sweep local state.
-  if pgrep -x Raycast >/dev/null 2>&1; then
-    step "stopping Raycast (retired)"
-    osascript -e 'tell application "Raycast" to quit' 2>/dev/null || true
-  fi
-  if brew list --cask raycast >/dev/null 2>&1; then
-    step "uninstalling raycast cask"
-    brew uninstall --cask raycast >/dev/null 2>&1 || warn "raycast cask uninstall failed"
-  fi
-  rm -rf "$HOME/Library/Application Support/com.raycast.macos" \
-         "$HOME/Library/Caches/com.raycast.macos" \
-         "$HOME/Library/Application Support/com.raycast.shared"
-  defaults delete com.raycast.macos >/dev/null 2>&1 || true
-
-  # Sigil (the Swift workspace package) is fully retired with AeroSpace —
-  # its last survivor, the ws-cheatsheet HUD, was only reachable via the
-  # Caps+/ chord that lived in aerospace.toml. Sweep the clone, its
-  # symlinked binaries, and the rune generator that fed it.
-  rm -rf "$HOME/.config/workspace"
-  for bin in "$HOME/.local/bin/ws-"*; do
-    [[ -e "$bin" || -L "$bin" ]] || continue
-    [[ "${bin##*/}" == "ws-doctor" ]] || rm -f "$bin"
-  done
-  # The `ws-*` glob above never matched the two plainest names sigil
-  # installed — bare `ws` and its `workspace` alias — so both survived
-  # every teardown since the retirement, still symlinked into
-  # ~/code/sigil/cli/ws. ubuntu/bootstrap.sh has removed them by name all
-  # along; this side just never did. Named explicitly rather than widening
-  # the glob, which would swallow ws-doctor.
-  rm -f "$HOME/.local/bin/ws" "$HOME/.local/bin/workspace"
-  python3 -m pip uninstall --quiet --yes rune 2>/dev/null || true
-
-  # Retired surfaces from earlier eras: sketchybar / borders. (The ws-*
-  # launchers and ~/.config/workspace scripts are covered by the sigil
-  # sweep above.)
-  rm -rf "$HOME/.config/sketchybar"
-  rm -rf "$HOME/.config/borders"
-
-  prune_retired_apps
-  prune_undeclared_formulae
-  retire_mise
+  # Everything this repo used to run — Karabiner, yabai/skhd, AeroSpace,
+  # Raycast, sigil, mise, and the apps and formulae the 2026-09 prune took
+  # — is torn down by a one-shot that stamps itself when it completes. It
+  # cost ~4s of brew forks on every run of every settled Mac while it lived
+  # here; now a machine already at its generation exits in milliseconds.
+  bash "$DOTFILES_DIR/macos/retire.sh" || warn "one-shot teardown had failures"
 
   deploy_configs
-}
-
-# The portable core: every file that is just as true on a machine this
-# repo doesn't own. No brew, no defaults, no teardown, no wizard — so
-# `BOOTSTRAP_CONFIGS_ONLY=1 ./bootstrap.sh` is a safe thing to run on a
-# locked-down or borrowed Mac, and a work-friendly fork of this repo can
-# be this function plus configs/.
-#
-# ghostty-config is deployed unconditionally: it's an inert file under
-# ~/.config/ghostty, and a machine on iTerm2 simply never reads it.
-deploy_configs() {
-  install_file "$CONFIGS_DIR/ghostty-config"             "$HOME/.config/ghostty/config"
-  install_file "$CONFIGS_DIR/tmux.conf"                  "$HOME/.tmux.conf"
-  install_file "$CONFIGS_DIR/zshenv"                      "$HOME/.zshenv"
-  install_file "$CONFIGS_DIR/zprofile"                      "$HOME/.zprofile"
-  install_file "$CONFIGS_DIR/zshrc"                      "$HOME/.zshrc"
-  install_file "$CONFIGS_DIR/starship.toml"              "$HOME/.config/starship.toml"
-  install_file "$CONFIGS_DIR/gitconfig"                  "$HOME/.gitconfig"
-  install_file "$CONFIGS_DIR/ripgreprc"                  "$HOME/.ripgreprc"
-  install_file "$CONFIGS_DIR/CLAUDE.md"                  "$HOME/.claude/CLAUDE.md"
-  install_file "$CONFIGS_DIR/claude-settings.json"       "$HOME/.claude/settings.json"
-  install_file "$DOTFILES_DIR/bin/backup-claude-memory"  "$HOME/.local/bin/backup-claude-memory.sh" 755
-  ensure_claude_skills
-  install_file "$CONFIGS_DIR/tmux-sessionizer"           "$HOME/.local/bin/tmux-sessionizer" 755
-  install_file "$DOTFILES_DIR/bin/ws-doctor"             "$HOME/.local/bin/ws-doctor" 755
-  install_file "$DOTFILES_DIR/bin/update-system"         "$HOME/.local/bin/update-system" 755
-  rm -f "$HOME/.config/zsh/completions/_ws"
-
-  install_file "$CONFIGS_DIR/nvim-init.lua"              "$HOME/.config/nvim/init.lua"
-  install_file "$CONFIGS_DIR/nvim-lazy-lock.json"        "$HOME/.config/nvim/lazy-lock.json"
-  mkdir -p "$HOME/.config/nvim/after/plugin"
-  install_file "$CONFIGS_DIR/nvim-keymaps.lua"           "$HOME/.config/nvim/after/plugin/keymaps.lua"
-
-  ensure_gitconfig_local
-}
-
-# ─── the 2026-09 prune ──────────────────────────────────────────────────────
-# Hand-installed .apps (no cask ever owned them) that lost their argument:
-#
-#   Firefox      — a fourth browser. Chrome and Helium are the two in use.
-#   VS Code      — the editor is nvim + Claude Code. Idle since May.
-#   ExpressVPN   — a second VPN client. ProtonVPN is the declared one.
-#
-# And the App Store tier, re-downloadable at any time since the purchases
-# stay on the Apple ID — which is exactly why they don't need to sit on
-# every disk:
-#
-#   Keynote      — never opened on this machine.
-#   Pages        — same. Ships as "Pages Creator Studio.app" here: the
-#                  bundle is com.apple.Pages, just renamed on disk, so
-#                  the loop matches the filename rather than the app name.
-#   MD Viewer    — 381 MB to render markdown. `glow` does it in 10 MB and
-#                  works over SSH too. PDFgear stays: it's the current
-#                  PDF app, bought in June.
-#   Elmedia      — lost to IINA, which is now a declared cask.
-#   HandBrake    — never launched, and ffmpeg (declared) does the job
-#                  from the terminal.
-#
-# App bundles only. Browser profiles and editor settings under
-# ~/Library/Application Support are deliberately NOT swept: bookmarks and
-# saved logins are not ours to delete, and a re-download re-adopts them.
-# Delete those by hand if you want the disk back.
-prune_retired_apps() {
-  local app
-  for app in Firefox "Visual Studio Code" ExpressVPN \
-             Keynote "Pages Creator Studio" "MD Viewer" "Elmedia Player" \
-             HandBrake; do
-    [[ -d "/Applications/$app.app" ]] || continue
-    step "removing /Applications/$app.app (retired)"
-    osascript -e "tell application \"$app\" to quit" 2>/dev/null || true
-    if rm -rf "/Applications/$app.app" 2>/dev/null; then
-      ok "$app removed"
-    # An .app installed by a pkg can be root-owned; retry under the sudo
-    # already cached in phase 1. -n so a run without it warns instead of
-    # blocking on a password prompt nobody is watching.
-    elif sudo -n rm -rf "/Applications/$app.app" 2>/dev/null; then
-      ok "$app removed (sudo)"
-    else
-      warn "$app.app could not be removed — delete it by hand"
-    fi
-  done
-
-  # ExpressVPN ships a privileged daemon that keeps running after the app
-  # is gone. Nothing else in this repo installs a LaunchDaemon, so this
-  # stays a named special case rather than a generic sweep.
-  local daemon=/Library/LaunchDaemons/com.expressvpn.expressvpnd.plist
-  if [[ -f "$daemon" ]]; then
-    step "unloading ExpressVPN privileged daemon"
-    if sudo -n launchctl bootout system "$daemon" 2>/dev/null \
-         && sudo -n rm -f "$daemon" 2>/dev/null; then
-      ok "expressvpnd unloaded and removed"
-    else
-      warn "expressvpnd still installed — needs sudo: launchctl bootout system $daemon"
-    fi
-  fi
-
-  sweep_expressvpn_leftovers
-}
-
-# ExpressVPN's own trail: prefs, caches, logs, a crash report, and a
-# root-owned socket directory — all of which outlive both the .app and
-# the daemon, and none of which is user data worth keeping (a VPN client
-# holds no documents). Firefox and VS Code are deliberately NOT swept
-# this way: their support directories hold bookmarks, saved logins and
-# editor settings, which are yours to delete, not bootstrap's.
-#
-# Globs need nullglob — an unmatched pattern would otherwise be passed to
-# rm as a literal path. Idempotent: everything here is `rm -rf` on a path
-# that is usually already gone.
-sweep_expressvpn_leftovers() {
-  local found=0 p
-  shopt -s nullglob
-  local paths=(
-    "$HOME/Library/Application Support/com.expressvpn.ExpressVPN"
-    "$HOME/Library/Preferences/com.expressvpn.ExpressVPN.plist"
-    "$HOME/Library/Caches/com.expressvpn.ExpressVPN"
-    "$HOME/Library/HTTPStorages/com.expressvpn.ExpressVPN"
-    "$HOME/Library/Logs/ExpressVPN"
-    "$HOME/Library/Application Support/CrashReporter/ExpressVPN_"*.plist
-  )
-  shopt -u nullglob
-  for p in "${paths[@]}"; do
-    [[ -e "$p" ]] || continue
-    found=1
-    rm -rf "$p" 2>/dev/null || warn "could not remove $p"
-  done
-
-  # Root-owned, and left behind holding a dead expressvpnd.socket.
-  local sys="/Library/Application Support/com.expressvpn.ExpressVPN"
-  if [[ -d "$sys" ]]; then
-    found=1
-    if ! sudo -n rm -rf "$sys" 2>/dev/null; then
-      warn "ExpressVPN system dir remains — needs sudo: rm -rf \"$sys\""
-    fi
-  fi
-
-  # `(( found )) && ok …` would be a set -e footgun: with found=0 the
-  # AND-list returns 1 and aborts the whole bootstrap. Spelled as an if.
-  if (( found )); then
-    ok "swept ExpressVPN leftovers"
-  fi
-}
-
-# Formulae that drifted into `brew leaves` and outlived their reason.
-# resvg + pipx fed rune (retired with the cheatsheet HUD), watchman was
-# React Native, ruby and git-filter-repo were one-offs. Nothing on this
-# machine depends on any of them — the Brewfile is now the whole truth
-# for formulae, so anything undeclared either gets a line there or a line
-# here. Guarded by `brew uses --installed`: a formula something else pulled
-# in since is kept, loudly.
-prune_undeclared_formulae() {
-  have brew || return 0
-  local f users
-  # python@3.14 is here as pipx's orphan: brew pulled it in as a dependency,
-  # and removing pipx left it a leaf. Python on these machines is mise's
-  # 3.12 — a second interpreter on PATH is exactly the kind of drift that
-  # makes `python3` mean different things on two Macs.
-  # direnv and ruff went with the authoring workflow (2026-09): no .envrc
-  # exists on either machine, and ruff is a formatter/linter for code you
-  # write by hand. pyright stays — reading unfamiliar Python is the job now.
-  for f in resvg pipx watchman ruby git-filter-repo python@3.14 direnv ruff; do
-    brew list --formula "$f" >/dev/null 2>&1 || continue
-    users="$(brew uses --installed "$f" 2>/dev/null | tr '\n' ' ')"
-    if [[ -n "${users// /}" ]]; then
-      note "keeping $f — still used by: ${users% }"
-      continue
-    fi
-    step "uninstalling undeclared formula: $f"
-    if brew uninstall --formula "$f" >/dev/null 2>&1; then
-      ok "$f uninstalled"
-    else
-      warn "$f uninstall failed"
-    fi
-  done
-}
-
-# mise is retired on macOS (it stays on the Ubuntu playground, where
-# apt's node is years behind). It was handing out versions byte-identical
-# to brew's — node 24.20.0, python 3.12.14, tree-sitter 0.27.0, neovim
-# 0.12.5 — through a shim layer, and the per-project switching that would
-# have paid for that layer was never in use: the .nvmrc files in ~/code
-# were silently ignored for five weeks. node@24 and python@3.12 pin just
-# as hard, and uv handles per-project Python properly.
-#
-# Order matters: the Brewfile has already installed the replacements by
-# the time phase_apply runs, so nothing is without a node or a python
-# between the uninstall and the next shell. Idempotent.
-retire_mise() {
-  have brew || return 0
-  if brew list --formula mise >/dev/null 2>&1; then
-    step "uninstalling mise (macOS runtimes are brew's now)"
-    if brew uninstall --formula mise >/dev/null 2>&1; then
-      ok "mise uninstalled"
-    else
-      warn "mise uninstall failed"
-    fi
-  fi
-  # The install tree survives a brew uninstall — ~350 MB of runtimes plus
-  # the shims that shadowed brew's binaries on PATH.
-  rm -rf "$HOME/.local/share/mise" "$HOME/.cache/mise" "$HOME/.config/mise"
 }
 
 # ─── phase 4 · permission wizard ────────────────────────────────────────────
@@ -510,16 +226,12 @@ phase_wizard() {
 
 main() {
   section "Hyper-key dotfiles bootstrap (macOS)"
-  # pip --user console scripts land in the Python user-base bin
-  # (~/Library/Python/3.x/bin) — off PATH on a fresh Mac. ~/.local/bin
-  # matches the Ubuntu bootstrap's PATH posture. The xcode-select gate
-  # keeps the python3 CLT shim from popping the GUI installer prompt
-  # before ensure_xcode_clt handles it deliberately.
-  local pyuser=
-  if xcode-select -p >/dev/null 2>&1; then
-    pyuser="$(python3 -m site --user-base 2>/dev/null || true)"
-  fi
-  export PATH="$HOME/.local/bin${pyuser:+:$pyuser/bin}:$PATH"
+  # ~/.local/bin is where this repo's own tools land, and it matches the
+  # Ubuntu bootstrap's PATH posture. The Python user-base bin that used to
+  # be appended here (~/Library/Python/3.x/bin) went with the last
+  # `pip --user` console script: pipx and rune are retired, and uv installs
+  # into ~/.local/bin like everything else.
+  export PATH="$HOME/.local/bin:$PATH"
 
   # Configs-only mode: the portable core and nothing else. No sudo, no
   # brew, no macOS defaults, no teardown of another machine's apps, no

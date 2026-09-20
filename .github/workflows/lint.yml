@@ -21,30 +21,11 @@ jobs:
       - name: install tmux
         run: sudo apt-get update -qq && sudo apt-get install -y -qq tmux
 
-      # Match by content, not extension: the bin/ tools (ws-doctor,
-      # update-system) and configs/ helpers have no .sh
-      # suffix, so an extension-only glob skipped the most complex
-      # scripts in the repo. Select anything with a bash/sh shebang plus
-      # the known extensionless config dotfiles.
+      # Plain `bash -n` over the tree is NOT a step here: the bash unit
+      # tests below already parse-check every script (same content-based
+      # discovery, since the bin/ tools have no .sh suffix) and additionally
+      # reject bash-4-only constructs. One discovery loop, not two.
       #
-      # printf '%s\0' + xargs -0 (not echo + newline-delimited xargs):
-      # a filename with a space in it would otherwise get split across
-      # two xargs arguments. Mirrors the JSON step below.
-      - name: shell syntax (bash -n) on every script
-        run: |
-          find . -type f \
-                 -not -path '*/.git/*' -not -path '*/.build/*' \
-                 -print0 \
-            | while IFS= read -r -d '' f; do
-                case "$f" in
-                  *.sh|*/zshrc|*/bashrc) printf '%s\0' "$f" ;;
-                  *) head -c2 "$f" | grep -q '^#!' \
-                       && head -1 "$f" | grep -Eq '\b(ba)?sh\b' \
-                       && printf '%s\0' "$f" ;;
-                esac
-              done \
-            | xargs -0 -r -n1 bash -n
-
       # shellcheck catches real defects bash -n can't (dead error
       # handling, unquoted splits, masked exit codes). Gated at
       # severity=error only: errors are rare and almost always genuine
@@ -55,7 +36,7 @@ jobs:
         run: |
           sudo apt-get install -y -qq shellcheck
           find . -type f \
-                 -not -path '*/.git/*' -not -path '*/.build/*' \
+                 -not -path '*/.git/*' \
                  -print0 \
             | while IFS= read -r -d '' f; do
                 case "$f" in
@@ -71,7 +52,7 @@ jobs:
       - name: JSON syntax on every config
         run: |
           find . -type f -name '*.json' \
-                 -not -path '*/.git/*' -not -path '*/.build/*' \
+                 -not -path '*/.git/*' \
                  -print0 \
             | xargs -0 -n1 jq -e . >/dev/null
 

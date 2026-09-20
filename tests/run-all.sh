@@ -5,8 +5,9 @@
 #
 # Tests focus on historically troublesome traps:
 # - bootstrap idempotency
-# - config source/deploy drift
-# - ws-doctor core functionality
+# - config source/deploy drift (the manifest, and the doctor that reads it)
+# - the Hyperkey defaults schema
+# - bash 3.2 as the floor
 #
 # Output convention: each test prints its own `N passed, M failed`
 # line on exit; this runner just tallies how many test files failed

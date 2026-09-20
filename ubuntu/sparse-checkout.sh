@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 # Configure git sparse-checkout so a Linux clone only carries files it
-# actually uses. Reads lib/platform-manifest.sh; excludes every path
-# listed in MACOS_ONLY_PATHS from the working tree.
+# actually uses: every path in MACOS_ONLY_PATHS below is excluded from the
+# working tree. That list lived in lib/platform-manifest.sh, a file whose
+# 23 lines of preamble explained a 4-line array to its one and only
+# reader — this script. It reads better next to the code that uses it.
+#
+# Add a path here when a file becomes meaningful on macOS only. Paths are
+# relative to the repo root, carry no leading slash (this script anchors
+# them), and a trailing slash means "the directory and everything in it".
+# This is NOT the list of what each platform *deploys* — each bootstrap
+# spells that out via lib/common.sh's config_manifest. Two axes: what
+# exists on this OS's clone, and what runs on this OS.
 #
 # Idempotent: re-running refreshes the pattern file from the current
 # manifest, then re-applies sparse-checkout. Safe to run on every
@@ -32,15 +41,11 @@ case "$(uname -s)" in
   Darwin) echo "sparse-checkout: macOS clone — full tree retained, skipping"; exit 0 ;;
 esac
 
-# Pull the manifest. Fail loudly if it's missing — the manifest is the
-# entire contract.
-manifest="$DOTFILES_DIR/lib/platform-manifest.sh"
-if [[ ! -r "$manifest" ]]; then
-  echo "sparse-checkout: manifest not found at $manifest" >&2
-  exit 1
-fi
-# shellcheck source=/dev/null
-. "$manifest"
+# Hyperkey is .app-only, so it has no file here to exclude.
+MACOS_ONLY_PATHS=(
+  "configs/ghostty-config"
+  "macos/"
+)
 
 cd "$DOTFILES_DIR"
 

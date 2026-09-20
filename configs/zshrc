@@ -1,11 +1,8 @@
-# PATH is set in ~/.zshenv, which every zsh reads. This re-asserts it,
-# and is NOT redundant: macOS's /etc/zprofile runs path_helper for login
-# shells, which rebuilds PATH from /etc/paths with the system dirs first
-# and everything else appended. That silently puts /usr/bin ahead of the
-# keg-only prepends — so a login shell would resolve `python3` to macOS's
-# system 3.9 instead of python@3.12. Ghostty opens login shells, so this
-# is the common case, not the exotic one.
-[[ -f "$HOME/.zshenv" ]] && source "$HOME/.zshenv"
+# PATH is not set here. ~/.zshenv owns it (every zsh reads that), and
+# ~/.zprofile re-asserts it for login shells after Apple's path_helper has
+# had its way — and /etc/zprofile → ~/.zprofile both run before this file.
+# A third `source ~/.zshenv` at the top of .zshrc was doing nothing that
+# ~/.zprofile hadn't already done a moment earlier.
 
 # @cs section Shell
 # @cs family terminal
@@ -25,7 +22,28 @@
 # vi-mode first: fzf/autosuggestions bind to the active keymap at source time.
 bindkey -v
 
-command -v starship &>/dev/null && eval "$(starship init zsh)"
+# Cached tool init. `starship init zsh`, `fzf --zsh` and `zoxide init zsh`
+# each print the same static script on every shell start, and charge 22 / 6
+# / 4 ms of fork-and-run to do it — more than half this file's total. Cache
+# the output, source the cache, and regenerate when the tool's binary is
+# newer than the cache: a `brew upgrade` invalidates it by itself, with
+# nobody left to remember. Deliberately bash-parseable, like the rest of
+# this file — CI lints it with `bash -n`.
+_zcache="$HOME/.cache/zsh"
+_init_cached() {
+  local name="$1" bin f
+  shift
+  bin="$(command -v "$1" 2>/dev/null)"
+  [[ -n "$bin" ]] || return 0
+  f="$_zcache/$name.zsh"
+  if [[ ! -s "$f" || "$bin" -nt "$f" ]]; then
+    mkdir -p "$_zcache"
+    "$@" > "$f.new" 2>/dev/null && mv -f "$f.new" "$f" || rm -f "$f.new"
+  fi
+  [[ -s "$f" ]] && source "$f"
+}
+
+_init_cached starship starship init zsh
 
 # brew on macOS, ~/.zsh git-clone on Linux
 for _zp in \
@@ -40,7 +58,7 @@ if command -v fd &>/dev/null; then
   export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
   export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
 fi
-command -v fzf &>/dev/null && eval "$(fzf --zsh)"
+_init_cached fzf fzf --zsh
 
 HISTSIZE=10000
 SAVEHIST=10000
@@ -61,7 +79,7 @@ alias gp='git push'
 alias gpl='git pull'
 alias update-sys='update-system'
 
-command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
+_init_cached zoxide zoxide init zsh
 
 # User zsh completions from ~/.config/zsh/completions.
 if [[ -d "$HOME/.config/zsh/completions" ]]; then
@@ -110,4 +128,5 @@ for _zp in \
   /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
   ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 do [[ -f "$_zp" ]] && { source "$_zp"; break; }; done
-unset _zp
+unset _zp _zcache
+unfunction _init_cached 2>/dev/null

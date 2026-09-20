@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 # Walks the one TCC pane the Hyper-key stack needs.
 #
-# Post-Phase-6 surface (after the Karabiner → Hyperkey cut and the
-# AeroSpace + Raycast retirements): the only TCC bit that matters is
-# Accessibility, for Hyperkey. No more Input
-# Monitoring (Karabiner's
-# kext-driven HID stream is gone), no more System Extensions pane (no
-# DriverKit dependency). Probe-gated: lib/macos-tcc.sh asks each tool
-# whether its grant is in place; an already-clean machine never opens
-# System Settings.
+# After the Karabiner → Hyperkey cut and the AeroSpace + Raycast
+# retirements, the only TCC bit that matters is Accessibility, for
+# Hyperkey: no Input Monitoring (Karabiner's kext-driven HID stream is
+# gone), no System Extensions pane (no DriverKit dependency). Probe-gated
+# — lib/macos-tcc.sh asks whether the grant is already in place, so a
+# settled machine never opens System Settings.
 #
 # Flags:
 #   --force   ignore probes, open the pane with the full default list

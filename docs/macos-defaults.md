@@ -33,7 +33,7 @@ trackpad posture. Encoded values live in the script — edit there, re-run
 ## Spotlight
 
 Cmd+Space was switched off when Raycast became the launcher, and retiring
-Raycast (see `macos/bootstrap.sh`) left it off — Spotlight had no hotkey at
+Raycast (see `macos/retire.sh`) left it off — Spotlight had no hotkey at
 all. Hotkeys 64/65 are nested dicts under `AppleSymbolicHotKeys`, so `dw()`
 can't drive them; the script compares `:<id>:enabled` by hand and calls
 `activateSettings -u` on change so the binding takes effect without a logout.

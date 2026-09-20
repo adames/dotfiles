@@ -10,11 +10,10 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
 # ─── phase 0 · sparse-checkout (idempotent, runs first) ─────────────────────
-# Prune the working tree of macOS-only paths (ghostty, the macos/
-# scripts, etc.) so a Linux clone only contains
-# files this host actually uses. Manifest at lib/platform-manifest.sh
-# is the single source of truth — see ubuntu/sparse-checkout.sh.
-# Safe to run every bootstrap; no-ops when patterns are already current.
+# Prune the working tree of macOS-only paths (ghostty, the macos/ scripts)
+# so a Linux clone only carries files this host actually uses. The list of
+# them lives in ubuntu/sparse-checkout.sh. Safe to run every bootstrap;
+# no-ops when the patterns are already current.
 phase_sparse_checkout() {
   phase "sparse-checkout (prune macOS-only paths)"
   if [[ -x "$DOTFILES_DIR/ubuntu/sparse-checkout.sh" ]]; then
@@ -246,8 +245,8 @@ install_nvim() {
 
 install_npm_tools() {
   # The npm prefix (~/.local) is a declared config, deployed here rather
-  # than in phase_configs because the npm installs just below need it and
-  # runtimes run before configs. Not `npm config set`: that writes an
+  # than from config_manifest because the npm installs just below need it
+  # and runtimes run before configs. Not `npm config set`: that writes an
   # untracked ~/.npmrc with the literal expanded path, which the drift
   # check could never reconcile with a source file.
   install_file "$CONFIGS_DIR/npmrc" "$HOME/.npmrc"
@@ -310,39 +309,21 @@ phase_runtimes() {
 # ─── phase 5 · configs ──────────────────────────────────────────────────────
 phase_configs() {
   phase "configs"
-  install_file "$CONFIGS_DIR/tmux.conf"           "$HOME/.tmux.conf"
-  install_file "$CONFIGS_DIR/ripgreprc"           "$HOME/.ripgreprc"
-  install_file "$CONFIGS_DIR/tmux-sessionizer"    "$HOME/.local/bin/tmux-sessionizer" 755
-  install_file "$CONFIGS_DIR/starship.toml"       "$HOME/.config/starship.toml"
-  install_file "$CONFIGS_DIR/zshenv"               "$HOME/.zshenv"
-  install_file "$CONFIGS_DIR/zprofile"               "$HOME/.zprofile"
-  install_file "$CONFIGS_DIR/zshrc"               "$HOME/.zshrc"
-  install_file "$CONFIGS_DIR/gitconfig"           "$HOME/.gitconfig"
-  install_file "$CONFIGS_DIR/CLAUDE.md"           "$HOME/.claude/CLAUDE.md"
-  install_file "$CONFIGS_DIR/claude-settings.json" "$HOME/.claude/settings.json"
-  install_file "$DOTFILES_DIR/bin/backup-claude-memory" "$HOME/.local/bin/backup-claude-memory.sh" 755
-  # update-sys was a dangling alias on Ubuntu until 2026-09: the shared
-  # zshrc promised update-system on both platforms and only macOS
-  # delivered it. It now carries the apt + npm -g @latest sweep — the
-  # only thing keeping the npm globals from freezing at install time.
-  install_file "$DOTFILES_DIR/bin/update-system" "$HOME/.local/bin/update-system" 755
-  ensure_claude_skills
-
-  mkdir -p "$HOME/.config/nvim/after/plugin"
-  install_file "$CONFIGS_DIR/nvim-init.lua"       "$HOME/.config/nvim/init.lua"
-  install_file "$CONFIGS_DIR/nvim-lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
-  install_file "$CONFIGS_DIR/nvim-keymaps.lua"    "$HOME/.config/nvim/after/plugin/keymaps.lua"
+  # The list itself lives in lib/common.sh (config_manifest), shared with
+  # macos/bootstrap.sh and with ws-doctor's drift check. Ubuntu used to
+  # keep its own copy, which is how it ended up deploying every config
+  # except ws-doctor — the one tool that would have said so.
+  deploy_configs
 
   # Retired surfaces: the ws CLI was macOS-only all along (sigil), so the
   # old install block here shipped a binary and completions for a command
-  # that can't work on Linux. Sweep the orphans off machines bootstrapped
-  # from those versions (same convention as macos/bootstrap.sh).
-  rm -f "$HOME/.local/bin/ws" "$HOME/.local/bin/workspace"
-  rm -f "$HOME/.config/zsh/completions/_ws"
-  rm -f "$HOME/.config/bash/completions/ws.bash"
-  rm -f "$HOME/.config/workspace/cli/test-cascade.sh"
-
-  ensure_gitconfig_local
+  # that can't work on Linux. Sweep the orphans off boxes bootstrapped from
+  # those versions. Pure `rm -f`, no forks — cheap enough to leave in the
+  # steady-state run, unlike the macOS teardown (macos/retire.sh).
+  rm -f "$HOME/.local/bin/ws" "$HOME/.local/bin/workspace" \
+        "$HOME/.config/zsh/completions/_ws" \
+        "$HOME/.config/bash/completions/ws.bash" \
+        "$HOME/.config/workspace/cli/test-cascade.sh"
 }
 
 # ─── phase 6 · default shell ────────────────────────────────────────────────

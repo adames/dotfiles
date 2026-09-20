@@ -10,16 +10,12 @@ BOOTSTRAP="$REPO_ROOT/bootstrap.sh"
 
 pass=0; fail=0
 
-# Test 1: Bootstrap reports success on consecutive runs
-test_idempotent_run() {
-  # First run (or check if already installed)
+# Test 1: the entry point is runnable at all.
+test_bootstrap_executable() {
   if [[ -x "$BOOTSTRAP" ]]; then
-    echo "PASS: Bootstrap script exists and is executable"
-    ((pass++))
+    echo "PASS: bootstrap.sh is executable"; ((pass++))
   else
-    echo "FAIL: Bootstrap script missing or not executable"
-    ((fail++))
-    return 1
+    echo "FAIL: bootstrap.sh missing or not executable"; ((fail++))
   fi
 }
 
@@ -97,7 +93,7 @@ test_install_file_idempotent() {
 test_homebrew_bundle_flags() {
   local mac_bootstrap="$REPO_ROOT/macos/bootstrap.sh"
 
-  # A Linux clone prunes macos/ via sparse-checkout (lib/platform-manifest.sh).
+  # A Linux clone prunes macos/ via sparse-checkout (ubuntu/sparse-checkout.sh).
   # Skip only when the prune is the reason the file is gone — a full clone
   # (CI's ubuntu-latest, any Mac) with the file missing must still FAIL.
   if [[ ! -f "$mac_bootstrap" ]] \
@@ -125,7 +121,7 @@ test_homebrew_bundle_flags() {
 
 # Run tests
 echo "=== bootstrap-idempotent.test.sh ==="
-test_idempotent_run
+test_bootstrap_executable
 test_install_file_idempotent
 test_homebrew_bundle_flags
 

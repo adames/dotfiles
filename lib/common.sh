@@ -194,6 +194,67 @@ ensure_claude_skills() {
   fi
 }
 
+# ─── the deploy manifest ─────────────────────────────────────────────────────
+# One list of `src|dst[|mode]`, read by both platform bootstraps (to deploy)
+# and by bin/ws-doctor (to detect drift). It was two lists before: each
+# bootstrap spelled out its own install_file calls, and the doctor
+# re-derived the pairs by sed'ing those calls back out of the bootstrap
+# script — a parser with a branch for every line shape it didn't recognise,
+# guarding against a divergence that only existed because the list was
+# duplicated in the first place. One list can't drift from itself.
+#
+# Two entries are platform-bound and live at the tail. ghostty-config is
+# macOS-only — sparse-checkout prunes it from Linux clones, so listing it
+# there would report a missing source forever. npmrc is Linux-only: it sets
+# the npm prefix that the `npm -g` tools install into, and macOS gets those
+# from brew instead (deploying it there would silently redirect `npm -g`).
+# ubuntu/bootstrap.sh ALSO installs npmrc early, in install_npm_tools —
+# runtimes run before configs and the npm installs need the prefix — and
+# install_file is idempotent, so the second pass here is free. It's listed
+# so the drift check covers it too.
+config_manifest() {
+  cat <<EOF
+$CONFIGS_DIR/zshenv|$HOME/.zshenv
+$CONFIGS_DIR/zprofile|$HOME/.zprofile
+$CONFIGS_DIR/zshrc|$HOME/.zshrc
+$CONFIGS_DIR/tmux.conf|$HOME/.tmux.conf
+$CONFIGS_DIR/starship.toml|$HOME/.config/starship.toml
+$CONFIGS_DIR/gitconfig|$HOME/.gitconfig
+$CONFIGS_DIR/ripgreprc|$HOME/.ripgreprc
+$CONFIGS_DIR/CLAUDE.md|$HOME/.claude/CLAUDE.md
+$CONFIGS_DIR/claude-settings.json|$HOME/.claude/settings.json
+$CONFIGS_DIR/nvim-init.lua|$HOME/.config/nvim/init.lua
+$CONFIGS_DIR/nvim-lazy-lock.json|$HOME/.config/nvim/lazy-lock.json
+$CONFIGS_DIR/nvim-keymaps.lua|$HOME/.config/nvim/after/plugin/keymaps.lua
+$CONFIGS_DIR/tmux-sessionizer|$HOME/.local/bin/tmux-sessionizer|755
+$DOTFILES_DIR/bin/backup-claude-memory|$HOME/.local/bin/backup-claude-memory.sh|755
+$DOTFILES_DIR/bin/update-system|$HOME/.local/bin/update-system|755
+$DOTFILES_DIR/bin/ws-doctor|$HOME/.local/bin/ws-doctor|755
+EOF
+  case "$(uname -s)" in
+    Darwin) printf '%s|%s\n' "$CONFIGS_DIR/ghostty-config" "$HOME/.config/ghostty/config" ;;
+    Linux)  printf '%s|%s\n' "$CONFIGS_DIR/npmrc"          "$HOME/.npmrc" ;;
+  esac
+}
+
+# deploy_configs — the portable core: every file that is just as true on a
+# machine this repo doesn't own. No brew, no apt, no defaults, no teardown,
+# no wizard — so `BOOTSTRAP_CONFIGS_ONLY=1 ./bootstrap.sh` is a safe thing to
+# run on a locked-down or borrowed box, and a work-friendly fork of this repo
+# can be this function plus configs/.
+#
+# install_file mkdir -p's each destination's parent, so nothing here needs a
+# mkdir of its own (~/.config/nvim/after/plugin included).
+deploy_configs() {
+  local src dst mode
+  while IFS='|' read -r src dst mode; do
+    [[ -n "$src" ]] || continue
+    install_file "$src" "$dst" "${mode:-644}"
+  done < <(config_manifest)
+  ensure_claude_skills
+  ensure_gitconfig_local
+}
+
 # ensure_gitconfig_local — one-time ~/.gitconfig.local stub. User identity
 # lives there (untracked, [include]'d by configs/gitconfig); both platform
 # bootstraps call this so the two paths stay symmetric.

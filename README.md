@@ -13,7 +13,7 @@ git clone git@github.com:adames/dotfiles.git ~/dotfiles
 ~/dotfiles/bootstrap.sh
 ```
 
-macOS: 4 phases. Ubuntu: 6 (after a phase-0 sparse-checkout prune), skips
+macOS: 4 phases. Ubuntu: 7 (the first prunes the clone via sparse-checkout), skips
 Hyperkey + Docker. WSL runs the Ubuntu path — it's detected, and the
 clipboard is routed into Windows for you.
 
@@ -31,15 +31,17 @@ Homebrew, no macOS defaults, no app teardown, no permission wizard, no
 line and why.
 
 Packages are declared, never assumed: `macos/Brewfile` is the whole truth
-for formulae, and bootstrap tears down what falls off it (2026-09: Firefox,
-VS Code, ExpressVPN, and five stale formulae). Editor stack is nvim with
-system language servers — `pyright` + `ruff` for Python, `tsc --lsp`
-(TypeScript 7's native server) for JS/TS — and `uv` for Python tooling.
+for formulae. Anything that falls off it is torn down by `macos/retire.sh`,
+a one-shot that stamps itself when it completes — teardown is migration
+code, so it runs once per machine instead of costing every settled Mac ~4s
+of package-manager forks on every bootstrap. Editor stack is nvim with
+system language servers — `pyright` for Python, `tsc --lsp` (TypeScript 7's
+native server) for JS/TS — and `uv` for Python tooling.
 
 No window manager. AeroSpace (and the sigil HUD stack behind it) is
 retired — mouse + native macOS won; a tiler never earned its keep here.
-Bootstrap actively tears it down on machines that still have it. The
-launcher is Spotlight (`⌘Space`); see
+`macos/retire.sh` sweeps it off a machine that still has it. The launcher
+is Spotlight (`⌘Space`); see
 [docs/architecture.md](docs/architecture.md).
 
 ## Claude Code
@@ -67,10 +69,10 @@ Wizard probes the actual grants first, only opens what's missing.
 ## Verify
 
 ```sh
-ws-doctor                 # config-drift / script health — run this first when something's off
+ws-doctor                 # does every deployed config still match configs/?
 update-sys                # package sweep: brew + mas (macOS) / apt + npm -g @latest (Ubuntu)
 pgrep -x Hyperkey         # remap live
-tests/run-all.sh          # pure-bash critical path (~1.5s)
+tests/run-all.sh          # pure-bash critical path (~2.5s)
 ```
 
 ## Reading bootstrap output
@@ -117,8 +119,8 @@ needs a new rule.
 ```
 ~/dotfiles/
 ├── bootstrap.sh              # OS dispatcher
-├── macos/  ubuntu/           # per-OS phases
-├── lib/                      # bash helpers (logging, install_file, TCC probes)
+├── macos/  ubuntu/           # per-OS phases (+ macos/retire.sh, the one-shot teardown)
+├── lib/                      # bash helpers (logging, install_file, deploy manifest, TCC probes)
 ├── bin/                      # update-system, ws-doctor
 ├── configs/                  # ghostty, tmux, zsh, nvim, …
 └── docs/                     # architecture · keymap · wizard · macos-defaults

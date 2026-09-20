@@ -20,8 +20,8 @@ moves the tmux pane. Same letter, no overlap.
 AeroSpace — and before it the whole sigil workspace layer — is gone. The honest audit: a
 mouse and a single screen were doing the work; the tiler, its Hyper
 chord layer, the `ws-grid` helper, the cheatsheet HUD, and the rune
-generator that fed it were maintenance without payoff. Bootstrap now
-tears the stack down on machines that still carry it (quits the app,
+generator that fed it were maintenance without payoff. `macos/retire.sh`
+tears the stack down on a machine that still carries it (quits the app,
 uninstalls the cask, sweeps `~/.config/aerospace` and
 `~/.config/workspace`, prunes the `ws-*` binaries). Hyperkey survives
 for tap-Caps = Esc; the Hyper layer is intentionally empty.
@@ -32,7 +32,7 @@ An audit against actual use, not intent. Removed: **Firefox** (a fourth
 browser — Chrome and Helium do the work), **VS Code** (idle since May;
 the editor is nvim + Claude Code), **ExpressVPN** (a second VPN client
 behind ProtonVPN, plus a privileged daemon that outlived it). App
-bundles and the ExpressVPN daemon are torn down by `phase_apply`.
+bundles and the ExpressVPN daemon are torn down by `macos/retire.sh`.
 
 A second pass took the App Store tier: **Keynote** and **Pages** (never
 opened here), **MD Viewer** (381 MB to render markdown), and **Elmedia
@@ -92,7 +92,7 @@ is why ws-doctor's drift check now covers Linux.
 The rule this leaves behind: **`macos/Brewfile` is the whole truth for
 formulae.** Anything that shows up in `brew leaves` and isn't declared
 there gets a line in the Brewfile with its reason, or a line in
-`prune_undeclared_formulae`. Nothing floats.
+`macos/retire.sh`. Nothing floats.
 
 ## Two Macs, one work machine
 
@@ -210,6 +210,41 @@ without it on PATH, `tree-sitter build` fails.
 Git tooling was deliberately left alone. Aliases and a structural diff
 (difftastic) were proposed and declined; delta as pager is enough.
 
+## Teardown is a one-shot, and the deploy list is one list (2026-09)
+
+Two kinds of weight had accumulated, and they had the same shape: work
+that was real once, still running every time.
+
+The first was teardown. Karabiner, yabai, skhd, AeroSpace, Raycast, sigil,
+mise, the 2026-09 app and formula prune — every retirement left its sweep
+in `phase_apply`, and by the end that was ~200 lines and about four
+seconds of package-manager forks (`brew services list`, two `brew list
+--cask`, nine `brew list --formula`) on every run of a machine where the
+answer had been "already gone" for months. Migration code doesn't belong
+in the steady state, so it moved to `macos/retire.sh` and runs once: the
+script stamps its generation in `~/.local/state/dotfiles/retired`, and a
+machine already at that generation exits in ~37ms. The probes it does run
+ask `brew list` once and grep the answer, instead of asking brew about
+nine formulae one at a time — 27ms against 2.2s for the identical fact.
+Adding a new sweep means bumping `GENERATION`, or the stamped Macs never
+see it.
+
+The second was the deploy list. Each bootstrap spelled out its own
+`install_file` calls, and `ws-doctor` re-derived the pairs by `sed`ing
+those calls back out of the bootstrap script — a parser with a branch for
+every line shape it didn't recognise, defending against a divergence that
+existed only because the list was written twice. Now there is one
+`config_manifest` in `lib/common.sh`; both bootstraps deploy from it and
+ws-doctor reads it directly. One list can't drift from itself. It also
+settled an asymmetry nobody had noticed: Ubuntu had been deploying every
+config *except* `ws-doctor`, the one tool that would have reported it.
+
+ws-doctor itself was the same story at a smaller scale — a check runner
+with a dispatcher, `--only`/`--list`/`--strict`, four report severities
+and a `--fix` hook, carrying exactly one check and zero fixers, in two
+files. It's one file and one job now. The framework is in git history if a
+second check ever earns it back.
+
 ## Anywhere: macOS, a Linux server, WSL
 
 "Works on whatever machine I'm sitting at" is a requirement, not a nice
@@ -256,11 +291,14 @@ everything else appended — silently undoing `.zshenv` and resolving
 `python3` to macOS's system 3.9. Ghostty opens login shells, so this is
 the common case.
 
-`configs/zprofile` re-asserts PATH after `path_helper` has run;
-`configs/zshrc` does the same for non-login interactive shells. Both are
-one line sourcing `.zshenv`, and `typeset -U PATH` makes re-sourcing
-idempotent — entries move to the front instead of accumulating. Verified
-across all four invocation modes, with no duplicate PATH entries.
+`configs/zprofile` re-asserts PATH after `path_helper` has run — one line
+sourcing `.zshenv`, made idempotent by `typeset -U PATH`, which moves
+entries to the front instead of accumulating them. `configs/zshrc` used to
+carry a third copy of that line for the non-login interactive case, which
+was never a case: `.zshenv` has already run for those shells, nothing
+between it and `.zshrc` touches PATH, and for login shells `.zprofile` has
+already done the re-assert a moment earlier. Verified across all four
+invocation modes, with no duplicate PATH entries.
 
 ## bash 3.2 is the floor
 
@@ -294,6 +332,8 @@ there is no per-machine package file any more.
 | Launcher | Spotlight (`⌘Space`) — see [macos-defaults.md](macos-defaults.md) |
 | Terminal multiplexing | tmux (`C-Space`) |
 | Health check | ws-doctor · `bin/ws-doctor` (config source/deploy drift) |
+| What gets deployed where | `config_manifest` in `lib/common.sh` — read by both bootstraps and by ws-doctor |
+| One-time teardown | `macos/retire.sh`, stamped at `~/.local/state/dotfiles/retired` |
 | Package updates | `bin/update-system` — brew + mas (macOS) · apt + `npm -g @latest` + nvim-pin check (Ubuntu) |
 | Runtimes (macOS) | brew — `node@24`, `python@3.12`, `neovim`, `tree-sitter-cli` |
 | Runtimes (Ubuntu) | NodeSource apt (node 24) · system python3 (3.12) · pinned nvim release tarball · `npm -g` (tree-sitter-cli, pyright, typescript) |

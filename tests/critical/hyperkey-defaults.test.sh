@@ -20,7 +20,7 @@ pass=0; fail=0
 echo "=== hyperkey-defaults.test.sh ==="
 
 # Every check here reads macos/bootstrap.sh, which a Linux clone prunes via
-# sparse-checkout (lib/platform-manifest.sh). Skip only when the prune is the
+# sparse-checkout (ubuntu/sparse-checkout.sh). Skip only when the prune is the
 # reason it's gone — a full clone (CI, any Mac) missing the file must still
 # fail all seven ways.
 if [[ ! -f "$BOOTSTRAP" ]] \

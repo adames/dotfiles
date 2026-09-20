@@ -1,50 +1,35 @@
 #!/usr/bin/env bash
-# ws-doctor — keymap / launcher health check.
+# ws-doctor — does every deployed config still match its source in configs/?
 #
-# Catches the failure mode this setup has actually shipped:
+# The one failure mode this setup keeps shipping: a config gets patched in
+# only one of its two homes. Fix the deployed copy under ~/.config and the
+# next bootstrap reverts it; fix configs/ and forget to re-run bootstrap and
+# the running system stays on the old one. Neither says a word. (A box ran a
+# months-stale nvim-init.lua that way, and the LSP failure it caused got
+# blamed on the LSP for a day.)
 #
-#   1. source/deploy drift        — a config in `configs/` was patched but
-#                                   the deployed copy under `~/.config/` is
-#                                   stale (or vice versa — fixing only the
-#                                   deployed copy lets the next
-#                                   `bootstrap.sh` clobber the fix). Pairs
-#                                   are read from macos/bootstrap.sh's
-#                                   install_file calls, so every deployed
-#                                   file is covered automatically.
-#
-# The aerospace-era checks (config freshness, Hyper keystroke collision,
-# phantom tiles, app-name casing) retired with AeroSpace; the sigil-era
-# ones (menu-item resolution, `tell application` targets) retired with
-# sigil — both had scanned for AppleScript patterns the repo no longer
-# contains. Git history has the bodies.
-#
-# Each check is independent; the script keeps going on failure so one report
-# covers everything. Exit code is the number of FAILED checks (0 = clean).
-# Warnings don't count against exit code; use --strict to promote them.
+# The pairs come from config_manifest in lib/common.sh — the same list the
+# bootstraps deploy from, so coverage can't drift from reality. This was a
+# check-runner with a dispatcher, a --fix hook, four report severities and a
+# plugin file, all for one check and zero fixers; that framework is in git
+# history if a second check ever earns it back.
 #
 # Usage:
-#   ws-doctor                # run every check, human report
-#   ws-doctor --strict       # warnings become failures
-#   ws-doctor --only=NAME    # run a single check (see CHECKS array)
-#   ws-doctor --list         # print check names + descriptions
-#   ws-doctor --quiet        # only print failures
-#   ws-doctor --fix          # after diagnostics, attempt to repair any
-#                            # FAILed check that has a registered fixer.
-#                            # No fixers are registered today, so --fix
-#                            # reports "no fixer" for each FAIL; the hook
-#                            # stays plumbed for future repair automation.
+#   ws-doctor            # report every pair
+#   ws-doctor --quiet    # print only problems
+#
+# Exit code is the number of drifted files (0 = clean).
 
 set -u
 
-# Resolve the repo. Unlike the bootstraps, ws-doctor can't just walk up from
-# its own path: it's *deployed* to ~/.local/bin/ws-doctor, where script-
-# relative resolution yields ~/.local. So try script-relative first but only
-# accept it if lib/ is actually there (true for the in-repo copy, and for a
-# clone anywhere on disk — CI checks out to /home/runner/work/...), then fall
-# back to ~/dotfiles (true for the deployed copy). Explicit DOTFILES_DIR wins.
+# Unlike the bootstraps, ws-doctor can't just walk up from its own path: it's
+# *deployed* to ~/.local/bin/ws-doctor, where that yields ~/.local. Try
+# script-relative first but only accept it if lib/ is actually there (true in
+# the repo, and for a clone anywhere on disk — CI checks out to
+# /home/runner/work/...), then fall back to ~/dotfiles. DOTFILES_DIR wins.
 if [[ -z "${DOTFILES_DIR:-}" ]]; then
   _self_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  if [[ -f "$_self_root/lib/ws-doctor-checks.sh" ]]; then
+  if [[ -f "$_self_root/lib/common.sh" ]]; then
     DOTFILES_DIR="$_self_root"
   else
     DOTFILES_DIR="$HOME/dotfiles"
@@ -53,204 +38,46 @@ if [[ -z "${DOTFILES_DIR:-}" ]]; then
 fi
 
 # Fail loudly. Sourcing a missing lib used to leave every helper undefined
-# and still print "summary: 0 pass · 0 warn · 0 fail · 0 skip" — a broken
-# run that reads as a clean one.
-for _lib in lib/common.sh lib/ws-doctor-checks.sh; do
-  if [[ ! -f "$DOTFILES_DIR/$_lib" ]]; then
-    printf 'ws-doctor: cannot find %s under %s\n' "$_lib" "$DOTFILES_DIR" >&2
-    printf 'ws-doctor: set DOTFILES_DIR to your dotfiles checkout\n' >&2
-    exit 2
-  fi
-done
-unset _lib
+# and still print a summary of zeroes — a broken run that reads as a clean one.
+if [[ ! -f "$DOTFILES_DIR/lib/common.sh" ]]; then
+  printf 'ws-doctor: cannot find lib/common.sh under %s\n' "$DOTFILES_DIR" >&2
+  printf 'ws-doctor: set DOTFILES_DIR to your dotfiles checkout\n' >&2
+  exit 2
+fi
 . "$DOTFILES_DIR/lib/common.sh"
 
-STRICT=
-ONLY=
 QUIET=
-LIST=
-FIX=
 for arg in "$@"; do
   case "$arg" in
-    --strict)  STRICT=1 ;;
-    --quiet)   QUIET=1 ;;
-    --list)    LIST=1 ;;
-    --fix)     FIX=1 ;;
-    --only=*)  ONLY="${arg#--only=}" ;;
-    -h|--help)
-      sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
-      exit 0
-      ;;
+    --quiet) QUIET=1 ;;
+    -h|--help) sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) err "unknown arg: $arg"; exit 2 ;;
   esac
 done
 
-# Run state. Each check appends one line:
-#   <status>\t<check>\t<message>
-# Status ∈ {PASS, WARN, FAIL, SKIP}. Tab-separated so we can re-render
-# without re-running. Checks that want multi-line detail (e.g. a list of
-# drifted files) embed real newlines in $msg — since REPORT is read
-# line-by-line, a raw newline would split into an orphan physical line
-# the renderer's case statement doesn't recognize, and it'd be silently
-# dropped. So _record swaps embedded newlines for \x1e (ASCII RS, never
-# appears in our messages) before writing, and the renderer swaps them
-# back and prints continuation lines indented beneath the status line.
-REPORT=$(mktemp)
-trap 'rm -f "$REPORT"' EXIT
+[[ -z "$QUIET" ]] && section "ws-doctor (config source/deploy drift)"
 
-_record() {
-  local status="$1" check="$2" msg="$3"
-  msg="${msg%$'\n'}"           # a detail block built with trailing "\n" would
-                                # otherwise leave a blank continuation line
-  msg="${msg//$'\n'/$'\x1e'}"  # encode so the record stays one physical line
-  printf '%s\t%s\t%s\n' "$status" "$check" "$msg" >> "$REPORT"
-}
-PASS() { _record PASS "$1" "${2:-ok}"; }
-WARN() { _record WARN "$1" "$2"; }
-FAIL() { _record FAIL "$1" "$2"; }
-SKIP() { _record SKIP "$1" "$2"; }
+total=0 drifted=0 missing=0
+while IFS='|' read -r src dst _; do
+  [[ -n "$src" ]] || continue
+  total=$((total + 1))
+  if [[ ! -f "$src" ]]; then
+    missing=$((missing + 1)); warn "missing source: ${src/#$HOME/~}"
+  elif [[ ! -f "$dst" ]]; then
+    missing=$((missing + 1)); warn "not deployed:   ${dst/#$HOME/~}"
+  elif ! cmp -s "$src" "$dst"; then
+    drifted=$((drifted + 1)); err "drift: ${src/#$HOME/~} vs ${dst/#$HOME/~}"
+  elif [[ -z "$QUIET" ]]; then
+    ok "${dst/#$HOME/~}"
+  fi
+done < <(config_manifest)
 
-# The individual checks live in lib/ws-doctor-checks.sh (sourced here so
-# they can use the PASS/WARN/FAIL/SKIP recorders defined just above). The
-# dispatcher (CHECKS array), --fix hook, and rendering stay below.
-. "$DOTFILES_DIR/lib/ws-doctor-checks.sh"
-# ─── fixers (paired with checks via fixer_for) ───────────────────────────────
-# Each fix_<name> function takes no args. It's called by the --fix
-# dispatcher AFTER all checks have run, only for checks whose status
-# was FAIL. Fixers print their own banner; their exit code drives the
-# overall --fix exit status (0 = all attempted fixes succeeded).
-
-# ─── render ─────────────────────────────────────────────────────────────────
-declare -a CHECKS=(
-  "source-deploy-drift:check_source_deploy_drift:configs/ matches deployed copies"
-)
-
-# Map check-name → fixer-function-name. Only names answered here are
-# eligible for --fix dispatch; everything else is detect-only. Empty
-# today — every check is detect-only — but the hook below stays plumbed.
-#
-# A case statement, not `declare -A`: macOS ships bash 3.2, which has no
-# associative arrays and printed "declare: -A: invalid option" on every
-# single run of this script. Brew's bash had been hiding that as an
-# accidental dependency of direnv, and went out with it. Nothing in this
-# repo may assume a bash newer than the one macOS actually ships —
-# tests/critical/script-syntax.test.sh enforces that now.
-fixer_for() {
-  case "$1" in
-    # source-deploy-drift) echo fix_source_deploy_drift ;;
-    *) echo "" ;;
-  esac
-}
-
-if [[ -n "$LIST" ]]; then
-  for spec in "${CHECKS[@]}"; do
-    name="${spec%%:*}"; rest="${spec#*:}"
-    fn="${rest%%:*}";  desc="${rest#*:}"
-    printf '%-22s %s\n' "$name" "$desc"
-  done
-  exit 0
+if (( drifted > 0 )); then
+  err "$drifted of $total configs drifted — run: $DOTFILES_DIR/bootstrap.sh"
+elif (( missing > 0 )); then
+  warn "$total configs: $missing not deployed"
+elif [[ -z "$QUIET" ]]; then
+  printf '\n'; ok "$total configs in sync"
 fi
 
-[[ -z "$QUIET" ]] && section "ws-doctor (keymap / launcher health)"
-
-only_matched=
-for spec in "${CHECKS[@]}"; do
-  name="${spec%%:*}"; rest="${spec#*:}"
-  fn="${rest%%:*}"
-  [[ -n "$ONLY" && "$ONLY" != "$name" ]] && continue
-  only_matched=1
-  "$fn"
-done
-
-# --only=<typo> matches nothing above: the dispatch loop silently ran
-# zero checks and (without this guard) we'd fall through to an empty,
-# all-zero "clean" report — a false pass in hooks/CI. Fail loud instead.
-if [[ -n "$ONLY" && -z "$only_matched" ]]; then
-  err "--only=$ONLY matches no check; valid names:"
-  for spec in "${CHECKS[@]}"; do
-    err "  ${spec%%:*}"
-  done
-  exit 2
-fi
-
-# Render. Sort failures first so they're visible without scrolling.
-# Print any continuation lines (detail beyond the first) indented under
-# the status line, honoring the same quiet gating the caller just used.
-_print_detail() {
-  local detail="$1"
-  [[ -z "$detail" ]] && return
-  while IFS= read -r line; do
-    printf '  %s\n' "$line"
-  done <<< "$detail"
-}
-
-fails=0 warns=0 passes=0 skips=0
-while IFS=$'\t' read -r status check msg; do
-  msg="${msg//$'\x1e'/$'\n'}"
-  first="${msg%%$'\n'*}"
-  detail=""
-  [[ "$msg" == *$'\n'* ]] && detail="${msg#*$'\n'}"
-  case "$status" in
-    PASS) passes=$((passes + 1))
-          if [[ -z "$QUIET" ]]; then
-            ok "$(printf '%-22s %s' "$check" "$first")"
-            _print_detail "$detail"
-          fi
-          ;;
-    WARN) warns=$((warns + 1))
-          warn "$(printf '%-22s %s' "$check" "$first")"
-          _print_detail "$detail"
-          ;;
-    FAIL) fails=$((fails + 1))
-          err  "$(printf '%-22s %s' "$check" "$first")"
-          _print_detail "$detail"
-          ;;
-    SKIP) skips=$((skips + 1))
-          if [[ -z "$QUIET" ]]; then
-            printf "skip %-17s %s\n" "$check" "$first"
-            _print_detail "$detail"
-          fi
-          ;;
-  esac
-done < "$REPORT"
-
-[[ -z "$QUIET" ]] && printf '\n'
-[[ -z "$QUIET" ]] && printf "summary: %d pass · %d warn · %d fail · %d skip\n" "$passes" "$warns" "$fails" "$skips"
-
-# --fix: for each FAILed check with a fixer, invoke it. fixer_for answers
-# nothing today (see above), so --fix just reports "no fixer" — the hook
-# stays plumbed for future fixers.
-if [[ -n "$FIX" ]] && (( fails > 0 )); then
-  [[ -z "$QUIET" ]] && printf '\n' && section "--fix: attempting to repair $fails FAIL(s)"
-  fixer_failed=0
-  no_fixer=0
-  while IFS=$'\t' read -r status check _; do
-    [[ "$status" == "FAIL" ]] || continue
-    fixer="$(fixer_for "$check")"
-    if [[ -z "$fixer" ]]; then
-      warn "no fixer registered for $check; skipping"
-      no_fixer=$((no_fixer + 1))
-      continue
-    fi
-    if ! "$fixer"; then
-      err "fixer for $check exited non-zero"
-      fixer_failed=$((fixer_failed + 1))
-    fi
-  done < "$REPORT"
-  # A FAIL with no registered fixer is just as unrepaired as one whose
-  # fixer ran and failed — count both, or "N/N repaired" lies (the
-  # empty fixer map today would otherwise always read "all repaired").
-  unrepaired=$((fixer_failed + no_fixer))
-  repaired=$((fails - unrepaired))
-  [[ -z "$QUIET" ]] && printf '\n' && printf "fix summary: %d/%d repaired (%d no fixer, %d fixer failed)\n" \
-    "$repaired" "$fails" "$no_fixer" "$fixer_failed"
-  # Exit non-zero whenever a FAIL is still unrepaired, whether that's
-  # because its fixer errored or because none is registered yet.
-  exit "$unrepaired"
-fi
-
-# Exit code: fails (or fails+warns under --strict).
-if [[ -n "$STRICT" ]]; then
-  exit $(( fails + warns ))
-fi
-exit "$fails"
+exit "$drifted"

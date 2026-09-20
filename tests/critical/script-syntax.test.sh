@@ -30,14 +30,14 @@ while IFS= read -r -d '' f; do
       ;;
   esac
 done < <(find "$REPO_ROOT" -type f \
-              -not -path '*/.git/*' -not -path '*/.build/*' -print0)
+              -not -path '*/.git/*' -print0)
 
 if (( ${#scripts[@]} == 0 )); then
   echo "FAIL: no shell scripts discovered (find/selection broke)"
   ((fail++))
 fi
 
-# Sanity floor: the four bin/ tools must be among the discovered set —
+# Sanity floor: the bin/ tools must be among the discovered set —
 # guards against a future refactor that re-hides them from the linter.
 for must in bin/update-system bin/ws-doctor; do
   found=
