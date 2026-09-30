@@ -8,7 +8,6 @@ mouse-hide-while-typing = true
 window-padding-x = 8
 window-padding-y = 8
 
-# cmd-t / cmd-n both make a fresh window (tabs never earned their keep;
-# habit kept from the aerospace era, where a tab halved the tile).
+# cmd-t / cmd-n both make a fresh window. Tabs never earned their keep.
 keybind = cmd+t=new_window
 keybind = cmd+n=new_window

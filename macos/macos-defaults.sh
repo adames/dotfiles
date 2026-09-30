@@ -5,14 +5,9 @@
 # and the Dock/Finder restart only fires when a value actually changed.
 # Safe to re-run unconditionally.
 #
-# Encoded values are the **live M3 baseline**. Three settings differed
-# from an earlier recollection — live wins:
-#   - ApplePressAndHoldEnabled: live=false (vim posture), doc said true
-#   - dock tilesize:            live=44,    doc said 42
-#   - Finder view style:        live=Nlsv,  doc said clmv
-# Reconciliation with m1 was deferred until it could be live-read. Until
-# then this gives m1 the same posture as m3. (m1 was called "the Air" in
-# older comments — it is a MacBook Pro, not an Air. There are two Macs.)
+# Encoded values are the live m3 baseline, read off the machine rather than
+# recalled — live wins. m1 gets the same posture; reconcile from a live read
+# if it ever differs.
 #
 # Hard limits live in docs/macos-defaults.md.
 

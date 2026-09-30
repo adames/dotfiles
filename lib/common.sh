@@ -17,7 +17,7 @@ fi
 # Run log — every warn/err also appends here so the end-of-run summary can
 # replay them without any call site having to opt in. It's a FILE, not an
 # array, because bootstrap shells out to separate processes (update-system,
-# macos-defaults.sh, the wizard); an array would only ever collect the
+# macos-defaults.sh, retire.sh); an array would only ever collect the
 # parent's own warnings. Exported, so children append to the same log.
 # A caller that sources common.sh outside a bootstrap run (ws-doctor) gets
 # one too and simply never prints a summary.
@@ -104,9 +104,8 @@ run_quiet() {
 }
 
 # phase <title> — auto-numbered section header. The count comes from the
-# PHASES array the caller iterates, so inserting, removing or reordering a
-# phase never means renumbering the rest by hand. (ubuntu/bootstrap.sh used
-# to label seven phases "0/6" through "6/6".)
+# phases array the caller iterates, so inserting, removing or reordering a
+# phase never means renumbering the rest by hand.
 PHASE_N=0
 phase() {
   PHASE_N=$((PHASE_N + 1))
@@ -196,22 +195,15 @@ ensure_claude_skills() {
 
 # ─── the deploy manifest ─────────────────────────────────────────────────────
 # One list of `src|dst[|mode]`, read by both platform bootstraps (to deploy)
-# and by bin/ws-doctor (to detect drift). It was two lists before: each
-# bootstrap spelled out its own install_file calls, and the doctor
-# re-derived the pairs by sed'ing those calls back out of the bootstrap
-# script — a parser with a branch for every line shape it didn't recognise,
-# guarding against a divergence that only existed because the list was
-# duplicated in the first place. One list can't drift from itself.
+# and by bin/ws-doctor (to detect drift). One list can't drift from itself.
 #
 # Two entries are platform-bound and live at the tail. ghostty-config is
-# macOS-only — sparse-checkout prunes it from Linux clones, so listing it
-# there would report a missing source forever. npmrc is Linux-only: it sets
-# the npm prefix that the `npm -g` tools install into, and macOS gets those
-# from brew instead (deploying it there would silently redirect `npm -g`).
-# ubuntu/bootstrap.sh ALSO installs npmrc early, in install_npm_tools —
-# runtimes run before configs and the npm installs need the prefix — and
-# install_file is idempotent, so the second pass here is free. It's listed
-# so the drift check covers it too.
+# macOS-only (Ghostty isn't installed on Linux). npmrc is Linux-only: it
+# sets the npm prefix the `npm -g` tools install into, and macOS gets those
+# from brew (deploying it there would silently redirect `npm -g`).
+# ubuntu/bootstrap.sh also installs npmrc early, in install_npm_tools,
+# because the npm installs need the prefix before configs run; install_file
+# is idempotent, so the second pass here is free and the drift check covers it.
 config_manifest() {
   cat <<EOF
 $CONFIGS_DIR/zshenv|$HOME/.zshenv
@@ -239,7 +231,7 @@ EOF
 
 # deploy_configs — the portable core: every file that is just as true on a
 # machine this repo doesn't own. No brew, no apt, no defaults, no teardown,
-# no wizard — so `BOOTSTRAP_CONFIGS_ONLY=1 ./bootstrap.sh` is a safe thing to
+# no TCC prompt — so `BOOTSTRAP_CONFIGS_ONLY=1 ./bootstrap.sh` is a safe thing to
 # run on a locked-down or borrowed box, and a work-friendly fork of this repo
 # can be this function plus configs/.
 #

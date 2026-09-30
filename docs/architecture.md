@@ -1,7 +1,6 @@
 # Architecture
 
 Terminal is the dev surface; window management is mouse + native macOS.
-Chord lookups + collisions live in [keymap.md](keymap.md).
 
 ## Stack
 
@@ -13,108 +12,79 @@ Ghostty → tmux (C-Space) → zsh (vi-mode) → Neovim (Space leader)
 ```
 
 Modifier sets the scope: bare `h` moves the vim cursor, `C-Space h`
-moves the tmux pane. Same letter, no overlap.
+moves the tmux pane. Same letter, no overlap. Bindings are documented
+next to the code that defines them: the `# @cs row` blocks in
+`configs/zshrc`, `configs/tmux.conf` and `configs/nvim-init.lua`.
 
-## The AeroSpace retirement (2026-08)
+Two collisions are resolved on purpose:
 
-AeroSpace — and before it the whole sigil workspace layer — is gone. The honest audit: a
-mouse and a single screen were doing the work; the tiler, its Hyper
-chord layer, the `ws-grid` helper, the cheatsheet HUD, and the rune
-generator that fed it were maintenance without payoff. `macos/retire.sh`
-tears the stack down on a machine that still carries it (quits the app,
-uninstalls the cask, sweeps `~/.config/aerospace` and
-`~/.config/workspace`, prunes the `ws-*` binaries). Hyperkey survives
-for tap-Caps = Esc; the Hyper layer is intentionally empty.
+| Collision | Resolution |
+|---|---|
+| Caps-tap `Esc` vs Ghostty option-as-alt | `escape-time 10` in tmux.conf gives ESC time |
+| tmux prefix `C-Space` vs inner program wanting literal `C-Space` | `C-Space C-Space` (`send-prefix` binding) |
 
-## The 2026-09 prune
+No `Option/M-*` tmux bindings — they collide with Ghostty's left-Alt bytes.
 
-An audit against actual use, not intent. Removed: **Firefox** (a fourth
-browser — Chrome and Helium do the work), **VS Code** (idle since May;
-the editor is nvim + Claude Code), **ExpressVPN** (a second VPN client
-behind ProtonVPN, plus a privileged daemon that outlived it). App
-bundles and the ExpressVPN daemon are torn down by `macos/retire.sh`.
+## Packages are declared, never assumed
 
-A second pass took the App Store tier: **Keynote** and **Pages** (never
-opened here), **MD Viewer** (381 MB to render markdown), and **Elmedia
-Player** (lost to IINA on merit). Purchases stay on the Apple ID, so
-these are one click away if a machine ever needs them — which is the
-argument against keeping them resident on every disk. **Zoom** stays,
-for interviews. **UTM** stayed at first ("nothing else opens a VM") and
-went in generation 3 once it was clear OrbStack does, and nothing had
-been booted in UTM since May. The cask is uninstalled; the 11 GB of VM
-images under `~/Library/Containers/com.utmapp.UTM` are yours to delete.
+**`macos/Brewfile` is the whole truth.** Anything in `brew leaves` or
+`brew list --cask` that isn't declared there gets a line in the Brewfile
+with its reason, or a sweep in `macos/retire.sh`. Nothing floats. The
+one documented exception is Xcode: a `mas` line would front-load a
+~30 GB download onto every fresh bootstrap, so it stays hand-installed.
 
-Markdown viewing is `glow` now — one viewer, 10 MB, and the same command
-over SSH on the Linux box, which a GUI app can't do. Obsidian is still
-where markdown gets written. **IINA** is a declared cask rather than a
-hand-installed app, so it lands on every Mac.
+`macos/retire.sh` is migration code, not steady state. It stamps a
+`GENERATION` in `~/.local/state/dotfiles/retired` and a Mac already at
+that generation exits in milliseconds. Adding a sweep means bumping the
+generation, or the stamped Macs never see it. Its `~/Library` policy is
+asymmetric on purpose: an app that holds no documents (a VPN client, a
+Wine wrapper, Tor Browser) gets zapped; one that does (Firefox, VS Code,
+a VM host) leaves its user data for you to delete.
 
-The `~/Library` trail gets asymmetric treatment on purpose. ExpressVPN's
-prefs, caches, logs and root-owned socket dir are swept — a VPN client
-holds no documents, and every one of those outlives both the app and the
-daemon. Firefox's and VS Code's are not: bookmarks, saved logins and
-editor settings are yours to delete, not bootstrap's.
+## Retired, and why
 
-Also removed: `resvg` and `pipx` (fed rune, retired with the cheatsheet
-HUD), `watchman` (React Native era), `ruby` and `git-filter-repo`
-(one-offs). Nothing depended on any of them.
+Each of these was tried, and each is torn down by `macos/retire.sh` on
+a Mac that still carries it. Listed so nobody re-discovers them.
 
-A late straggler, retired as generation 2 of `macos/retire.sh`: **Tor
-Browser**. Never declared, never chosen — it arrived the same day as the
-Sikarugir experiment. The cask tracks upstream's release cadence, and
-when the dmg it pointed at 404'd it took every `brew upgrade` down with
-it. Zapped, not just uninstalled: Tor Browser is amnesic by design, so
-its `~/Library` trail holds nothing worth the asymmetric treatment
-Firefox got.
+- **Karabiner, yabai, skhd, sketchybar, borders** — the pre-Hyperkey
+  keyboard and tiling stack. Karabiner's grabber can wedge input on the
+  way out, so services are stopped before configs are removed.
+- **AeroSpace, sigil, rune, the cheatsheet HUD** (2026-08) — a tiler and
+  the Hyper chord layer that drove it. Mouse + one screen did the work.
+  Hyperkey survives for tap-Caps = Esc; the Hyper layer is empty.
+- **Raycast** — native Tahoe Spotlight is the launcher. This is why
+  `macos/bootstrap.sh` warns below macOS 26: the Spotlight defaults and
+  the Raycast teardown both assume Tahoe.
+- **mise** (2026-09) — every runtime it served was byte-identical to a
+  brew formula, through a shim layer, and its one real feature
+  (per-project switching) was silently unused for five weeks. Runtimes
+  are brew's on macOS. On Ubuntu the same retirement cost three install
+  paths (NodeSource, the nvim tarball, `npm -g`), accepted with eyes
+  open; `bin/update-system` exists to keep those current.
+- **direnv, ruff, pipx, resvg, watchman, ruby, git-filter-repo** —
+  authoring conveniences and one-offs. The work is reading code that
+  harnesses wrote, not typing it; `pyright` stays for exactly that.
+- **Firefox, VS Code, ExpressVPN, HandBrake, Keynote, Pages, MD Viewer,
+  Elmedia, Reader, QuickMD** — a fourth browser, an idle editor, a
+  second VPN with a privileged daemon, and duplicates of ffmpeg, IINA,
+  glow and PDF Expert.
+- **Tor Browser, Sikarugir + cabextract, UTM, exercism** — an
+  experiment's leftovers. Tor's cask pointed at a dmg that 404'd and
+  took every `brew upgrade` down with it; that's how the audit started.
+- **The permission wizard** — 190 lines to open one System Settings pane.
+  It's a phase in `macos/bootstrap.sh` now: probe TCC.db, open the
+  Accessibility pane only if the grant can't be confirmed.
+- **sparse-checkout on the Linux clone** — 93 lines to exclude one
+  ghostty config and `macos/` from a clone where they cost nothing.
+- **Tests that grep source text** — a test that a script *contains* a
+  string passes while the thing it names is broken. The suite asserts
+  behaviour: deploy into a throwaway HOME and look at what lands.
 
-Generation 3 closed the audit. **Sikarugir** (Wine wrapper for Windows
-apps) and the `cabextract` it pulled in: tried for two weeks, never a
-habit. `exercism`: installed, never started. **Reader** (Liquid): a
-second PDF app. **QuickMD**: a second markdown viewer, never opened. **PDF Expert** is the PDF app — paid for, chosen,
-declared as a `mas` line — and PDFgear, which an earlier version of this
-doc called current, was never actually installed. The six daily casks
-that had been hand-installed and floating (1Password, Chrome, Claude,
-ChatGPT, Spotify, Steam) are declared now. **Xcode** is the one
-deliberate exception — a `mas` line would front-load a ~30 GB download
-onto every fresh bootstrap, so it stays hand-installed and the Brewfile
-says so. Nothing else floats.
+Kept on preference, stated so a future audit doesn't cut it: **yazi**.
+The overlap with `oil.nvim` is real and it isn't load-bearing. I like
+it. Everything else here earns its place on the work it does.
 
-Added, because the stack is JS/TS at home and Python at work:
-`typescript` (nvim had treesitter for `.ts` but no server behind `gd`)
-and `uv` (the Python entry point, and pipx's replacement).
-
-Adopted, because both Macs already had them undeclared — a fresh machine
-would have deployed nvim's config with no nvim: `neovim`, `jq`, `htop`,
-`ffmpeg`.
-
-The JS/TS server is `tsc --lsp` — TypeScript 7's own Go-native LSP —
-configured by hand in `nvim-init.lua` rather than through lspconfig's
-`ts_ls`. The obvious choice, `typescript-language-server`, is broken
-against Homebrew today: it wraps `tsserver.js`, which TypeScript 7 no
-longer ships, so it installs cleanly and then dies on every buffer with
-"Could not find a valid TypeScript installation". The native server also
-needs no `node_modules`: on macOS a `.ts` file in a directory with no
-`tsconfig.json`, `package.json` or `.git` anywhere above it still
-attaches and reports real type errors — nvim falls back to the file's own
-directory as the root.
-
-Now verified on both platforms — read off live clients
-(`client.config.cmd`), not inferred. The Linux "failure" that briefly
-put a hedge here was a stale deployed `nvim-init.lua`: without our
-config block, lspconfig's bundled `lsp/tsgo.lua` supplies both the cmd
-(a literal `tsgo` binary, which neither brew's nor npm's typescript
-ships) and its own lockfile-hunting root logic — the server dies with
-`File or directory "/<default workspace root>" does not exist`. With
-the block live, a markerless `.ts` in a markerless cwd attaches with
-`{ "tsc", "--lsp", "--stdio" }` and the file's own directory as root,
-identically on macOS and Ubuntu. The durable lesson is about deploys,
-not LSP: the box ran a months-stale init.lua and nothing said so, which
-is why ws-doctor's drift check now covers Linux.
-
-The rule this leaves behind: **`macos/Brewfile` is the whole truth for
-formulae.** Anything that shows up in `brew leaves` and isn't declared
-there gets a line in the Brewfile with its reason, or a line in
-`macos/retire.sh`. Nothing floats.
+Declined: git aliases and difftastic. delta as pager is enough.
 
 ## Two Macs, one work machine
 
@@ -123,156 +93,26 @@ restrictions and its own tools — iTerm2 instead of Ghostty, Notion
 instead of Obsidian — and bootstrap is never run there.
 
 What crosses the gap is muscle memory, not machinery: the tmux prefix,
-the zsh vi-mode surface, the nvim leader map, the git aliases. Those live
-in `deploy_configs()` (macOS) / `phase_configs` (Ubuntu) and touch
-nothing host-specific, so:
+the zsh vi-mode surface, the nvim leader map, the git aliases. Those are
+`deploy_configs` in `lib/common.sh`, which touches nothing host-specific:
 
 ```sh
 BOOTSTRAP_CONFIGS_ONLY=1 ~/dotfiles/bootstrap.sh
 ```
 
-deploys exactly that core — no Homebrew, no macOS defaults, no teardown
-of another machine's apps, no TCC wizard, no `chsh`. It is also the
-shape of a work-friendly fork: that one function plus `configs/`.
+deploys exactly that core — no Homebrew, no macOS defaults, no teardown,
+no Accessibility prompt, no `chsh`. It is also the shape of a
+work-friendly fork: that one function plus `configs/`.
 
 Terminal parity is the one manual step. `configs/ghostty-config` sets
 left Option as Alt so tmux and vim see the modifier; iTerm2 needs the
 same thing set by hand (Profiles → Keys → Left Option key → Esc+).
 
-## Dropping mise (2026-09)
-
-mise managed node, python, neovim and tree-sitter on macOS. Every version
-it handed out was byte-identical to a Homebrew formula — node 24.20.0,
-python 3.12.14, tree-sitter 0.27.0, neovim 0.12.5 — reached through a
-shim layer that also shadowed brew's own `nvim`. The one thing it offered
-that brew can't, per-project version switching, was never in use: the
-`.nvmrc` files in `~/code` were silently ignored (mise's
-`idiomatic_version_file_enable_tools` defaults to empty) and nobody
-noticed for five weeks, while an orphaned node 22 sat there taking
-362 MB.
-
-So runtimes are brew's now. Versioned formulae pin exactly as hard —
-`node@24` stays on 24 through a `brew upgrade` — and `uv` handles
-per-project Python better than a global pin ever did. One package
-manager, no shims, and `which node` answers honestly.
-
-Two edges worth remembering. Versioned formulae are keg-only, so
-`configs/zshrc` puts their bin dirs on PATH by hand; `python@3.12` goes
-in via `libexec/bin`, the only place brew provides a bare `python3` —
-without it, `python3` falls through to macOS's system 3.9. And the CLI
-nvim-treesitter shells out to is `tree-sitter-cli`; the `tree-sitter`
-formula is the C library, and installing that one gets you no binary at
-all.
-
-Ubuntu followed within the month, and the trade was not the same shape.
-On macOS dropping mise was pure subtraction — brew already carried every
-runtime at identical versions. On noble each tool needed its own source:
-**node 24** comes from the NodeSource apt repo (same keyring-and-signed-by
-shape as the GitHub CLI repo; the `node_24.x` repo only ever carries 24.x,
-so `apt upgrade` tracks patches while pinning the major, exactly like
-brew's `node@24`), **neovim** is the official release tarball pinned by
-`NVIM_VERSION` in `ubuntu/bootstrap.sh` (apt ships 0.9.5, which predates
-the 0.11+ `vim.lsp.config()`/`vim.uv` APIs the nvim config uses), and
-**tree-sitter-cli, pyright and typescript** come from `npm -g` into
-`~/.local` (apt's tree-sitter-cli is 0.20, below nvim-treesitter's 0.25
-floor; the LSP servers have no apt package at all). **python** is the one
-that cost nothing: noble's system python3 is already 3.12, and `uv` covers
-per-project versions.
-
-So three install paths replaced the one tool — a worse trade than macOS
-got, accepted with eyes open: the alternative was keeping a whole version
-manager alive for one box. Be precise about what "maintained" means,
-because the first draft of this section got it wrong: only apt maintains
-anything unattended. `npm install -g` is install-once — the three npm
-globals freeze at whatever version bootstrap first installed, exactly
-like the nvim tarball. Four frozen surfaces, not one. That's what
-`bin/update-system` now exists for on Linux: an apt sweep, an explicit
-`npm -g @latest` pass for the three tools, and a version check that
-notes when `NVIM_VERSION` has fallen behind the latest release — the
-bump itself stays a deliberate one-line edit in `ubuntu/bootstrap.sh`.
-The mise activation block in `configs/zshrc` went with it, and
-`retire_mise` in `ubuntu/bootstrap.sh` sweeps the install tree — after
-the replacements land, so the box is never without a node.
-
-## The AI-authored era (2026-09)
-
-The work changed shape: code is written by harnesses (Devin, Claude,
-ChatGPT) and the job here is judging it — jumping into unfamiliar code,
-reading a diff, finding a root cause in whatever subsystem it turns out
-to live in. Not authoring. The stack was audited against that.
-
-What survived is what serves *reading*: nvim with LSP (`gd`, `gr`, `K` on
-code nobody here wrote), treesitter, ripgrep and fd for hunting, delta
-and lazygit for diffs, `gh` for PRs, `jq` for logs and APIs, and the
-runtimes — because reviewing includes running the thing to see whether it
-actually works.
-
-What went: `direnv` (per-project env vars, an authoring convenience — no
-`.envrc` existed on either machine) and `ruff` (a formatter and linter
-for code you type yourself). `pyright` stays: reading unfamiliar Python
-is now a daily act. The nvim annotation claiming `ruff` auto-ran on `:w`
-had been false the whole time — there was never a `BufWritePre` autocmd
-behind it.
-
-**HandBrake** went too: never launched, and `ffmpeg` does the same job
-from the terminal. `yazi` was cut in the same pass and put back, for
-the honest reason rather than a constructed one: the overlap with
-`oil.nvim` is real and it isn't load-bearing, but I like it. That's
-allowed. Everything else here has to earn its place on the work it does;
-this one earns it on preference, stated plainly so a future audit doesn't
-"discover" the redundancy and cut it again.
-
-`tree-sitter-cli` stays, and the reason is worth writing down because it
-looks like pure build tooling: nvim-treesitter shells out to it every
-time it installs a parser. Remove it and this machine looks fine — the
-already-compiled parsers keep working — while a *fresh* Mac gets zero
-parsers and no structural highlighting at all. Tested, not assumed:
-without it on PATH, `tree-sitter build` fails.
-
-Git tooling was deliberately left alone. Aliases and a structural diff
-(difftastic) were proposed and declined; delta as pager is enough.
-
-## Teardown is a one-shot, and the deploy list is one list (2026-09)
-
-Two kinds of weight had accumulated, and they had the same shape: work
-that was real once, still running every time.
-
-The first was teardown. Karabiner, yabai, skhd, AeroSpace, Raycast, sigil,
-mise, the 2026-09 app and formula prune — every retirement left its sweep
-in `phase_apply`, and by the end that was ~200 lines and about four
-seconds of package-manager forks (`brew services list`, two `brew list
---cask`, nine `brew list --formula`) on every run of a machine where the
-answer had been "already gone" for months. Migration code doesn't belong
-in the steady state, so it moved to `macos/retire.sh` and runs once: the
-script stamps its generation in `~/.local/state/dotfiles/retired`, and a
-machine already at that generation exits in ~37ms. The probes it does run
-ask `brew list` once and grep the answer, instead of asking brew about
-nine formulae one at a time — 27ms against 2.2s for the identical fact.
-Adding a new sweep means bumping `GENERATION`, or the stamped Macs never
-see it.
-
-The second was the deploy list. Each bootstrap spelled out its own
-`install_file` calls, and `ws-doctor` re-derived the pairs by `sed`ing
-those calls back out of the bootstrap script — a parser with a branch for
-every line shape it didn't recognise, defending against a divergence that
-existed only because the list was written twice. Now there is one
-`config_manifest` in `lib/common.sh`; both bootstraps deploy from it and
-ws-doctor reads it directly. One list can't drift from itself. It also
-settled an asymmetry nobody had noticed: Ubuntu had been deploying every
-config *except* `ws-doctor`, the one tool that would have reported it.
-
-ws-doctor itself was the same story at a smaller scale — a check runner
-with a dispatcher, `--only`/`--list`/`--strict`, four report severities
-and a `--fix` hook, carrying exactly one check and zero fixers, in two
-files. It's one file and one job now. The framework is in git history if a
-second check ever earns it back.
-
 ## Anywhere: macOS, a Linux server, WSL
 
 "Works on whatever machine I'm sitting at" is a requirement, not a nice
-to have. macOS and Ubuntu were already covered; WSL is Ubuntu for every
-purpose here except one, so it gets a name (`is_wsl` in `lib/common.sh`)
-rather than a platform directory.
+to have. WSL is Ubuntu for every purpose here except one, so it gets a
+name (`is_wsl` in `lib/common.sh`) rather than a platform directory.
 
 The exception is the clipboard, and it's config rather than packages:
 
@@ -283,10 +123,9 @@ The exception is the clipboard, and it's config rather than packages:
 | SSH (Linux server) | OSC 52 — the terminal owns it |
 | tmux, everywhere | OSC 52 (`set -s set-clipboard on`) |
 
-WSL deliberately uses the two binaries Windows already ships rather than
-`win32yank`, which is faster but means downloading an `.exe` and keeping
-it current. `Get-Clipboard` returns CRLF, so the paste command strips
-`\r` — without that every pasted line ends in a stray `^M`.
+WSL uses the two binaries Windows already ships rather than `win32yank`,
+which is faster but means downloading an `.exe` and keeping it current.
+`Get-Clipboard` returns CRLF, so the paste command strips `\r`.
 
 ## PATH lives in .zshenv, and why .zprofile exists
 
@@ -297,63 +136,48 @@ Claude Code and Devin run builds in. Reviewing on one runtime while the
 agent that wrote the code built on another is an invisible bug generator:
 both shells report success.
 
-So PATH moved to `configs/zshenv`, which every zsh reads. That alone was
-not enough, and the failure is worth recording because it looks like it
-should be:
+So PATH lives in `configs/zshenv`, which every zsh reads. That alone is
+not enough, and the failure looks like it should be:
 
-| Shell | Before the fix | After |
+| Shell | .zshenv only | + .zprofile |
 |---|---|---|
-| `zsh -c` (non-interactive) | node 26, python 3.9 | 24 / 3.12 |
-| `zsh -i -c` (interactive) | node 24, python 3.12 | 24 / 3.12 |
+| `zsh -c` (non-interactive) | 24 / 3.12 | 24 / 3.12 |
+| `zsh -i -c` (interactive) | 24 / 3.12 | 24 / 3.12 |
 | `zsh -l -c` (login) | **node 26, python 3.9.6** | 24 / 3.12 |
 
 The login row is Apple's `path_helper`, run from `/etc/zprofile`. It
 rebuilds PATH from `/etc/paths` with the system directories first and
 everything else appended — silently undoing `.zshenv` and resolving
 `python3` to macOS's system 3.9. Ghostty opens login shells, so this is
-the common case.
-
-`configs/zprofile` re-asserts PATH after `path_helper` has run — one line
-sourcing `.zshenv`, made idempotent by `typeset -U PATH`, which moves
-entries to the front instead of accumulating them. `configs/zshrc` used to
-carry a third copy of that line for the non-login interactive case, which
-was never a case: `.zshenv` has already run for those shells, nothing
-between it and `.zshrc` touches PATH, and for login shells `.zprofile` has
-already done the re-assert a moment earlier. Verified across all four
-invocation modes, with no duplicate PATH entries.
+the common case. `configs/zprofile` re-asserts PATH after `path_helper`
+has run: one line sourcing `.zshenv`, made idempotent by `typeset -U
+PATH`.
 
 ## bash 3.2 is the floor
 
 macOS ships bash 3.2 and always will — bash went GPLv3 at 4.0, which
 Apple won't ship — so `#!/usr/bin/env bash` means 3.2 on any Mac without
 brew's bash, which is every fresh Mac since the Brewfile declares none.
-
-`bin/ws-doctor` carried a `declare -A` for months and printed
-`declare: -A: invalid option` on every run. Nobody saw it because brew's
-bash was installed as an accidental dependency of `direnv` and shadowed
-the system one. Removing direnv surfaced it immediately.
-`tests/critical/script-syntax.test.sh` now fails on bash-4-only
-constructs, so the floor is enforced rather than remembered.
+`tests/critical/script-syntax.test.sh` fails on bash-4-only constructs,
+so the floor is enforced rather than remembered.
 
 ## The fleet
 
 Two Macs, both MacBook Pros: **`m1`** (Apple M1) and **`m3`** (M3 Max),
 plus a Linux box used as a playground and a work Mac this repo never
-touches. Older comments in here called m1 "the Air" — it is not an Air
-and never was; the nickname stuck because it is the lighter, older one,
-and it cost a session's worth of confusion when it read as a third
-machine that was months out of date. Both Macs run the same Brewfile;
-there is no per-machine package file any more.
+touches. m1 is not an Air, whatever older comments called it. Both Macs
+run the same Brewfile; there is no per-machine package file.
 
 ## Who owns what
 
 | Concern | Owner |
 |---|---|
-| Caps remap (tap = Esc) | Hyperkey (user defaults) |
+| Caps remap (tap = Esc) | Hyperkey (user defaults, seeded by `macos/bootstrap.sh`) |
+| Accessibility grant for Hyperkey | `phase_accessibility` in `macos/bootstrap.sh` |
 | Window management | macOS native + mouse |
 | Launcher | Spotlight (`⌘Space`) — see [macos-defaults.md](macos-defaults.md) |
 | Terminal multiplexing | tmux (`C-Space`) |
-| Health check | ws-doctor · `bin/ws-doctor` (config source/deploy drift) |
+| Health check | `bin/ws-doctor` (config source/deploy drift) |
 | What gets deployed where | `config_manifest` in `lib/common.sh` — read by both bootstraps and by ws-doctor |
 | One-time teardown | `macos/retire.sh`, stamped at `~/.local/state/dotfiles/retired` |
 | Package updates | `bin/update-system` — brew + mas (macOS) · apt + `npm -g @latest` + nvim-pin check (Ubuntu) |

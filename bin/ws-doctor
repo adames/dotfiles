@@ -9,10 +9,8 @@
 # blamed on the LSP for a day.)
 #
 # The pairs come from config_manifest in lib/common.sh — the same list the
-# bootstraps deploy from, so coverage can't drift from reality. This was a
-# check-runner with a dispatcher, a --fix hook, four report severities and a
-# plugin file, all for one check and zero fixers; that framework is in git
-# history if a second check ever earns it back.
+# bootstraps deploy from, so coverage can't drift from reality. One check,
+# one file; a framework is in git history if a second check ever earns it.
 #
 # Usage:
 #   ws-doctor            # report every pair
@@ -37,8 +35,7 @@ if [[ -z "${DOTFILES_DIR:-}" ]]; then
   unset _self_root
 fi
 
-# Fail loudly. Sourcing a missing lib used to leave every helper undefined
-# and still print a summary of zeroes — a broken run that reads as a clean one.
+# Fail loudly: a missing lib must not read as a clean run of zeroes.
 if [[ ! -f "$DOTFILES_DIR/lib/common.sh" ]]; then
   printf 'ws-doctor: cannot find lib/common.sh under %s\n' "$DOTFILES_DIR" >&2
   printf 'ws-doctor: set DOTFILES_DIR to your dotfiles checkout\n' >&2

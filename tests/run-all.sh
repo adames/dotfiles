@@ -3,11 +3,10 @@
 # Sequential: each test is <100ms, parallelism complicates output for
 # no real win. Exits 0 only if every file exits 0.
 #
-# Tests focus on historically troublesome traps:
-# - bootstrap idempotency
+# Tests assert behaviour, never source text:
+# - install_file idempotency
 # - config source/deploy drift (the manifest, and the doctor that reads it)
-# - the Hyperkey defaults schema
-# - bash 3.2 as the floor
+# - every script parses, and none uses a bash-4-only construct
 #
 # Output convention: each test prints its own `N passed, M failed`
 # line on exit; this runner just tallies how many test files failed

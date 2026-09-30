@@ -6,9 +6,8 @@
 #
 # macOS: brew update → brew upgrade → brew cleanup covers everything: the
 # runtimes are versioned formulae (node@24, python@3.12), so a `brew
-# upgrade` moves them within their pin and never across it. The mise
-# pass that used to live here went with mise itself. mas upgrades App
-# Store apps in place.
+# upgrade` moves them within their pin and never across it. mas upgrades
+# App Store apps in place.
 #
 # Ubuntu: apt covers node (NodeSource pins the major) and the system
 # python, but the three npm globals do NOT self-update — `npm install -g`
@@ -17,13 +16,10 @@
 # from here at all (the pin lives in ubuntu/bootstrap.sh); it gets a
 # version check that notes when the pin has fallen behind, because
 # rotting silently is how pins die.
-# macOS itself is deliberately untouched here — not even a list-only
-# `softwareupdate -l`. That cost a network round trip on every run and
-# left a standing [warn] for as long as Apple had anything queued, which
-# is noise in a summary whose whole job is to replay the lines that
-# aren't [ok]. Apple nags about its own updates perfectly well. What the
-# repo does care about — that the OS is new enough for the Tahoe-only
-# defaults — is a local version check in macos/bootstrap.sh.
+# macOS itself is deliberately untouched — not even `softwareupdate -l`,
+# which costs a network round trip and leaves a standing [warn] whenever
+# Apple has something queued. Apple nags about its own updates fine. The
+# OS-version floor the repo cares about is a local check in macos/bootstrap.sh.
 #
 # Idempotent.
 

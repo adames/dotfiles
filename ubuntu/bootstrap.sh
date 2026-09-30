@@ -9,21 +9,6 @@ set -euo pipefail
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
-# ─── phase 0 · sparse-checkout (idempotent, runs first) ─────────────────────
-# Prune the working tree of macOS-only paths (ghostty, the macos/ scripts)
-# so a Linux clone only carries files this host actually uses. The list of
-# them lives in ubuntu/sparse-checkout.sh. Safe to run every bootstrap;
-# no-ops when the patterns are already current.
-phase_sparse_checkout() {
-  phase "sparse-checkout (prune macOS-only paths)"
-  if [[ -x "$DOTFILES_DIR/ubuntu/sparse-checkout.sh" ]]; then
-    "$DOTFILES_DIR/ubuntu/sparse-checkout.sh" 2>&1 | sed 's/^/    /' \
-      || warn "sparse-checkout failed; continuing with full tree"
-  else
-    warn "ubuntu/sparse-checkout.sh missing or not executable — skipping prune"
-  fi
-}
-
 # ─── phase 1 · terminfo (idempotent, runs first) ────────────────────────────
 # When SSH'ing in from Ghostty, TERM=xterm-ghostty is forwarded. Ubuntu's
 # default terminfo database doesn't ship that entry, so zsh's line editor
@@ -56,10 +41,8 @@ phase_terminfo() {
 # ─── phase 2 · system packages ──────────────────────────────────────────────
 phase_system() {
   phase "system packages"
-  # `sudo apt-get update && sudo apt-get upgrade -y >/dev/null` bound the
-  # redirect to `upgrade` only, so every run dumped ~19 raw "Get:" lines from
-  # `update` and then hid the one line worth reading — how many packages
-  # actually moved. Both now go through apt_quiet, which does the reverse.
+  # Both through apt_quiet, not `>/dev/null`: the tally line is the one
+  # worth reading and the "Get:" lines are not.
   local upgrade_out held
   step "apt update + upgrade"
   sudo apt-get update 2>&1 | apt_quiet
@@ -149,10 +132,8 @@ phase_shell() {
 # VM use cases — develop locally with OrbStack, ship from there. If you ever
 # need a container runtime on the server: `curl -fsSL https://get.docker.com | sh`.
 #
-# mise is retired here too (macOS dropped it 2026-09 — see docs/architecture.md,
-# "Dropping mise"). On macOS that was pure subtraction: brew already carried
-# byte-identical runtimes. Here every tool needed its own source, and the
-# honest tally is three:
+# No version manager (mise is retired on both platforms). Every tool has
+# its own source here, and the honest tally is three:
 #   node 24          — NodeSource apt repo (noble's own nodejs is 18). The
 #                      node_24.x repo only ever carries 24.x, so a plain
 #                      `apt upgrade` tracks patches while pinning the major,
@@ -275,10 +256,9 @@ install_npm_tools() {
   fi
 }
 
-# Mirrors retire_mise in macos/bootstrap.sh. Order matters the same way:
-# phase_runtimes has installed node, nvim and the npm tools by the time this
-# runs, so the box is never without a runtime between the sweep and the next
-# shell. Idempotent — every path here may already be gone.
+# Mirrors the mise sweep in macos/retire.sh. Runs last in phase_runtimes so
+# node, nvim and the npm tools are already in place and the box is never
+# without a runtime. Idempotent — every path here may already be gone.
 retire_mise() {
   if [[ ! -e "$HOME/.local/bin/mise" && ! -d "$HOME/.local/share/mise" ]]; then
     return 0
@@ -309,21 +289,24 @@ phase_runtimes() {
 # ─── phase 5 · configs ──────────────────────────────────────────────────────
 phase_configs() {
   phase "configs"
-  # The list itself lives in lib/common.sh (config_manifest), shared with
-  # macos/bootstrap.sh and with ws-doctor's drift check. Ubuntu used to
-  # keep its own copy, which is how it ended up deploying every config
-  # except ws-doctor — the one tool that would have said so.
+  # The list lives in lib/common.sh (config_manifest), shared with
+  # macos/bootstrap.sh and ws-doctor's drift check.
   deploy_configs
 
-  # Retired surfaces: the ws CLI was macOS-only all along (sigil), so the
-  # old install block here shipped a binary and completions for a command
-  # that can't work on Linux. Sweep the orphans off boxes bootstrapped from
-  # those versions. Pure `rm -f`, no forks — cheap enough to leave in the
-  # steady-state run, unlike the macOS teardown (macos/retire.sh).
+  # Orphans of the retired sigil `ws` CLI. Pure `rm -f`, no forks — cheap
+  # enough to leave in the steady-state run.
   rm -f "$HOME/.local/bin/ws" "$HOME/.local/bin/workspace" \
         "$HOME/.config/zsh/completions/_ws" \
         "$HOME/.config/bash/completions/ws.bash" \
         "$HOME/.config/workspace/cli/test-cascade.sh"
+
+  # A clone from the sparse-checkout era is still hiding macos/ and the
+  # ghostty config. Nothing depends on that any more; make it a full clone.
+  if [[ "$(git -C "$DOTFILES_DIR" config --type=bool core.sparsecheckout 2>/dev/null)" == "true" ]]; then
+    step "disabling sparse-checkout (retired)"
+    git -C "$DOTFILES_DIR" sparse-checkout disable 2>/dev/null \
+      && ok "full clone restored" || warn "could not disable sparse-checkout"
+  fi
 }
 
 # ─── phase 6 · default shell ────────────────────────────────────────────────
@@ -365,13 +348,11 @@ main() {
     return
   fi
 
-  # Authenticate sudo up front, loudly. Without this, the first sudo lives
-  # inside an `| apt_quiet` pipeline: run without a usable tty (a harness,
-  # a pipe), sudo's "a password is required" is exactly the kind of
-  # unrecognized line apt_quiet drops, and set -e -o pipefail aborts the
-  # run with no visible reason. Measured, not theorized — that silent
-  # death is how this line got here. (macos/bootstrap.sh has phase_sudo
-  # for the same job; this is the one-line version, no keepalive.)
+  # Authenticate sudo up front, loudly. Otherwise the first sudo lives
+  # inside an `| apt_quiet` pipeline, where "a password is required" is
+  # exactly the kind of line apt_quiet drops and `set -eo pipefail` aborts
+  # the run with no visible reason. (macos/bootstrap.sh has phase_sudo for
+  # the same job; this is the one-line version, no keepalive.)
   if ! sudo -v; then
     err "sudo could not authenticate — run from an interactive terminal"
     run_summary
@@ -382,7 +363,6 @@ main() {
   # PHASE_TOTAL from it, so adding or reordering a phase needs no edits
   # anywhere else.
   local phases=(
-    phase_sparse_checkout
     phase_terminfo
     phase_system
     phase_shell

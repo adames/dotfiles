@@ -68,8 +68,8 @@ Hard limits — don't try to drive these from `defaults`:
 - **Display arrangement** (multi-monitor layout). No `defaults` surface.
 - **pmset** items that touch the SMC. Use `sudo pmset -a …` directly.
 - **sqlite-backed Settings panes** (Privacy & Security, Login Items,
-  some Sound prefs). Privacy/Accessibility goes through
-  `macos/permissions-wizard.sh`.
+  some Sound prefs). Accessibility for Hyperkey is the last phase of
+  `macos/bootstrap.sh`: probe, and open the pane only if unconfirmed.
 
 ## Apply timing
 

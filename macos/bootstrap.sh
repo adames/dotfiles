@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Idempotent macOS bootstrap. Env: BOOTSTRAP_SKIP_CASKS=1, NO_COLOR=1.
-# Architecture + migration history: docs/architecture.md.
+# Architecture: docs/architecture.md.
 
 set -euo pipefail
 
@@ -18,10 +18,9 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 # old pane never reads, so nothing errors and nothing works.
 #
 # A warn, not an err: an old Mac can still take everything else, and the
-# user gets to decide. Deliberately a local `sw_vers` read rather than
-# the `softwareupdate -l` that used to live in update-system — this
-# answers "is this Mac new enough for the repo", which is ours to know,
-# instead of "does Apple have something queued", which is Apple's.
+# user gets to decide. A local `sw_vers` read, never `softwareupdate -l`:
+# "is this Mac new enough for the repo" is ours to know; "does Apple have
+# something queued" is Apple's, and it costs a network round trip.
 check_macos_floor() {
   local want=26 have major
   have="$(sw_vers -productVersion 2>/dev/null || true)"
@@ -56,9 +55,7 @@ phase_sudo() {
       kill -0 "$$" 2>/dev/null || exit
     done ) &
   # `|| true` so a dead keepalive doesn't overwrite the script's exit
-  # status with the kill's 1. (On the success path the trap never fires —
-  # phase_wizard exec's away — and the keepalive self-terminates via its
-  # kill -0 check.)
+  # status with the kill's 1.
   trap 'kill '"$!"' 2>/dev/null || true' EXIT
   ok "sudo cached"
 }
@@ -79,9 +76,9 @@ phase_packages() {
 
   local brewfile="$DOTFILES_DIR/macos/Brewfile"
 
-  # Brew Bundle no longer supports type flags (`--formula`, `--cask`) on
-  # install. Restore the full Brewfile when interactive; otherwise ask Bundle
-  # to skip every declared cask so headless runs don't wedge on sudo prompts.
+  # `brew bundle install` has no `--formula`/`--cask` flags any more. Full
+  # Brewfile when interactive; otherwise ask Bundle to skip every declared
+  # cask so headless runs don't wedge on sudo prompts.
   if has_tty && [[ -z "${BOOTSTRAP_SKIP_CASKS:-}" ]]; then
     step "installing macos/Brewfile"
     if brew bundle install --file="$brewfile" --no-upgrade 2>&1 | brew_quiet; then
@@ -153,14 +150,11 @@ ensure_xcode_clt() {
   exit 1
 }
 
-# Seed Hyperkey (Caps→Hyper, tap-for-Esc). v1.56 reads from the bundle-id
-# domain `com.knollsoft.Hyperkey` with the keys below; an older build (the
-# one f17cf62 patched against) read from the plain `Hyperkey` domain with
-# enableHyperKey/tapForEscape — those don't exist in v1.56, so the prior
-# seeding was a no-op and every caps chord died until the user opened
-# Hyperkey and re-toggled the switches by hand. Hyperkey rewrites its
-# prefs on quit, so the write order matters: quit → write → relaunch.
-# Idempotent.
+# Seed Hyperkey (Caps→Hyper, tap-for-Esc). Hyperkey ≥1.56 reads the
+# bundle-id domain `com.knollsoft.Hyperkey` with the keys below. The plain
+# `Hyperkey` domain with enableHyperKey/tapForEscape is the pre-1.56
+# schema — writing it is a silent no-op. Hyperkey rewrites its prefs on
+# quit, so the order matters: quit → write → relaunch. Idempotent.
 seed_hyperkey_defaults() {
   [[ -d /Applications/Hyperkey.app ]] || return 0
   local domain="com.knollsoft.Hyperkey" ver
@@ -203,39 +197,47 @@ phase_apply() {
   # — see docs/macos-defaults.md for the table and hard limits.
   bash "$DOTFILES_DIR/macos/macos-defaults.sh"
 
-  # Everything this repo used to run — Karabiner, yabai/skhd, AeroSpace,
-  # Raycast, sigil, mise, and the apps and formulae the 2026-09 prune took
-  # — is torn down by a one-shot that stamps itself when it completes. It
-  # cost ~4s of brew forks on every run of every settled Mac while it lived
-  # here; now a machine already at its generation exits in milliseconds.
+  # Retired software is torn down by a one-shot that stamps its generation
+  # per machine; a settled Mac exits it in milliseconds.
   bash "$DOTFILES_DIR/macos/retire.sh" || warn "one-shot teardown had failures"
 
   deploy_configs
 }
 
-# ─── phase 4 · permission wizard ────────────────────────────────────────────
-phase_wizard() {
-  phase "permission wizard"
-  step "handing off to permissions-wizard.sh"
-  # Called, not exec'd: exec replaces this process, which would skip both
-  # run_summary and phase_sudo's keepalive-killing EXIT trap. The wizard's
-  # own exit code is advisory (it's a walk-through, not a gate).
-  bash "$DOTFILES_DIR/macos/permissions-wizard.sh" \
-    || warn "permissions wizard exited non-zero"
+# ─── phase 4 · Accessibility for Hyperkey ───────────────────────────────────
+# The one TCC grant the stack needs. The system TCC.db is readable only
+# when the terminal has Full Disk Access; when it is, a granted Mac stays
+# silent here. When it isn't (every fresh Mac) the answer is unknown and
+# the pane opens — which is where a fresh Mac was headed anyway.
+phase_accessibility() {
+  phase "Accessibility for Hyperkey"
+  local granted
+  granted="$(sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" \
+    "SELECT auth_value FROM access WHERE service='kTCCServiceAccessibility' AND client='com.knollsoft.Hyperkey' LIMIT 1;" \
+    2>/dev/null || true)"
+  if [[ "$granted" == "2" ]]; then
+    ok "Hyperkey has Accessibility"
+    return 0
+  fi
+  if ! has_tty; then
+    warn "grant Hyperkey Accessibility by hand: System Settings → Privacy & Security → Accessibility"
+    return 0
+  fi
+  open -ga Hyperkey 2>/dev/null || true
+  open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+  printf '\n  Toggle Hyperkey ON in Accessibility, then tap Caps to check it lands as Esc.\n\n'
+  read -r -p "  ↵  press enter when done... " _ || true
+  ok "Accessibility walk-through done"
 }
 
 main() {
   section "Hyper-key dotfiles bootstrap (macOS)"
-  # ~/.local/bin is where this repo's own tools land, and it matches the
-  # Ubuntu bootstrap's PATH posture. The Python user-base bin that used to
-  # be appended here (~/Library/Python/3.x/bin) went with the last
-  # `pip --user` console script: pipx and rune are retired, and uv installs
-  # into ~/.local/bin like everything else.
+  # ~/.local/bin is where this repo's own tools land (uv installs there too).
   export PATH="$HOME/.local/bin:$PATH"
 
   # Configs-only mode: the portable core and nothing else. No sudo, no
   # brew, no macOS defaults, no teardown of another machine's apps, no
-  # TCC wizard. For a Mac this repo doesn't own.
+  # Accessibility prompt. For a Mac this repo doesn't own.
   if [[ -n "${BOOTSTRAP_CONFIGS_ONLY:-}" ]]; then
     PHASE_TOTAL=1
     phase "deploy configs (configs-only mode)"
@@ -248,7 +250,7 @@ main() {
 
   # Same self-numbering list as ubuntu/bootstrap.sh — phase() takes the total
   # from here, so the headers can never drift out of sync with reality.
-  local phases=(phase_sudo phase_packages phase_apply phase_wizard)
+  local phases=(phase_sudo phase_packages phase_apply phase_accessibility)
   PHASE_TOTAL=${#phases[@]}
   local p
   for p in "${phases[@]}"; do "$p"; done

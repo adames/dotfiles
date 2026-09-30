@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 # Critical test: the deploy manifest and the drift check that reads it.
 #
-# Was two files grepping each other's source for keywords — "does ws-doctor
-# contain the string check_source_deploy_drift", "does bootstrap contain
-# install_file". Tests like that pass while the thing they name is broken,
-# which is exactly what happened: the suite reported three healthy checks
-# while two of them scanned for AppleScript the repo no longer contained.
-# These assert behaviour instead — deploy into a throwaway HOME and look at
-# what lands.
+# Asserts behaviour, not source text: deploy into a throwaway HOME and look
+# at what lands. A test that a script *contains* a string passes while the
+# thing it names is broken.
 
 set -u
 

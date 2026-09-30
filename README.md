@@ -13,9 +13,8 @@ git clone git@github.com:adames/dotfiles.git ~/dotfiles
 ~/dotfiles/bootstrap.sh
 ```
 
-macOS: 4 phases. Ubuntu: 7 (the first prunes the clone via sparse-checkout), skips
-Hyperkey + Docker. WSL runs the Ubuntu path — it's detected, and the
-clipboard is routed into Windows for you.
+macOS: 4 phases. Ubuntu: 6, skips Hyperkey + Docker. WSL runs the Ubuntu
+path — it's detected, and the clipboard is routed into Windows for you.
 
 On a machine this repo doesn't own — a work Mac, a borrowed box — deploy
 the portable core and nothing else:
@@ -25,23 +24,19 @@ BOOTSTRAP_CONFIGS_ONLY=1 ~/dotfiles/bootstrap.sh
 ```
 
 That's zsh, tmux, nvim, git, starship, ripgrep and the Claude config: no
-Homebrew, no macOS defaults, no app teardown, no permission wizard, no
+Homebrew, no macOS defaults, no app teardown, no Accessibility prompt, no
 `chsh`. Same flag on both platforms. See
 [docs/architecture.md](docs/architecture.md) for what stays behind the
 line and why.
 
-Packages are declared, never assumed: `macos/Brewfile` is the whole truth
-for formulae. Anything that falls off it is torn down by `macos/retire.sh`,
-a one-shot that stamps itself when it completes — teardown is migration
-code, so it runs once per machine instead of costing every settled Mac ~4s
-of package-manager forks on every bootstrap. Editor stack is nvim with
-system language servers — `pyright` for Python, `tsc --lsp` (TypeScript 7's
-native server) for JS/TS — and `uv` for Python tooling.
+Packages are declared, never assumed: `macos/Brewfile` is the whole truth.
+Anything that falls off it is torn down by `macos/retire.sh`, a one-shot
+stamped per machine. Editor stack is nvim with system language servers —
+`pyright` for Python, `tsc --lsp` (TypeScript 7's native server) for
+JS/TS — and `uv` for Python tooling.
 
-No window manager. AeroSpace (and the sigil HUD stack behind it) is
-retired — mouse + native macOS won; a tiler never earned its keep here.
-`macos/retire.sh` sweeps it off a machine that still has it. The launcher
-is Spotlight (`⌘Space`); see
+No window manager: mouse + native macOS, Spotlight (`⌘Space`) as the
+launcher. What was tried and retired, and why, is in
 [docs/architecture.md](docs/architecture.md).
 
 ## Claude Code
@@ -58,13 +53,14 @@ Where files live overall: `~/documents/REORG-PLAN-2026-09-05.md`.
 
 Caps is the center: **tap = `Esc`**, **hold = Hyper (⌃⌥⌘⇧)** — the Hyper
 layer is currently unbound, held in reserve. The real keymap is tmux
-(`C-Space` prefix), zsh, and nvim: [docs/keymap.md](docs/keymap.md).
+(`C-Space` prefix), zsh, and nvim, documented in the `# @cs row` blocks
+next to each binding in `configs/`. Collisions and how they're resolved:
+[docs/architecture.md](docs/architecture.md).
 
 ## Permissions
 
-One pane, ~30 seconds: Accessibility for Hyperkey.
-Wizard probes the actual grants first, only opens what's missing.
-[docs/wizard.md](docs/wizard.md).
+One pane: Accessibility for Hyperkey. Bootstrap's last phase probes the
+grant and opens the pane only when it can't confirm it.
 
 ## Verify
 
@@ -78,7 +74,7 @@ tests/run-all.sh          # pure-bash critical path (~2.5s)
 ## Reading bootstrap output
 
 Numbered phases, then a summary — the same shape on both platforms (macOS
-has 4, Ubuntu 7; the numbers come from the phase list itself, so they can't
+has 4, Ubuntu 6; the numbers come from the phase list itself, so they can't
 drift). Lines are graded, so a settled machine is quiet and anything worth
 your attention is loud:
 
@@ -108,8 +104,7 @@ needs a new rule.
 | Symptom | Fix |
 |---|---|
 | `python3` is 3.9, or `node` is the wrong major | a shell that missed `~/.zshenv`/`~/.zprofile` — re-run bootstrap, then `exec zsh` |
-| `_mise_hook`/`_direnv_hook: no such file` | a shell older than the teardown that removed them — `exec zsh` |
-| Caps-tap isn't Esc | `macos/permissions-wizard.sh --force`, check Hyperkey is running |
+| Caps-tap isn't Esc | `pgrep -x Hyperkey`; then `open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"` and toggle Hyperkey |
 | Config edit not live | you edited the deployed copy — fix `configs/`, re-run bootstrap; `ws-doctor` catches the drift |
 | Bootstrap hangs on cask | `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | Doubled chars over SSH | `infocmp -x xterm-ghostty | ssh user@host -- tic -x -` |
@@ -120,9 +115,9 @@ needs a new rule.
 ~/dotfiles/
 ├── bootstrap.sh              # OS dispatcher
 ├── macos/  ubuntu/           # per-OS phases (+ macos/retire.sh, the one-shot teardown)
-├── lib/                      # bash helpers (logging, install_file, deploy manifest, TCC probes)
+├── lib/                      # bash helpers (logging, install_file, deploy manifest)
 ├── bin/                      # update-system, ws-doctor
 ├── configs/                  # ghostty, tmux, zsh, nvim, …
-└── docs/                     # architecture · keymap · wizard · macos-defaults
+└── docs/                     # architecture · macos-defaults
 ```
 

@@ -69,9 +69,8 @@ echo "PASS: parse-checked ${#scripts[@]} shell script(s)"
 # macOS ships bash 3.2 and always will (bash went GPLv3 in 4.0, which
 # Apple won't ship), so `#!/usr/bin/env bash` resolves to 3.2 on any Mac
 # without brew's bash — which is every fresh Mac, since the Brewfile
-# deliberately declares none. ws-doctor carried a `declare -A` for months,
-# printing an error on every run, masked by brew's bash arriving as an
-# accidental dependency of direnv. When direnv went, the error surfaced.
+# deliberately declares none. A brew bash arriving as someone's dependency
+# masks the error for months; this check doesn't.
 # --exclude this file: it names the constructs it is looking for, both in
 # the pattern and in the comment above, and would otherwise flag itself.
 bash4_hits="$(grep -rnE 'declare -A|local -A|mapfile |readarray ' \

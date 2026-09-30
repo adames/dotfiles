@@ -13,8 +13,7 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader      = " "
 vim.g.maplocalleader = " "
 
--- @cs blocks are plain keybinding docs now (the rune/cheatsheet HUD that
--- scraped them retired with AeroSpace). Keep each section next to the
+-- @cs blocks are plain keybinding docs. Keep each section next to the
 -- bindings it documents.
 
 -- @cs section Neovim · Files & Buffers
@@ -188,9 +187,7 @@ require("lazy").setup({
         vim.lsp.enable("pyright")
       end
 
-      -- JS/TS — the personal-project half of the stack. Treesitter has
-      -- parsed typescript/tsx all along; until now there was no server
-      -- behind gd/gr/K in a .ts buffer.
+      -- JS/TS — the personal-project half of the stack.
       --
       -- Spelled out by hand rather than via lspconfig's `ts_ls`: that one
       -- runs typescript-language-server, which wraps the tsserver.js that

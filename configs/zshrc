@@ -1,8 +1,6 @@
 # PATH is not set here. ~/.zshenv owns it (every zsh reads that), and
 # ~/.zprofile re-asserts it for login shells after Apple's path_helper has
-# had its way — and /etc/zprofile → ~/.zprofile both run before this file.
-# A third `source ~/.zshenv` at the top of .zshrc was doing nothing that
-# ~/.zprofile hadn't already done a moment earlier.
+# had its way — both run before this file, so don't source .zshenv again.
 
 # @cs section Shell
 # @cs family terminal
