@@ -96,3 +96,23 @@ cask "obsidian"          # home notes; Notion is the work surface, not managed h
 cask "iina"              # video. Beat Elmedia on merit; declared so every Mac has it.
 cask "orbstack"          # containers/Linux VMs. macOS-only by design (Apple
                          # Virtualization.framework); Ubuntu runs docker natively.
+
+# Daily apps that were hand-installed and floating until 2026-09. Same
+# bundles the vendors ship — the cask is just the installer that makes
+# them land on every Mac. All self-update (auto_updates), so `brew
+# upgrade` leaves them alone; this is about declaring, not versioning.
+cask "1password"
+cask "google-chrome"     # with Helium: two browsers, deliberately. Firefox was the third.
+cask "claude"
+cask "chatgpt"
+cask "spotify"
+cask "steam"             # games on every device. Cask installs Valve's own
+                         # Steam.app; Steam updates itself from there.
+
+# App Store. mas is declared above so update-system can upgrade these.
+# PDF Expert is *the* PDF app — paid for, chosen. Reader (Liquid) went
+# with it; PDFgear before that. One.
+mas "PDF Expert", id: 1055273043
+# Xcode is the one deliberate float: it's on every Mac and mas keeps it
+# current, but a `mas` line would make a fresh bootstrap pull ~30 GB
+# through the App Store before anything else runs. Install it by hand.

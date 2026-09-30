@@ -38,9 +38,11 @@ A second pass took the App Store tier: **Keynote** and **Pages** (never
 opened here), **MD Viewer** (381 MB to render markdown), and **Elmedia
 Player** (lost to IINA on merit). Purchases stay on the Apple ID, so
 these are one click away if a machine ever needs them — which is the
-argument against keeping them resident on every disk. **PDFgear** stays;
-it's the current PDF app. **Zoom** stays, for interviews. **UTM** stays:
-rarely used, but nothing else opens a VM.
+argument against keeping them resident on every disk. **Zoom** stays,
+for interviews. **UTM** stayed at first ("nothing else opens a VM") and
+went in generation 3 once it was clear OrbStack does, and nothing had
+been booted in UTM since May. The cask is uninstalled; the 11 GB of VM
+images under `~/Library/Containers/com.utmapp.UTM` are yours to delete.
 
 Markdown viewing is `glow` now — one viewer, 10 MB, and the same command
 over SSH on the Linux box, which a GUI app can't do. Obsidian is still
@@ -56,6 +58,26 @@ editor settings are yours to delete, not bootstrap's.
 Also removed: `resvg` and `pipx` (fed rune, retired with the cheatsheet
 HUD), `watchman` (React Native era), `ruby` and `git-filter-repo`
 (one-offs). Nothing depended on any of them.
+
+A late straggler, retired as generation 2 of `macos/retire.sh`: **Tor
+Browser**. Never declared, never chosen — it arrived the same day as the
+Sikarugir experiment. The cask tracks upstream's release cadence, and
+when the dmg it pointed at 404'd it took every `brew upgrade` down with
+it. Zapped, not just uninstalled: Tor Browser is amnesic by design, so
+its `~/Library` trail holds nothing worth the asymmetric treatment
+Firefox got.
+
+Generation 3 closed the audit. **Sikarugir** (Wine wrapper for Windows
+apps) and the `cabextract` it pulled in: tried for two weeks, never a
+habit. `exercism`: installed, never started. **Reader** (Liquid): a
+second PDF app. **QuickMD**: a second markdown viewer, never opened. **PDF Expert** is the PDF app — paid for, chosen,
+declared as a `mas` line — and PDFgear, which an earlier version of this
+doc called current, was never actually installed. The six daily casks
+that had been hand-installed and floating (1Password, Chrome, Claude,
+ChatGPT, Spotify, Steam) are declared now. **Xcode** is the one
+deliberate exception — a `mas` line would front-load a ~30 GB download
+onto every fresh bootstrap, so it stays hand-installed and the Brewfile
+says so. Nothing else floats.
 
 Added, because the stack is JS/TS at home and Python at work:
 `typescript` (nvim had treesitter for `.ts` but no server behind `gd`)
