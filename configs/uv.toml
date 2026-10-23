@@ -1,0 +1,2 @@
+# Reject packages published in the last week.
+exclude-newer = "7 days"

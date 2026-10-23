@@ -5,6 +5,10 @@
 # expands ${HOME} itself, so one file serves every machine.
 prefix=${HOME}/.local
 
+# New releases wait a week before `npm -g` installs them.
+# Most poisoned versions are pulled within hours or days.
+min-release-age=7
+
 # npm 11 blocks install scripts it doesn't know and prints a standing
 # warning. tree-sitter-cli's (node install.js) is a fallback binary
 # download; on arm64/x86_64 the binary arrives via an optional platform
