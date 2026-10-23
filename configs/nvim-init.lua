@@ -138,7 +138,7 @@ require("lazy").setup({
   -- Icons for fzf-lua and oil.nvim. Mocks nvim-web-devicons so plugins
   -- that look for it by name still resolve.
   {
-    "echasnovski/mini.icons",
+    "nvim-mini/mini.icons",
     lazy = false,
     config = function()
       require("mini.icons").setup()

@@ -213,6 +213,7 @@ $CONFIGS_DIR/tmux.conf|$HOME/.tmux.conf
 $CONFIGS_DIR/starship.toml|$HOME/.config/starship.toml
 $CONFIGS_DIR/gitconfig|$HOME/.gitconfig
 $CONFIGS_DIR/ripgreprc|$HOME/.ripgreprc
+$CONFIGS_DIR/uv.toml|$HOME/.config/uv/uv.toml
 $CONFIGS_DIR/CLAUDE.md|$HOME/.claude/CLAUDE.md
 $CONFIGS_DIR/claude-settings.json|$HOME/.claude/settings.json
 $CONFIGS_DIR/nvim-init.lua|$HOME/.config/nvim/init.lua
@@ -259,4 +260,3 @@ ensure_gitconfig_local() {
 EOF
   ok "created ~/.gitconfig.local stub — edit user.email / user.name"
 }
-

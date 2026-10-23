@@ -146,7 +146,7 @@ phase_shell() {
 #                      0.25 floor; the LSP servers have no apt package at all.
 # python is the fourth runtime and cost nothing: noble's system python3 IS
 # 3.12, and uv covers per-project versions.
-NVIM_VERSION="v0.12.5"
+NVIM_VERSION="v0.12.6"
 
 install_node24() {
   if [[ ! -f /etc/apt/sources.list.d/nodesource.list ]]; then

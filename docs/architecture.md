@@ -180,7 +180,8 @@ run the same Brewfile; there is no per-machine package file.
 | Health check | `bin/ws-doctor` (config source/deploy drift) |
 | What gets deployed where | `config_manifest` in `lib/common.sh` — read by both bootstraps and by ws-doctor |
 | One-time teardown | `macos/retire.sh`, stamped at `~/.local/state/dotfiles/retired` |
-| Package updates | `bin/update-system` — brew + mas (macOS) · apt + `npm -g @latest` + nvim-pin check (Ubuntu) |
+| Package updates | `bin/update-system` — brew + mas (macOS) · apt + npm globals + zsh plugins + fzf + Starship + nvim-pin check (Ubuntu) |
+| Supply-chain cooldown | `configs/npmrc` (`min-release-age=7`) · `configs/uv.toml` (`exclude-newer = "7 days"`) |
 | Runtimes (macOS) | brew — `node@24`, `python@3.12`, `neovim`, `tree-sitter-cli` |
 | Runtimes (Ubuntu) | NodeSource apt (node 24) · system python3 (3.12) · pinned nvim release tarball · `npm -g` (tree-sitter-cli, pyright, typescript) |
 | Clipboard | terminal via OSC 52; WSL via clip.exe / Get-Clipboard |
