@@ -10,12 +10,12 @@
 # App Store apps in place.
 #
 # Ubuntu: apt covers node (NodeSource pins the major) and the system
-# python, but the three npm globals do NOT self-update — `npm install -g`
-# is install-once, and bootstrap only installs what's missing — so they
-# get an explicit @latest pass here. The nvim tarball can't be upgraded
-# from here at all (the pin lives in ubuntu/bootstrap.sh); it gets a
-# version check that notes when the pin has fallen behind, because
-# rotting silently is how pins die.
+# python, but the npm globals, zsh plugins, fzf and non-brew Starship do
+# not self-update — bootstrap only installs what's missing — so they get
+# explicit update passes here. The nvim tarball can't be upgraded from
+# here at all (the pin lives in ubuntu/bootstrap.sh); it gets a version
+# check that notes when the pin has fallen behind, because rotting
+# silently is how pins die.
 # macOS itself is deliberately untouched — not even `softwareupdate -l`,
 # which costs a network round trip and leaves a standing [warn] whenever
 # Apple has something queued. Apple nags about its own updates fine. The
@@ -69,6 +69,42 @@ if [[ "$(uname -s)" == "Linux" ]] && have apt-get; then
     npm install -g tree-sitter-cli@latest pyright@latest typescript@latest \
       2>&1 | sed 's/^/    /' || warn "npm -g update had failures"
     ok "npm globals current"
+  fi
+
+  step "updating zsh plugins and fzf"
+  for d in "$HOME/.zsh/zsh-autosuggestions" \
+           "$HOME/.zsh/zsh-syntax-highlighting" \
+           "$HOME/.fzf"; do
+    if [[ -d "$d/.git" ]]; then
+      git -C "$d" pull -q --ff-only || warn "could not update ${d/#$HOME/~}"
+      if [[ "$d" == "$HOME/.fzf" ]]; then
+        if run_quiet "fzf installer" "$HOME/.fzf/install" --bin; then
+          :
+        else
+          warn "fzf binary update had failures"
+        fi
+      fi
+    fi
+  done
+  ok "zsh plugins and fzf current"
+
+  if have starship && have curl && \
+     { ! have brew || ! brew list --formula starship >/dev/null 2>&1; }; then
+    starship_latest="$(curl -fsSL --max-time 10 \
+        https://api.github.com/repos/starship/starship/releases/latest 2>/dev/null \
+      | sed -nE 's/.*"tag_name": *"([^"]+)".*/\1/p')"
+    starship_latest="${starship_latest#v}"
+    starship_installed="$(starship --version | sed -n '1s/^starship //p')"
+    if [[ -n "$starship_latest" && -n "$starship_installed" && \
+          "$starship_latest" != "$starship_installed" ]]; then
+      step "updating Starship ($starship_installed → $starship_latest)"
+      if run_quiet "starship installer" bash -c \
+        "curl --proto '=https' --tlsv1.2 -sSf https://starship.rs/install.sh | sh -s -- --yes"; then
+        ok "Starship current"
+      else
+        warn "Starship update had failures"
+      fi
+    fi
   fi
 
   # Compare the pinned nvim against the latest release. note(), not
