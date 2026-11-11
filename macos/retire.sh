@@ -319,7 +319,7 @@ rm -f "$HOME/.local/bin/tmux-sessionizer"
 # work that ended 2026-11; the repos stay on GitHub. Its nvim glue was a
 # plugin spec in lua/plugins/ that the managed init.lua never imported,
 # and the four plugins it pulled in sat unused in lazy's install dir.
-rm -f "$HOME/.local/bin/leetcode-os" "$HOME/.local/bin/professor-devin"
+rm -f "$HOME/.local/bin/leetcode-os"
 rm -rf "$HOME/.config/leetcode-os" "$HOME/.config/nvim/lua/plugins/leetcode.lua"
 rmdir "$HOME/.config/nvim/lua/plugins" "$HOME/.config/nvim/lua" 2>/dev/null || true
 for plug in leetcode.nvim plenary.nvim nui.nvim nvim-notify nvim-web-devicons; do
