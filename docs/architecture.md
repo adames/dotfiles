@@ -5,24 +5,34 @@ Terminal is the dev surface; window management is mouse + native macOS.
 ## Stack
 
 ```
-Caps Lock → Hyperkey ─┬─ tap → Esc
-                      └─ hold → Hyper (⌃⌥⌘⇧) — unbound, held in reserve
-
 Ghostty → tmux (C-Space) → zsh (vi-mode) → Neovim (Space leader)
 ```
+
+Stock keyboard. No remapper, no chord layer, no Accessibility grant.
 
 Modifier sets the scope: bare `h` moves the vim cursor, `C-Space h`
 moves the tmux pane. Same letter, no overlap. Bindings are documented
 next to the code that defines them: the `# @cs row` blocks in
 `configs/zshrc`, `configs/tmux.conf` and `configs/nvim-init.lua`.
 
-Two collisions are resolved on purpose:
+One collision is resolved on purpose:
 
 | Collision | Resolution |
 |---|---|
-| Caps-tap `Esc` vs Ghostty option-as-alt | `escape-time 10` in tmux.conf gives ESC time |
 | tmux prefix `C-Space` vs inner program wanting literal `C-Space` | `C-Space C-Space` (`send-prefix` binding) |
 
+`escape-time 10` in tmux.conf stays: it lets ESC sequences arrive whole
+without making nvim's Esc feel laggy, remapper or not.
+
+## Reaching an app
+
+`⌘Space`, type its name. Spotlight on Tahoe answers questions too, so
+the launcher is also the first place to ask something — that made a
+dedicated hotkey layer worth less than it was, and Hyperkey went with
+it. If a direct key for a top app is ever wanted, the vanilla path is
+the Shortcuts app: an "Open App" shortcut with a keyboard shortcut
+attached. OS-native, no Accessibility grant, syncs with the Apple ID.
+Not built; noted so it isn't rediscovered as a third-party app.
 No `Option/M-*` tmux bindings — they collide with Ghostty's left-Alt bytes.
 
 ## Packages are declared, never assumed
@@ -51,7 +61,10 @@ a Mac that still carries it. Listed so nobody re-discovers them.
   way out, so services are stopped before configs are removed.
 - **AeroSpace, sigil, rune, the cheatsheet HUD** (2026-08) — a tiler and
   the Hyper chord layer that drove it. Mouse + one screen did the work.
-  Hyperkey survives for tap-Caps = Esc; the Hyper layer is empty.
+- **Hyperkey** (2026-11) — the last remapper, kept three months for
+  tap-Caps = Esc alone. One cask, a bootstrap phase, a TCC probe and an
+  Accessibility grant for one key, and the Hyper side was unbound. macOS
+  does Caps → Esc natively if it's ever missed.
 - **Raycast** — native Tahoe Spotlight is the launcher. This is why
   `macos/bootstrap.sh` warns below macOS 26: the Spotlight defaults and
   the Raycast teardown both assume Tahoe.
@@ -72,8 +85,28 @@ a Mac that still carries it. Listed so nobody re-discovers them.
   experiment's leftovers. Tor's cask pointed at a dmg that 404'd and
   took every `brew upgrade` down with it; that's how the audit started.
 - **The permission wizard** — 190 lines to open one System Settings pane.
-  It's a phase in `macos/bootstrap.sh` now: probe TCC.db, open the
-  Accessibility pane only if the grant can't be confirmed.
+  Became a bootstrap phase (probe TCC.db, open the pane only if unsure),
+  then went entirely with Hyperkey: nothing left needs a grant.
+- **glow, htop, lazygit, ffmpeg** (2026-11) — a year of shell history
+  showed zero, two, three and zero uses. The terminal is where agents
+  work, not where I type; a formula has to be called by a script, the
+  editor or an agent to stay. ffmpeg took 14 dependency formulae with it
+  (yazi lost video thumbnails, nothing else).
+- **brew `pyright`** (2026-11) — the formula depends on unversioned
+  `node`, so every Mac silently had node 26 next to node@24. pyright is
+  `npm -g` into `~/.local` now, as Ubuntu always had it. One node.
+- **Xcode** (2026-11) — kept getting reinstalled, and the reason was
+  mechanical: once installed it owns `xcode-select`, so deleting the
+  bundle broke every `git`/`make`/`clang` shim with "requires Xcode", and
+  the fix people reach for is the download. `ensure_xcode_clt` pins the
+  developer dir to the Command Line Tools; retire.sh deletes the bundle.
+  Anything that truly needs Xcode (a simulator) can have it as a
+  disposable download, and bootstrap puts the developer dir back.
+- **tmux-sessionizer** (2026-11) — zero uses; its project root was a
+  directory that no longer existed.
+- **The coding-practice stack** (2026-11) — leetcode-os, its nvim glue
+  (a plugin spec the managed init.lua never imported) and the `tutor`
+  skill. Practice ended; the repos stay on GitHub.
 - **sparse-checkout on the Linux clone** — 93 lines to exclude one
   ghostty config and `macos/` from a clone where they cost nothing.
 - **Tests that grep source text** — a test that a script *contains* a
@@ -82,7 +115,12 @@ a Mac that still carries it. Listed so nobody re-discovers them.
 
 Kept on preference, stated so a future audit doesn't cut it: **yazi**.
 The overlap with `oil.nvim` is real and it isn't load-bearing. I like
-it. Everything else here earns its place on the work it does.
+it. Kept as reserve, deliberately: **nvim and its two language servers,
+tmux, fzf, starship** — cheap to carry, and they are what makes any
+machine I sit at immediately usable. **OrbStack** likewise: the app is
+700 MB and idle until a `docker` command wakes it; the thing that grows
+is its data disk, and `docker system prune` is the answer to that, not
+uninstalling. Everything else here earns its place on the work it does.
 
 Declined: git aliases and difftastic. delta as pager is enough.
 
@@ -101,7 +139,7 @@ BOOTSTRAP_CONFIGS_ONLY=1 ~/dotfiles/bootstrap.sh
 ```
 
 deploys exactly that core — no Homebrew, no macOS defaults, no teardown,
-no Accessibility prompt, no `chsh`. It is also the shape of a
+no `chsh`. It is also the shape of a
 work-friendly fork: that one function plus `configs/`.
 
 Terminal parity is the one manual step. `configs/ghostty-config` sets
@@ -132,7 +170,10 @@ which is faster but means downloading an `.exe` and keeping it current.
 `.zshrc` is read by interactive shells and nothing else. With PATH set
 only there, `node` was v24 when typed by hand and v26 everywhere else —
 scripts, cron, editor subprocesses, and the non-interactive shells that
-Claude Code and Devin run builds in. Reviewing on one runtime while the
+Claude Code and Devin run builds in. (The v26 was brew's unversioned
+`node`, pulled in by the `pyright` formula. That second node is gone as
+of 2026-11, so the pin is also the only node — but the PATH rule below
+is what keeps the next accidental runtime from doing the same thing.) Reviewing on one runtime while the
 agent that wrote the code built on another is an invisible bug generator:
 both shells report success.
 
@@ -172,20 +213,20 @@ run the same Brewfile; there is no per-machine package file.
 
 | Concern | Owner |
 |---|---|
-| Caps remap (tap = Esc) | Hyperkey (user defaults, seeded by `macos/bootstrap.sh`) |
-| Accessibility grant for Hyperkey | `phase_accessibility` in `macos/bootstrap.sh` |
+| Keyboard | stock macOS; Caps → Esc is a Modifier Keys toggle if wanted |
 | Window management | macOS native + mouse |
-| Launcher | Spotlight (`⌘Space`) — see [macos-defaults.md](macos-defaults.md) |
+| Launcher / reaching apps | Spotlight (`⌘Space`) — see [macos-defaults.md](macos-defaults.md) |
+| Developer dir | Command Line Tools, pinned by `ensure_xcode_clt`; no Xcode |
 | Terminal multiplexing | tmux (`C-Space`) |
 | Health check | `bin/ws-doctor` (config source/deploy drift) |
 | What gets deployed where | `config_manifest` in `lib/common.sh` — read by both bootstraps and by ws-doctor |
 | One-time teardown | `macos/retire.sh`, stamped at `~/.local/state/dotfiles/retired` |
-| Package updates | `bin/update-system` — brew + mas (macOS) · apt + `npm -g @latest` + nvim-pin check (Ubuntu) |
-| Runtimes (macOS) | brew — `node@24`, `python@3.12`, `neovim`, `tree-sitter-cli` |
-| Runtimes (Ubuntu) | NodeSource apt (node 24) · system python3 (3.12) · pinned nvim release tarball · `npm -g` (tree-sitter-cli, pyright, typescript) |
+| Package updates | `bin/update-system` — brew + mas (macOS) · apt + nvim-pin check (Ubuntu) · `npm -g @latest` for whatever is in `~/.local/lib/node_modules` (both) |
+| Runtimes (macOS) | brew — `node@24` (the only node), `python@3.12`, `neovim`, `tree-sitter-cli`, `typescript` · `npm -g` into `~/.local` — pyright, vercel |
+| Runtimes (Ubuntu) | NodeSource apt (node 24) · system python3 (3.12) · pinned nvim release tarball · `npm -g` into `~/.local` — tree-sitter-cli, pyright, typescript |
 | Clipboard | terminal via OSC 52; WSL via clip.exe / Get-Clipboard |
 | Shell floor | bash 3.2 (macOS ships no newer), enforced by tests |
 | Run output | `lib/common.sh` — graded lines, `brew_quiet`/`apt_quiet`, `run_summary` |
 
 No DriverKit kext, no scripting addition, no SIP modification, no
-window-manager daemon.
+window-manager daemon, no input monitor, no Accessibility grant.

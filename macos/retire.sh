@@ -22,13 +22,20 @@
 #               (VMs are OrbStack's job), exercism (never picked up),
 #               Reader.app (PDF Expert is the one PDF app), QuickMD
 #               (glow is the one markdown viewer)
+#   4  2026-11  The footprint audit. Hyperkey (the last remapper), glow /
+#               htop / lazygit / ffmpeg (zero use in a year of history),
+#               brew pyright + the second node it dragged in, Xcode (the
+#               CLT are the developer dir now), tmux-sessionizer, the
+#               coding-practice stack (leetcode-os and its nvim glue), a
+#               launch agent for a repo that isn't on this Mac, and the
+#               Sikarugir leftovers generation 3 missed
 
 set -euo pipefail
 
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 . "$DOTFILES_DIR/lib/common.sh"
 
-GENERATION=3
+GENERATION=4
 STAMP_DIR="$HOME/.local/state/dotfiles"
 STAMP="$STAMP_DIR/retired"
 
@@ -263,6 +270,109 @@ for app in Reader QuickMD; do
     warn "$app.app could not be removed — needs sudo: rm -rf \"/Applications/$app.app\""
   fi
 done
+
+# ─── generation 4 · the footprint audit ─────────────────────────────────────
+# Formulae that fell off. glow/htop/lazygit/ffmpeg: zero or near-zero use
+# in a year of shell history — the terminal is where agents work now, not
+# where I type. pyright: moved to `npm -g` because the formula depends on
+# unversioned `node`, i.e. a second node major next to node@24. `node`
+# itself is listed last so pyright's dependency is gone before the
+# keep-if-depended-on check asks who still needs it.
+# First the npm globals that lived inside brew's `node` tree: `brew
+# uninstall node` tripped over the stray `vercel` there on m3, and
+# autoremove had to finish the job. pyright and vercel come back via
+# install_npm_tools, under ~/.local, where upgrades can't eat them.
+rm -rf /opt/homebrew/lib/node_modules/vercel 2>/dev/null || true
+[[ -L /opt/homebrew/bin/vercel && ! -e /opt/homebrew/bin/vercel ]] && rm -f /opt/homebrew/bin/vercel
+for f in glow htop lazygit ffmpeg pyright node; do
+  has_formula "$f" || continue
+  users="$(brew uses --installed "$f" 2>/dev/null | tr '\n' ' ')"
+  if [[ -n "${users// /}" ]]; then
+    note "keeping $f — still used by: ${users% }"
+    continue
+  fi
+  step "uninstalling undeclared formula: $f"
+  if brew uninstall --formula "$f" >/dev/null 2>&1; then
+    ok "$f uninstalled"
+  else
+    warn "$f uninstall failed"
+  fi
+done
+# ffmpeg and node each brought a dependency tree nothing else wants.
+if have brew; then
+  brew autoremove >/dev/null 2>&1 && ok "orphaned dependencies autoremoved" \
+    || warn "brew autoremove failed"
+fi
+rm -rf "$HOME/Library/Application Support/lazygit"
+
+# Hyperkey: the last keyboard remapper. The Hyper layer was unbound since
+# 2026-08 and tap-Caps=Esc alone didn't justify a cask, a bootstrap phase
+# and an Accessibility grant. Zapped — it holds nothing but prefs. The
+# Login Items entry outlives the app, so it's removed by name.
+retire_cask hyperkey Hyperkey --zap
+osascript -e 'tell application "System Events" to delete login item "Hyperkey"' >/dev/null 2>&1 || true
+
+# tmux-sessionizer: zero uses; its project root (~/Dev) stopped existing.
+rm -f "$HOME/.local/bin/tmux-sessionizer"
+
+# The coding-practice stack. leetcode-os drove daily LeetCode / Exercism
+# work that ended 2026-11; the repos stay on GitHub. Its nvim glue was a
+# plugin spec in lua/plugins/ that the managed init.lua never imported,
+# and the four plugins it pulled in sat unused in lazy's install dir.
+rm -f "$HOME/.local/bin/leetcode-os" "$HOME/.local/bin/professor-devin"
+rm -rf "$HOME/.config/leetcode-os" "$HOME/.config/nvim/lua/plugins/leetcode.lua"
+rmdir "$HOME/.config/nvim/lua/plugins" "$HOME/.config/nvim/lua" 2>/dev/null || true
+for plug in leetcode.nvim plenary.nvim nui.nvim nvim-notify nvim-web-devicons; do
+  rm -rf "$HOME/.local/share/nvim/lazy/$plug"
+done
+# uv tools from the same era: pytest for practice; git-filter-repo was
+# retired in generation 1 as a formula and survived as a uv tool.
+if have uv; then
+  for t in pytest git-filter-repo; do
+    uv tool list 2>/dev/null | grep -q "^$t " && uv tool uninstall "$t" >/dev/null 2>&1 \
+      && ok "uv tool $t uninstalled"
+  done
+fi
+
+# commonplace-sync: a launch agent that runs a script in ~/code/commonplace
+# every 30 minutes. That repo lives on another machine; here the agent has
+# only ever logged "No such file or directory".
+agent="$HOME/Library/LaunchAgents/cc.adames.commonplace-sync.plist"
+if [[ -f "$agent" ]]; then
+  step "unloading commonplace-sync launch agent (repo isn't on this Mac)"
+  launchctl bootout "gui/$(id -u)/cc.adames.commonplace-sync" >/dev/null 2>&1 || true
+  rm -f "$agent" "$HOME/Library/Logs/commonplace-sync.log"
+  rm -rf "$HOME/.config/commonplace-sync"
+  ok "commonplace-sync removed"
+fi
+
+# Xcode. The CLT are installed and are the developer dir (ensure_xcode_clt
+# pins that before this runs), so the 4 GB bundle is dead weight. mas-
+# installed, root-owned: needs phase 1's cached sudo; by hand it warns.
+# ~/Library/Developer holds simulator runtimes and Xcode state — nothing
+# the CLT use. Purchases stay on the Apple ID; `mas` will not reinstall
+# it because the Brewfile never lists it.
+clt=/Library/Developer/CommandLineTools
+if [[ -d /Applications/Xcode.app ]]; then
+  if [[ "$(xcode-select -p 2>/dev/null)" != "$clt" ]] \
+       && ! sudo -n xcode-select --switch "$clt" 2>/dev/null; then
+    warn "Xcode.app kept — needs sudo: xcode-select --switch $clt && rm -rf /Applications/Xcode.app"
+  else
+    step "removing /Applications/Xcode.app (CLT are the developer dir)"
+    osascript -e 'tell application "Xcode" to quit' 2>/dev/null || true
+    if rm -rf /Applications/Xcode.app 2>/dev/null || sudo -n rm -rf /Applications/Xcode.app 2>/dev/null; then
+      rm -rf "$HOME/Library/Developer"
+      ok "Xcode removed"
+    else
+      warn "Xcode.app could not be removed — needs sudo: rm -rf /Applications/Xcode.app"
+    fi
+  fi
+fi
+
+# Sikarugir leftovers generation 3 missed: the creator's output dir, its
+# helper binary, and the winetricks cache.
+rm -rf "$HOME/Applications/Sikarugir" "$HOME/.local/bin/sikatool" \
+       "$HOME/.local/share/sikatool" "$HOME/.cache/winetricks"
 
 # ─── stamp ──────────────────────────────────────────────────────────────────
 mkdir -p "$STAMP_DIR"

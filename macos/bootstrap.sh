@@ -44,7 +44,7 @@ check_macos_floor() {
 phase_sudo() {
   phase "sudo"
   if ! has_tty; then
-    warn "no TTY — cask installs and Accessibility prompts will be skipped"
+    warn "no TTY — cask installs will be skipped"
     return 0
   fi
   step "caching sudo (one prompt for the run)"
@@ -100,11 +100,14 @@ phase_packages() {
   fi
 
   # Strip Gatekeeper quarantine so scripted `open -a` works pre-launch.
-  for app in /Applications/Hyperkey.app /Applications/Helium.app; do
+  for app in /Applications/Helium.app; do
     [[ -d "$app" ]] && xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
   done
 
-  seed_hyperkey_defaults
+  # pyright (the Python LSP) and vercel (the deploy CLI the Claude Code
+  # plugin shells out to) are `npm -g` into ~/.local — not brew, because
+  # brew's pyright drags in a second node. Same function Ubuntu uses.
+  install_npm_tools pyright vercel
 
   # Devin is a work tool that lives on the personal Macs too, for as long
   # as the work does — this repo never runs on the work machine, so here
@@ -133,58 +136,34 @@ brewfile_casks() {
   awk -F'"' '/^[[:space:]]*cask[[:space:]]+"/ { print $2 }' "$1" | paste -sd' ' -
 }
 
-# Xcode Command Line Tools — brew needs them to install most formulae.
-# Without them, the Homebrew installer drops you into a graphical
-# "install developer tools" prompt that wedges any non-interactive run.
+# Command Line Tools, and ONLY the Command Line Tools. Full Xcode kept
+# coming back: install it once (a simulator, a Swift one-off, a tool that
+# asks for it) and it takes over `xcode-select`, so every git / make /
+# clang / python3 shim resolves into Xcode.app. Delete the bundle after
+# that and they all break with "tool requires Xcode" — and the reflex fix
+# is to download Xcode again. That is the dance. Pinning the developer
+# dir to the CLT ends it: Xcode becomes a disposable 4 GB download that
+# retire.sh removes, not a dependency anything resolves through.
 ensure_xcode_clt() {
-  if xcode-select -p >/dev/null 2>&1; then
-    return 0
-  fi
-  step "installing Xcode Command Line Tools"
-  if has_tty; then
-    xcode-select --install 2>/dev/null || true
-    err "complete the Xcode CLT prompt, then re-run this bootstrap"
+  local clt=/Library/Developer/CommandLineTools cur
+  if [[ ! -d "$clt" ]]; then
+    step "installing Xcode Command Line Tools"
+    if has_tty; then
+      xcode-select --install 2>/dev/null || true
+      err "complete the Xcode CLT prompt, then re-run this bootstrap"
+      exit 1
+    fi
+    err "Xcode CLT missing and no TTY for the install prompt"
     exit 1
   fi
-  err "Xcode CLT missing and no TTY for the install prompt"
-  exit 1
-}
-
-# Seed Hyperkey (Caps→Hyper, tap-for-Esc). Hyperkey ≥1.56 reads the
-# bundle-id domain `com.knollsoft.Hyperkey` with the keys below. The plain
-# `Hyperkey` domain with enableHyperKey/tapForEscape is the pre-1.56
-# schema — writing it is a silent no-op. Hyperkey rewrites its prefs on
-# quit, so the order matters: quit → write → relaunch. Idempotent.
-seed_hyperkey_defaults() {
-  [[ -d /Applications/Hyperkey.app ]] || return 0
-  local domain="com.knollsoft.Hyperkey" ver
-  ver=$(defaults read /Applications/Hyperkey.app/Contents/Info CFBundleShortVersionString 2>/dev/null || echo '?')
-  step "seeding Hyperkey ($domain · v$ver)"
-
-  osascript -e 'tell application "Hyperkey" to quit' 2>/dev/null || true
-  # Quit is async — wait for the process to actually exit so its on-quit
-  # prefs rewrite can't clobber ours (a fixed sleep lost the race on slow
-  # machines). ~5s cap, then proceed regardless.
-  local waited=0
-  while pgrep -x Hyperkey >/dev/null 2>&1 && (( waited < 50 )); do
-    sleep 0.1
-    waited=$((waited + 1))
-  done
-
-  # Caps→Hyper (capsLockRemapped=2, keyRemap=1), Hyper = ⌃⌥⌘⇧
-  # (hyperFlags=1966080), tap-for-Esc on (executeQuickHyperKey=1) with
-  # keycode 53 (kVK_Escape).
-  defaults write "$domain" capsLockRemapped     -int  2
-  defaults write "$domain" keyRemap             -int  1
-  defaults write "$domain" hyperFlags           -int  1966080
-  defaults write "$domain" quickHyperKeycode    -int  53
-  defaults write "$domain" executeQuickHyperKey -int  1
-  defaults write "$domain" launchOnLogin        -int  1
-
-  # Relaunch in the background so the daemon picks up the seeded prefs
-  # without stealing focus.
-  open -ga Hyperkey 2>/dev/null || true
-  ok "Hyperkey seeded (caps→hyper, tap-for-esc)"
+  cur="$(xcode-select -p 2>/dev/null || true)"
+  [[ "$cur" == "$clt" ]] && return 0
+  step "pointing xcode-select at the CLT (was: ${cur:-unset})"
+  if sudo -n xcode-select --switch "$clt" 2>/dev/null; then
+    ok "developer dir → $clt"
+  else
+    warn "needs sudo: xcode-select --switch $clt"
+  fi
 }
 
 # ─── phase 3 · apply configs + macOS defaults ───────────────────────────────
@@ -204,40 +183,16 @@ phase_apply() {
   deploy_configs
 }
 
-# ─── phase 4 · Accessibility for Hyperkey ───────────────────────────────────
-# The one TCC grant the stack needs. The system TCC.db is readable only
-# when the terminal has Full Disk Access; when it is, a granted Mac stays
-# silent here. When it isn't (every fresh Mac) the answer is unknown and
-# the pane opens — which is where a fresh Mac was headed anyway.
-phase_accessibility() {
-  phase "Accessibility for Hyperkey"
-  local granted
-  granted="$(sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" \
-    "SELECT auth_value FROM access WHERE service='kTCCServiceAccessibility' AND client='com.knollsoft.Hyperkey' LIMIT 1;" \
-    2>/dev/null || true)"
-  if [[ "$granted" == "2" ]]; then
-    ok "Hyperkey has Accessibility"
-    return 0
-  fi
-  if ! has_tty; then
-    warn "grant Hyperkey Accessibility by hand: System Settings → Privacy & Security → Accessibility"
-    return 0
-  fi
-  open -ga Hyperkey 2>/dev/null || true
-  open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-  printf '\n  Toggle Hyperkey ON in Accessibility, then tap Caps to check it lands as Esc.\n\n'
-  read -r -p "  ↵  press enter when done... " _ || true
-  ok "Accessibility walk-through done"
-}
-
 main() {
-  section "Hyper-key dotfiles bootstrap (macOS)"
-  # ~/.local/bin is where this repo's own tools land (uv installs there too).
-  export PATH="$HOME/.local/bin:$PATH"
+  section "dotfiles bootstrap (macOS)"
+  # ~/.local/bin is where this repo's own tools land (uv and npm -g too).
+  # node@24 is keg-only, so its npm needs putting on PATH by hand here —
+  # bash doesn't read configs/zshenv.
+  export PATH="$HOME/.local/bin:/opt/homebrew/opt/node@24/bin:$PATH"
 
   # Configs-only mode: the portable core and nothing else. No sudo, no
-  # brew, no macOS defaults, no teardown of another machine's apps, no
-  # Accessibility prompt. For a Mac this repo doesn't own.
+  # brew, no macOS defaults, no teardown of another machine's apps. For
+  # a Mac this repo doesn't own.
   if [[ -n "${BOOTSTRAP_CONFIGS_ONLY:-}" ]]; then
     PHASE_TOTAL=1
     phase "deploy configs (configs-only mode)"
@@ -250,7 +205,7 @@ main() {
 
   # Same self-numbering list as ubuntu/bootstrap.sh — phase() takes the total
   # from here, so the headers can never drift out of sync with reality.
-  local phases=(phase_sudo phase_packages phase_apply phase_accessibility)
+  local phases=(phase_sudo phase_packages phase_apply)
   PHASE_TOTAL=${#phases[@]}
   local p
   for p in "${phases[@]}"; do "$p"; done

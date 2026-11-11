@@ -9,13 +9,15 @@
 # upgrade` moves them within their pin and never across it. mas upgrades
 # App Store apps in place.
 #
+# Both: npm globals (pyright everywhere; tree-sitter-cli and typescript
+# on Ubuntu; vercel on macOS) live in ~/.local and do NOT self-update —
+# `npm install -g` is install-once, and bootstrap only installs what's
+# missing — so whatever is on disk gets an @latest pass here.
+#
 # Ubuntu: apt covers node (NodeSource pins the major) and the system
-# python, but the three npm globals do NOT self-update — `npm install -g`
-# is install-once, and bootstrap only installs what's missing — so they
-# get an explicit @latest pass here. The nvim tarball can't be upgraded
-# from here at all (the pin lives in ubuntu/bootstrap.sh); it gets a
-# version check that notes when the pin has fallen behind, because
-# rotting silently is how pins die.
+# python. The nvim tarball can't be upgraded from here at all (the pin
+# lives in ubuntu/bootstrap.sh); it gets a version check that notes when
+# the pin has fallen behind, because rotting silently is how pins die.
 # macOS itself is deliberately untouched — not even `softwareupdate -l`,
 # which costs a network round trip and leaves a standing [warn] whenever
 # Apple has something queued. Apple nags about its own updates fine. The
@@ -62,15 +64,6 @@ if [[ "$(uname -s)" == "Linux" ]] && have apt-get; then
     warn "apt upgrade had failures"
   fi
 
-  # The Linux twin of `brew upgrade` for the editor toolchain: these
-  # three froze at whatever version bootstrap first installed.
-  if have npm; then
-    step "npm -g @latest (tree-sitter-cli, pyright, typescript)"
-    npm install -g tree-sitter-cli@latest pyright@latest typescript@latest \
-      2>&1 | sed 's/^/    /' || warn "npm -g update had failures"
-    ok "npm globals current"
-  fi
-
   # Compare the pinned nvim against the latest release. note(), not
   # warn: a lagging pin is a true finding, not a failure — and the fix
   # is a one-line bump of NVIM_VERSION, not anything this script does.
@@ -86,7 +79,30 @@ if [[ "$(uname -s)" == "Linux" ]] && have apt-get; then
   fi
 fi
 
-# App Store apps (Xcode, …) — mas upgrades them in place, no App Store
+# npm globals: the list is read off disk (~/.local/lib/node_modules), so
+# a tool added to install_npm_tools in either bootstrap is covered here
+# without an edit. Scoped packages (@org/name) aren't expected; skipped
+# with a note rather than mis-parsed.
+if have npm && [[ -d "$HOME/.local/lib/node_modules" ]]; then
+  globals=""
+  for d in "$HOME/.local/lib/node_modules"/*; do
+    [[ -d "$d" ]] || continue
+    name="${d##*/}"
+    case "$name" in
+      .*|npm|corepack) continue ;;
+      @*) note "skipping scoped npm global $name — add it to update-system by hand"; continue ;;
+    esac
+    globals="$globals $name@latest"
+  done
+  if [[ -n "$globals" ]]; then
+    step "npm -g @latest (${globals// @latest/})"
+    # shellcheck disable=SC2086  # $globals is a deliberate word list
+    npm install -g $globals 2>&1 | sed 's/^/    /' || warn "npm -g update had failures"
+    ok "npm globals current"
+  fi
+fi
+
+# App Store apps (PDF Expert) — mas upgrades them in place, no App Store
 # GUI round-trip. Skipped silently where mas isn't installed (Ubuntu).
 if have mas; then
   step "mas upgrade (App Store apps)"

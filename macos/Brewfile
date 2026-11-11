@@ -10,8 +10,15 @@
 #
 # This file is the whole truth for formulae: `brew leaves` should contain
 # nothing that isn't listed here. Anything that drifts in gets adopted
-# (add a line, with the reason) or torn down in phase_apply — never left
-# floating, or the next fresh Mac silently comes up different.
+# (add a line, with the reason) or torn down in macos/retire.sh — never
+# left floating, or the next fresh Mac silently comes up different.
+#
+# The 2026-11 audit found the terminal is barely typed in any more — the
+# work runs through coding agents in non-interactive shells. So the bar
+# for a formula is: does an agent, a script, or the editor call it? glow,
+# htop, lazygit and ffmpeg had zero or near-zero uses in a year of history
+# and went. What stays is the reserve that keeps the machine flexible:
+# the editor, its two language servers, and the shell that agents run in.
 
 # CLI formulae — shell, multiplexer, prompt, fuzzy / grep / git stack.
 brew "git"
@@ -24,78 +31,72 @@ brew "fd"
 brew "git-delta"
 brew "zoxide"
 brew "gh"
-brew "lazygit"
-brew "yazi"
+brew "yazi"              # kept on preference — see docs/architecture.md
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
 brew "jq"                # JSON surgery — every script here and at work
-brew "htop"
-brew "mas"               # App Store CLI — lets update-system upgrade App Store apps (Xcode)
+brew "mas"               # App Store CLI — lets update-system upgrade App Store apps
 
 # Editor + runtimes. neovim was installed by hand on both Macs and never
 # declared, so a fresh machine deployed nvim's config with no nvim.
 #
-# The runtimes are brew's now, not mise's. mise was handing out versions
+# The runtimes are brew's, not mise's. mise was handing out versions
 # byte-identical to these formulae through an extra shim layer, and its
 # one real advantage — per-project switching — went unused: the .nvmrc
 # files in ~/code were being ignored and nobody noticed for five weeks.
 # Versioned formulae pin just as hard (node@24 stays on 24 through a
 # `brew upgrade`), and uv covers per-project Python properly.
 #
-# Both versioned formulae are keg-only — configs/zshrc puts their bin
+# node@24 is THE node. Every personal project pins 24 (.nvmrc, engines)
+# and the Ubuntu box runs NodeSource 24, so a second major on the Mac is
+# a bug generator, not flexibility. The brew `pyright` formula depended
+# on plain `node` (26) and quietly installed exactly that second major —
+# so pyright moved to `npm -g` (below) and `node` went with it.
+#
+# Both versioned formulae are keg-only — configs/zshenv puts their bin
 # dirs on PATH, python@3.12 via libexec/bin so bare `python3` resolves
 # here instead of falling back to macOS's system 3.9.
 brew "neovim"
 brew "node@24"
 brew "python@3.12"
 # The CLI, not `tree-sitter` — that formula is the C library. This is the
-# binary nvim-treesitter shells out to when it compiles a parser, and
-# it's what mise was actually providing under the name "tree-sitter".
+# binary nvim-treesitter shells out to when it compiles a parser.
 brew "tree-sitter-cli"
 
 # Language servers. Nvim gates each on `executable()`, so a missing one
 # degrades instead of erroring. These are reading tools: gd, gr, K and
-# diagnostics on code that something else wrote. Python is read at work,
-# so pyright earns its place; ruff went with the authoring workflow.
-brew "pyright"
-
-# JS/TS (personal projects): the LSP is `tsc --lsp`, TypeScript 7's own
-# Go-native server. NOT typescript-language-server — that wraps the old
-# tsserver.js, which TS 7 no longer ships, so the brew pairing is broken
-# on arrival ("Could not find a valid TypeScript installation"). The
-# native server also needs no node_modules, so a stray .ts file opened
-# anywhere still gets gd / K / diagnostics.
+# diagnostics on code that something else wrote.
+#
+# JS/TS: the LSP is `tsc --lsp`, TypeScript 7's own Go-native server. NOT
+# typescript-language-server — that wraps the old tsserver.js, which TS 7
+# no longer ships. No node dependency, no node_modules required.
 brew "typescript"
+# Python: pyright is NOT a brew line. Its formula depends on unversioned
+# `node`, which put a second node on the machine. It's `npm -g` into
+# ~/.local instead (configs/npmrc, install_npm_tools in lib/common.sh),
+# the same way Ubuntu already had it — one install path on both platforms.
 
 # uv: the Python entry point — `uv run`, `uv venv`, `uv tool install`.
-# Replaces pipx (removed in phase_apply) and keeps work Python readable
-# without a global site-packages to maintain.
+# Replaces pipx and keeps Python readable without a global site-packages.
 brew "uv"
-
-# ffmpeg: yazi's video thumbnails, and the transcoder now that HandBrake
-# is gone.
-brew "ffmpeg"
-
-# glow: the markdown viewer. One, deliberately. A 381 MB App Store app
-# for rendering a README lost to a 10 MB binary that also works over SSH
-# on the Linux box — same command on every machine, which is the whole
-# point. Obsidian is still the place markdown gets *written*.
-brew "glow"
 
 # Terminal font (nerd glyphs for starship / yazi).
 cask "font-jetbrains-mono-nerd-font"
 
-# Network privacy. One VPN, not two — ExpressVPN is torn down in phase_apply.
+# Network privacy. One VPN, not two — ExpressVPN is torn down in retire.sh.
 cask "protonvpn"
 
-# GUI env shared between machines.
-cask "hyperkey"          # caps tap→esc (the one keymap survivor)
+# GUI env shared between machines. No keyboard remapper: Hyperkey was the
+# last of that stack and went in retire.sh generation 4 — Spotlight is the
+# way to an app, and macOS's own Modifier Keys pane does Caps→Esc if wanted.
 cask "ghostty"
 cask "helium-browser"    # net.imput.helium (NOT the deprecated `helium` cask)
 cask "obsidian"          # home notes; Notion is the work surface, not managed here
 cask "iina"              # video. Beat Elmedia on merit; declared so every Mac has it.
-cask "orbstack"          # containers/Linux VMs. macOS-only by design (Apple
-                         # Virtualization.framework); Ubuntu runs docker natively.
+cask "orbstack"          # containers/Linux VMs. 700 MB app, idle unless a
+                         # `docker` command wakes it; its data disk is what
+                         # grows — `docker system prune` is the diet, not
+                         # uninstalling. macOS-only by design.
 
 # Daily apps that were hand-installed and floating until 2026-09. Same
 # bundles the vendors ship — the cask is just the installer that makes
@@ -113,6 +114,7 @@ cask "steam"             # games on every device. Cask installs Valve's own
 # PDF Expert is *the* PDF app — paid for, chosen. Reader (Liquid) went
 # with it; PDFgear before that. One.
 mas "PDF Expert", id: 1055273043
-# Xcode is the one deliberate float: it's on every Mac and mas keeps it
-# current, but a `mas` line would make a fresh bootstrap pull ~30 GB
-# through the App Store before anything else runs. Install it by hand.
+# No Xcode. The Command Line Tools are the developer dir, pinned by
+# ensure_xcode_clt in macos/bootstrap.sh; retire.sh removes the 4 GB
+# bundle when it shows up. See docs/architecture.md for why it kept
+# coming back.

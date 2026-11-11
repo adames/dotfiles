@@ -2,9 +2,11 @@
 
 [![lint](https://github.com/adames/dotfiles/actions/workflows/lint.yml/badge.svg)](https://github.com/adames/dotfiles/actions/workflows/lint.yml)
 
-macOS + Ubuntu. Caps Lock is the center: tap = `Esc`, hold = `Hyper`
-(⌃⌥⌘⇧). One `bootstrap.sh` for both platforms, idempotent. Edit
-`configs/`, never the deployed copy.
+macOS + Ubuntu. One `bootstrap.sh` for both platforms, idempotent. Edit
+`configs/`, never the deployed copy. Small on purpose: the terminal is
+where coding agents work, not where I type, so what's here is the shell
+they run in, the editor I read with, and nothing that needs a permission
+pane.
 
 ## Install
 
@@ -13,8 +15,8 @@ git clone git@github.com:adames/dotfiles.git ~/dotfiles
 ~/dotfiles/bootstrap.sh
 ```
 
-macOS: 4 phases. Ubuntu: 6, skips Hyperkey + Docker. WSL runs the Ubuntu
-path — it's detected, and the clipboard is routed into Windows for you.
+macOS: 3 phases. Ubuntu: 6. WSL runs the Ubuntu path — it's detected,
+and the clipboard is routed into Windows for you.
 
 On a machine this repo doesn't own — a work Mac, a borrowed box — deploy
 the portable core and nothing else:
@@ -24,25 +26,29 @@ BOOTSTRAP_CONFIGS_ONLY=1 ~/dotfiles/bootstrap.sh
 ```
 
 That's zsh, tmux, nvim, git, starship, ripgrep and the Claude config: no
-Homebrew, no macOS defaults, no app teardown, no Accessibility prompt, no
-`chsh`. Same flag on both platforms. See
+Homebrew, no macOS defaults, no app teardown, no `chsh`. Same flag on
+both platforms. See
 [docs/architecture.md](docs/architecture.md) for what stays behind the
 line and why.
 
 Packages are declared, never assumed: `macos/Brewfile` is the whole truth.
 Anything that falls off it is torn down by `macos/retire.sh`, a one-shot
-stamped per machine. Editor stack is nvim with system language servers —
-`pyright` for Python, `tsc --lsp` (TypeScript 7's native server) for
-JS/TS — and `uv` for Python tooling.
+stamped per machine. Editor stack is nvim with two language servers —
+`pyright` for Python (`npm -g` into `~/.local`, both platforms) and
+`tsc --lsp` (TypeScript 7's native server) for JS/TS — and `uv` for
+Python tooling. One node: `node@24`, the major every project pins.
 
-No window manager: mouse + native macOS, Spotlight (`⌘Space`) as the
-launcher. What was tried and retired, and why, is in
+No window manager, no keyboard remapper: mouse + native macOS, Spotlight
+(`⌘Space`) as the launcher. Xcode is not installed — the Command Line
+Tools are the developer dir and bootstrap keeps it that way. What was
+tried and retired, and why, is in
 [docs/architecture.md](docs/architecture.md).
 
 ## Claude Code
 
 `configs/CLAUDE.md` and `configs/claude-settings.json` deploy to `~/.claude/`.
-Skills are a separate repo cloned *as* `~/.claude/skills` (bootstrap does it).
+Skills come from `~/code/skills`, whose `install.sh` symlinks them into
+`~/.claude/skills` (clone it, run it; bootstrap doesn't).
 Project memory is **not** synced through git or iCloud; `backup-claude-memory`
 mirrors `~/.claude/projects/*/memory/*.md` into `~/documents/claude-memory/`
 (iCloud), and `--restore` seeds a fresh Mac. Session transcripts stay
@@ -51,30 +57,30 @@ Where files live overall: `~/documents/REORG-PLAN-2026-09-05.md`.
 
 ## Keymap
 
-Caps is the center: **tap = `Esc`**, **hold = Hyper (⌃⌥⌘⇧)** — the Hyper
-layer is currently unbound, held in reserve. The real keymap is tmux
-(`C-Space` prefix), zsh, and nvim, documented in the `# @cs row` blocks
-next to each binding in `configs/`. Collisions and how they're resolved:
+Stock macOS. The keymap that matters is tmux (`C-Space` prefix), zsh
+vi-mode, and nvim (Space leader), documented in the `# @cs row` blocks
+next to each binding in `configs/`. Caps Lock is a Caps Lock; if you want
+it as `Esc`, macOS does that natively (Keyboard → Keyboard Shortcuts →
+Modifier Keys), per keyboard, by hand. Reaching an app is `⌘Space` and
+its name. Collisions and how they're resolved:
 [docs/architecture.md](docs/architecture.md).
 
 ## Permissions
 
-One pane: Accessibility for Hyperkey. Bootstrap's last phase probes the
-grant and opens the pane only when it can't confirm it.
+None. Nothing bootstrap installs needs a Privacy & Security grant.
 
 ## Verify
 
 ```sh
 ws-doctor                 # does every deployed config still match configs/?
-update-sys                # package sweep: brew + mas (macOS) / apt + npm -g @latest (Ubuntu)
-pgrep -x Hyperkey         # remap live
+update-sys                # package sweep: brew + mas (macOS) / apt (Ubuntu) + npm -g @latest (both)
 tests/run-all.sh          # pure-bash critical path (~2.5s)
 ```
 
 ## Reading bootstrap output
 
 Numbered phases, then a summary — the same shape on both platforms (macOS
-has 4, Ubuntu 6; the numbers come from the phase list itself, so they can't
+has 3, Ubuntu 6; the numbers come from the phase list itself, so they can't
 drift). Lines are graded, so a settled machine is quiet and anything worth
 your attention is loud:
 
@@ -104,7 +110,7 @@ needs a new rule.
 | Symptom | Fix |
 |---|---|
 | `python3` is 3.9, or `node` is the wrong major | a shell that missed `~/.zshenv`/`~/.zprofile` — re-run bootstrap, then `exec zsh` |
-| Caps-tap isn't Esc | `pgrep -x Hyperkey`; then `open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"` and toggle Hyperkey |
+| `git`/`make`/`clang` say "requires Xcode" | `xcode-select -p` points at a deleted Xcode.app — `sudo xcode-select --switch /Library/Developer/CommandLineTools` (bootstrap does this) |
 | Config edit not live | you edited the deployed copy — fix `configs/`, re-run bootstrap; `ws-doctor` catches the drift |
 | Bootstrap hangs on cask | `BOOTSTRAP_SKIP_CASKS=1 ~/dotfiles/bootstrap.sh` |
 | Doubled chars over SSH | `infocmp -x xterm-ghostty | ssh user@host -- tic -x -` |

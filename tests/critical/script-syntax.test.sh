@@ -75,7 +75,7 @@ echo "PASS: parse-checked ${#scripts[@]} shell script(s)"
 # the pattern and in the comment above, and would otherwise flag itself.
 bash4_hits="$(grep -rnE 'declare -A|local -A|mapfile |readarray ' \
   --include='*.sh' --include='ws-doctor' --include='update-system' \
-  --include='backup-claude-memory' --include='tmux-sessionizer' \
+  --include='backup-claude-memory' \
   --exclude='script-syntax.test.sh' \
   "$REPO_ROOT" 2>/dev/null \
   | grep -v '/\.git/' \

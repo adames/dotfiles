@@ -68,8 +68,10 @@ Hard limits — don't try to drive these from `defaults`:
 - **Display arrangement** (multi-monitor layout). No `defaults` surface.
 - **pmset** items that touch the SMC. Use `sudo pmset -a …` directly.
 - **sqlite-backed Settings panes** (Privacy & Security, Login Items,
-  some Sound prefs). Accessibility for Hyperkey is the last phase of
-  `macos/bootstrap.sh`: probe, and open the pane only if unconfirmed.
+  some Sound prefs). Nothing this repo installs needs them any more —
+  Hyperkey, the one Accessibility grant, is retired.
+- **Modifier Keys** (e.g. Caps Lock → Escape). Stored per keyboard under
+  a vendor/product-id key; set it by hand on each Mac if you want it.
 
 ## Apply timing
 

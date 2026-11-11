@@ -182,14 +182,43 @@ install_file() {
 # cloned *as* that directory so Claude Code discovers skills without copying.
 # Clone if absent; if the dir exists without .git, leave it and warn — local
 # skills there would be lost by a blind clone.
-ensure_claude_skills() {
-  local dir="$HOME/.claude/skills"
-  if [[ -d "$dir/.git" ]]; then return 0; fi
-  if [[ -d "$dir" ]]; then warn "~/.claude/skills exists but is not the claude-skills repo — see its README"; return 0; fi
-  if git clone -q git@github.com:adames/claude-skills.git "$dir" 2>/dev/null; then
-    ok "cloned claude-skills -> ~/.claude/skills"
+# install_npm_tools <pkg>... — `npm -g` into ~/.local (configs/npmrc), the
+# one npm install path on both platforms. Each package is gated on its
+# binary in ~/.local/bin, so a settled machine forks nothing. npm's prefix
+# is deployed here, not from config_manifest, because the installs below
+# need it and runtimes run before configs on Ubuntu. Not `npm config set`:
+# that writes an untracked ~/.npmrc with the literal expanded path, which
+# the drift check could never reconcile with a source file.
+#
+# Why npm and not brew for pyright: the brew formula depends on unversioned
+# `node`, which put a second node major next to node@24 on every Mac.
+install_npm_tools() {
+  install_file "$CONFIGS_DIR/npmrc" "$HOME/.npmrc"
+  if ! have npm; then
+    warn "npm not on PATH — skipping npm tools: $*"
+    return 0
+  fi
+  local pkg bin missing=()
+  for pkg in "$@"; do
+    case "$pkg" in
+      tree-sitter-cli) bin=tree-sitter ;;
+      pyright)         bin=pyright-langserver ;;
+      typescript)      bin=tsc ;;
+      *)               bin="$pkg" ;;
+    esac
+    [[ -x "$HOME/.local/bin/$bin" ]] || missing+=("$pkg")
+  done
+  if (( ${#missing[@]} == 0 )); then
+    ok "npm tools present: $*"
+    return 0
+  fi
+  step "npm install -g ${missing[*]}"
+  # Soft-fail: a missing server degrades nvim to plain editing (every
+  # server is gated on its binary); it shouldn't abort the whole run.
+  if run_quiet "npm install -g" npm install -g "${missing[@]}"; then
+    ok "npm tools: ${missing[*]}"
   else
-    warn "could not clone claude-skills (no SSH key yet?) — rerun bootstrap after keys are set"
+    warn "npm tools failed to install: ${missing[*]}"
   fi
 }
 
@@ -218,14 +247,13 @@ $CONFIGS_DIR/claude-settings.json|$HOME/.claude/settings.json
 $CONFIGS_DIR/nvim-init.lua|$HOME/.config/nvim/init.lua
 $CONFIGS_DIR/nvim-lazy-lock.json|$HOME/.config/nvim/lazy-lock.json
 $CONFIGS_DIR/nvim-keymaps.lua|$HOME/.config/nvim/after/plugin/keymaps.lua
-$CONFIGS_DIR/tmux-sessionizer|$HOME/.local/bin/tmux-sessionizer|755
+$CONFIGS_DIR/npmrc|$HOME/.npmrc
 $DOTFILES_DIR/bin/backup-claude-memory|$HOME/.local/bin/backup-claude-memory.sh|755
 $DOTFILES_DIR/bin/update-system|$HOME/.local/bin/update-system|755
 $DOTFILES_DIR/bin/ws-doctor|$HOME/.local/bin/ws-doctor|755
 EOF
   case "$(uname -s)" in
     Darwin) printf '%s|%s\n' "$CONFIGS_DIR/ghostty-config" "$HOME/.config/ghostty/config" ;;
-    Linux)  printf '%s|%s\n' "$CONFIGS_DIR/npmrc"          "$HOME/.npmrc" ;;
   esac
 }
 
@@ -243,7 +271,6 @@ deploy_configs() {
     [[ -n "$src" ]] || continue
     install_file "$src" "$dst" "${mode:-644}"
   done < <(config_manifest)
-  ensure_claude_skills
   ensure_gitconfig_local
 }
 

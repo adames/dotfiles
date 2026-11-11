@@ -1,8 +1,10 @@
-# npm global installs land in ~/.local: no sudo, ~/.local/bin is already
-# first on PATH in every shell mode (see zshenv), and the packages survive
-# apt's node upgrades. Declared here rather than via `npm config set`,
-# which writes an untracked ~/.npmrc the repo can't drift-check. npm
-# expands ${HOME} itself, so one file serves every machine.
+# npm global installs land in ~/.local on both platforms: no sudo,
+# ~/.local/bin is already first on PATH in every shell mode (see zshenv),
+# and the packages survive apt's node upgrades on Ubuntu and `brew
+# upgrade node@24` on macOS (globals inside brew's keg die with the keg).
+# Declared here rather than via `npm config set`, which writes an
+# untracked ~/.npmrc the repo can't drift-check. npm expands ${HOME}
+# itself, so one file serves every machine.
 prefix=${HOME}/.local
 
 # npm 11 blocks install scripts it doesn't know and prints a standing

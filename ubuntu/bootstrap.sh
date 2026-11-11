@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Idempotent Ubuntu bootstrap (VPS / VM). No Hyperkey — shell + nvim only.
+# Idempotent Ubuntu bootstrap (VPS / VM). Shell + nvim only.
 # Override dotfiles repo with DOTFILES_REPO=...
 
 set -euo pipefail
@@ -66,7 +66,7 @@ phase_system() {
   # gpg there); present on any real Ubuntu, declared for containers/WSL.
   step "installing apt packages"
   sudo apt-get install -y \
-    git curl zsh build-essential tmux htop jq gnupg \
+    git curl zsh build-essential tmux jq gnupg \
     ripgrep fd-find git-delta zoxide 2>&1 | apt_quiet
   ok "git zsh tmux jq ripgrep fd zoxide …"
 
@@ -224,37 +224,15 @@ install_nvim() {
   fi
 }
 
-install_npm_tools() {
-  # The npm prefix (~/.local) is a declared config, deployed here rather
-  # than from config_manifest because the npm installs just below need it
-  # and runtimes run before configs. Not `npm config set`: that writes an
-  # untracked ~/.npmrc with the literal expanded path, which the drift
-  # check could never reconcile with a source file.
-  install_file "$CONFIGS_DIR/npmrc" "$HOME/.npmrc"
-  # tree-sitter-cli is load-bearing, not build sugar: nvim-treesitter's main
-  # branch shells out to it for every parser it installs. Without it a fresh
-  # box compiles zero parsers and gets zero structural highlighting. (And the
-  # C-library package is NOT the CLI — that confusion cost an hour on macOS.)
-  # pyright + typescript are the two servers nvim-init.lua gates on
-  # (`pyright-langserver`, `tsc --lsp`); brew owns them on macOS.
-  # Probe ~/.local/bin, not PATH — same mise-shadow trap as /usr/bin/node.
-  local missing=()
-  [[ -x "$HOME/.local/bin/tree-sitter" ]]        || missing+=(tree-sitter-cli)
-  [[ -x "$HOME/.local/bin/pyright-langserver" ]] || missing+=(pyright)
-  [[ -x "$HOME/.local/bin/tsc" ]]                || missing+=(typescript)
-  if (( ${#missing[@]} > 0 )); then
-    step "npm install -g ${missing[*]}"
-    # Soft-fail: a missing server degrades nvim to plain editing (every
-    # server is gated on its binary); it shouldn't abort the whole run.
-    if run_quiet "npm install -g" npm install -g "${missing[@]}"; then
-      ok "npm tools: ${missing[*]}"
-    else
-      warn "npm tools failed to install: ${missing[*]}"
-    fi
-  else
-    ok "tree-sitter-cli, pyright, typescript present"
-  fi
-}
+# install_npm_tools lives in lib/common.sh (shared with macos/bootstrap.sh).
+# tree-sitter-cli is load-bearing, not build sugar: nvim-treesitter's main
+# branch shells out to it for every parser it installs. Without it a fresh
+# box compiles zero parsers and gets zero structural highlighting. (And the
+# C-library package is NOT the CLI — that confusion cost an hour on macOS.)
+# pyright + typescript are the two servers nvim-init.lua gates on
+# (`pyright-langserver`, `tsc --lsp`). macOS gets typescript and
+# tree-sitter-cli from brew and only pyright from npm; noble has no apt
+# package for any of the three.
 
 # Mirrors the mise sweep in macos/retire.sh. Runs last in phase_runtimes so
 # node, nvim and the npm tools are already in place and the box is never
@@ -282,7 +260,7 @@ phase_runtimes() {
   install_node24
   check_system_python
   install_nvim
-  install_npm_tools
+  install_npm_tools tree-sitter-cli pyright typescript
   retire_mise
 }
 
