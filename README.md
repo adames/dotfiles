@@ -2,8 +2,11 @@
 
 [![lint](https://github.com/adames/dotfiles/actions/workflows/lint.yml/badge.svg)](https://github.com/adames/dotfiles/actions/workflows/lint.yml)
 
-macOS + Ubuntu. One `bootstrap.sh` for both, idempotent. Edit `configs/`,
-never the deployed copy.
+macOS + Ubuntu. One `bootstrap.sh` for both, idempotent — re-running it
+is the only verb, so there is no half-applied state to reason about. Edit
+`configs/`, never the deployed copy: bootstrap *copies* files out, so a
+fix made to `~/.zshrc` lasts until the next run and then silently
+vanishes. `ws-doctor` exists to catch exactly that.
 
 Small on purpose. The terminal is where coding agents work, not where I
 type — a year of shell history is mostly `cd`, `ls` and `git pull` — so
@@ -21,10 +24,13 @@ git clone git@github.com:adames/dotfiles.git ~/dotfiles
 
 macOS runs 3 phases (sudo · packages · configs + defaults), Ubuntu 6. WSL
 is detected and takes the Ubuntu path, with the clipboard routed into
-Windows.
+Windows — a WSL distro's clipboard isn't Windows', so a yank would
+otherwise go nowhere.
 
 On a machine this repo doesn't own — the work Mac, a borrowed box —
-deploy the portable core and nothing else:
+deploy the portable core and nothing else. What crosses between machines
+is muscle memory (the tmux prefix, vi-mode, the nvim leader), not
+machinery, and a work Mac has its own rules about what gets installed:
 
 ```sh
 BOOTSTRAP_CONFIGS_ONLY=1 ~/dotfiles/bootstrap.sh
@@ -40,32 +46,44 @@ Ghostty → tmux (C-Space) → zsh (vi-mode, fzf, zoxide) → Neovim (Space lead
 ```
 
 - **Packages are declared, never assumed.** `macos/Brewfile` is the whole
-  truth; `brew leaves` should hold nothing it doesn't list. Anything that
-  falls off is torn down by `macos/retire.sh`, a one-shot stamped per
-  machine.
+  truth; `brew leaves` should hold nothing it doesn't list. A package that
+  floats is a difference between the two Macs nobody notices until the
+  fresh one lacks it. Anything that falls off is torn down by
+  `macos/retire.sh`, a one-shot stamped per machine so a settled Mac
+  spends milliseconds on it instead of seconds of brew forks every run.
 - **One node, one python.** `node@24` is the major every project pins and
   the Ubuntu box runs; `python@3.12` plus `uv` for anything per-project.
-  PATH lives in `.zshenv` so agents' non-interactive shells get the same
-  runtimes a typed command does.
-- **Two language servers, for reading code:** pyright (`npm -g` into
-  `~/.local`, both platforms) and `tsc --lsp` (TypeScript 7's native
-  server). nvim gates each on its binary, so a machine without one just
-  edits.
+  Two majors on one machine is how I once reviewed on node 24 while the
+  agent built on 26 and both shells reported success. PATH lives in
+  `.zshenv` for the same reason: it is the one file every zsh reads, so
+  an agent's non-interactive shell gets the runtimes a typed command does.
+- **Two language servers, for reading code:** pyright and `tsc --lsp`
+  (TypeScript 7's native server). Reading, because agents write most of
+  it now; `gd`, `gr` and `K` are how I check their work. pyright is
+  `npm -g` into `~/.local` rather than brew because brew's formula drags
+  in a second node (see above). nvim gates each server on its binary, so
+  a machine without one just edits instead of erroring on every buffer.
 - **Stock keyboard, stock launcher.** No remapper, no tiler. `⌘Space` and
-  an app's name is how you reach it.
+  an app's name is how you reach it; Spotlight now answers questions too,
+  which made the first keystroke of any hotkey layer worth less than the
+  cask, bootstrap phase and Accessibility grant it cost.
 - **No Xcode.** The Command Line Tools are the developer dir and bootstrap
-  keeps `xcode-select` pointed there, so a stray Xcode install is a
-  download, not a dependency.
+  keeps `xcode-select` pointed there. Without that pin, one Xcode install
+  takes over the developer dir, and deleting it later breaks every
+  `git`/`make`/`clang` shim — which is how it kept getting reinstalled.
 
 ## Claude Code
 
 `configs/CLAUDE.md` and `configs/claude-settings.json` deploy to
-`~/.claude/`. Skills live in a separate repo, `~/code/skills`, whose
-`install.sh` symlinks them into `~/.claude/skills`. Project memory is
-not synced through git or iCloud; `backup-claude-memory` mirrors
-`~/.claude/projects/*/memory/*.md` into `~/documents/claude-memory/`
-(iCloud), and `--restore` seeds a fresh Mac. Session transcripts stay
-per-machine — `claude --remote-control` reaches a session from elsewhere.
+`~/.claude/`. Skills live in a separate repo, `~/code/skills`, because
+they serve every harness (Claude Code, Codex, Devin, ChatGPT), not this
+one; its `install.sh` symlinks them into `~/.claude/skills`. Project
+memory is Claude's own working state and churns every session, so it is
+neither in git (noise) nor live in iCloud (a sync mid-write can clobber
+it). Instead `backup-claude-memory` *copies* `~/.claude/projects/*/memory/*.md`
+into `~/documents/claude-memory/` (iCloud), and `--restore` seeds a fresh
+Mac. Session transcripts stay per-machine — `claude --remote-control`
+reaches a session from elsewhere.
 
 ## Verify
 
@@ -74,6 +92,13 @@ ws-doctor                 # does every deployed config still match configs/?
 update-sys                # brew + mas (macOS) · apt (Ubuntu) · npm -g @latest (both)
 tests/run-all.sh          # pure-bash critical path (~2.5s)
 ```
+
+`ws-doctor` reads the same manifest the bootstraps deploy from, so its
+coverage can't drift from reality. `update-sys` covers npm globals
+because `npm install -g` is install-once: nothing else would ever move
+pyright forward. The tests deploy into a throwaway `HOME` and look at
+what lands, never grep source text — a test that a script *contains* a
+string passes while the thing it names is broken.
 
 ## Reading bootstrap output
 
