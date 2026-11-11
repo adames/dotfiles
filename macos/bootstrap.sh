@@ -118,8 +118,8 @@ phase_packages() {
     warn "Devin.app missing — install from https://devin.ai (no cask)"
   fi
 
-  # Upgrade pass — brew + mas. Same script the user runs standalone as
-  # `update-sys`; bootstrap calls it so a fresh re-run
+  # Upgrade pass — brew + mas + npm globals. Same script the user runs
+  # standalone as `update-sys`; bootstrap calls it so a fresh re-run
   # leaves the machine fully current, not just package-list-complete.
   # Non-fatal: a flaky upgrade must not abort before configs deploy.
   if bash "$DOTFILES_DIR/bin/update-system"; then

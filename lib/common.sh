@@ -178,10 +178,6 @@ install_file() {
   ok "installed ${dst/#$HOME/~}"
 }
 
-# ensure_claude_skills — ~/.claude/skills is its own repo (adames/claude-skills),
-# cloned *as* that directory so Claude Code discovers skills without copying.
-# Clone if absent; if the dir exists without .git, leave it and warn — local
-# skills there would be lost by a blind clone.
 # install_npm_tools <pkg>... — `npm -g` into ~/.local (configs/npmrc), the
 # one npm install path on both platforms. Each package is gated on its
 # binary in ~/.local/bin, so a settled machine forks nothing. npm's prefix

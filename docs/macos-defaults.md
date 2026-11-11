@@ -3,7 +3,9 @@
 `macos/macos-defaults.sh` is run by `phase_apply` so both Macs (`m3` + `m1`)
 converge on the same appearance / keyboard / Dock / Finder / Spotlight /
 trackpad posture. Encoded values live in the script — edit there, re-run
-`./macos/bootstrap.sh` to apply (idempotent).
+`./macos/bootstrap.sh` to apply (idempotent). Spotlight gets the most
+attention because it is the launcher: there is no Raycast, no Alfred, no
+hotkey layer, so `⌘Space` has to be fast and show apps first.
 
 ## What's covered
 
@@ -68,10 +70,11 @@ Hard limits — don't try to drive these from `defaults`:
 - **Display arrangement** (multi-monitor layout). No `defaults` surface.
 - **pmset** items that touch the SMC. Use `sudo pmset -a …` directly.
 - **sqlite-backed Settings panes** (Privacy & Security, Login Items,
-  some Sound prefs). Nothing this repo installs needs them any more —
-  Hyperkey, the one Accessibility grant, is retired.
+  some Sound prefs). Nothing this repo installs needs them.
 - **Modifier Keys** (e.g. Caps Lock → Escape). Stored per keyboard under
   a vendor/product-id key; set it by hand on each Mac if you want it.
+  This is the vanilla replacement for the retired Hyperkey, should the
+  Esc-on-Caps habit ever come back.
 
 ## Apply timing
 
